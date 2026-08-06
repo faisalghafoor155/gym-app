@@ -26,15 +26,19 @@ login for it.
 
 ## Running it
 
-The Docker setup lives outside this folder so the app tree stays clean:
+Everything Docker-related lives in `docker/`, so `backend/` and `frontend/`
+hold nothing but app code:
 
 ```sh
-cd ../Gym App-docker
+cd docker
 cp .env.example .env      # fill in the values
 docker compose up -d --build
 ```
 
-Then open <http://localhost:8080>. See that folder's README for details.
+Then open <http://localhost:8080>. Three containers come up — Postgres, the
+API, and nginx serving the built frontend and proxying `/api`. Only nginx is
+published; the API and database stay on the internal network. See
+[docker/README.md](docker/README.md) for details.
 
 ### Without Docker
 
