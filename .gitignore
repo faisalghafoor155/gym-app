@@ -1,0 +1,23 @@
+node_modules/
+
+# Never commit real secrets — see backend/.env.example
+.env
+.env.*
+!.env.example
+
+dist/
+build/
+*.log
+npm-debug.log*
+*.tsbuildinfo
+
+backend/src/generated/
+
+# Vendored AI-assistant tooling docs, not part of the app
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
+
+.DS_Store
+Thumbs.db
