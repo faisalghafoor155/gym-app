@@ -42,6 +42,19 @@ services:
       # cookie would be dropped by the browser there, so it is switched off
       # until the app sits behind TLS — set HTTPS=true once it does.
       HTTPS: ${HTTPS:-false}
+      # Password-reset links are built from this, so it has to be the URL the
+      # browser actually uses — not the container's own address.
+      APP_URL: ${APP_URL:-http://localhost:${APP_PORT:-8080}}
+      # Optional. Unset means reset links go to `docker compose logs backend`
+      # instead of an inbox.
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      # Read by services/google.ts to verify sign-in tokens. Without it the
+      # Google button is present but every attempt is rejected.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     depends_on:
       db:
         condition: service_healthy
