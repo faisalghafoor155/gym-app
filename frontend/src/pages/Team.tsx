@@ -11,11 +11,83 @@ import { useAuth } from '../context/AuthContext';
 import type { GymUser, Member, Role } from '../types';
 import toast from 'react-hot-toast';
 
+/** How a new account gets its password: emailed invite, or one the owner
+ *  types. Invite is the default; the manual route exists for the helper whose
+ *  email does not work. */
+type AccountMethod = 'invite' | 'password';
+
+/** What the API answers when an account was created by invite. */
+interface InviteResult {
+  emailed: boolean;
+  /** Only present when the mail could not be sent, so the owner can pass the
+   *  link on themselves. */
+  link?: string;
+}
+
 const roleStyles: Record<Role, { label: string; icon: typeof Shield; className: string }> = {
   owner: { label: 'Owner', icon: Crown, className: 'bg-purple-50 text-purple-700 border-purple-200' },
   staff: { label: 'Staff', icon: UserCog, className: 'bg-blue-50 text-blue-700 border-blue-200' },
   member: { label: 'Member', icon: User, className: 'bg-gray-50 text-gray-600 border-gray-200' },
 };
+
+/**
+ * Picks how the new account gets a password, and renders the password field
+ * only when the owner has chosen to set one. Shared by both create forms so
+ * the two cannot drift apart.
+ */
+function PasswordMethod({ method, onMethod, password, onPassword }: {
+  method: AccountMethod;
+  onMethod: (m: AccountMethod) => void;
+  password: string;
+  onPassword: (p: string) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <FieldLabel required>How should they get in?</FieldLabel>
+      <div className="grid grid-cols-2 gap-2">
+        {([
+          { value: 'invite', title: 'Email an invite', hint: 'They pick their own password' },
+          { value: 'password', title: 'Set a password', hint: 'You share it with them' },
+        ] as const).map(o => (
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onMethod(o.value)}
+            aria-pressed={method === o.value}
+            className={`border rounded-xl py-2.5 px-3 text-left transition-all ${focusRing} ${
+              method === o.value
+                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+            }`}
+          >
+            <p className="font-semibold text-xs">{o.title}</p>
+            <p className="text-xs opacity-60 mt-0.5 leading-snug">{o.hint}</p>
+          </button>
+        ))}
+      </div>
+
+      {method === 'password' ? (
+        <div>
+          <FieldLabel required>Temporary password</FieldLabel>
+          <input
+            type="password" required minLength={8} value={password}
+            onChange={e => onPassword(e.target.value)}
+            placeholder="Min 8 characters"
+            className={inputClass}
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Share this with them; they can change it after signing in.
+          </p>
+        </div>
+      ) : (
+        <p className="text-xs text-gray-500 bg-blue-50/60 border border-blue-100 rounded-xl px-3 py-2.5 leading-relaxed">
+          They get an email with a link to choose their own password. The link
+          lasts 48 hours and works once — you never see the password.
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function Team() {
   const { user: me, isOwner } = useAuth();
@@ -27,6 +99,12 @@ export default function Team() {
   const [showMemberLogin, setShowMemberLogin] = useState(false);
   const [staffForm, setStaffForm] = useState({ name: '', email: '', password: '' });
   const [loginForm, setLoginForm] = useState({ memberId: '', email: '', password: '' });
+  // How the new account gets its password. Inviting is the default: an owner
+  // who never learns the password cannot leak it.
+  const [staffMethod, setStaffMethod] = useState<AccountMethod>('invite');
+  const [loginMethod, setLoginMethod] = useState<AccountMethod>('invite');
+  // Shown when an invite could not be emailed, so the link is not lost.
+  const [manualLink, setManualLink] = useState<string | null>(null);
   // Both are destructive enough to confirm, and both name the person, so they
   // share one dialog rather than two near-identical ones.
   const [confirming, setConfirming] = useState<{ user: GymUser; action: 'delete' | 'transfer' } | null>(null);
@@ -45,12 +123,29 @@ export default function Team() {
     m => !users.some(u => u.memberId === m.id),
   );
 
+  /**
+   * Reports how the account was handed over. An invite that could not be
+   * emailed is not a failure — the account exists — but the owner has to be
+   * told, or they will wait for a message that never arrives.
+   */
+  const announce = (invite: InviteResult | null, created: string) => {
+    if (!invite) { toast.success(`${created} — they can sign in now`); return; }
+    if (invite.emailed) { toast.success(`${created} — invite sent`); return; }
+    setManualLink(invite.link ?? null);
+    toast(`${created}, but the invite could not be emailed`, { icon: '⚠️' });
+  };
+
   const handleAddStaff = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('/users/staff', staffForm);
-      toast.success('Staff account created');
+      // Omitting the password is what tells the API to invite instead.
+      const { data } = await api.post<{ invite: InviteResult | null }>('/users/staff', {
+        name: staffForm.name,
+        email: staffForm.email,
+        ...(staffMethod === 'password' && { password: staffForm.password }),
+      });
+      announce(data.invite, 'Staff account created');
       setShowStaff(false);
       setStaffForm({ name: '', email: '', password: '' });
       await load();
@@ -65,8 +160,12 @@ export default function Team() {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post('/users/member-login', loginForm);
-      toast.success('Member login created');
+      const { data } = await api.post<{ invite: InviteResult | null }>('/users/member-login', {
+        memberId: loginForm.memberId,
+        email: loginForm.email,
+        ...(loginMethod === 'password' && { password: loginForm.password }),
+      });
+      announce(data.invite, 'Member login created');
       setShowMemberLogin(false);
       setLoginForm({ memberId: '', email: '', password: '' });
       await load();
@@ -229,14 +328,12 @@ export default function Team() {
                 placeholder="helper@gym.com"
                 className={inputClass} />
             </div>
-            <div>
-              <FieldLabel required>Temporary password</FieldLabel>
-              <input type="password" required minLength={8} value={staffForm.password}
-                onChange={e => setStaffForm(f => ({ ...f, password: e.target.value }))}
-                placeholder="Min 8 characters"
-                className={inputClass} />
-              <p className="text-xs text-gray-400 mt-1">Share this with them; they can change it after signing in.</p>
-            </div>
+            <PasswordMethod
+              method={staffMethod}
+              onMethod={setStaffMethod}
+              password={staffForm.password}
+              onPassword={p => setStaffForm(f => ({ ...f, password: p }))}
+            />
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowStaff(false)}
                 className={`flex-1 ${secondaryButton}`}>
@@ -281,13 +378,12 @@ export default function Team() {
                     placeholder="member@example.com"
                     className={inputClass} />
                 </div>
-                <div>
-                  <FieldLabel required>Temporary password</FieldLabel>
-                  <input type="password" required minLength={8} value={loginForm.password}
-                    onChange={e => setLoginForm(f => ({ ...f, password: e.target.value }))}
-                    placeholder="Min 8 characters"
-                    className={inputClass} />
-                </div>
+                <PasswordMethod
+                  method={loginMethod}
+                  onMethod={setLoginMethod}
+                  password={loginForm.password}
+                  onPassword={p => setLoginForm(f => ({ ...f, password: p }))}
+                />
               </>
             )}
             <div className="flex gap-3 pt-2">
@@ -301,6 +397,42 @@ export default function Team() {
               </button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* The account exists but nothing was emailed, so the link has to be
+          handed over by hand — losing this dialog means re-inviting. */}
+      {manualLink && (
+        <Modal title="Send this link to them" onClose={() => setManualLink(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500">
+              The account was created, but the invite email could not be sent —
+              no mail service is set up. Copy this link and give it to them
+              yourself. It lasts 48 hours and works once.
+            </p>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
+              <p className="text-xs text-gray-700 break-all font-mono leading-relaxed">
+                {manualLink}
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard.writeText(manualLink)
+                    .then(() => toast.success('Link copied'))
+                    .catch(() => toast.error('Could not copy — select the text instead'));
+                }}
+                className={`flex-1 ${primaryButton}`}
+              >
+                Copy link
+              </button>
+              <button type="button" onClick={() => setManualLink(null)}
+                className={`flex-1 ${secondaryButton}`}>
+                Done
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
 

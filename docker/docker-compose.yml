@@ -45,8 +45,10 @@ services:
       # Password-reset links are built from this, so it has to be the URL the
       # browser actually uses — not the container's own address.
       APP_URL: ${APP_URL:-http://localhost:${APP_PORT:-8080}}
-      # Optional. Unset means reset links go to `docker compose logs backend`
-      # instead of an inbox.
+      # Optional. With none of these set, invite and reset links go to
+      # `docker compose logs backend` instead of an inbox.
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}

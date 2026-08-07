@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import AcceptInvite from './pages/AcceptInvite';
 import Dashboard from './pages/Dashboard';
 import Members from './pages/Members';
 import Attendance from './pages/Attendance';
@@ -65,6 +66,8 @@ function AppRoutes() {
       <Route path="/register" element={isAuth ? <HomeRedirect /> : <Register />} />
       <Route path="/forgot-password" element={isAuth ? <HomeRedirect /> : <ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      {/* Public: the invitee has no session yet, and is signed in on accept. */}
+      <Route path="/accept-invite" element={<AcceptInvite />} />
       <Route path="/" element={<HomeRedirect />} />
       <Route
         path="/*"
