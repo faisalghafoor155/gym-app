@@ -1,54 +1,88 @@
 import { useEffect, useState, useRef, type ChangeEvent, type FormEvent } from 'react';
-import { Plus, Pencil, Trash2, Search, User, Phone, Calendar, CreditCard, Camera } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, Camera } from 'lucide-react';
 import Badge from '../components/Badge';
+import ConfirmDialog from '../components/ConfirmDialog';
+import {
+  Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl,
+  inputClass, primaryButton, secondaryButton, focusRing,
+} from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useDialog } from '../hooks/useDialog';
-import type { Member, MembershipType, MemberStatus } from '../types';
+import type { Gender, Member, MembershipPlan } from '../types';
 import toast from 'react-hot-toast';
-
-const MEMBERSHIP_DURATIONS: Record<MembershipType, number> = {
-  monthly: 1, quarterly: 3, yearly: 12,
-};
 
 interface MemberForm {
   name: string;
   email: string;
   phone: string;
   photo: string;
-  membershipType: MembershipType;
-  feeAmount: string;
+  gender: Gender | '';
+  dateOfBirth: string;
+  address: string;
+  emergencyContact: string;
+  /** Only sent when adding — an existing member's membership is changed from
+   *  the membership flow, not by editing the person. */
+  planId: string;
   startDate: string;
-  /** Preview only — the API derives the real end date from startDate. */
-  _endDate?: string;
 }
 
 const emptyForm: MemberForm = {
   name: '', email: '', phone: '', photo: '',
-  membershipType: 'monthly', feeAmount: '', startDate: '',
+  gender: '', dateOfBirth: '', address: '', emergencyContact: '',
+  planId: '', startDate: '',
 };
 
-type StatusFilter = 'all' | MemberStatus;
+/** The filters worth offering. The stored statuses a member never sees
+ *  (`superseded`) are not among them. */
+const FILTERS = ['all', 'active', 'expiring', 'expired', 'lapsed', 'none'] as const;
+type StatusFilter = (typeof FILTERS)[number];
+
+const isFilter = (v: string | null): v is StatusFilter =>
+  !!v && (FILTERS as readonly string[]).includes(v);
 
 function getInitials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 }
 
-function computeEndDate(startDate: string, membershipType: MembershipType): string {
+/** Local preview of what the server will calculate. The server's answer is
+ *  the one that counts — this only saves the user a round trip to see it. */
+function previewExpiry(startDate: string, durationDays: number): string {
   if (!startDate) return '';
   const d = new Date(startDate);
-  d.setMonth(d.getMonth() + (MEMBERSHIP_DURATIONS[membershipType] || 1));
+  d.setDate(d.getDate() + durationDays);
   return d.toISOString().split('T')[0]!;
+}
+
+/**
+ * How a member sorts into the filter tabs. Lapsed wins over expired: once the
+ * server has retired somebody, "expired 94 days ago" is no longer the useful
+ * thing to say about them.
+ */
+function memberBucket(m: Member): Exclude<StatusFilter, 'all'> {
+  if (m.status === 'inactive') return 'lapsed';
+  if (!m.currentMembership) return 'none';
+  const s = m.currentMembership.status;
+  return s === 'active' || s === 'expiring' || s === 'expired' ? s : 'none';
 }
 
 export default function Members() {
   const [members, setMembers] = useState<Member[]>([]);
+  const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<MemberForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<StatusFilter>('all');
+  const [params, setParams] = useSearchParams();
+  // The dashboard deep-links here with a tab already chosen, e.g. the
+  // follow-up panel's "View all" landing on Expired.
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>(() => {
+    const s = params.get('status');
+    return isFilter(s) ? s : 'all';
+  });
+  const [deleting, setDeleting] = useState<Member | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const modalRef = useDialog(showModal, () => setShowModal(false));
 
@@ -58,19 +92,37 @@ export default function Members() {
       .catch(err => toast.error(apiError(err, 'Could not load members')))
       .finally(() => setLoading(false));
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    // The gym's own price list, so the plan picker offers what this gym
+    // actually sells rather than three hardcoded durations.
+    void api.get<MembershipPlan[]>('/membership-plans')
+      .then(r => {
+        setPlans(r.data);
+        // The dashboard's "Add Member" shortcut arrives as ?new=1. Opening
+        // after the plans land is what lets the form preselect one; the param
+        // is then cleared so a refresh does not reopen the modal.
+        if (params.get('new')) {
+          openAdd(r.data);
+          setParams(prev => {
+            const next = new URLSearchParams(prev);
+            next.delete('new');
+            return next;
+          }, { replace: true });
+        }
+      })
+      .catch(err => toast.error(apiError(err, 'Could not load membership plans')));
+    // Deliberately once on mount: this is a landing hint, not a live binding.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const set = <K extends keyof MemberForm>(k: K) => (v: MemberForm[K]) =>
-    setForm(f => {
-      const updated = { ...f, [k]: v };
-      if (k === 'startDate' || k === 'membershipType') {
-        updated._endDate = computeEndDate(
-          k === 'startDate' ? (v as string) : f.startDate,
-          k === 'membershipType' ? (v as MembershipType) : f.membershipType,
-        );
-      }
-      return updated;
-    });
+    setForm(f => ({ ...f, [k]: v }));
+
+  const selectedPlan = plans.find(p => p.id === form.planId);
+  const expiryPreview = selectedPlan
+    ? previewExpiry(form.startDate, selectedPlan.durationDays)
+    : '';
 
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -81,10 +133,18 @@ export default function Members() {
     reader.readAsDataURL(file);
   };
 
-  const openAdd = () => {
+  // `from` lets the caller pass a freshly-fetched list: on the ?new=1 path the
+  // plans have arrived but `plans` state has not repainted yet, and reading it
+  // there would preselect nothing.
+  const openAdd = (from: MembershipPlan[] = plans) => {
     const today = new Date().toISOString().split('T')[0]!;
     setEditing(null);
-    setForm({ ...emptyForm, startDate: today, _endDate: computeEndDate(today, 'monthly') });
+    setForm({
+      ...emptyForm,
+      startDate: today,
+      // Preselect the cheapest offered plan so the common case is one click.
+      planId: from[0]?.id ?? '',
+    });
     setShowModal(true);
   };
 
@@ -93,10 +153,13 @@ export default function Members() {
     setForm({
       name: m.name, email: m.email || '', phone: m.phone || '',
       photo: m.photo || '',
-      membershipType: m.membershipType,
-      feeAmount: m.feeAmount != null ? String(m.feeAmount) : '',
-      startDate: m.startDate.split('T')[0]!,
-      _endDate: m.endDate.split('T')[0]!,
+      gender: m.gender ?? '',
+      dateOfBirth: m.dateOfBirth ? m.dateOfBirth.split('T')[0]! : '',
+      address: m.address ?? '',
+      emergencyContact: m.emergencyContact ?? '',
+      // Membership is not edited here — changing what somebody bought is its
+      // own action, with its own audit trail.
+      planId: '', startDate: '',
     });
     setShowModal(true);
   };
@@ -110,16 +173,22 @@ export default function Members() {
         email: form.email,
         phone: form.phone,
         photo: form.photo,
-        membershipType: form.membershipType,
-        // The API rejects "" for a numeric field, so omit an empty fee.
-        ...(form.feeAmount !== '' && { feeAmount: form.feeAmount }),
-        startDate: form.startDate,
+        gender: form.gender,
+        // The API rejects "" for a date, so omit an unset one.
+        ...(form.dateOfBirth && { dateOfBirth: form.dateOfBirth }),
+        address: form.address,
+        emergencyContact: form.emergencyContact,
       };
       if (editing) {
         await api.put(`/members/${editing}`, payload);
         toast.success('Member updated');
       } else {
-        await api.post('/members', payload);
+        // A plan sells the membership in the same call; without one the member
+        // is registered and can be given a membership later.
+        await api.post('/members', {
+          ...payload,
+          ...(form.planId && { planId: form.planId, startDate: form.startDate }),
+        });
         toast.success('Member added successfully');
       }
       setShowModal(false);
@@ -131,112 +200,130 @@ export default function Members() {
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  const handleDelete = async () => {
+    if (!deleting) return;
+    setSaving(true);
     try {
-      await api.delete(`/members/${id}`);
+      await api.delete(`/members/${deleting.id}`);
       toast.success('Member deleted');
+      setDeleting(null);
       await load();
     } catch (err) {
       toast.error(apiError(err, 'Failed to delete'));
+    } finally {
+      setSaving(false);
     }
   };
 
   const filtered = members.filter(m => {
+    const q = search.toLowerCase();
     const matchSearch = !search ||
-      m.name.toLowerCase().includes(search.toLowerCase()) ||
+      m.name.toLowerCase().includes(q) ||
+      m.memberNo.toLowerCase().includes(q) ||
       (m.phone && m.phone.includes(search));
-    const matchStatus = filterStatus === 'all' || m.status === filterStatus;
+    const bucket = memberBucket(m);
+    // "All" means everyone still on the books. Somebody who stopped coming two
+    // months ago is not part of that, so they are reachable only from their own
+    // tab — or from a search, where the person typing a name wants that person.
+    const matchStatus = filterStatus === 'all'
+      ? bucket !== 'lapsed' || !!search
+      : bucket === filterStatus;
     return matchSearch && matchStatus;
   });
 
-  const counts: Record<StatusFilter, number> = {
-    all: members.length,
-    active: members.filter(m => m.status === 'active').length,
-    expiring: members.filter(m => m.status === 'expiring').length,
-    expired: members.filter(m => m.status === 'expired').length,
-  };
+  const counts = members.reduce<Record<StatusFilter, number>>(
+    (acc, m) => { acc[memberBucket(m)]++; return acc; },
+    { all: 0, active: 0, expiring: 0, expired: 0, lapsed: 0, none: 0 },
+  );
+  counts.all = members.length - counts.lapsed;
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <PageLoader />;
+
+  const hasFilters = filterStatus !== 'all' || search !== '';
+  const clearFilters = () => { setFilterStatus('all'); setSearch(''); };
 
   return (
-    <div className="p-4 sm:p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 mb-6">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Members</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{members.length} total members</p>
-        </div>
-        <button onClick={openAdd}
-          className="flex items-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm shrink-0">
-          <Plus size={16} /> <span className="hidden sm:inline">Add Member</span><span className="sm:hidden">Add</span>
-        </button>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {([
-          { key: 'all', label: 'All' },
-          { key: 'active', label: 'Active' },
-          { key: 'expiring', label: 'Expiring' },
-          { key: 'expired', label: 'Expired' },
-        ] as const).map(({ key, label }) => (
-          <button key={key} onClick={() => setFilterStatus(key)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
-              filterStatus === key
-                ? key === 'expired' ? 'bg-red-600 text-white'
-                  : key === 'expiring' ? 'bg-yellow-500 text-white'
-                  : 'bg-blue-600 text-white'
-                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}>
-            {label}
-            <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${
-              filterStatus === key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-            }`}>{counts[key]}</span>
+    <Page>
+      <PageHeader
+        icon={Users}
+        title="Members"
+        subtitle={`${members.length} ${members.length === 1 ? 'member' : 'members'} on the books`}
+        action={
+          <button onClick={() => openAdd()} className={primaryButton}>
+            <Plus size={16} />
+            <span className="hidden sm:inline">Add Member</span><span className="sm:hidden">Add</span>
           </button>
-        ))}
+        }
+      />
 
-        {/* Search */}
-        <div className="relative w-full sm:w-auto sm:ml-auto">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search name or phone..."
-            aria-label="Search members"
-            className="pl-8 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-56"
+      {/* Filters */}
+      <Card className="p-3 sm:p-4 mb-5">
+        <div className="flex flex-wrap items-center gap-3">
+          <SegmentedControl
+            value={filterStatus}
+            onChange={setFilterStatus}
+            options={[
+              { value: 'all', label: 'All', count: counts.all },
+              { value: 'active', label: 'Active', count: counts.active },
+              { value: 'expiring', label: 'Expiring', count: counts.expiring },
+              { value: 'expired', label: 'Expired', count: counts.expired },
+              { value: 'lapsed', label: 'Lapsed', count: counts.lapsed },
+              { value: 'none', label: 'No membership', count: counts.none },
+            ]}
           />
+          <div className="relative flex-1 min-w-50 sm:ml-auto sm:max-w-xs">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="search"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search name, ID or phone..."
+              aria-label="Search members"
+              className={`${inputClass} pl-9`}
+            />
+          </div>
         </div>
-      </div>
+      </Card>
 
       {/* Members Grid */}
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
-          <User size={40} className="text-gray-300 mx-auto mb-3" />
-          <p className="font-semibold text-gray-500">No members found</p>
-          <p className="text-sm text-gray-400 mt-1">
-            {members.length === 0 ? 'Add your first member to get started' : 'Try adjusting your search or filter'}
-          </p>
-        </div>
+        hasFilters ? (
+          <EmptyState
+            icon={Search}
+            title="No members match these filters"
+            hint="Try a different status tab, or clear the search."
+            action={
+              <button onClick={clearFilters} className={secondaryButton}>Clear filters</button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={User}
+            title="No members yet"
+            hint="Register the first member to start tracking memberships, attendance and fees."
+            action={
+              <button onClick={() => openAdd()} className={primaryButton}>
+                <Plus size={16} /> Add the first member
+              </button>
+            }
+          />
+        )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map(m => {
-            const daysLeft = Math.ceil((new Date(m.endDate).getTime() - Date.now()) / 86400000);
+            const ms = m.currentMembership;
+            // A lapsed card should recede, not shout — the red treatment is
+            // for members somebody is still chasing.
+            const lapsed = m.status === 'inactive';
             return (
-              <div key={m.id} className={`bg-white rounded-2xl border p-5 hover:shadow-md transition-shadow ${
-                m.status === 'expired' ? 'border-red-200 bg-red-50/30' :
-                m.status === 'expiring' ? 'border-yellow-200 bg-yellow-50/30' :
-                'border-gray-200'
+              <Card key={m.id} className={`p-5 hover:shadow-md transition-shadow ${
+                lapsed ? 'border-slate-200 bg-slate-50/60 opacity-75' :
+                ms?.status === 'expired' ? 'border-red-200 bg-red-50/30' :
+                ms?.status === 'expiring' ? 'border-yellow-200 bg-yellow-50/30' : ''
               }`}>
                 <div className="flex items-start gap-3 mb-4">
                   {/* Avatar */}
-                  <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
                     {m.photo
                       ? <img src={m.photo} alt={m.name} className="w-full h-full object-cover" />
                       : <span className="text-white font-bold text-sm">{getInitials(m.name)}</span>
@@ -244,56 +331,65 @@ export default function Members() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-gray-900 truncate">{m.name}</h3>
+                    <p className="text-xs font-medium text-gray-400 mt-0.5">{m.memberNo}</p>
                     <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
                       <Phone size={11} /> {m.phone || 'No phone'}
                     </p>
                   </div>
-                  <Badge status={m.status} />
+                  {lapsed
+                    ? <Badge status="lapsed" />
+                    : ms && <Badge status={ms.status} />}
                 </div>
 
-                <div className="space-y-2 text-xs text-gray-500">
-                  <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                    <span className="flex items-center gap-1.5"><Calendar size={12} /> Plan</span>
-                    <span className="font-semibold text-gray-800 capitalize">{m.membershipType}</span>
-                  </div>
-                  <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                    <span className="flex items-center gap-1.5"><CreditCard size={12} /> Fee</span>
-                    <span className="font-semibold text-gray-800">
-                      {m.feeAmount ? `Rs. ${Number(m.feeAmount).toLocaleString()}` : '—'}
-                    </span>
-                  </div>
-                  <div className={`flex items-center justify-between rounded-lg px-3 py-2 ${
-                    m.status === 'expired' ? 'bg-red-100' :
-                    m.status === 'expiring' ? 'bg-yellow-100' : 'bg-green-50'
-                  }`}>
-                    <span className="flex items-center gap-1.5">
-                      <Calendar size={12} /> Expiry
-                    </span>
-                    <span className={`font-bold text-xs ${
-                      m.status === 'expired' ? 'text-red-600' :
-                      m.status === 'expiring' ? 'text-yellow-700' : 'text-green-700'
+                {ms ? (
+                  <div className="space-y-2 text-xs text-gray-500">
+                    <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                      <span className="flex items-center gap-1.5"><Calendar size={12} /> Plan</span>
+                      <span className="font-semibold text-gray-800">{ms.planName}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                      <span className="flex items-center gap-1.5"><CreditCard size={12} /> Fee</span>
+                      <span className="font-semibold text-gray-800">
+                        Rs. {ms.pricePaid.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className={`flex items-center justify-between rounded-lg px-3 py-2 ${
+                      ms.status === 'expired' ? 'bg-red-100' :
+                      ms.status === 'expiring' ? 'bg-yellow-100' : 'bg-green-50'
                     }`}>
-                      {m.status === 'expired'
-                        ? `Expired ${Math.abs(daysLeft)}d ago`
-                        : m.status === 'expiring'
-                        ? `${daysLeft}d left`
-                        : new Date(m.endDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })
-                      }
-                    </span>
+                      <span className="flex items-center gap-1.5">
+                        <Calendar size={12} /> Expiry
+                      </span>
+                      <span className={`font-bold text-xs ${
+                        ms.status === 'expired' ? 'text-red-600' :
+                        ms.status === 'expiring' ? 'text-yellow-700' : 'text-green-700'
+                      }`}>
+                        {ms.status === 'expired'
+                          ? `Expired ${Math.abs(ms.daysLeft)}d ago`
+                          : ms.status === 'expiring'
+                          ? `${ms.daysLeft}d left`
+                          : new Date(ms.expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })
+                        }
+                      </span>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="rounded-lg bg-gray-50 px-3 py-4 text-center text-xs text-gray-400">
+                    No membership yet
+                  </div>
+                )}
 
                 <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
                   <button onClick={() => openEdit(m)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors ${focusRing}`}>
                     <Pencil size={12} /> Edit
                   </button>
-                  <button onClick={() => void handleDelete(m.id, m.name)}
-                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-red-100 text-red-500 hover:bg-red-50 transition-colors">
+                  <button onClick={() => setDeleting(m)} aria-label={`Delete ${m.name}`}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-red-100 text-red-500 hover:bg-red-50 transition-colors ${focusRing}`}>
                     <Trash2 size={12} />
                   </button>
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -324,7 +420,7 @@ export default function Members() {
               <div className="flex flex-col items-center gap-3">
                 <div
                   onClick={() => photoRef.current?.click()}
-                  className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center cursor-pointer overflow-hidden relative group"
+                  className="w-20 h-20 rounded-2xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center cursor-pointer overflow-hidden relative group"
                 >
                   {form.photo
                     ? <img src={form.photo} alt="preview" className="w-full h-full object-cover" />
@@ -351,7 +447,7 @@ export default function Members() {
                   value={form.name}
                   onChange={e => set('name')(e.target.value)}
                   placeholder="Ahmed Khan"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                 />
               </div>
 
@@ -362,81 +458,143 @@ export default function Members() {
                   value={form.phone}
                   onChange={e => set('phone')(e.target.value)}
                   placeholder="03001234567"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                 />
               </div>
 
-              {/* Membership Type */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Membership Plan</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { value: 'monthly', label: 'Monthly', sub: '1 month' },
-                    { value: 'quarterly', label: 'Quarterly', sub: '3 months' },
-                    { value: 'yearly', label: 'Yearly', sub: '12 months' },
-                  ] as const).map(opt => (
-                    <button key={opt.value} type="button"
-                      onClick={() => set('membershipType')(opt.value)}
-                      className={`border rounded-xl py-2.5 px-2 text-center transition-all ${
-                        form.membershipType === opt.value
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                      }`}>
-                      <p className="font-semibold text-xs">{opt.label}</p>
-                      <p className="text-xs opacity-60 mt-0.5">{opt.sub}</p>
-                    </button>
-                  ))}
+              {/* Gender + Date of birth */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="member-gender" className="block text-sm font-semibold text-gray-700 mb-1.5">Gender</label>
+                  <select
+                    id="member-gender"
+                    value={form.gender}
+                    onChange={e => set('gender')(e.target.value as Gender | '')}
+                    className={inputClass}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
                 </div>
-              </div>
-
-              {/* Fee */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Fee Amount (Rs.)</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">Rs.</span>
+                <div>
+                  <label htmlFor="member-dob" className="block text-sm font-semibold text-gray-700 mb-1.5">Date of Birth</label>
                   <input
-                    type="number"
-                    min="0"
-                    value={form.feeAmount}
-                    onChange={e => set('feeAmount')(e.target.value)}
-                    placeholder="2500"
-                    className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    id="member-dob"
+                    type="date"
+                    max={new Date().toISOString().split('T')[0]}
+                    value={form.dateOfBirth}
+                    onChange={e => set('dateOfBirth')(e.target.value)}
+                    className={inputClass}
                   />
                 </div>
               </div>
 
-              {/* Start Date */}
+              {/* Address */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Join / Fee Payment Date *</label>
+                <label htmlFor="member-address" className="block text-sm font-semibold text-gray-700 mb-1.5">Address</label>
                 <input
-                  type="date"
-                  required
-                  value={form.startDate}
-                  onChange={e => set('startDate')(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  id="member-address"
+                  value={form.address}
+                  onChange={e => set('address')(e.target.value)}
+                  placeholder="House 12, Street 4, Lahore"
+                  className={inputClass}
                 />
               </div>
 
-              {/* Auto Expiry Preview */}
-              {form._endDate && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-2">
-                  <Calendar size={15} className="text-blue-600 shrink-0" />
+              {/* Emergency contact */}
+              <div>
+                <label htmlFor="member-emergency" className="block text-sm font-semibold text-gray-700 mb-1.5">Emergency Contact</label>
+                <input
+                  id="member-emergency"
+                  value={form.emergencyContact}
+                  onChange={e => set('emergencyContact')(e.target.value)}
+                  placeholder="Brother — 03009876543"
+                  className={inputClass}
+                />
+              </div>
+
+              {/* Membership — only when registering. Changing what an existing
+                  member bought is its own action, not a profile edit. */}
+              {!editing && (
+                <div className="border-t border-gray-100 pt-4 space-y-4">
                   <div>
-                    <p className="text-xs font-semibold text-blue-800">Auto-calculated expiry</p>
-                    <p className="text-sm font-bold text-blue-700">
-                      {new Date(form._endDate).toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                    </p>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Membership Plan</label>
+                    {plans.length === 0 ? (
+                      <p className="text-xs text-gray-400 bg-gray-50 rounded-xl px-3 py-3">
+                        No plans set up yet — register the member now and give them
+                        a membership later, or{' '}
+                        <Link to="/membership-plans" className="text-blue-600 font-medium hover:underline">
+                          add a plan first
+                        </Link>.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button type="button"
+                          onClick={() => set('planId')('')}
+                          className={`border rounded-xl py-2.5 px-2 text-center transition-all ${focusRing} ${
+                            form.planId === ''
+                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                              : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                          }`}>
+                          <p className="font-semibold text-xs">None</p>
+                          <p className="text-xs opacity-60 mt-0.5">Add later</p>
+                        </button>
+                        {plans.map(p => (
+                          <button key={p.id} type="button"
+                            onClick={() => set('planId')(p.id)}
+                            className={`border rounded-xl py-2.5 px-2 text-center transition-all ${focusRing} ${
+                              form.planId === p.id
+                                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                            }`}>
+                            <p className="font-semibold text-xs truncate">{p.name}</p>
+                            <p className="text-xs opacity-60 mt-0.5">
+                              {p.durationDays}d · Rs. {p.price.toLocaleString()}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
+
+                  {form.planId && (
+                    <div>
+                      <label htmlFor="member-start" className="block text-sm font-semibold text-gray-700 mb-1.5">Start Date *</label>
+                      <input
+                        id="member-start"
+                        type="date"
+                        required
+                        value={form.startDate}
+                        onChange={e => set('startDate')(e.target.value)}
+                        className={inputClass}
+                      />
+                    </div>
+                  )}
+
+                  {/* Preview of what the server will calculate — the server's
+                      answer is the one that is stored. */}
+                  {expiryPreview && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-2">
+                      <Calendar size={15} className="text-blue-600 shrink-0" />
+                      <div>
+                        <p className="text-xs font-semibold text-blue-800">Auto-calculated expiry</p>
+                        <p className="text-sm font-bold text-blue-700">
+                          {new Date(expiryPreview).toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                  className={`flex-1 ${secondaryButton}`}>
                   Cancel
                 </button>
-                <button type="submit" disabled={saving}
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-60 transition-colors">
+                <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
                   {saving ? 'Saving...' : editing ? 'Update Member' : 'Add Member'}
                 </button>
               </div>
@@ -444,6 +602,16 @@ export default function Members() {
           </div>
         </div>
       )}
-    </div>
+
+      {deleting && (
+        <ConfirmDialog
+          title="Delete member"
+          message={`Delete ${deleting.name} (${deleting.memberNo})? Their memberships, attendance and payment history go with them, and this cannot be undone.`}
+          busy={saving}
+          onConfirm={() => void handleDelete()}
+          onCancel={() => setDeleting(null)}
+        />
+      )}
+    </Page>
   );
 }

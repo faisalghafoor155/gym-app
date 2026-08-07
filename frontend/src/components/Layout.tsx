@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
 import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
-  Dumbbell, LogOut, Shield, User, FlaskConical, Menu, X, UserCog, Crown,
+  Dumbbell, LogOut, Shield, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -18,13 +18,22 @@ const staffNavItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/members', label: 'Members', icon: Users },
   { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
-  { to: '/payments', label: 'Payments', icon: CreditCard },
-  { to: '/plans', label: 'Plans', icon: Dumbbell },
+  // Two different kinds of "plan": what a member buys, and what they train
+  // to. Labelled apart so the sidebar does not read as a duplicate.
+  { to: '/membership-plans', label: 'Membership Plans', icon: Tag },
+  { to: '/plans', label: 'Workout & Diet', icon: Dumbbell },
   { to: '/supplements', label: 'Supplements', icon: FlaskConical },
 ];
 
-/** Owner-only entries, appended after the staff ones. */
+/**
+ * Owner-only entries, appended after the staff ones.
+ *
+ * Payments is here rather than with the staff items: staff run the gym but do
+ * not see its books. Hiding the link is only the polite half of that — the
+ * routes themselves are gated server-side.
+ */
 const ownerNavItems: NavItem[] = [
+  { to: '/payments', label: 'Payments', icon: CreditCard },
   { to: '/team', label: 'Team & Access', icon: UserCog },
 ];
 

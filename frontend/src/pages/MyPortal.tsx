@@ -3,6 +3,7 @@ import {
   CalendarCheck, CreditCard, Dumbbell, Utensils, AlertTriangle, Clock,
 } from 'lucide-react';
 import Badge from '../components/Badge';
+import { Page, Card, PageLoader } from '../components/ui';
 import api, { apiError } from '../api/client';
 import type { MyProfile } from '../types';
 import toast from 'react-hot-toast';
@@ -18,58 +19,66 @@ export default function MyPortal() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <PageLoader />;
 
   if (!data) {
     return (
-      <div className="flex items-center justify-center h-full p-6">
+      <div className="flex items-center justify-center h-full min-h-[50vh] p-6">
         <div className="text-center">
-          <AlertTriangle size={32} className="text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-500 text-sm">Could not load your details.</p>
+          <div className="w-14 h-14 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle size={24} />
+          </div>
+          <p className="font-semibold text-gray-700">Could not load your details</p>
+          <p className="text-sm text-gray-400 mt-1">Please try again in a moment.</p>
         </div>
       </div>
     );
   }
 
   const { member, plan, attendance, payments, dueTotal } = data;
+  const membership = member.currentMembership;
 
   return (
-    <div className="p-4 sm:p-6 space-y-5">
+    <Page>
+      <div className="space-y-5">
       {/* Membership card */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <Card className="p-5">
         <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+          <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
             {member.photo
               ? <img src={member.photo} alt={member.name} className="w-full h-full object-cover" />
               : <span className="text-white font-bold">{member.name.slice(0, 2).toUpperCase()}</span>}
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-lg font-bold text-gray-900 truncate">{member.name}</h1>
-            <p className="text-sm text-gray-500 capitalize">{member.membershipType} membership</p>
-            <div className="mt-2"><Badge status={member.status} /></div>
+            <p className="text-sm text-gray-500">
+              {member.memberNo}
+              {membership && ` · ${membership.planName}`}
+            </p>
+            {membership && <div className="mt-2"><Badge status={membership.status} /></div>}
           </div>
         </div>
 
-        <div className={`mt-4 rounded-xl px-4 py-3 flex items-center justify-between ${
-          member.status === 'expired' ? 'bg-red-50' :
-          member.status === 'expiring' ? 'bg-yellow-50' : 'bg-green-50'
-        }`}>
-          <span className="text-sm text-gray-600">Membership expiry</span>
-          <span className={`text-sm font-bold ${
-            member.status === 'expired' ? 'text-red-600' :
-            member.status === 'expiring' ? 'text-yellow-700' : 'text-green-700'
+        {membership ? (
+          <div className={`mt-4 rounded-xl px-4 py-3 flex items-center justify-between ${
+            membership.status === 'expired' ? 'bg-red-50' :
+            membership.status === 'expiring' ? 'bg-yellow-50' : 'bg-green-50'
           }`}>
-            {member.status === 'expired'
-              ? `Expired ${Math.abs(member.daysLeft)}d ago`
-              : `${member.daysLeft}d left`}
-          </span>
-        </div>
+            <span className="text-sm text-gray-600">Membership expiry</span>
+            <span className={`text-sm font-bold ${
+              membership.status === 'expired' ? 'text-red-600' :
+              membership.status === 'expiring' ? 'text-yellow-700' : 'text-green-700'
+            }`}>
+              {membership.status === 'expired'
+                ? `Expired ${Math.abs(membership.daysLeft)}d ago`
+                : `${membership.daysLeft}d left`}
+            </span>
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl px-4 py-3 bg-gray-50 text-sm text-gray-500 text-center">
+            No membership yet — ask the front desk to set one up.
+          </div>
+        )}
 
         {dueTotal > 0 && (
           <div className="mt-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-3">
@@ -82,11 +91,11 @@ export default function MyPortal() {
             </div>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Plans */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <Card className="p-5">
           <h2 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <Dumbbell size={16} className="text-blue-600" /> Workout Plan
           </h2>
@@ -100,9 +109,9 @@ export default function MyPortal() {
           ) : (
             <p className="text-sm text-gray-400 py-4 text-center">No workout plan assigned yet</p>
           )}
-        </div>
+        </Card>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <Card className="p-5">
           <h2 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <Utensils size={16} className="text-green-600" /> Diet Plan
           </h2>
@@ -116,11 +125,11 @@ export default function MyPortal() {
           ) : (
             <p className="text-sm text-gray-400 py-4 text-center">No diet plan assigned yet</p>
           )}
-        </div>
+        </Card>
       </div>
 
       {/* Attendance */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <Card className="p-5">
         <h2 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
           <CalendarCheck size={16} className="text-blue-600" /> Recent Attendance
           <span className="ml-auto bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">
@@ -144,10 +153,10 @@ export default function MyPortal() {
             ))}
           </ul>
         )}
-      </div>
+      </Card>
 
       {/* Payments */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <Card className="p-5">
         <h2 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
           <CreditCard size={16} className="text-blue-600" /> Payment History
         </h2>
@@ -168,7 +177,8 @@ export default function MyPortal() {
             ))}
           </ul>
         )}
+      </Card>
       </div>
-    </div>
+    </Page>
   );
 }

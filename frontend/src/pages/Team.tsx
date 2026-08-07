@@ -1,6 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Plus, Shield, User, UserCog, Trash2, Crown, KeyRound } from 'lucide-react';
 import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import {
+  Page, PageHeader, Card, PageLoader, IconButton, FieldLabel,
+  inputClass, primaryButton, secondaryButton, focusRing,
+} from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import type { GymUser, Member, Role } from '../types';
@@ -22,6 +27,9 @@ export default function Team() {
   const [showMemberLogin, setShowMemberLogin] = useState(false);
   const [staffForm, setStaffForm] = useState({ name: '', email: '', password: '' });
   const [loginForm, setLoginForm] = useState({ memberId: '', email: '', password: '' });
+  // Both are destructive enough to confirm, and both name the person, so they
+  // share one dialog rather than two near-identical ones.
+  const [confirming, setConfirming] = useState<{ user: GymUser; action: 'delete' | 'transfer' } | null>(null);
 
   const load = () =>
     Promise.all([
@@ -80,20 +88,21 @@ export default function Team() {
   };
 
   const handleDelete = async (u: GymUser) => {
-    if (!window.confirm(`Remove ${u.name}'s access? They will no longer be able to sign in.`)) return;
+    setSaving(true);
     try {
       await api.delete(`/users/${u.id}`);
       toast.success('Account removed');
+      setConfirming(null);
       await load();
     } catch (err) {
       toast.error(apiError(err, 'Could not remove the account'));
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleTransfer = async (u: GymUser) => {
-    if (!window.confirm(
-      `Make ${u.name} the owner of this gym?\n\nYou will become staff and lose owner-only access.`
-    )) return;
+    setSaving(true);
     try {
       const { data } = await api.post<{ message: string }>('/users/transfer-ownership', { userId: u.id });
       toast.success(data.message);
@@ -102,37 +111,30 @@ export default function Team() {
       window.location.reload();
     } catch (err) {
       toast.error(apiError(err, 'Could not transfer ownership'));
+      setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <PageLoader />;
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="flex items-center justify-between gap-3 mb-6">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Team &amp; Access</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{users.length} accounts can sign in</p>
-        </div>
-        {isOwner && (
-          <div className="flex gap-2 shrink-0">
-            <button onClick={() => setShowMemberLogin(true)}
-              className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-3 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-50">
+    <Page>
+      <PageHeader
+        icon={Shield}
+        title="Team & Access"
+        subtitle={`${users.length} ${users.length === 1 ? 'account' : 'accounts'} can sign in`}
+        action={isOwner ? (
+          <div className="flex gap-2">
+            <button onClick={() => setShowMemberLogin(true)} className={secondaryButton}>
               <KeyRound size={15} /> <span className="hidden sm:inline">Member login</span>
             </button>
-            <button onClick={() => setShowStaff(true)}
-              className="flex items-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700">
-              <Plus size={16} /> <span className="hidden sm:inline">Add Staff</span><span className="sm:hidden">Staff</span>
+            <button onClick={() => setShowStaff(true)} className={primaryButton}>
+              <Plus size={16} />
+              <span className="hidden sm:inline">Add Staff</span><span className="sm:hidden">Staff</span>
             </button>
           </div>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {!isOwner && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 flex items-start gap-3">
@@ -149,9 +151,7 @@ export default function Team() {
           const RoleIcon = style.icon;
           const isMe = u.id === me?.id;
           return (
-            <div key={u.id} className={`bg-white rounded-xl border p-4 ${
-              u.isActive ? 'border-gray-200' : 'border-gray-200 bg-gray-50/60'
-            }`}>
+            <Card key={u.id} className={`p-4 ${u.isActive ? '' : 'bg-gray-50/60'}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -182,33 +182,28 @@ export default function Team() {
                       <>
                         <button
                           onClick={() => void toggleActive(u)}
-                          className="text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                          className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 ${focusRing}`}
                         >
                           {u.isActive ? 'Revoke' : 'Restore'}
                         </button>
                         {u.role === 'staff' && (
-                          <button
-                            onClick={() => void handleTransfer(u)}
-                            title="Transfer ownership"
-                            aria-label={`Transfer ownership to ${u.name}`}
-                            className="text-gray-400 hover:text-purple-600 p-1.5"
-                          >
-                            <Crown size={15} />
-                          </button>
+                          <IconButton
+                            icon={Crown} tone="purple"
+                            label={`Transfer ownership to ${u.name}`}
+                            onClick={() => setConfirming({ user: u, action: 'transfer' })}
+                          />
                         )}
-                        <button
-                          onClick={() => void handleDelete(u)}
-                          aria-label={`Remove ${u.name}`}
-                          className="text-gray-400 hover:text-red-600 p-1.5"
-                        >
-                          <Trash2 size={15} />
-                        </button>
+                        <IconButton
+                          icon={Trash2} tone="red"
+                          label={`Remove ${u.name}`}
+                          onClick={() => setConfirming({ user: u, action: 'delete' })}
+                        />
                       </>
                     )}
                   </div>
                 )}
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>
@@ -221,34 +216,34 @@ export default function Team() {
               add accounts or transfer ownership.
             </p>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+              <FieldLabel required>Name</FieldLabel>
               <input required value={staffForm.name}
                 onChange={e => setStaffForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="Helper's full name"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className={inputClass} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+              <FieldLabel required>Email</FieldLabel>
               <input type="email" required value={staffForm.email}
                 onChange={e => setStaffForm(f => ({ ...f, email: e.target.value }))}
                 placeholder="helper@gym.com"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className={inputClass} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Temporary password *</label>
+              <FieldLabel required>Temporary password</FieldLabel>
               <input type="password" required minLength={8} value={staffForm.password}
                 onChange={e => setStaffForm(f => ({ ...f, password: e.target.value }))}
                 placeholder="Min 8 characters"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className={inputClass} />
               <p className="text-xs text-gray-400 mt-1">Share this with them; they can change it after signing in.</p>
             </div>
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowStaff(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                className={`flex-1 ${secondaryButton}`}>
                 Cancel
               </button>
               <button type="submit" disabled={saving}
-                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
+                className={`flex-1 ${primaryButton}`}>
                 {saving ? 'Creating...' : 'Create Account'}
               </button>
             </div>
@@ -269,10 +264,10 @@ export default function Team() {
             ) : (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Member *</label>
+                  <FieldLabel required>Member</FieldLabel>
                   <select required value={loginForm.memberId}
                     onChange={e => setLoginForm(f => ({ ...f, memberId: e.target.value }))}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    className={inputClass}>
                     <option value="">Select member...</option>
                     {membersWithoutLogin.map(m => (
                       <option key={m.id} value={m.id}>{m.name}</option>
@@ -280,34 +275,58 @@ export default function Team() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <FieldLabel required>Email</FieldLabel>
                   <input type="email" required value={loginForm.email}
                     onChange={e => setLoginForm(f => ({ ...f, email: e.target.value }))}
                     placeholder="member@example.com"
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className={inputClass} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Temporary password *</label>
+                  <FieldLabel required>Temporary password</FieldLabel>
                   <input type="password" required minLength={8} value={loginForm.password}
                     onChange={e => setLoginForm(f => ({ ...f, password: e.target.value }))}
                     placeholder="Min 8 characters"
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className={inputClass} />
                 </div>
               </>
             )}
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowMemberLogin(false)}
-                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                className={`flex-1 ${secondaryButton}`}>
                 Cancel
               </button>
               <button type="submit" disabled={saving || membersWithoutLogin.length === 0}
-                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
+                className={`flex-1 ${primaryButton}`}>
                 {saving ? 'Creating...' : 'Create Login'}
               </button>
             </div>
           </form>
         </Modal>
       )}
-    </div>
+
+      {confirming && (
+        confirming.action === 'delete' ? (
+          <ConfirmDialog
+            title="Remove access"
+            message={`Remove ${confirming.user.name}'s access? They will no longer be able to sign in. Their member record, if they have one, is untouched.`}
+            confirmLabel="Remove"
+            busy={saving}
+            onConfirm={() => void handleDelete(confirming.user)}
+            onCancel={() => setConfirming(null)}
+          />
+        ) : (
+          <ConfirmDialog
+            title="Transfer ownership"
+            message={`Make ${confirming.user.name} the owner of this gym? You will become staff and lose owner-only access, including this page.`}
+            confirmLabel="Transfer ownership"
+            tone="primary"
+            busy={saving}
+            onConfirm={() => void handleTransfer(confirming.user)}
+            onCancel={() => setConfirming(null)}
+          />
+        )
+      )}
+    </Page>
   );
 }
+

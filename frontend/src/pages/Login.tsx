@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Dumbbell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { inputClass, primaryButton } from '../components/ui';
 import api, { apiError } from '../api/client';
 import GoogleSignIn from '../components/GoogleSignIn';
 import type { AuthResponse } from '../types';
@@ -45,7 +46,7 @@ export default function Login() {
               required
               value={form.email}
               onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={inputClass}
               placeholder="owner@gym.com"
             />
           </div>
@@ -61,14 +62,14 @@ export default function Login() {
               required
               value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={inputClass}
               placeholder="••••••••"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
+            className={`w-full ${primaryButton}`}
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
@@ -89,3 +90,4 @@ export default function Login() {
     </div>
   );
 }
+

@@ -1,11 +1,20 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, ClipboardList, Dumbbell, Utensils, UserPlus } from 'lucide-react';
 import Modal from '../components/Modal';
+import {
+  Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl, FieldLabel,
+  inputClass, primaryButton, secondaryButton,
+} from '../components/ui';
 import api, { apiError } from '../api/client';
 import type { Plan, Member } from '../types';
 import toast from 'react-hot-toast';
 
 type Tab = 'workout' | 'diet';
+
+const TABS = [
+  { value: 'workout' as const, label: 'Workout' },
+  { value: 'diet' as const, label: 'Diet' },
+];
 
 export default function Plans() {
   const [tab, setTab] = useState<Tab>('workout');
@@ -31,6 +40,7 @@ export default function Plans() {
   useEffect(() => { void load(); }, []);
 
   const plans = tab === 'workout' ? workoutPlans : dietPlans;
+  const TabIcon = tab === 'workout' ? Dumbbell : Utensils;
 
   const handleCreate = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -50,6 +60,12 @@ export default function Plans() {
 
   const handleAssign = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // Assigning nothing to nothing is a no-op the API would happily accept, so
+    // it is caught here rather than reported as a success.
+    if (!assignForm.workoutPlanId && !assignForm.dietPlanId) {
+      toast.error('Pick a workout plan, a diet plan, or both');
+      return;
+    }
     setSaving(true);
     try {
       // The API rejects "" for the optional plan ids, so drop the empty ones.
@@ -68,52 +84,72 @@ export default function Plans() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <PageLoader />;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Plans</h1>
-        <div className="flex gap-2">
-          <button onClick={() => setShowAssign(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50">
-            Assign to Member
-          </button>
-          <button onClick={() => setShowCreate(true)} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700">
-            <Plus size={16} /> New Plan
-          </button>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        icon={ClipboardList}
+        title="Plans"
+        subtitle="What members train to and eat by"
+        action={
+          <div className="flex gap-2">
+            <button onClick={() => setShowAssign(true)} className={secondaryButton}>
+              <UserPlus size={15} />
+              <span className="hidden sm:inline">Assign to Member</span>
+              <span className="sm:hidden">Assign</span>
+            </button>
+            <button onClick={() => setShowCreate(true)} className={primaryButton}>
+              <Plus size={16} />
+              <span className="hidden sm:inline">New Plan</span><span className="sm:hidden">New</span>
+            </button>
+          </div>
+        }
+      />
 
-      <div className="flex gap-2 mb-6">
-        {(['workout', 'diet'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
-              tab === t ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:bg-gray-50'
-            }`}>
-            {t} Plans
-          </button>
-        ))}
+      <div className="mb-5">
+        <SegmentedControl
+          value={tab}
+          onChange={setTab}
+          options={[
+            { ...TABS[0]!, count: workoutPlans.length },
+            { ...TABS[1]!, count: dietPlans.length },
+          ]}
+        />
       </div>
 
       {plans.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400">
-          <p className="font-medium">No {tab} plans yet</p>
-          <p className="text-sm mt-1">Create your first plan</p>
-        </div>
+        <EmptyState
+          icon={TabIcon}
+          title={`No ${tab} plans yet`}
+          hint={tab === 'workout'
+            ? 'Write the routines your trainers hand out, then assign them to members.'
+            : 'Write the meal plans your trainers hand out, then assign them to members.'}
+          action={
+            <button onClick={() => setShowCreate(true)} className={primaryButton}>
+              <Plus size={16} /> Create a {tab} plan
+            </button>
+          }
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {plans.map(p => (
-            <div key={p.id} className="bg-white rounded-xl border border-gray-200 p-5">
-              <h3 className="font-semibold text-gray-900 mb-1">{p.name}</h3>
-              <p className="text-sm text-gray-500 whitespace-pre-wrap">{p.description || 'No description'}</p>
-              <p className="text-xs text-gray-400 mt-3">{new Date(p.createdAt).toLocaleDateString()}</p>
-            </div>
+            <Card key={p.id} className="p-5 hover:shadow-md transition-shadow">
+              <div className="flex items-start gap-3 mb-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  tab === 'workout' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'
+                }`}>
+                  <TabIcon size={16} />
+                </div>
+                <h3 className="font-bold text-gray-900 min-w-0 truncate pt-1.5">{p.name}</h3>
+              </div>
+              <p className="text-sm text-gray-500 whitespace-pre-wrap wrap-break-word">
+                {p.description || 'No description'}
+              </p>
+              <p className="text-xs text-gray-400 mt-4 pt-3 border-t border-gray-100">
+                Added {new Date(p.createdAt).toLocaleDateString()}
+              </p>
+            </Card>
           ))}
         </div>
       )}
@@ -122,24 +158,23 @@ export default function Plans() {
         <Modal title={`Create ${tab === 'workout' ? 'Workout' : 'Diet'} Plan`} onClose={() => setShowCreate(false)}>
           <form onSubmit={e => void handleCreate(e)} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Plan Name *</label>
+              <FieldLabel required>Plan Name</FieldLabel>
               <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. Beginner Weight Loss" />
+                className={inputClass} placeholder="e.g. Beginner Weight Loss" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea rows={4} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              <FieldLabel>Description</FieldLabel>
+              <textarea rows={5} value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                className={`${inputClass} resize-none`}
                 placeholder="Describe the exercises, meals, or schedule..." />
             </div>
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowCreate(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                className={`flex-1 ${secondaryButton}`}>
                 Cancel
               </button>
-              <button type="submit" disabled={saving}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
+              <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
                 {saving ? 'Creating...' : 'Create Plan'}
               </button>
             </div>
@@ -151,42 +186,53 @@ export default function Plans() {
         <Modal title="Assign Plan to Member" onClose={() => setShowAssign(false)}>
           <form onSubmit={e => void handleAssign(e)} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Member *</label>
-              <select required value={assignForm.memberId} onChange={e => setAssignForm(f => ({ ...f, memberId: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <FieldLabel required>Member</FieldLabel>
+              <select required value={assignForm.memberId}
+                onChange={e => setAssignForm(f => ({ ...f, memberId: e.target.value }))}
+                className={inputClass}>
                 <option value="">Select member...</option>
-                {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                {members.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}{m.phone ? ` · ${m.phone}` : ''}
+                  </option>
+                ))}
               </select>
+              {members.length === 0 && (
+                <p className="text-xs text-yellow-700 mt-1.5">
+                  No members yet — add a member before assigning a plan.
+                </p>
+              )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Workout Plan</label>
-              <select value={assignForm.workoutPlanId} onChange={e => setAssignForm(f => ({ ...f, workoutPlanId: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <FieldLabel>Workout Plan</FieldLabel>
+              <select value={assignForm.workoutPlanId}
+                onChange={e => setAssignForm(f => ({ ...f, workoutPlanId: e.target.value }))}
+                className={inputClass}>
                 <option value="">None</option>
                 {workoutPlans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Diet Plan</label>
-              <select value={assignForm.dietPlanId} onChange={e => setAssignForm(f => ({ ...f, dietPlanId: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <FieldLabel>Diet Plan</FieldLabel>
+              <select value={assignForm.dietPlanId}
+                onChange={e => setAssignForm(f => ({ ...f, dietPlanId: e.target.value }))}
+                className={inputClass}>
                 <option value="">None</option>
                 {dietPlans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowAssign(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                className={`flex-1 ${secondaryButton}`}>
                 Cancel
               </button>
-              <button type="submit" disabled={saving}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
+              <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
                 {saving ? 'Assigning...' : 'Assign'}
               </button>
             </div>
           </form>
         </Modal>
       )}
-    </div>
+    </Page>
   );
 }

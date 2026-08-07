@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Dumbbell, MailCheck } from 'lucide-react';
+import { inputClass, primaryButton } from '../components/ui';
 import api, { apiError } from '../api/client';
 import toast from 'react-hot-toast';
 
@@ -57,14 +58,14 @@ export default function ForgotPassword() {
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                   placeholder="owner@gym.com"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
+                className={`w-full ${primaryButton}`}
               >
                 {loading ? 'Sending...' : 'Send reset link'}
               </button>
@@ -80,3 +81,4 @@ export default function ForgotPassword() {
     </div>
   );
 }
+

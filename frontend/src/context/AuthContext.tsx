@@ -64,7 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    // The cookie is httpOnly, so the server has to clear it.
+    // The cookie is httpOnly, so the server has to clear it — and the same
+    // call is what revokes the session server-side, so a token captured
+    // earlier stops working rather than lasting out its 30 days.
     void api.post('/auth/logout').catch(() => { /* sign out locally regardless */ });
     localStorage.removeItem('user');
     localStorage.removeItem('gym');

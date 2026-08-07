@@ -2,6 +2,7 @@ import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Dumbbell } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { inputClass, primaryButton } from '../components/ui';
 import api, { apiError } from '../api/client';
 import type { AuthResponse } from '../types';
 import toast from 'react-hot-toast';
@@ -59,7 +60,7 @@ export default function Register() {
               value={form.gymName}
               onChange={set('gymName')}
               placeholder="Fitness Plus Gym"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={inputClass}
             />
           </div>
 
@@ -71,7 +72,7 @@ export default function Register() {
               value={form.ownerName}
               onChange={set('ownerName')}
               placeholder="Ahmed Khan"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={inputClass}
             />
           </div>
 
@@ -83,7 +84,7 @@ export default function Register() {
               value={form.email}
               onChange={set('email')}
               placeholder="owner@gym.com"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={inputClass}
             />
           </div>
 
@@ -94,7 +95,7 @@ export default function Register() {
               value={form.phone}
               onChange={set('phone')}
               placeholder="03001234567"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={inputClass}
             />
           </div>
 
@@ -107,14 +108,14 @@ export default function Register() {
               value={form.password}
               onChange={set('password')}
               placeholder="Min 8 characters"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={inputClass}
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
+            className={`w-full ${primaryButton}`}
           >
             {loading ? 'Creating account...' : 'Create Account'}
           </button>
@@ -128,3 +129,4 @@ export default function Register() {
     </div>
   );
 }
+

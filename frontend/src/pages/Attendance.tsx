@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Search, CheckCircle2, Clock, Users, CalendarCheck, UserX } from 'lucide-react';
+import {
+  Page, PageHeader, Card, PageLoader, inputClass, focusRing,
+} from '../components/ui';
 import api, { apiError } from '../api/client';
 import type { Member, AttendanceRecord } from '../types';
 import toast from 'react-hot-toast';
@@ -54,38 +57,35 @@ export default function Attendance() {
     }
   };
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-full">
-      <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  if (loading) return <PageLoader />;
 
   const today = new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Attendance</h1>
-          <p className="text-sm text-gray-400 mt-0.5 flex items-center gap-1.5">
-            <CalendarCheck size={13} className="shrink-0" /> {today}
-          </p>
-        </div>
-        <div className="grid grid-cols-2 sm:flex gap-3 shrink-0">
-          <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 text-center">
-            <p className="text-2xl font-bold text-blue-600">{todayList.length}</p>
-            <p className="text-xs text-gray-500">Checked in</p>
+    <Page>
+      <PageHeader
+        icon={CalendarCheck}
+        title="Attendance"
+        subtitle={today}
+        action={
+          <div className="flex gap-3">
+            <Card className="px-4 py-2.5 text-center">
+              <p className="text-xl sm:text-2xl font-bold text-blue-600">{todayList.length}</p>
+              <p className="text-xs text-gray-500">Checked in</p>
+            </Card>
+            <Card className="px-4 py-2.5 text-center">
+              <p className="text-xl sm:text-2xl font-bold text-gray-400">
+                {Math.max(0, members.length - todayList.length)}
+              </p>
+              <p className="text-xs text-gray-500">Absent</p>
+            </Card>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 text-center">
-            <p className="text-2xl font-bold text-gray-400">{members.length - todayList.length}</p>
-            <p className="text-xs text-gray-500">Absent</p>
-          </div>
-        </div>
-      </div>
+        }
+      />
 
+      <div className="space-y-5 sm:space-y-6">
       {/* Check-in Panel */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-5">
+      <Card className="p-4 sm:p-5">
         <h2 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
           <Search size={16} className="text-blue-600" />
           Quick Check-In
@@ -93,12 +93,12 @@ export default function Attendance() {
         <div className="relative">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
-            type="text"
+            type="search"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Type member name or phone number..."
             aria-label="Search member to check in"
-            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 focus:bg-white transition-colors"
+            className={`${inputClass} pl-10 py-3`}
             autoFocus
           />
         </div>
@@ -120,7 +120,7 @@ export default function Attendance() {
                     className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
                       isIn ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100 hover:border-blue-200 hover:bg-blue-50/30'
                     }`}>
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 overflow-hidden">
+                    <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 overflow-hidden">
                       {m.photo
                         ? <img src={m.photo} alt={m.name} className="w-full h-full object-cover" />
                         : <span className="text-white text-xs font-bold">{getInitials(m.name)}</span>
@@ -128,12 +128,33 @@ export default function Attendance() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 text-sm truncate">{m.name}</p>
-                      <p className="text-xs text-gray-400">{m.phone || 'No phone'} · <span className="capitalize">{m.membershipType}</span></p>
+                      <p className="text-xs text-gray-400">
+                        {m.memberNo} · {m.phone || 'No phone'}
+                      </p>
+                      {/* The front desk needs the membership state before it
+                          waves somebody through, not after. */}
+                      {m.currentMembership ? (
+                        m.currentMembership.status === 'expired' ? (
+                          <p className="text-xs font-semibold text-red-600 mt-0.5">
+                            Expired {Math.abs(m.currentMembership.daysLeft)}d ago
+                          </p>
+                        ) : m.currentMembership.status === 'expiring' ? (
+                          <p className="text-xs font-semibold text-yellow-700 mt-0.5">
+                            Expires in {m.currentMembership.daysLeft}d
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {m.currentMembership.planName}
+                          </p>
+                        )
+                      ) : (
+                        <p className="text-xs text-gray-400 mt-0.5">No membership</p>
+                      )}
                     </div>
                     <button
                       onClick={() => void handleCheckin(m)}
                       disabled={isIn || isLoading}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors shrink-0 ${focusRing} ${
                         isIn
                           ? 'bg-green-100 text-green-700 cursor-default'
                           : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
@@ -153,10 +174,10 @@ export default function Attendance() {
             Start typing to search a member
           </p>
         )}
-      </div>
+      </Card>
 
       {/* Today's Log */}
-      <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-5">
+      <Card className="p-4 sm:p-5">
         <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
           <Users size={16} className="text-blue-600" />
           Today's Log
@@ -175,7 +196,7 @@ export default function Attendance() {
             {todayList.map((r, i) => (
               <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
                 <span className="text-xs text-gray-400 font-mono w-5 text-center">{i + 1}</span>
-                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center overflow-hidden shrink-0">
+                <div className="w-9 h-9 rounded-lg bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center overflow-hidden shrink-0">
                   {r.member?.photo
                     ? <img src={r.member.photo} alt={r.member.name} className="w-full h-full object-cover" />
                     : <span className="text-white text-xs font-bold">{getInitials(r.member?.name || '?')}</span>
@@ -199,7 +220,8 @@ export default function Attendance() {
             ))}
           </div>
         )}
+      </Card>
       </div>
-    </div>
+    </Page>
   );
 }
