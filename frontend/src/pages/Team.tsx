@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, Shield, User, UserCog, Trash2, Crown, KeyRound } from 'lucide-react';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -8,7 +9,7 @@ import {
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import type { GymUser, Member, Role } from '../types';
+import type { GymUser, Member, Role, StaffSeats, TeamResponse } from '../types';
 import toast from 'react-hot-toast';
 
 /** How a new account gets its password: emailed invite, or one the owner
@@ -91,7 +92,9 @@ function PasswordMethod({ method, onMethod, password, onPassword }: {
 
 export default function Team() {
   const { user: me, isOwner } = useAuth();
+  const [params, setParams] = useSearchParams();
   const [users, setUsers] = useState<GymUser[]>([]);
+  const [seats, setSeats] = useState<StaffSeats | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -108,16 +111,37 @@ export default function Team() {
   // Both are destructive enough to confirm, and both name the person, so they
   // share one dialog rather than two near-identical ones.
   const [confirming, setConfirming] = useState<{ user: GymUser; action: 'delete' | 'transfer' } | null>(null);
+  // The account whose role is being changed, and what to. Confirmed rather than
+  // applied on click: promoting somebody to staff hands them the till.
+  const [changingRole, setChangingRole] =
+    useState<{ user: GymUser; to: Exclude<Role, 'owner'> } | null>(null);
 
   const load = () =>
     Promise.all([
-      api.get<GymUser[]>('/users').then(r => setUsers(r.data)),
+      api.get<TeamResponse>('/users').then(r => {
+        setUsers(r.data.users);
+        setSeats(r.data.seats);
+      }),
       api.get<Member[]>('/members').then(r => setMembers(r.data)),
     ])
       .catch(err => toast.error(apiError(err, 'Could not load accounts')))
       .finally(() => setLoading(false));
 
   useEffect(() => { void load(); }, []);
+
+  // The dashboard's "Add Staff" shortcut lands here as ?new=1. The param is
+  // cleared once used, so refreshing does not reopen the modal.
+  useEffect(() => {
+    if (!params.get('new')) return;
+    setShowStaff(true);
+    setParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.delete('new');
+      return next;
+    }, { replace: true });
+    // Runs on the landing param only — this is a hint, not a live binding.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const membersWithoutLogin = members.filter(
     m => !users.some(u => u.memberId === m.id),
@@ -186,6 +210,31 @@ export default function Team() {
     }
   };
 
+  /**
+   * Moves an account between staff and member.
+   *
+   * Not a route to owner: promoting a second owner is what transferring
+   * ownership does, in one step, so the gym is never left with two owners or
+   * none. The API refuses `owner` here for the same reason.
+   *
+   * The change takes effect on their next request — the server ends their open
+   * sessions, so a demoted staff member does not keep staff access on a device
+   * they left signed in.
+   */
+  const changeRole = async (u: GymUser, role: Exclude<Role, 'owner'>) => {
+    setSaving(true);
+    try {
+      await api.put(`/users/${u.id}`, { role });
+      toast.success(`${u.name} is now ${role}`);
+      setChangingRole(null);
+      await load();
+    } catch (err) {
+      toast.error(apiError(err, 'Could not change the role'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDelete = async (u: GymUser) => {
     setSaving(true);
     try {
@@ -214,26 +263,55 @@ export default function Team() {
     }
   };
 
+  // Null while the first load is in flight — treated as not full, so the button
+  // is never disabled on a count nobody has yet.
+  const seatsFull = seats !== null && seats.remaining === 0;
+
   if (loading) return <PageLoader />;
 
   return (
     <Page>
       <PageHeader
         icon={Shield}
-        title="Team & Access"
-        subtitle={`${users.length} ${users.length === 1 ? 'account' : 'accounts'} can sign in`}
+        title="Staff & Logins"
+        subtitle={
+          seats
+            ? `${users.length} ${users.length === 1 ? 'account' : 'accounts'} can sign in · ${seats.used} of ${seats.limit} staff seats used`
+            : `${users.length} ${users.length === 1 ? 'account' : 'accounts'} can sign in`
+        }
         action={isOwner ? (
           <div className="flex gap-2">
             <button onClick={() => setShowMemberLogin(true)} className={secondaryButton}>
               <KeyRound size={15} /> <span className="hidden sm:inline">Member login</span>
             </button>
-            <button onClick={() => setShowStaff(true)} className={primaryButton}>
+            {/* Disabled once the seats are gone, with the reason on hover —
+                the API refuses it anyway, so offering the form would only
+                waste the owner's typing. Member logins are not capped. */}
+            <button
+              onClick={() => setShowStaff(true)}
+              disabled={seatsFull}
+              title={seatsFull
+                ? `All ${seats?.limit} staff seats are in use. Remove an account to free one.`
+                : undefined}
+              className={primaryButton}
+            >
               <Plus size={16} />
               <span className="hidden sm:inline">Add Staff</span><span className="sm:hidden">Staff</span>
             </button>
           </div>
         ) : undefined}
       />
+
+      {isOwner && seatsFull && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 flex items-start gap-3">
+          <UserCog size={18} className="text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-800">
+            All {seats?.limit} staff seats are in use. To add someone else, remove an
+            account below — revoking access alone does not free the seat, since the
+            account keeps its email address and can be restored.
+          </p>
+        </div>
+      )}
 
       {!isOwner && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 flex items-start gap-3">
@@ -285,6 +363,27 @@ export default function Team() {
                         >
                           {u.isActive ? 'Revoke' : 'Restore'}
                         </button>
+                        {/* A member login is wired to a Member record, and
+                            `/my` reads that link — so it has no role to change.
+                            The API refuses it too. */}
+                        {!u.memberId && (
+                          <button
+                            onClick={() => setChangingRole({
+                              user: u,
+                              to: u.role === 'staff' ? 'member' : 'staff',
+                            })}
+                            // Promoting takes a seat, so it is barred when
+                            // there are none. Demoting frees one and is
+                            // always allowed.
+                            disabled={u.role !== 'staff' && seatsFull}
+                            title={u.role !== 'staff' && seatsFull
+                              ? `All ${seats?.limit} staff seats are in use.`
+                              : undefined}
+                            className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent ${focusRing}`}
+                          >
+                            {u.role === 'staff' ? 'Make member' : 'Make staff'}
+                          </button>
+                        )}
                         {u.role === 'staff' && (
                           <IconButton
                             icon={Crown} tone="purple"
@@ -311,9 +410,16 @@ export default function Team() {
         <Modal title="Add Staff Account" onClose={() => setShowStaff(false)}>
           <form onSubmit={e => void handleAddStaff(e)} className="space-y-4">
             <p className="text-sm text-gray-500">
-              Staff can manage members, attendance, fees, plans and supplements — but cannot
-              add accounts or transfer ownership.
+              Staff run the front desk: members, attendance, plans, supplement sales, and
+              taking fees. They see only the payments they recorded themselves — never the
+              gym's totals — and cannot edit the books or manage accounts.
             </p>
+            {seats && (
+              <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+                {seats.remaining} of {seats.limit} staff{' '}
+                {seats.remaining === 1 ? 'seat' : 'seats'} left.
+              </p>
+            )}
             <div>
               <FieldLabel required>Name</FieldLabel>
               <input required value={staffForm.name}
@@ -434,6 +540,20 @@ export default function Team() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {changingRole && (
+        <ConfirmDialog
+          title={changingRole.to === 'staff' ? 'Make staff' : 'Make member'}
+          message={changingRole.to === 'staff'
+            ? `Give ${changingRole.user.name} staff access? They will be able to add members, take attendance, sell supplements and record fees — but not see the gym's totals or manage accounts.`
+            : `Drop ${changingRole.user.name} to member access? They will lose the front desk entirely and see only their own data. Any open session of theirs ends now.`}
+          confirmLabel={changingRole.to === 'staff' ? 'Make staff' : 'Make member'}
+          tone={changingRole.to === 'staff' ? 'primary' : undefined}
+          busy={saving}
+          onConfirm={() => void changeRole(changingRole.user, changingRole.to)}
+          onCancel={() => setChangingRole(null)}
+        />
       )}
 
       {confirming && (

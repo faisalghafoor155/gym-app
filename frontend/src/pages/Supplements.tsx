@@ -1,13 +1,17 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
-import { Plus, Pencil, Trash2, FlaskConical, Package, ShoppingCart } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import {
+  Plus, Pencil, Trash2, FlaskConical, Package, ShoppingCart, PackagePlus, BarChart3,
+} from 'lucide-react';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
   Page, PageHeader, Card, StatTile, PageLoader, EmptyState, IconButton, FieldLabel,
   inputClass, primaryButton, secondaryButton, focusRing,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
-import type { Supplement, SupplementCategory } from '../types';
+import type { Supplement, SupplementCategory, Member } from '../types';
 import toast from 'react-hot-toast';
 
 interface CategoryInfo {
@@ -56,13 +60,31 @@ export default function Supplements() {
   const [deleting, setDeleting] = useState<Supplement | null>(null);
   const modalRef = useDialog(showModal, () => setShowModal(false));
 
+  // Selling and restocking are front-desk work, so staff get them too. Only
+  // the revenue link below is owner-only.
+  const { isOwner } = useAuth();
+  const [members, setMembers] = useState<Member[]>([]);
+  const [selling, setSelling] = useState<Supplement | null>(null);
+  const [sellForm, setSellForm] = useState({ quantity: '1', memberId: '', notes: '' });
+  const [restocking, setRestocking] = useState<Supplement | null>(null);
+  const [restockForm, setRestockForm] = useState({ quantity: '', notes: '' });
+  const sellRef = useDialog(!!selling, () => setSelling(null));
+  const restockRef = useDialog(!!restocking, () => setRestocking(null));
+
   const load = () =>
     api.get<Supplement[]>('/supplements')
       .then(r => setSupplements(r.data))
       .catch(err => toast.error(apiError(err, 'Could not load supplements')))
       .finally(() => setLoading(false));
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    // For the "sold to" picker. A failure here is not worth a toast — the
+    // sale still works, it just cannot be attributed to a member.
+    void api.get<Member[]>('/members')
+      .then(r => setMembers(r.data))
+      .catch(() => { /* walk-in sales still work without it */ });
+  }, []);
 
   const set = (k: keyof SupplementForm) =>
     (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -112,6 +134,61 @@ export default function Supplements() {
     }
   };
 
+  const openSell = (s: Supplement) => {
+    setSellForm({ quantity: '1', memberId: '', notes: '' });
+    setSelling(s);
+  };
+
+  const handleSell = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!selling) return;
+    setSaving(true);
+    try {
+      const { data } = await api.post<{ stockLeft: number; total: number }>(
+        `/supplements/${selling.id}/sell`,
+        {
+          quantity: Number(sellForm.quantity),
+          // '' means walk-in, which the API stores as null.
+          memberId: sellForm.memberId || null,
+          notes: sellForm.notes,
+        },
+      );
+      toast.success(`Sold — Rs. ${data.total.toLocaleString()}, ${data.stockLeft} left`);
+      setSelling(null);
+      await load();
+    } catch (err) {
+      // Stays open with its values: an out-of-stock or quantity error is one
+      // correction away from succeeding.
+      toast.error(apiError(err, 'Could not record the sale'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openRestock = (s: Supplement) => {
+    setRestockForm({ quantity: '', notes: '' });
+    setRestocking(s);
+  };
+
+  const handleRestock = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!restocking) return;
+    setSaving(true);
+    try {
+      await api.post(`/supplements/${restocking.id}/restock`, {
+        quantity: Number(restockForm.quantity),
+        notes: restockForm.notes,
+      });
+      toast.success(`Added ${restockForm.quantity} to ${restocking.name}`);
+      setRestocking(null);
+      await load();
+    } catch (err) {
+      toast.error(apiError(err, 'Could not restock'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleting) return;
     setSaving(true);
@@ -140,10 +217,19 @@ export default function Supplements() {
         title="Supplements"
         subtitle="Protein, creatine, pre-workout and the rest of the shelf"
         action={
-          <button onClick={openAdd} className={primaryButton}>
-            <Plus size={16} />
-            <span className="hidden sm:inline">Add Supplement</span><span className="sm:hidden">Add</span>
-          </button>
+          <div className="flex gap-2">
+            {/* Revenue is the owner's to see — the same rule the API enforces. */}
+            {isOwner && (
+              <Link to="/supplement-sales" className={secondaryButton}>
+                <BarChart3 size={16} />
+                <span className="hidden sm:inline">Sales</span>
+              </Link>
+            )}
+            <button onClick={openAdd} className={primaryButton}>
+              <Plus size={16} />
+              <span className="hidden sm:inline">Add Supplement</span><span className="sm:hidden">Add</span>
+            </button>
+          </div>
         }
       />
 
@@ -273,6 +359,33 @@ export default function Supplements() {
                     {s.stock === 0 ? 'Out of stock' : `${s.stock} units`}
                   </span>
                 </div>
+
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => openSell(s)}
+                    // Nothing to sell, or no price to sell it at — the API
+                    // refuses both, so the button says so first.
+                    disabled={s.stock === 0 || s.price == null}
+                    title={
+                      s.stock === 0 ? 'Out of stock'
+                        : s.price == null ? 'Set a price before selling'
+                        : undefined
+                    }
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${focusRing} ${
+                      s.stock === 0 || s.price == null
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-green-600 text-white hover:bg-green-700'
+                    }`}
+                  >
+                    <ShoppingCart size={12} /> Sell
+                  </button>
+                  <button
+                    onClick={() => openRestock(s)}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors ${focusRing}`}
+                  >
+                    <PackagePlus size={12} /> Stock
+                  </button>
+                </div>
               </Card>
             );
           })}
@@ -367,6 +480,150 @@ export default function Supplements() {
                 </button>
                 <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
                   {saving ? 'Saving...' : editing ? 'Update' : 'Add Supplement'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Sell */}
+      {selling && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSelling(null)} aria-hidden="true" />
+          <div
+            ref={sellRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sell-modal-title"
+            className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
+          >
+            <div className="p-5 sm:p-6 border-b border-gray-100 shrink-0">
+              <h2 id="sell-modal-title" className="text-lg font-bold text-gray-900">Sell {selling.name}</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Rs. {Number(selling.price).toLocaleString()} each · {selling.stock} in stock
+              </p>
+            </div>
+
+            <form onSubmit={e => void handleSell(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
+              <div>
+                <FieldLabel required>Quantity</FieldLabel>
+                <input
+                  type="number" min={1} max={selling.stock} step={1} required
+                  value={sellForm.quantity}
+                  onChange={e => setSellForm(f => ({ ...f, quantity: e.target.value }))}
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <FieldLabel>Sold to</FieldLabel>
+                <select
+                  value={sellForm.memberId}
+                  onChange={e => setSellForm(f => ({ ...f, memberId: e.target.value }))}
+                  className={inputClass}
+                >
+                  <option value="">Walk-in (not a member)</option>
+                  {members.map(m => (
+                    <option key={m.id} value={m.id}>{m.memberNo} · {m.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1.5">
+                  A member's purchase is also recorded as a payment. Walk-in money is
+                  recorded on the sale only.
+                </p>
+              </div>
+
+              <div>
+                <FieldLabel>Notes</FieldLabel>
+                <input
+                  type="text" maxLength={500}
+                  value={sellForm.notes}
+                  onChange={e => setSellForm(f => ({ ...f, notes: e.target.value }))}
+                  className={inputClass}
+                  placeholder="Optional"
+                />
+              </div>
+
+              {Number(sellForm.quantity) > 0 && selling.price != null && (
+                <div className="rounded-lg bg-green-50 border border-green-100 px-3 py-2.5 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-green-800">Total</span>
+                  <span className="text-lg font-bold text-green-900">
+                    Rs. {(Number(sellForm.quantity) * selling.price).toLocaleString()}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setSelling(null)} className={`flex-1 ${secondaryButton}`}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
+                  {saving ? 'Recording...' : 'Record sale'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Restock */}
+      {restocking && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setRestocking(null)} aria-hidden="true" />
+          <div
+            ref={restockRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="restock-modal-title"
+            className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
+          >
+            <div className="p-5 sm:p-6 border-b border-gray-100 shrink-0">
+              <h2 id="restock-modal-title" className="text-lg font-bold text-gray-900">
+                Add stock — {restocking.name}
+              </h2>
+              <p className="text-sm text-gray-500 mt-0.5">{restocking.stock} in stock now</p>
+            </div>
+
+            <form onSubmit={e => void handleRestock(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
+              <div>
+                <FieldLabel required>Units received</FieldLabel>
+                <input
+                  type="number" min={1} step={1} required
+                  value={restockForm.quantity}
+                  onChange={e => setRestockForm(f => ({ ...f, quantity: e.target.value }))}
+                  className={inputClass}
+                  placeholder="e.g. 12"
+                />
+              </div>
+
+              <div>
+                <FieldLabel>Note</FieldLabel>
+                <input
+                  type="text" maxLength={500}
+                  value={restockForm.notes}
+                  onChange={e => setRestockForm(f => ({ ...f, notes: e.target.value }))}
+                  className={inputClass}
+                  placeholder="Supplier, invoice number…"
+                />
+                <p className="text-xs text-gray-400 mt-1.5">Recorded in the audit log.</p>
+              </div>
+
+              {Number(restockForm.quantity) > 0 && (
+                <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2.5 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-blue-800">New stock</span>
+                  <span className="text-lg font-bold text-blue-900">
+                    {restocking.stock + Number(restockForm.quantity)} units
+                  </span>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setRestocking(null)} className={`flex-1 ${secondaryButton}`}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
+                  {saving ? 'Adding...' : 'Add stock'}
                 </button>
               </div>
             </form>

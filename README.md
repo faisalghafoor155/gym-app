@@ -90,6 +90,10 @@ npm run lint
 | POST | `/api/users/member-login` | owner |
 | POST | `/api/users/transfer-ownership` | owner |
 | PUT/DELETE | `/api/users/:id` | owner |
+| POST | `/api/members/:id/memberships/:membershipId/extend` | owner — grants extra days, reason required |
+| POST | `/api/supplements/:id/sell` | staff — decrements stock, records the sale |
+| POST | `/api/supplements/:id/restock` | staff — stock in from a supplier |
+| GET | `/api/supplements/sales/report` | owner — month-by-month sales revenue |
 | — | `/api/members`, `/api/attendance`, `/api/payments`, `/api/plans`, `/api/supplements`, `/api/dashboard` | staff |
 
 ## Security notes
@@ -104,6 +108,15 @@ npm run lint
   takes effect immediately rather than when its 30-day token expires.
 - Every query is scoped by `gymId`; one gym can never read another's data.
 - All request bodies, params and query strings are validated with Zod.
+- Money is stored as `Decimal(10,2)`, never a float, so the books add up to the
+  paisa. Prisma hands back a `Decimal` and would serialise it as a *string*, so
+  `services/money.ts` converts at the API boundary — the JSON contract is plain
+  numbers. Sum money with its `sum()` helper rather than `+`.
+- A payment carries a `type` (`membership` / `supplement` / `other`) and an
+  optional `membershipId` naming what it settled. The link is nullable because
+  a supplement sale or a renewal recorded as due has no membership behind it.
+  `GET /api/payments/due` uses it to report `paid` and `outstanding` per
+  membership, so "expired" and "owes money" stay separate facts.
 - Password reset tokens are stored only as a SHA-256 hash, expire in one hour
   and are single-use.
 

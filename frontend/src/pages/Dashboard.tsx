@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Users, UserCheck, CreditCard, CalendarCheck,
   AlertTriangle, TrendingUp, TrendingDown, Zap, Trophy, Wallet,
-  UserPlus, PhoneCall, Clock, UserMinus, ArrowRight,
+  UserPlus, PhoneCall, Clock, UserMinus, ArrowRight, UserCog,
 } from 'lucide-react';
 import Badge from '../components/Badge';
 import {
@@ -180,8 +180,13 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
         <QuickAction to="/members?new=1" icon={UserPlus} label="Add Member" />
         <QuickAction to="/attendance" icon={CalendarCheck} label="Check-in" />
-        {/* Recording money is owner-only, so the shortcut to it is too. */}
-        {isOwner && <QuickAction to="/payments?new=1" icon={CreditCard} label="Record Payment" />}
+        {/* Taking a fee is counter work, so the shortcut is staff's too. What
+            they can then see of the books is narrowed server-side. */}
+        <QuickAction to="/payments?new=1" icon={CreditCard} label="Record Payment" />
+        {/* Hiring a helper is a thing owners look for on day one and did not
+            find, so it gets a shortcut rather than only a sidebar entry.
+            `?new=1` opens the form on arrival, as the payments one does. */}
+        {isOwner && <QuickAction to="/team?new=1" icon={UserCog} label="Add Staff" />}
       </div>
 
       {/* Stat Cards */}
@@ -209,6 +214,72 @@ export default function Dashboard() {
           <StatTile icon={CreditCard} label="Payments Due" value={stats.duePayments} tone="red" />
         )}
       </div>
+
+      {/* This month's takings, broken down by what they were for. The whole
+          block keys off `revenue`, which the server omits for staff — so there
+          is nothing here to hide from them client-side. */}
+      {revenue && (
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <Wallet size={16} className="text-purple-600" />
+              <h2 className="font-semibold text-gray-900 text-sm">
+                This month so far
+              </h2>
+            </div>
+            <span className="text-xs text-gray-400">
+              {new Date(revenue.monthToDate.from).toLocaleDateString('en-PK', {
+                day: 'numeric', month: 'short',
+              })}
+              {' – '}
+              {new Date(revenue.monthToDate.to).toLocaleDateString('en-PK', {
+                day: 'numeric', month: 'short', year: 'numeric',
+              })}
+              {' · '}
+              {revenue.monthToDate.count} payment{revenue.monthToDate.count === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3">
+              <p className="text-xs font-medium text-blue-700">Membership fees</p>
+              <p className="text-lg font-bold text-blue-900 mt-0.5">
+                {money(revenue.monthToDate.membership)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-green-50 border border-green-100 px-4 py-3">
+              <p className="text-xs font-medium text-green-700">Supplement sales</p>
+              <p className="text-lg font-bold text-green-900 mt-0.5">
+                {money(revenue.monthToDate.supplement)}
+              </p>
+            </div>
+            {/* Only worth a tile when there is something in it — an always-zero
+                box trains the eye to skip the row. */}
+            {revenue.monthToDate.other > 0 && (
+              <div className="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+                <p className="text-xs font-medium text-gray-600">Other</p>
+                <p className="text-lg font-bold text-gray-900 mt-0.5">
+                  {money(revenue.monthToDate.other)}
+                </p>
+              </div>
+            )}
+            <div className="rounded-xl bg-purple-600 px-4 py-3 col-span-2 lg:col-span-1 lg:ml-auto lg:w-full">
+              <p className="text-xs font-medium text-purple-100">Grand total</p>
+              <p className="text-xl font-bold text-white mt-0.5">
+                {money(revenue.monthToDate.total)}
+              </p>
+            </div>
+          </div>
+
+          {revenue.dueTotal > 0 && (
+            <p className="text-xs text-gray-500 mt-3">
+              Not counted above: <span className="font-semibold text-red-600">
+                {money(revenue.dueTotal)}
+              </span> still outstanding.
+            </p>
+          )}
+        </Card>
+      )}
 
       {/* Activity Overview Bar */}
       <Card className="p-5">

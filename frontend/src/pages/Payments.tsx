@@ -13,7 +13,10 @@ import {
 import { useDebounced } from '../hooks/useDebounced';
 import { toCsv, downloadCsv } from '../utils/csv';
 import api, { apiError } from '../api/client';
-import type { Payment, Member, PaymentMethod, PaymentStatus } from '../types';
+import { useAuth } from '../context/AuthContext';
+import type {
+  Payment, Member, PaymentMethod, PaymentStatus, PaymentType, PaymentSummary,
+} from '../types';
 import toast from 'react-hot-toast';
 
 interface PaymentForm {
@@ -22,14 +25,24 @@ interface PaymentForm {
   method: PaymentMethod;
   notes: string;
   status: PaymentStatus;
+  type: PaymentType;
+  /** '' means "not against a membership", which is what the API stores as null. */
+  membershipId: string;
   paymentDate: string;
 }
 
 const today = () => new Date().toISOString().split('T')[0]!;
 
 const emptyForm = (): PaymentForm => ({
-  memberId: '', amount: '', method: 'cash', notes: '', status: 'paid', paymentDate: today(),
+  memberId: '', amount: '', method: 'cash', notes: '', status: 'paid',
+  type: 'membership', membershipId: '', paymentDate: today(),
 });
+
+const TYPE_LABELS: Record<PaymentType, string> = {
+  membership: 'Membership fee',
+  supplement: 'Supplement',
+  other: 'Other',
+};
 
 type Filter = 'all' | PaymentStatus;
 
@@ -43,8 +56,14 @@ const FILTERS = [
  *  demand rather than all at once. */
 const PAGE_SIZE = 50;
 
+/** How many months of history the summary covers — the same window as the
+ *  supplement sales report, so the two pages line up month for month. */
+const SUMMARY_MONTHS = 6;
+
 export default function Payments() {
+  const { isOwner } = useAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [summary, setSummary] = useState<PaymentSummary | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [search, setSearch] = useState('');
@@ -95,6 +114,23 @@ export default function Payments() {
       .catch(() => { /* the payments error toast already covers a dead API */ });
   }, []);
 
+  /**
+   * The gym's books, month by month. Owner-only — the API refuses staff, so
+   * asking as staff would earn nothing but a 403 and a toast.
+   *
+   * Deliberately not filtered: the tiles above the table follow the filters and
+   * say so, while this answers "what did the gym take in August", which no
+   * filter should be able to change the answer to.
+   */
+  const loadSummary = useMemo(() => () => {
+    if (!isOwner) return Promise.resolve();
+    return api.get<PaymentSummary>(`/payments/summary?months=${SUMMARY_MONTHS}`)
+      .then(r => setSummary(r.data))
+      .catch(err => toast.error(apiError(err, 'Could not load the monthly totals')));
+  }, [isOwner]);
+
+  useEffect(() => { void loadSummary(); }, [loadSummary]);
+
   // The dashboard's "Record Payment" shortcut lands here as ?new=1. The param
   // is cleared once used, so refreshing does not reopen the modal.
   useEffect(() => {
@@ -109,13 +145,25 @@ export default function Payments() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const reload = () => api.get<Payment[]>(`/payments${query}`)
-    .then(r => setPayments(r.data))
-    .catch(err => toast.error(apiError(err, 'Could not load payments')));
+  // Recording or correcting a payment moves the month's total too, so the
+  // summary is refreshed alongside the list rather than going stale until the
+  // next page load.
+  const reload = () => Promise.all([
+    api.get<Payment[]>(`/payments${query}`)
+      .then(r => setPayments(r.data))
+      .catch(err => toast.error(apiError(err, 'Could not load payments'))),
+    loadSummary(),
+  ]);
 
   const set = (k: keyof PaymentForm) =>
     (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm(f => ({ ...f, [k]: e.target.value }));
+
+  // The member the form is about — the picked one when adding, the payment's
+  // own when editing, since the member select is read-only there.
+  const formMember = members.find(
+    m => m.id === (editing ? editing.memberId : form.memberId),
+  );
 
   const openAdd = () => { setEditing(null); setForm(emptyForm()); setShowModal(true); };
 
@@ -127,6 +175,8 @@ export default function Payments() {
       method: p.method,
       notes: p.notes ?? '',
       status: p.status,
+      type: p.type,
+      membershipId: p.membershipId ?? '',
       paymentDate: p.paymentDate.split('T')[0]!,
     });
     setShowModal(true);
@@ -136,14 +186,24 @@ export default function Payments() {
     e.preventDefault();
     setSaving(true);
     try {
+      // The select uses '' for "no membership"; the API wants null. Only a
+      // membership payment carries a link at all, so switching the type to
+      // supplement or other drops any membership that was picked earlier
+      // rather than leaving a stale one attached.
+      const payload = {
+        ...form,
+        membershipId: form.type === 'membership' && form.membershipId
+          ? form.membershipId
+          : null,
+      };
       if (editing) {
         // The member a payment belongs to is not editable — the API rejects it,
         // and moving money between members should be a delete and a re-entry.
-        const { memberId: _memberId, ...editable } = form;
+        const { memberId: _memberId, ...editable } = payload;
         await api.put(`/payments/${editing.id}`, editable);
         toast.success('Payment updated');
       } else {
-        await api.post('/payments', form);
+        await api.post('/payments', payload);
         toast.success('Payment recorded');
       }
       setShowModal(false);
@@ -185,10 +245,15 @@ export default function Payments() {
   const handleExport = () => {
     if (payments.length === 0) { toast.error('Nothing to export'); return; }
     const csv = toCsv(
-      ['Member No', 'Member', 'Phone', 'Amount', 'Method', 'Status', 'Date', 'Notes'],
+      [
+        'Member No', 'Member', 'Phone', 'Amount', 'For', 'Method', 'Status', 'Date', 'Notes',
+        ...(isOwner ? ['Taken by'] : []),
+      ],
       payments.map(p => [
         p.member.memberNo ?? '', p.member.name, p.member.phone ?? '', p.amount,
-        p.method, p.status, new Date(p.paymentDate).toLocaleDateString(), p.notes ?? '',
+        TYPE_LABELS[p.type], p.method,
+        p.status, new Date(p.paymentDate).toLocaleDateString(), p.notes ?? '',
+        ...(isOwner ? [p.recordedBy?.name ?? ''] : []),
       ]),
     );
     downloadCsv(`payments-${today()}.csv`, csv);
@@ -204,7 +269,9 @@ export default function Payments() {
       <PageHeader
         icon={CreditCard}
         title="Payments"
-        subtitle="What the gym has taken, and what is still owed"
+        subtitle={isOwner
+          ? 'What the gym has taken, and what is still owed'
+          : 'Fees you have recorded, and who still owes'}
         action={
           <button onClick={openAdd} className={primaryButton}>
             <Plus size={16} />
@@ -230,6 +297,110 @@ export default function Payments() {
           value={payments.length} hint={hasFilters ? 'matching filters' : undefined}
         />
       </div>
+
+      {/*
+        Month by month, owner-only.
+
+        Sits apart from the tiles above because it answers a different question:
+        those follow the filters and say so, this is the gym's books and no
+        filter should be able to change what August took in.
+
+        Split by what the money was for — membership fees and supplement sales
+        come through the same till, and a lone grand total reconciles against
+        nothing.
+      */}
+      {isOwner && summary && (
+        <Card className="p-4 sm:p-5 mb-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+            <div>
+              <h2 className="font-bold text-gray-900">Monthly totals</h2>
+              <p className="text-xs text-gray-400">
+                Settled payments only · last {summary.months} months
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-400">This month</p>
+              <p className="text-xl font-bold text-gray-900">
+                Rs. {summary.thisMonth.toLocaleString()}
+              </p>
+              {summary.lastMonth > 0 && (
+                <p className="text-xs text-gray-400">
+                  vs Rs. {summary.lastMonth.toLocaleString()} last month
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-125">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="text-left px-3 py-2 font-semibold text-gray-600">Month</th>
+                  {['Membership', 'Supplements', 'Other'].map(h => (
+                    <th key={h} className="text-right px-3 py-2 font-semibold text-gray-600">{h}</th>
+                  ))}
+                  <th className="text-right px-3 py-2 font-semibold text-gray-600">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summary.byMonth.map((m, i) => (
+                  <tr
+                    key={m.month}
+                    className={`border-b border-gray-100 last:border-0 ${
+                      // The current month is still being earned, so it reads as
+                      // a running figure rather than a closed one.
+                      i === summary.byMonth.length - 1 ? 'bg-blue-50/40' : ''
+                    }`}
+                  >
+                    <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
+                      {m.label}
+                      {i === summary.byMonth.length - 1 && (
+                        <span className="ml-2 text-xs font-normal text-blue-600">so far</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                      {m.membership.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                      {m.supplement.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                      {m.other.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
+                      Rs. {m.total.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t-2 border-gray-200">
+                <tr>
+                  <td className="px-3 py-2.5 font-bold text-gray-900">Grand total</td>
+                  {(['membership', 'supplement', 'other'] as const).map(k => (
+                    <td key={k} className="px-3 py-2.5 text-right font-semibold text-gray-700 tabular-nums">
+                      {summary.byMonth.reduce((s, m) => s + m[k], 0).toLocaleString()}
+                    </td>
+                  ))}
+                  <td className="px-3 py-2.5 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
+                    Rs. {summary.grandTotal.toLocaleString()}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {summary.dueTotal > 0 && (
+            // Outstanding is the whole ledger, not just this window — money owed
+            // from four months ago is still owed today. Kept out of the totals
+            // above: it is a debt the gym is owed, not income it has received.
+            <p className="mt-3 text-xs text-gray-500">
+              Rs. {summary.dueTotal.toLocaleString()} still outstanding across{' '}
+              {summary.dueCount} unpaid {summary.dueCount === 1 ? 'entry' : 'entries'}, not
+              counted above.
+            </p>
+          )}
+        </Card>
+      )}
 
       {/* Filters */}
       <Card className="p-3 sm:p-4 mb-5">
@@ -289,8 +460,10 @@ export default function Payments() {
         ) : (
           <EmptyState
             icon={Receipt}
-            title="No payments recorded yet"
-            hint="Every fee a member pays is logged here, so the books and the renewal list stay honest."
+            title={isOwner ? 'No payments recorded yet' : 'You have not recorded any payments yet'}
+            hint={isOwner
+              ? 'Every fee a member pays is logged here, so the books and the renewal list stay honest.'
+              : 'Fees you take are logged here. The gym’s full books are the owner’s to see.'}
             action={
               <button onClick={openAdd} className={primaryButton}>
                 <Plus size={16} /> Record the first payment
@@ -321,12 +494,23 @@ export default function Payments() {
                   </span>
                 </div>
                 {p.notes && <p className="text-xs text-gray-500 mt-2 wrap-break-word">{p.notes}</p>}
-                <div className="flex justify-end gap-1 mt-2 -mb-1 -mr-1">
-                  <IconButton icon={Pencil} label={`Edit payment for ${p.member.name}`}
-                    onClick={() => openEdit(p)} />
-                  <IconButton icon={Trash2} tone="red" label={`Delete payment for ${p.member.name}`}
-                    onClick={() => setDeleting(p)} />
-                </div>
+                {/* Correcting the record is the owner's — an entry that can be
+                    edited by whoever took it is not a record of anything. The
+                    API refuses staff either way; hiding the buttons just keeps
+                    them from being offered an action they cannot complete. */}
+                {isOwner && (
+                  <div className="flex items-center gap-1 mt-2 -mb-1 -mr-1">
+                    {p.recordedBy && (
+                      <span className="text-xs text-gray-400 truncate mr-auto">
+                        by {p.recordedBy.name}
+                      </span>
+                    )}
+                    <IconButton icon={Pencil} label={`Edit payment for ${p.member.name}`}
+                      onClick={() => openEdit(p)} />
+                    <IconButton icon={Trash2} tone="red" label={`Delete payment for ${p.member.name}`}
+                      onClick={() => setDeleting(p)} />
+                  </div>
+                )}
               </Card>
             ))}
           </div>
@@ -340,7 +524,14 @@ export default function Payments() {
                     {['Member', 'Amount', 'Method', 'Date', 'Status', 'Notes'].map(h => (
                       <th key={h} className="text-left px-4 py-3 font-semibold text-gray-600">{h}</th>
                     ))}
-                    <th className="px-4 py-3 w-24"><span className="sr-only">Actions</span></th>
+                    {/* Staff see only their own entries, so "who took this"
+                        would tell them nothing they did not already know. */}
+                    {isOwner && (
+                      <>
+                        <th className="text-left px-4 py-3 font-semibold text-gray-600">Taken by</th>
+                        <th className="px-4 py-3 w-24"><span className="sr-only">Actions</span></th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -365,14 +556,23 @@ export default function Payments() {
                       <td className="px-4 py-3 text-gray-500 max-w-65 truncate" title={p.notes ?? ''}>
                         {p.notes || '—'}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-1">
-                          <IconButton icon={Pencil} label={`Edit payment for ${p.member.name}`}
-                            onClick={() => openEdit(p)} />
-                          <IconButton icon={Trash2} tone="red" label={`Delete payment for ${p.member.name}`}
-                            onClick={() => setDeleting(p)} />
-                        </div>
-                      </td>
+                      {isOwner && (
+                        <>
+                          <td className="px-4 py-3 text-gray-500 max-w-35 truncate">
+                            {/* An em dash rather than a guess: the row predates
+                                the column, or the account that took it is gone. */}
+                            {p.recordedBy?.name ?? '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex justify-end gap-1">
+                              <IconButton icon={Pencil} label={`Edit payment for ${p.member.name}`}
+                                onClick={() => openEdit(p)} />
+                              <IconButton icon={Trash2} tone="red" label={`Delete payment for ${p.member.name}`}
+                                onClick={() => setDeleting(p)} />
+                            </div>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -402,7 +602,16 @@ export default function Payments() {
                   {editing.member.name}
                 </p>
               ) : (
-                <select required value={form.memberId} onChange={set('memberId')} className={inputClass}>
+                <select
+                  required
+                  value={form.memberId}
+                  // Changing the member invalidates any membership already
+                  // picked — it belongs to the previous one.
+                  onChange={e => setForm(f => ({
+                    ...f, memberId: e.target.value, membershipId: '',
+                  }))}
+                  className={inputClass}
+                >
                   <option value="">Select member...</option>
                   {members.map(m => (
                     <option key={m.id} value={m.id}>
@@ -417,6 +626,44 @@ export default function Payments() {
                 </p>
               )}
             </div>
+
+            <div>
+              <FieldLabel>For</FieldLabel>
+              <select value={form.type} onChange={set('type')} className={inputClass}>
+                {(Object.keys(TYPE_LABELS) as PaymentType[]).map(t => (
+                  <option key={t} value={t}>{TYPE_LABELS[t]}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Which membership this settles. Offered only for membership money,
+                and only once a member is chosen — there is nothing to list
+                before that. */}
+            {form.type === 'membership' && formMember && (
+              <div>
+                <FieldLabel>Membership</FieldLabel>
+                {formMember.currentMembership ? (
+                  <select value={form.membershipId} onChange={set('membershipId')} className={inputClass}>
+                    <option value="">Not linked to a membership</option>
+                    <option value={formMember.currentMembership.id}>
+                      {formMember.currentMembership.planName}
+                      {' · Rs. '}
+                      {formMember.currentMembership.pricePaid.toLocaleString()}
+                      {' · expires '}
+                      {new Date(formMember.currentMembership.expiryDate)
+                        .toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </option>
+                  </select>
+                ) : (
+                  <p className="px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-500">
+                    This member has no membership to link to.
+                  </p>
+                )}
+                <p className="text-xs text-gray-400 mt-1.5">
+                  Linking is what lets the app tell a paid-up membership from an unpaid one.
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>

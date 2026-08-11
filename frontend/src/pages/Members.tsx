@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, Camera } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, Camera, CalendarPlus } from 'lucide-react';
 import Badge from '../components/Badge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
   Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl,
-  inputClass, primaryButton, secondaryButton, focusRing,
+  FieldLabel, inputClass, primaryButton, secondaryButton, focusRing,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
 import type { Gender, Member, MembershipPlan } from '../types';
 import toast from 'react-hot-toast';
@@ -54,6 +55,26 @@ function previewExpiry(startDate: string, durationDays: number): string {
   return d.toISOString().split('T')[0]!;
 }
 
+/** Local preview of the extended expiry, on the same terms as previewExpiry:
+ *  the server's answer is the one that counts. */
+function previewExtended(expiryDate: string, days: number): string {
+  const d = new Date(expiryDate);
+  d.setDate(d.getDate() + days);
+  return d.toLocaleDateString('en-PK', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  });
+}
+
+/**
+ * Whether a membership can still be given extra days. Superseded and cancelled
+ * ones are closed history — the same rule the API enforces, mirrored here so
+ * the button is absent rather than failing on click.
+ */
+const canExtend = (m: Member): boolean =>
+  !!m.currentMembership
+  && m.currentMembership.status !== 'superseded'
+  && m.currentMembership.status !== 'cancelled';
+
 /**
  * How a member sorts into the filter tabs. Lapsed wins over expired: once the
  * server has retired somebody, "expired 94 days ago" is no longer the useful
@@ -83,8 +104,14 @@ export default function Members() {
     return isFilter(s) ? s : 'all';
   });
   const [deleting, setDeleting] = useState<Member | null>(null);
+  // Granting days is owner-only, so staff never see the action at all.
+  const { isOwner } = useAuth();
+  const [extending, setExtending] = useState<Member | null>(null);
+  const [extendDays, setExtendDays] = useState('');
+  const [extendReason, setExtendReason] = useState('');
   const photoRef = useRef<HTMLInputElement>(null);
   const modalRef = useDialog(showModal, () => setShowModal(false));
+  const extendRef = useDialog(!!extending, () => setExtending(null));
 
   const load = () =>
     api.get<Member[]>('/members')
@@ -210,6 +237,34 @@ export default function Members() {
       await load();
     } catch (err) {
       toast.error(apiError(err, 'Failed to delete'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openExtend = (m: Member) => {
+    setExtendDays('');
+    setExtendReason('');
+    setExtending(m);
+  };
+
+  const handleExtend = async (e: FormEvent) => {
+    e.preventDefault();
+    const ms = extending?.currentMembership;
+    if (!extending || !ms) return;
+    setSaving(true);
+    try {
+      await api.post(`/members/${extending.id}/memberships/${ms.id}/extend`, {
+        days: Number(extendDays),
+        reason: extendReason.trim(),
+      });
+      toast.success(`Extended by ${extendDays} day${Number(extendDays) === 1 ? '' : 's'}`);
+      setExtending(null);
+      await load();
+    } catch (err) {
+      // The modal stays open with its values, so a rejected reason or a
+      // mistyped number can be corrected without retyping the rest.
+      toast.error(apiError(err, 'Could not extend membership'));
     } finally {
       setSaving(false);
     }
@@ -384,6 +439,12 @@ export default function Members() {
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors ${focusRing}`}>
                     <Pencil size={12} /> Edit
                   </button>
+                  {isOwner && canExtend(m) && (
+                    <button onClick={() => openExtend(m)} aria-label={`Extend ${m.name}'s membership`}
+                      className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-blue-100 text-blue-600 hover:bg-blue-50 transition-colors ${focusRing}`}>
+                      <CalendarPlus size={12} /> Extend
+                    </button>
+                  )}
                   <button onClick={() => setDeleting(m)} aria-label={`Delete ${m.name}`}
                     className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-red-100 text-red-500 hover:bg-red-50 transition-colors ${focusRing}`}>
                     <Trash2 size={12} />
@@ -596,6 +657,107 @@ export default function Members() {
                 </button>
                 <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
                   {saving ? 'Saving...' : editing ? 'Update Member' : 'Add Member'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Extend Modal — owner only, and only for a live membership. */}
+      {extending?.currentMembership && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setExtending(null)} aria-hidden="true" />
+          <div
+            ref={extendRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="extend-modal-title"
+            className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
+          >
+            <div className="p-5 sm:p-6 border-b border-gray-100 shrink-0">
+              <h2 id="extend-modal-title" className="text-lg font-bold text-gray-900">
+                Extend membership
+              </h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {extending.name} · {extending.memberNo}
+              </p>
+            </div>
+
+            <form onSubmit={e => void handleExtend(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
+              <div className="rounded-lg bg-gray-50 px-3 py-2.5 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Plan</span>
+                  <span className="font-semibold text-gray-800">
+                    {extending.currentMembership.planName}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Current expiry</span>
+                  <span className="font-semibold text-gray-800">
+                    {new Date(extending.currentMembership.expiryDate)
+                      .toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Status</span>
+                  <span className="font-semibold text-gray-800">
+                    {extending.currentMembership.daysLeft < 0
+                      ? `Expired ${Math.abs(extending.currentMembership.daysLeft)}d ago`
+                      : `${extending.currentMembership.daysLeft}d left`}
+                  </span>
+                </div>
+                {extending.currentMembership.extendedDays > 0 && (
+                  <div className="flex items-center justify-between border-t border-gray-200 pt-1.5">
+                    <span className="text-gray-500">Already extended</span>
+                    <span className="font-semibold text-blue-700">
+                      +{extending.currentMembership.extendedDays}d
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <FieldLabel required>Extra days</FieldLabel>
+                <input
+                  type="number" min={1} max={365} step={1} required
+                  value={extendDays}
+                  onChange={e => setExtendDays(e.target.value)}
+                  placeholder="e.g. 7"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <FieldLabel required>Reason</FieldLabel>
+                <input
+                  type="text" required minLength={3} maxLength={200}
+                  value={extendReason}
+                  onChange={e => setExtendReason(e.target.value)}
+                  placeholder="e.g. Gym closed for maintenance"
+                  className={inputClass}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Recorded in the audit log against your name.
+                </p>
+              </div>
+
+              {Number(extendDays) > 0 && (
+                <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2.5">
+                  <p className="text-xs font-semibold text-blue-800">New expiry</p>
+                  <p className="text-sm font-bold text-blue-900 mt-0.5">
+                    {previewExtended(extending.currentMembership.expiryDate, Number(extendDays))}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setExtending(null)}
+                  className={`flex-1 ${secondaryButton}`}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
+                  {saving ? 'Extending...' : 'Extend'}
                 </button>
               </div>
             </form>

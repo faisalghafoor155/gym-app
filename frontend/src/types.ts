@@ -15,6 +15,9 @@ export type MemberStatus = MembershipStatus | 'expiring';
 export type Gender = 'male' | 'female' | 'other';
 export type PaymentMethod = 'cash' | 'online';
 export type PaymentStatus = 'paid' | 'due';
+/** What the money was for. Membership payments name the membership they
+ *  settle; supplement sales and one-off fees have nothing to point at. */
+export type PaymentType = 'membership' | 'supplement' | 'other';
 export type SupplementCategory =
   | 'protein' | 'creatine' | 'preworkout' | 'bcaa' | 'vitamins' | 'fatburner' | 'other';
 
@@ -33,6 +36,20 @@ export interface SessionUser {
   role: Role;
   /** Set only when the account belongs to a gym member. */
   memberId: string | null;
+}
+
+/** How many staff accounts the gym may have, and how many are spoken for.
+ *  Revoked accounts still hold their seat — deleting is what frees one. */
+export interface StaffSeats {
+  limit: number;
+  used: number;
+  remaining: number;
+}
+
+/** The accounts list, with the seat count the page needs to render alongside. */
+export interface TeamResponse {
+  users: GymUser[];
+  seats: StaffSeats;
 }
 
 export interface GymUser {
@@ -83,6 +100,7 @@ export interface Membership {
   pricePaid: number;
   durationDays: number;
   extendedDays: number;
+  extensionReason: string | null;
   status: MemberStatus;
   daysLeft: number;
 }
@@ -169,7 +187,40 @@ export interface Payment {
   method: PaymentMethod;
   notes: string | null;
   status: PaymentStatus;
+  type: PaymentType;
+  /** The membership this settled, when it was for one. */
+  membershipId: string | null;
   member: Pick<MemberSummary, 'name' | 'phone' | 'memberNo'>;
+  /** Who took the money. Null for rows predating the field, or whose author's
+   *  account has since been removed. */
+  recordedBy: { id: string; name: string } | null;
+}
+
+/** One calendar month of takings, split by what the money was for. */
+export interface PaymentMonth {
+  /** `2026-08` — stable key, unlike the display label. */
+  month: string;
+  label: string;
+  membership: number;
+  supplement: number;
+  other: number;
+  total: number;
+  count: number;
+}
+
+/** Owner-only: the gym's books, month by month. Settled money only — what is
+ *  still owed is reported apart from it, never folded in. */
+export interface PaymentSummary {
+  months: number;
+  from: string;
+  to: string;
+  byMonth: PaymentMonth[];
+  grandTotal: number;
+  count: number;
+  thisMonth: number;
+  lastMonth: number;
+  dueTotal: number;
+  dueCount: number;
 }
 
 export interface Plan {
@@ -193,6 +244,39 @@ export interface Supplement {
   createdAt: string;
 }
 
+/** One sale across the counter, as the sales report returns it. */
+export interface SupplementSale {
+  id: string;
+  supplementId: string;
+  supplementName: string;
+  memberId: string | null;
+  /** Ready-made label — a member's "MEM-00012 · Ali Khan", or "Walk-in". */
+  buyer: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  paymentId: string | null;
+  soldAt: string;
+  notes: string | null;
+}
+
+export interface SalesMonth {
+  /** `2026-08` — stable key, unlike the display label. */
+  month: string;
+  label: string;
+  revenue: number;
+  units: number;
+  sales: number;
+}
+
+export interface SalesReport {
+  byMonth: SalesMonth[];
+  byProduct: { id: string; name: string; units: number; revenue: number }[];
+  totalRevenue: number;
+  totalUnits: number;
+  recent: SupplementSale[];
+}
+
 export interface RevenueMonth {
   /** `2026-08` — stable key, unlike the display label. */
   month: string;
@@ -207,11 +291,25 @@ export interface AttendanceDay {
 }
 
 /** Money, which only an owner ever receives. */
+/** This calendar month's takings, split by what the money was for. Counted
+ *  from the 1st, not the last 30 days, so it reconciles against the books. */
+export interface MonthToDate {
+  from: string;
+  to: string;
+  membership: number;
+  supplement: number;
+  other: number;
+  total: number;
+  /** How many payments make up the total. */
+  count: number;
+}
+
 export interface DashboardRevenue {
   thisMonth: number;
   lastMonth: number;
   dueTotal: number;
   byMonth: RevenueMonth[];
+  monthToDate: MonthToDate;
 }
 
 export interface DashboardStats {

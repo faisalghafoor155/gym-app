@@ -5,6 +5,7 @@ import { useDialog } from '../hooks/useDialog';
 import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   Dumbbell, LogOut, Shield, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
+  BarChart3,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -23,18 +24,24 @@ const staffNavItems: NavItem[] = [
   { to: '/membership-plans', label: 'Membership Plans', icon: Tag },
   { to: '/plans', label: 'Workout & Diet', icon: Dumbbell },
   { to: '/supplements', label: 'Supplements', icon: FlaskConical },
+  // Taking a fee is counter work, so the page is staff's. What they see on it
+  // is not: the server narrows their list to the payments they recorded
+  // themselves, and refuses them the gym's totals outright.
+  { to: '/payments', label: 'Payments', icon: CreditCard },
 ];
 
 /**
  * Owner-only entries, appended after the staff ones.
  *
- * Payments is here rather than with the staff items: staff run the gym but do
- * not see its books. Hiding the link is only the polite half of that — the
- * routes themselves are gated server-side.
+ * The gym's books rather than the day's work — what it has taken in, and who
+ * may sign in. Hiding the links is only the polite half of that; the routes
+ * themselves are gated server-side.
  */
 const ownerNavItems: NavItem[] = [
-  { to: '/payments', label: 'Payments', icon: CreditCard },
-  { to: '/team', label: 'Team & Access', icon: UserCog },
+  { to: '/supplement-sales', label: 'Supplement Sales', icon: BarChart3 },
+  // Named for what the owner comes here to do — add a helper — rather than for
+  // the abstraction. "Team & Access" read as settings, so nobody found it.
+  { to: '/team', label: 'Staff & Logins', icon: UserCog },
 ];
 
 const memberNavItems: NavItem[] = [

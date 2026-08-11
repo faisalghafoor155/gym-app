@@ -14,6 +14,7 @@ import Payments from './pages/Payments';
 import Plans from './pages/Plans';
 import MembershipPlans from './pages/MembershipPlans';
 import Supplements from './pages/Supplements';
+import SupplementSales from './pages/SupplementSales';
 import Team from './pages/Team';
 import MyPortal from './pages/MyPortal';
 import { Spinner } from './components/ui';
@@ -81,9 +82,14 @@ function AppRoutes() {
                 <Route path="/plans" element={<StaffRoute><Plans /></StaffRoute>} />
                 <Route path="/membership-plans" element={<StaffRoute><MembershipPlans /></StaffRoute>} />
                 <Route path="/supplements" element={<StaffRoute><Supplements /></StaffRoute>} />
+                {/* A report of what the gym earns, rather than a till — so it
+                    stays owner-only, matching what the API enforces. */}
+                <Route path="/supplement-sales" element={<OwnerRoute><SupplementSales /></OwnerRoute>} />
                 <Route path="/members" element={<StaffRoute><Members /></StaffRoute>} />
-                {/* Money is owner-only — the same rule the API enforces. */}
-                <Route path="/payments" element={<OwnerRoute><Payments /></OwnerRoute>} />
+                {/* Open to staff so the counter can take a fee. The page is not
+                    the same for both: the API narrows staff to their own
+                    entries and withholds the gym's totals. */}
+                <Route path="/payments" element={<StaffRoute><Payments /></StaffRoute>} />
                 <Route path="/team" element={<OwnerRoute><Team /></OwnerRoute>} />
                 <Route path="*" element={<HomeRedirect />} />
               </Routes>
