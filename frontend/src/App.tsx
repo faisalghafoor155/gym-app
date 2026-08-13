@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import Members from './pages/Members';
 import Attendance from './pages/Attendance';
 import Payments from './pages/Payments';
+import MonthlyCollection from './pages/MonthlyCollection';
 import Plans from './pages/Plans';
 import MembershipPlans from './pages/MembershipPlans';
 import Supplements from './pages/Supplements';
@@ -22,7 +23,7 @@ import { Spinner } from './components/ui';
 /** The whole-app boot state, before the session is known. */
 function BootSpinner() {
   return (
-    <div className="min-h-dvh flex items-center justify-center bg-gray-50">
+    <div className="min-h-dvh flex items-center justify-center bg-gray-50 dark:bg-slate-950">
       <Spinner />
     </div>
   );
@@ -90,6 +91,9 @@ function AppRoutes() {
                     the same for both: the API narrows staff to their own
                     entries and withholds the gym's totals. */}
                 <Route path="/payments" element={<StaffRoute><Payments /></StaffRoute>} />
+                {/* Who paid in a given month — the gym's collection rather
+                    than one counter's takings, so owner-only like the API. */}
+                <Route path="/monthly-collection" element={<OwnerRoute><MonthlyCollection /></OwnerRoute>} />
                 <Route path="/team" element={<OwnerRoute><Team /></OwnerRoute>} />
                 <Route path="*" element={<HomeRedirect />} />
               </Routes>

@@ -264,6 +264,87 @@ export interface PaymentSummary {
   dueCount: number;
 }
 
+/** One entry inside a member's month — the individual receipt behind a total. */
+export interface MonthlyCollectionEntry {
+  id: string;
+  amount: number;
+  method: PaymentMethod;
+  status: PaymentStatus;
+  type: PaymentType;
+  notes: string | null;
+  paymentDate: string;
+  recordedBy: { id: string; name: string } | null;
+}
+
+/**
+ * One member's month. Everything they paid folded into a single row, with the
+ * individual entries kept so a row can be expanded without another request.
+ */
+export interface MonthlyCollectionRow {
+  memberId: string;
+  memberNo: string;
+  name: string;
+  phone: string | null;
+  /** Settled money only. */
+  paid: number;
+  /** Still owed from entries dated inside this month. */
+  due: number;
+  count: number;
+  /** Null when the member has only unpaid entries this month. */
+  lastPaymentAt: string | null;
+  payments: MonthlyCollectionEntry[];
+}
+
+/** Which side of the month is being asked about. */
+export type CollectionView = 'paid' | 'unpaid' | 'all';
+
+/**
+ * One member who still owes for the month.
+ *
+ * Driven by their membership rather than by payment rows — which is what lets
+ * a member who has paid nothing at all appear here, having no payment row to
+ * be found by.
+ */
+export interface UnpaidRow {
+  memberId: string;
+  memberNo: string;
+  name: string;
+  phone: string | null;
+  membership: Membership;
+  /** The membership's price — what should have been collected. */
+  expected: number;
+  /** Settled against that membership, whenever it was paid. */
+  paid: number;
+  /** `expected - paid`, never negative. */
+  shortfall: number;
+}
+
+/** Owner-only: who paid in a given month, as opposed to how much it brought in. */
+export interface MonthlyCollection {
+  /** `2026-08` — the key that was asked for. */
+  month: string;
+  label: string;
+  from: string;
+  to: string;
+  view: CollectionView;
+  /** Who paid. Empty on the `unpaid` view. */
+  data: MonthlyCollectionRow[];
+  /** Who has not. Empty on the `paid` view. */
+  unpaid: UnpaidRow[];
+  memberCount: number;
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  /** Totalled over the whole month, never over the current page. */
+  collected: number;
+  outstanding: number;
+  paymentCount: number;
+  /** Totalled over everyone who owes — the unpaid side's headline figures. */
+  shortfallTotal: number;
+  expectedTotal: number;
+}
+
 export interface Plan {
   id: string;
   gymId: string;
@@ -345,12 +426,32 @@ export interface MonthToDate {
   count: number;
 }
 
+/**
+ * This month's fees as a head count: how many members have settled and how
+ * many have not. Counted from the memberships that ran during the month, so
+ * `settled + pending` is everyone who owed anything — a member who has paid
+ * nothing still appears, having no payment row to be found by.
+ */
+export interface MonthCollection {
+  settled: number;
+  pending: number;
+  /** Collected against those memberships, capped at what was owed. */
+  collected: number;
+  /** What is still to come in. */
+  shortfall: number;
+  /** `collected + shortfall` — the month's full expected takings. */
+  expected: number;
+}
+
 export interface DashboardRevenue {
   thisMonth: number;
   lastMonth: number;
+  /** Every payment ever marked `due`, across all time — not this month's
+   *  shortfall. `collection.shortfall` is the figure for that. */
   dueTotal: number;
   byMonth: RevenueMonth[];
   monthToDate: MonthToDate;
+  collection: MonthCollection;
 }
 
 export interface DashboardStats {
@@ -360,6 +461,8 @@ export interface DashboardStats {
   todayAttendance: number;
   recentMembers: (Pick<Member, 'id' | 'memberNo' | 'name' | 'phone' | 'createdAt'>
     & { currentMembership: Membership | null })[];
+  /** Memberships whose term has run out — a head count of people to chase,
+   *  not a sum of money and not a count of payment rows. */
   duePayments: number;
   /** Expired more than 60 days ago — off the roster, not on the call list. */
   lapsedMembers: number;
