@@ -13,11 +13,15 @@ RUN npm ci
 # node_modules never enters the image and no .dockerignore has to be
 # added to the app folder.
 COPY --from=src index.html vite.config.ts ./
-COPY --from=src tsconfig.json tsconfig.app.json tsconfig.node.json ./
+COPY --from=src tsconfig.app.json tsconfig.node.json ./
 COPY --from=src public ./public
 COPY --from=src src ./src
 
-RUN npm run build
+# Not `npm run build`: that runs `tsc -b` over the root tsconfig, whose
+# references include the tests project — and neither tests/ nor its config
+# belong in a production image.  The two projects the bundle needs are named
+# directly instead, so adding a fourth project can't break this build.
+RUN npx tsc -b tsconfig.app.json tsconfig.node.json && npx vite build
 
 # ---- serve via nginx ----
 FROM nginx:1.27-alpine AS runtime
