@@ -57,6 +57,15 @@ services:
       # Read by services/google.ts to verify sign-in tokens. Without it the
       # Google button is present but every attempt is rejected.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      # When the daily expiry reminder runs, in this container's timezone —
+      # which is UTC unless TZ is set, so 9am here is not 9am in Karachi.
+      REMINDER_CRON: ${REMINDER_CRON:-0 9 * * *}
+      # Set TZ so the schedule above means what it says locally, and so log
+      # timestamps match the clock on the wall.
+      TZ: ${TZ:-UTC}
+      # false stops this container running scheduled work. Only worth setting
+      # if you run more than one backend.
+      RUN_JOBS: ${RUN_JOBS:-true}
     depends_on:
       db:
         condition: service_healthy
