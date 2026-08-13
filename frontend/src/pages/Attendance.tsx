@@ -4,7 +4,7 @@ import {
   Page, PageHeader, Card, PageLoader, inputClass, focusRing,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
-import type { Member, AttendanceRecord, Paginated } from '../types';
+import type { Member, AttendanceRecord, CheckinResult, Paginated } from '../types';
 import toast from 'react-hot-toast';
 
 function getInitials(name: string): string {
@@ -48,8 +48,42 @@ export default function Attendance() {
     }
     setChecking(member.id);
     try {
-      await api.post('/attendance/checkin', { memberId: member.id });
-      toast.success(`${member.name} checked in!`);
+      const { data } = await api.post<CheckinResult>(
+        '/attendance/checkin', { memberId: member.id },
+      );
+
+      // The server is the authority on whether this was a fresh arrival: this
+      // page's own guard reads a list fetched seconds ago, so a second
+      // receptionist can beat it. Saying "checked in!" for a row somebody else
+      // created an hour ago would be a small lie the desk acts on.
+      if (data.alreadyCheckedIn) {
+        toast(`${member.name} was already checked in today`, { icon: 'ℹ️' });
+      } else {
+        toast.success(`${member.name} checked in!`);
+      }
+
+      // Said separately, and after: an expired membership is not a failed
+      // check-in, and the desk can only do something about it while the member
+      // is still standing there.
+      const ms = data.membership;
+      if (!ms) {
+        toast(`${member.name} has no membership`, { icon: '⚠️', duration: 6000 });
+      } else if (ms.status === 'expired') {
+        toast(
+          `${member.name}'s membership expired ${Math.abs(ms.daysLeft)} day${
+            Math.abs(ms.daysLeft) === 1 ? '' : 's'} ago`,
+          { icon: '⚠️', duration: 6000 },
+        );
+      } else if (ms.status === 'expiring') {
+        toast(
+          ms.daysLeft === 0
+            ? `${member.name}'s membership expires today`
+            : `${member.name}'s membership expires in ${ms.daysLeft} day${
+              ms.daysLeft === 1 ? '' : 's'}`,
+          { icon: '⏳', duration: 5000 },
+        );
+      }
+
       await loadToday();
       setSearch('');
     } catch (err) {

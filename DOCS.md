@@ -216,6 +216,21 @@ a staff member's total covers their own takings and not the gym's.
 | GET | `/today` | staff |
 | GET | `/member/:id` | staff |
 
+A member can be checked in **once a day**. A repeat press answers `200` with the
+existing row and `alreadyCheckedIn: true`, rather than `201` and a second row —
+the desk's intent is already satisfied, and an error toast for a double press
+trains staff to ignore errors. A `@@unique([memberId, checkedInOn])` backs it,
+over a `GENERATED ALWAYS` date column, so the rule still holds when two
+receptionists press the button in the same instant and both pass the check
+before either insert lands.
+
+The check-in **never blocks on membership state**. The response carries the
+member's current membership instead — `expired`, `expiring`, `active`, or
+`null` — so the front desk learns where they stand at the one moment it can do
+something about it. Nothing else in the app locks an expired member out either:
+the dashboard files them under people to phone, and somebody standing at the
+counter with cash in hand is exactly who the gym wants inside.
+
 ### Plans — `/api/plans`
 
 | Method | Path | Access |
@@ -311,7 +326,7 @@ changing it — `VITE_` values are compiled in.
 
 ## Tests
 
-Vitest, on the backend, run with `npm test` in `backend/` — 167 tests across
+Vitest, on the backend, run with `npm test` in `backend/` — 181 tests across
 two layers.
 
 ### Unit tests
@@ -333,7 +348,7 @@ they are deterministic and run in under a second.
 
 ### Integration tests
 
-114 tests driving the real Express app over HTTP with supertest, against a real
+128 tests driving the real Express app over HTTP with supertest, against a real
 Postgres. Files are named `*.integration.test.ts` and cover:
 
 - **`auth`** — registration, login, sessions and rate limiting. That a null
@@ -348,8 +363,18 @@ Postgres. Files are named `*.integration.test.ts` and cover:
 - **`roles`** — the owner > staff > member boundary on every guarded route,
   plus that a role change binds on the very next request.
 - **`payments`** — money end to end: that amounts cross the API as numbers and
-  not `"2500"`, that dues arithmetic stays exact over ten `0.10` payments, and
-  that overpaying never produces a negative outstanding.
+  not `"2500"`, that dues arithmetic stays exact over ten `0.10` payments, that
+  overpaying never produces a negative outstanding, and that the filtered
+  totals cover every matching row rather than the page they were asked for.
+- **`members`** — paging, server-side search, and the derived status tabs at
+  their boundaries: day seven is still `expiring`, lapsing needs *more* than
+  sixty days, a hand-deactivated member is lapsed whatever the dates say. Also
+  that a search reaches a member who is nowhere near the first page, and that
+  the tab counts follow the search without narrowing themselves by the tab.
+- **`attendance`** — one check-in per member per day, including five fired at
+  once to prove the unique constraint holds where the controller's own check
+  cannot. And that an expired membership never blocks the door, but does come
+  back in the response.
 
 **How the database is handled.** `src/test/setup.ts` drops and recreates a
 `gymapp_test` database once per run, applies the real migration files with
