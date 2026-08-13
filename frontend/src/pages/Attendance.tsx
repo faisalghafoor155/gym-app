@@ -4,7 +4,7 @@ import {
   Page, PageHeader, Card, PageLoader, inputClass, focusRing,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
-import type { Member, AttendanceRecord } from '../types';
+import type { Member, AttendanceRecord, Paginated } from '../types';
 import toast from 'react-hot-toast';
 
 function getInitials(name: string): string {
@@ -23,7 +23,9 @@ export default function Attendance() {
 
   useEffect(() => {
     Promise.all([
-      api.get<Member[]>('/members').then(r => setMembers(r.data)),
+      // Every member, not a page of them: this list is searched here to find
+      // whoever is standing at the desk.
+      api.get<Paginated<Member>>('/members?all=true').then(r => setMembers(r.data.data)),
       loadToday(),
     ])
       .catch(err => toast.error(apiError(err, 'Could not load attendance')))

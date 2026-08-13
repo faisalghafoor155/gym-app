@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useState, useRef, useMemo, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, Camera, CalendarPlus } from 'lucide-react';
 import Badge from '../components/Badge';
@@ -10,7 +10,8 @@ import {
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
-import type { Gender, Member, MembershipPlan } from '../types';
+import { useDebounced } from '../hooks/useDebounced';
+import type { Gender, Member, MembershipPlan, MemberCounts, PaginatedMembers } from '../types';
 import toast from 'react-hot-toast';
 
 interface MemberForm {
@@ -41,6 +42,10 @@ type StatusFilter = (typeof FILTERS)[number];
 
 const isFilter = (v: string | null): v is StatusFilter =>
   !!v && (FILTERS as readonly string[]).includes(v);
+
+/** Members per request. The rest arrive on demand rather than up front — a
+ *  member row carries a photo, so a full roster is expensive to ship. */
+const PAGE_SIZE = 24;
 
 function getInitials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -75,18 +80,6 @@ const canExtend = (m: Member): boolean =>
   && m.currentMembership.status !== 'superseded'
   && m.currentMembership.status !== 'cancelled';
 
-/**
- * How a member sorts into the filter tabs. Lapsed wins over expired: once the
- * server has retired somebody, "expired 94 days ago" is no longer the useful
- * thing to say about them.
- */
-function memberBucket(m: Member): Exclude<StatusFilter, 'all'> {
-  if (m.status === 'inactive') return 'lapsed';
-  if (!m.currentMembership) return 'none';
-  const s = m.currentMembership.status;
-  return s === 'active' || s === 'expiring' || s === 'expired' ? s : 'none';
-}
-
 export default function Members() {
   const [members, setMembers] = useState<Member[]>([]);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
@@ -103,6 +96,21 @@ export default function Members() {
     const s = params.get('status');
     return isFilter(s) ? s : 'all';
   });
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  /** How many members match the filters, not how many are on screen. */
+  const [total, setTotal] = useState(0);
+  /**
+   * The tab counts, from the server. They cover the whole roster rather than
+   * the loaded page — a tab that counted only what had been fetched would climb
+   * as you pressed Show more.
+   */
+  const [counts, setCounts] = useState<MemberCounts>(
+    { all: 0, active: 0, expiring: 0, expired: 0, lapsed: 0, none: 0 },
+  );
+  // First paint shows a spinner; later fetches dim the old list instead.
+  const [refetching, setRefetching] = useState(false);
   const [deleting, setDeleting] = useState<Member | null>(null);
   // Granting days is owner-only, so staff never see the action at all.
   const { isOwner } = useAuth();
@@ -113,14 +121,64 @@ export default function Members() {
   const modalRef = useDialog(showModal, () => setShowModal(false));
   const extendRef = useDialog(!!extending, () => setExtending(null));
 
-  const load = () =>
-    api.get<Member[]>('/members')
-      .then(r => setMembers(r.data))
+  const debouncedSearch = useDebounced(search);
+
+  /**
+   * The filters, as the server takes them. Searching and the status tabs both
+   * run there now: a page that filters what it was handed can only ever search
+   * the rows it already has, which stops being a search at all once the gym
+   * outgrows one page.
+   */
+  const query = useMemo(() => {
+    const q = new URLSearchParams();
+    if (debouncedSearch.trim()) q.set('search', debouncedSearch.trim());
+    if (filterStatus !== 'all') q.set('status', filterStatus);
+    q.set('limit', String(PAGE_SIZE));
+    return `?${q.toString()}`;
+  }, [debouncedSearch, filterStatus]);
+
+  /**
+   * Replaces the list from page one, under the filters in force.
+   *
+   * Always page one: adding or editing a member can move them out of the
+   * current tab entirely, and refetching some later page would leave a hole
+   * above whatever came back.
+   */
+  const load = useMemo(() => () =>
+    api.get<PaginatedMembers>(`/members${query}`)
+      .then(r => {
+        setMembers(r.data.data);
+        setCounts(r.data.counts);
+        setTotal(r.data.total);
+        setHasMore(r.data.hasMore);
+        setPage(1);
+      })
       .catch(err => toast.error(apiError(err, 'Could not load members')))
-      .finally(() => setLoading(false));
+      .finally(() => setLoading(false)),
+  [query]);
+
+  // Refetched whenever the filters change. The old list is dimmed rather than
+  // blanked, so typing in the search box does not empty the page.
+  useEffect(() => {
+    setRefetching(true);
+    void load().finally(() => setRefetching(false));
+  }, [load]);
+
+  /** Appends the next page rather than replacing what is on screen. */
+  const loadMore = () => {
+    const next = page + 1;
+    setLoadingMore(true);
+    api.get<PaginatedMembers>(`/members${query}&page=${next}`)
+      .then(r => {
+        setMembers(prev => [...prev, ...r.data.data]);
+        setHasMore(r.data.hasMore);
+        setPage(next);
+      })
+      .catch(err => toast.error(apiError(err, 'Could not load more members')))
+      .finally(() => setLoadingMore(false));
+  };
 
   useEffect(() => {
-    void load();
     // The gym's own price list, so the plan picker offers what this gym
     // actually sells rather than three hardcoded durations.
     void api.get<MembershipPlan[]>('/membership-plans')
@@ -270,39 +328,23 @@ export default function Members() {
     }
   };
 
-  const filtered = members.filter(m => {
-    const q = search.toLowerCase();
-    const matchSearch = !search ||
-      m.name.toLowerCase().includes(q) ||
-      m.memberNo.toLowerCase().includes(q) ||
-      (m.phone && m.phone.includes(search));
-    const bucket = memberBucket(m);
-    // "All" means everyone still on the books. Somebody who stopped coming two
-    // months ago is not part of that, so they are reachable only from their own
-    // tab — or from a search, where the person typing a name wants that person.
-    const matchStatus = filterStatus === 'all'
-      ? bucket !== 'lapsed' || !!search
-      : bucket === filterStatus;
-    return matchSearch && matchStatus;
-  });
-
-  const counts = members.reduce<Record<StatusFilter, number>>(
-    (acc, m) => { acc[memberBucket(m)]++; return acc; },
-    { all: 0, active: 0, expiring: 0, expired: 0, lapsed: 0, none: 0 },
-  );
-  counts.all = members.length - counts.lapsed;
-
+  // Searching, filtering and counting all happen on the server now — what
+  // arrives in `members` is already the page being shown.
   if (loading) return <PageLoader />;
 
   const hasFilters = filterStatus !== 'all' || search !== '';
   const clearFilters = () => { setFilterStatus('all'); setSearch(''); };
+
+  // counts.all rather than `total`: the header describes the roster, not
+  // whatever the current tab or search has narrowed it to.
+  const rosterSize = counts.all;
 
   return (
     <Page>
       <PageHeader
         icon={Users}
         title="Members"
-        subtitle={`${members.length} ${members.length === 1 ? 'member' : 'members'} on the books`}
+        subtitle={`${rosterSize} ${rosterSize === 1 ? 'member' : 'members'} on the books`}
         action={
           <button onClick={() => openAdd()} className={primaryButton}>
             <Plus size={16} />
@@ -341,7 +383,7 @@ export default function Members() {
       </Card>
 
       {/* Members Grid */}
-      {filtered.length === 0 ? (
+      {members.length === 0 ? (
         hasFilters ? (
           <EmptyState
             icon={Search}
@@ -364,8 +406,10 @@ export default function Members() {
           />
         )
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map(m => {
+        <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 transition-opacity ${
+          refetching ? 'opacity-60' : ''
+        }`}>
+          {members.map(m => {
             const ms = m.currentMembership;
             // A lapsed card should recede, not shout — the red treatment is
             // for members somebody is still chasing.
@@ -453,6 +497,14 @@ export default function Members() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {hasMore && (
+        <div className="flex justify-center mt-5">
+          <button onClick={loadMore} disabled={loadingMore} className={secondaryButton}>
+            {loadingMore ? 'Loading…' : `Show more · ${total - members.length} left`}
+          </button>
         </div>
       )}
 

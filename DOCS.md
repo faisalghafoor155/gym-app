@@ -154,6 +154,31 @@ everything staff can.
 | GET | `/:id/memberships` | staff |
 | POST | `/:id/memberships/:membershipId/extend` | owner — grants extra days, reason required |
 
+`GET /members` is paged and takes `search`, `status`, `page` and `limit` (max
+100, default 25). Searching and the status tabs run on the server, so a search
+covers the whole roster rather than the page in hand.
+
+`status` is one of `active`, `expiring`, `expired`, `lapsed` or `none`. None of
+these is a stored column — every one is derived from the expiry date against
+today — so the filter becomes date arithmetic in SQL. `memberStatusWhere` in
+`services/membership.ts` is that translation, and it has to keep agreeing with
+`displayStatus` and `isLapsed` beside it.
+
+With no `status`, the list omits lapsed members, which is what "everyone still
+on the books" means. A `search` overrides that: somebody typing a name wants
+that person found.
+
+The response adds `counts` — a figure per tab over the whole roster, so a tab
+does not relabel itself as you page. The counts follow the current search but
+not the current tab, or every other tab would read zero the moment one was
+picked.
+
+`?all=true` returns every member for the pickers that need a complete list (the
+payment form's dropdown cannot offer only the first 25 people in the gym). That
+response **drops photos**, which are base64 data-URLs of up to 2MB stored inline
+and the only reason a full list is expensive. It includes lapsed members, who
+are exactly who the front desk is about to sell a renewal to.
+
 ### Supplements — `/api/supplements`
 
 | Method | Path | Access |
@@ -171,6 +196,17 @@ everything staff can.
 | GET / POST | `/` | staff |
 | GET | `/due` | staff — `paid` and `outstanding` per membership |
 | DELETE | `/:id` | staff |
+
+`GET /payments` is paged on the same terms as `/members`, alongside its existing
+`status`, `type`, `search`, `from` and `to` filters.
+
+It also returns `collected` and `outstanding`, totalled over **everything
+matching the filters** rather than over the page. The tiles above the table say
+"matching filters", and a figure that quietly totalled the first 25 rows while
+claiming that would be wrong in the one direction money must never be wrong.
+They are summed with `groupBy` in the database, because summing a page in the
+client can only ever total the page — and they narrow with the staff scoping, so
+a staff member's total covers their own takings and not the gym's.
 
 ### Attendance — `/api/attendance`
 
@@ -275,7 +311,7 @@ changing it — `VITE_` values are compiled in.
 
 ## Tests
 
-Vitest, on the backend, run with `npm test` in `backend/` — 138 tests across
+Vitest, on the backend, run with `npm test` in `backend/` — 167 tests across
 two layers.
 
 ### Unit tests
@@ -297,7 +333,7 @@ they are deterministic and run in under a second.
 
 ### Integration tests
 
-85 tests driving the real Express app over HTTP with supertest, against a real
+114 tests driving the real Express app over HTTP with supertest, against a real
 Postgres. Files are named `*.integration.test.ts` and cover:
 
 - **`auth`** — registration, login, sessions and rate limiting. That a null
@@ -374,7 +410,11 @@ that does not resolve or a bundle that cannot be produced, neither of which
   goes — it proves the bundle compiles, not that a page behaves.
 - **No database backup.** Postgres data lives only in a Docker volume; a real
   deployment wants a scheduled `pg_dump`.
-- **Unbounded list endpoints.** `GET /members`, `/payments` and `/supplements`
-  return every row, and member photos are base64 inside them. Only
-  `/audit-logs` paginates.
+- **`GET /supplements` is unbounded.** Left that way deliberately: a gym stocks
+  tens of products, not thousands, and the category counts on the page are
+  computed from the whole list. It is the one list where paging would cost more
+  than it saves — revisit it if a gym ever carries hundreds of lines.
+- **The payments CSV exports what has been loaded**, not every match, now that
+  the list is paged. The toast says so ("Exported 50 of 213"), and pressing Show
+  more first widens it. A server-side export would be the honest fix.
 - `HTTPS=false` suits localhost, but must be flipped for any real deployment.

@@ -16,6 +16,7 @@ import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import type {
   Payment, Member, PaymentMethod, PaymentStatus, PaymentType, PaymentSummary,
+  Paginated, PaginatedPayments,
 } from '../types';
 import toast from 'react-hot-toast';
 
@@ -52,8 +53,8 @@ const FILTERS = [
   { value: 'due' as const, label: 'Due' },
 ];
 
-/** Past 200 rows the table stops being something anyone reads; the rest load on
- *  demand rather than all at once. */
+/** Rows per request. The table stops being something anyone reads long before
+ *  this, so the rest are fetched on demand rather than shipped up front. */
 const PAGE_SIZE = 50;
 
 /** How many months of history the summary covers — the same window as the
@@ -69,7 +70,14 @@ export default function Payments() {
   const [search, setSearch] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  /** How many rows match the filters in total, not how many are on screen. */
+  const [total, setTotal] = useState(0);
+  /** Totalled by the server over everything matching the filters — see
+   *  PaginatedPayments. Summing `payments` here would only total this page. */
+  const [totals, setTotals] = useState({ collected: 0, outstanding: 0 });
   const [params, setParams] = useSearchParams();
 
   const [showModal, setShowModal] = useState(false);
@@ -92,25 +100,53 @@ export default function Payments() {
     if (debouncedSearch.trim()) q.set('search', debouncedSearch.trim());
     if (from) q.set('from', from);
     if (to) q.set('to', to);
-    const s = q.toString();
-    return s ? `?${s}` : '';
+    q.set('limit', String(PAGE_SIZE));
+    return `?${q.toString()}`;
   }, [filter, debouncedSearch, from, to]);
 
+  // Page one whenever the filters change: page three of the old result set
+  // has nothing to do with the new one.
   useEffect(() => {
     let cancelled = false;
     setRefetching(true);
-    api.get<Payment[]>(`/payments${query}`)
-      .then(r => { if (!cancelled) { setPayments(r.data); setVisible(PAGE_SIZE); } })
+    api.get<PaginatedPayments>(`/payments${query}`)
+      .then(r => {
+        if (cancelled) return;
+        setPayments(r.data.data);
+        setTotals({ collected: r.data.collected, outstanding: r.data.outstanding });
+        setTotal(r.data.total);
+        setHasMore(r.data.hasMore);
+        setPage(1);
+      })
       .catch(err => { if (!cancelled) toast.error(apiError(err, 'Could not load payments')); })
       .finally(() => { if (!cancelled) { setLoading(false); setRefetching(false); } });
     // A slow earlier response must not overwrite a newer one.
     return () => { cancelled = true; };
   }, [query]);
 
-  // The member list never changes with the filters, so it loads once.
+  /**
+   * Appends the next page rather than replacing the list, so "Show more" grows
+   * what is on screen the way it always did — the rows now come from the server
+   * one page at a time instead of all having been downloaded up front.
+   */
+  const loadMore = () => {
+    const next = page + 1;
+    setLoadingMore(true);
+    api.get<PaginatedPayments>(`/payments${query}&page=${next}`)
+      .then(r => {
+        setPayments(prev => [...prev, ...r.data.data]);
+        setHasMore(r.data.hasMore);
+        setPage(next);
+      })
+      .catch(err => toast.error(apiError(err, 'Could not load more payments')))
+      .finally(() => setLoadingMore(false));
+  };
+
+  // The member list never changes with the filters, so it loads once. The
+  // picker has to offer every member, hence all=true.
   useEffect(() => {
-    api.get<Member[]>('/members')
-      .then(r => setMembers(r.data))
+    api.get<Paginated<Member>>('/members?all=true')
+      .then(r => setMembers(r.data.data))
       .catch(() => { /* the payments error toast already covers a dead API */ });
   }, []);
 
@@ -148,9 +184,17 @@ export default function Payments() {
   // Recording or correcting a payment moves the month's total too, so the
   // summary is refreshed alongside the list rather than going stale until the
   // next page load.
+  // Back to page one: a correction can move a row out of the current filter
+  // entirely, and re-fetching a later page would leave a gap above it.
   const reload = () => Promise.all([
-    api.get<Payment[]>(`/payments${query}`)
-      .then(r => setPayments(r.data))
+    api.get<PaginatedPayments>(`/payments${query}`)
+      .then(r => {
+        setPayments(r.data.data);
+        setTotals({ collected: r.data.collected, outstanding: r.data.outstanding });
+        setTotal(r.data.total);
+        setHasMore(r.data.hasMore);
+        setPage(1);
+      })
       .catch(err => toast.error(apiError(err, 'Could not load payments'))),
     loadSummary(),
   ]);
@@ -237,11 +281,18 @@ export default function Payments() {
   const hasFilters = filter !== 'all' || search !== '' || from !== '' || to !== '';
   const clearFilters = () => { setFilter('all'); setSearch(''); setFrom(''); setTo(''); };
 
-  const collected = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
-  const outstanding = payments.filter(p => p.status === 'due').reduce((s, p) => s + p.amount, 0);
+  const { collected, outstanding } = totals;
 
-  /** Exports exactly what is on screen, filters and all — an export that
-   *  quietly returned everything would be read as the filtered total. */
+  /**
+   * Exports the rows that have been loaded, filters and all — an export that
+   * quietly returned everything would be read as the filtered total.
+   *
+   * With the list now paged, that means what has been fetched so far rather
+   * than every match, so the toast says how many of the total went out. Getting
+   * the rest is a matter of pressing Show more first, which is honest about the
+   * cost instead of quietly fetching thousands of rows behind a button labelled
+   * Export.
+   */
   const handleExport = () => {
     if (payments.length === 0) { toast.error('Nothing to export'); return; }
     const csv = toCsv(
@@ -257,12 +308,17 @@ export default function Payments() {
       ]),
     );
     downloadCsv(`payments-${today()}.csv`, csv);
-    toast.success(`Exported ${payments.length} payment${payments.length === 1 ? '' : 's'}`);
+    toast.success(
+      payments.length < total
+        // Say so plainly rather than letting a partial file read as the lot.
+        ? `Exported ${payments.length} of ${total} — press Show more for the rest`
+        : `Exported ${payments.length} payment${payments.length === 1 ? '' : 's'}`,
+    );
   };
 
   if (loading) return <PageLoader />;
 
-  const shown = payments.slice(0, visible);
+  const shown = payments;
 
   return (
     <Page>
@@ -294,7 +350,7 @@ export default function Payments() {
         />
         <StatTile
           icon={Receipt} tone="blue" label="Payments"
-          value={payments.length} hint={hasFilters ? 'matching filters' : undefined}
+          value={total} hint={hasFilters ? 'matching filters' : undefined}
         />
       </div>
 
@@ -580,10 +636,10 @@ export default function Payments() {
             </div>
           </Card>
 
-          {visible < payments.length && (
+          {hasMore && (
             <div className="flex justify-center mt-5">
-              <button onClick={() => setVisible(v => v + PAGE_SIZE)} className={secondaryButton}>
-                Show more · {payments.length - visible} left
+              <button onClick={loadMore} disabled={loadingMore} className={secondaryButton}>
+                {loadingMore ? 'Loading…' : `Show more · ${total - payments.length} left`}
               </button>
             </div>
           )}
