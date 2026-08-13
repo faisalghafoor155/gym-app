@@ -132,11 +132,11 @@ export default function MembershipPlans() {
         <div className="flex items-center gap-3 min-w-0">
           <IconTile icon={Tag} tone={p.isActive ? 'blue' : 'gray'} />
           <div className="min-w-0">
-            <h3 className={`font-bold text-sm truncate ${p.isActive ? 'text-gray-900' : 'text-gray-500'}`}>
+            <h3 className={`font-bold text-sm truncate ${p.isActive ? 'text-gray-900 dark:text-slate-100' : 'text-gray-500 dark:text-slate-400'}`}>
               {p.name}
             </h3>
             {!p.isActive && (
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full mt-1">
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-slate-400 bg-gray-200 dark:bg-slate-700 px-2 py-0.5 rounded-full mt-1">
                 <EyeOff size={10} /> Not offered
               </span>
             )}
@@ -169,7 +169,7 @@ export default function MembershipPlans() {
             <>
               {p.durationDays} days
               {describeDuration(p.durationDays) && (
-                <span className="text-gray-400 font-normal"> · {describeDuration(p.durationDays)}</span>
+                <span className="text-gray-400 dark:text-slate-500 font-normal"> · {describeDuration(p.durationDays)}</span>
               )}
             </>
           }
@@ -195,7 +195,7 @@ export default function MembershipPlans() {
       {/* A plan priced at zero is the seeded default nobody has filled in yet;
           it will sell a membership for nothing until somebody does. */}
       {unpriced > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 mb-5 flex items-start gap-2.5">
+        <div className="bg-yellow-50 dark:bg-yellow-500/15 border border-yellow-200 dark:border-yellow-500/20 rounded-xl px-4 py-3 mb-5 flex items-start gap-2.5">
           <Wallet size={16} className="text-yellow-600 shrink-0 mt-0.5" />
           <p className="text-sm text-yellow-800">
             {unpriced === 1 ? 'One plan has' : `${unpriced} plans have`} no price set.
@@ -235,7 +235,7 @@ export default function MembershipPlans() {
               <button
                 onClick={() => setShowRetired(v => !v)}
                 aria-expanded={showRetired}
-                className={`text-sm font-semibold text-gray-500 hover:text-gray-900 flex items-center gap-2 transition-colors rounded-lg px-1 py-0.5 ${focusRing}`}
+                className={`text-sm font-semibold text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 flex items-center gap-2 transition-colors rounded-lg px-1 py-0.5 ${focusRing}`}
               >
                 <EyeOff size={14} />
                 {showRetired ? 'Hide' : 'Show'} retired plans ({retired.length})
@@ -259,13 +259,13 @@ export default function MembershipPlans() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="plan-modal-title"
-            className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
+            className="relative bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
           >
-            <div className="p-5 sm:p-6 border-b border-gray-100 shrink-0">
-              <h2 id="plan-modal-title" className="text-lg font-bold text-gray-900">
+            <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
+              <h2 id="plan-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
                 {editing ? 'Edit Plan' : 'Add Membership Plan'}
               </h2>
-              <p className="text-sm text-gray-500 mt-0.5">
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
                 {editing
                   ? 'Members already on this plan keep what they paid'
                   : 'Name it, price it, and say how many days it runs'}
@@ -274,7 +274,7 @@ export default function MembershipPlans() {
 
             <form onSubmit={e => void handleSave(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
               <div>
-                <label htmlFor="plan-name" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                <label htmlFor="plan-name" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
                   Plan Name *
                 </label>
                 <input
@@ -288,11 +288,11 @@ export default function MembershipPlans() {
               </div>
 
               <div>
-                <label htmlFor="plan-price" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                <label htmlFor="plan-price" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
                   Price (Rs.)
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">Rs.</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 text-sm font-medium">Rs.</span>
                   <input
                     id="plan-price"
                     type="number"
@@ -307,7 +307,7 @@ export default function MembershipPlans() {
               </div>
 
               <div>
-                <label htmlFor="plan-duration" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                <label htmlFor="plan-duration" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
                   Duration (days) *
                 </label>
                 <div className="grid grid-cols-4 gap-2 mb-2">
@@ -317,8 +317,8 @@ export default function MembershipPlans() {
                       aria-pressed={form.durationDays === String(d.days)}
                       className={`border rounded-xl py-2 px-1 text-center transition-all ${focusRing} ${
                         form.durationDays === String(d.days)
-                          ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700'
+                          : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-gray-300'
                       }`}>
                       <p className="font-semibold text-xs">{d.days}d</p>
                       <p className="text-xs opacity-60 mt-0.5">{d.label}</p>
@@ -337,7 +337,7 @@ export default function MembershipPlans() {
                 />
                 {/* Days, not months: "31 Jan + 1 month" has no single right
                     answer, "31 Jan + 30 days" has exactly one. */}
-                <p className="text-xs text-gray-400 mt-1.5">
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5">
                   Expiry is counted in days from the start date.
                 </p>
               </div>

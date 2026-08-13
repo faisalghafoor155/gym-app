@@ -107,13 +107,13 @@ export default function Attendance() {
           <div className="flex gap-3">
             <Card className="px-4 py-2.5 text-center">
               <p className="text-xl sm:text-2xl font-bold text-blue-600">{todayList.length}</p>
-              <p className="text-xs text-gray-500">Checked in</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Checked in</p>
             </Card>
             <Card className="px-4 py-2.5 text-center">
-              <p className="text-xl sm:text-2xl font-bold text-gray-400">
+              <p className="text-xl sm:text-2xl font-bold text-gray-400 dark:text-slate-500">
                 {Math.max(0, members.length - todayList.length)}
               </p>
-              <p className="text-xs text-gray-500">Absent</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Absent</p>
             </Card>
           </div>
         }
@@ -122,12 +122,12 @@ export default function Attendance() {
       <div className="space-y-5 sm:space-y-6">
       {/* Check-in Panel */}
       <Card className="p-4 sm:p-5">
-        <h2 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+        <h2 className="font-bold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
           <Search size={16} className="text-blue-600" />
           Quick Check-In
         </h2>
         <div className="relative">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
           <input
             type="search"
             value={search}
@@ -143,7 +143,7 @@ export default function Attendance() {
         {search.trim().length > 0 && (
           <div className="mt-3 space-y-2">
             {filtered.length === 0 ? (
-              <div className="text-center py-6 text-gray-400">
+              <div className="text-center py-6 text-gray-400 dark:text-slate-500">
                 <UserX size={24} className="mx-auto mb-1" />
                 <p className="text-sm">No member found</p>
               </div>
@@ -154,7 +154,7 @@ export default function Attendance() {
                 return (
                   <div key={m.id}
                     className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                      isIn ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100 hover:border-blue-200 hover:bg-blue-50/30'
+                      isIn ? 'bg-green-50 dark:bg-green-500/15 border-green-200 dark:border-green-500/20' : 'bg-white dark:bg-slate-900 border-gray-100 dark:border-slate-800 hover:border-blue-200 hover:bg-blue-50/30'
                     }`}>
                     <div className="w-10 h-10 rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 overflow-hidden">
                       {m.photo
@@ -163,8 +163,8 @@ export default function Attendance() {
                       }
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 text-sm truncate">{m.name}</p>
-                      <p className="text-xs text-gray-400">
+                      <p className="font-semibold text-gray-900 dark:text-slate-100 text-sm truncate">{m.name}</p>
+                      <p className="text-xs text-gray-400 dark:text-slate-500">
                         {m.memberNo} · {m.phone || 'No phone'}
                       </p>
                       {/* The front desk needs the membership state before it
@@ -179,12 +179,12 @@ export default function Attendance() {
                             Expires in {m.currentMembership.daysLeft}d
                           </p>
                         ) : (
-                          <p className="text-xs text-gray-400 mt-0.5">
+                          <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
                             {m.currentMembership.planName}
                           </p>
                         )
                       ) : (
-                        <p className="text-xs text-gray-400 mt-0.5">No membership</p>
+                        <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">No membership</p>
                       )}
                     </div>
                     <button
@@ -192,7 +192,7 @@ export default function Attendance() {
                       disabled={isIn || isLoading}
                       className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors shrink-0 ${focusRing} ${
                         isIn
-                          ? 'bg-green-100 text-green-700 cursor-default'
+                          ? 'bg-green-100 dark:bg-green-500/15 text-green-700 cursor-default'
                           : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
                       }`}>
                       <CheckCircle2 size={13} />
@@ -206,7 +206,7 @@ export default function Attendance() {
         )}
 
         {search.trim().length === 0 && (
-          <p className="text-center text-gray-400 text-xs mt-4">
+          <p className="text-center text-gray-400 dark:text-slate-500 text-xs mt-4">
             Start typing to search a member
           </p>
         )}
@@ -214,24 +214,24 @@ export default function Attendance() {
 
       {/* Today's Log */}
       <Card className="p-4 sm:p-5">
-        <h2 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <h2 className="font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
           <Users size={16} className="text-blue-600" />
           Today's Log
-          <span className="ml-auto bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">
+          <span className="ml-auto bg-blue-100 dark:bg-blue-500/15 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">
             {todayList.length}
           </span>
         </h2>
 
         {todayList.length === 0 ? (
           <div className="text-center py-10">
-            <CalendarCheck size={36} className="text-gray-200 mx-auto mb-2" />
-            <p className="text-gray-400 text-sm">No check-ins yet today</p>
+            <CalendarCheck size={36} className="text-gray-200 dark:text-slate-700 mx-auto mb-2" />
+            <p className="text-gray-400 dark:text-slate-500 text-sm">No check-ins yet today</p>
           </div>
         ) : (
           <div className="space-y-2">
             {todayList.map((r, i) => (
-              <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                <span className="text-xs text-gray-400 font-mono w-5 text-center">{i + 1}</span>
+              <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-slate-800/60 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                <span className="text-xs text-gray-400 dark:text-slate-500 font-mono w-5 text-center">{i + 1}</span>
                 <div className="w-9 h-9 rounded-lg bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center overflow-hidden shrink-0">
                   {r.member?.photo
                     ? <img src={r.member.photo} alt={r.member.name} className="w-full h-full object-cover" />
@@ -239,11 +239,11 @@ export default function Attendance() {
                   }
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm truncate">{r.member?.name}</p>
-                  <p className="text-xs text-gray-400">{r.member?.phone || '—'}</p>
+                  <p className="font-semibold text-gray-900 dark:text-slate-100 text-sm truncate">{r.member?.name}</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500">{r.member?.phone || '—'}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                  <p className="text-xs font-bold text-gray-700 dark:text-slate-300 flex items-center gap-1">
                     <Clock size={11} />
                     {new Date(r.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>

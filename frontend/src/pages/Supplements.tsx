@@ -22,13 +22,13 @@ interface CategoryInfo {
 }
 
 const CATEGORIES: CategoryInfo[] = [
-  { value: 'protein', label: 'Protein', icon: '🥩', color: 'bg-red-50 text-red-700 border-red-200' },
-  { value: 'creatine', label: 'Creatine', icon: '⚡', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-  { value: 'preworkout', label: 'Pre-Workout', icon: '🔥', color: 'bg-orange-50 text-orange-700 border-orange-200' },
-  { value: 'bcaa', label: 'BCAA', icon: '💪', color: 'bg-purple-50 text-purple-700 border-purple-200' },
-  { value: 'vitamins', label: 'Vitamins', icon: '🌿', color: 'bg-green-50 text-green-700 border-green-200' },
-  { value: 'fatburner', label: 'Fat Burner', icon: '🏃', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-  { value: 'other', label: 'Other', icon: '💊', color: 'bg-gray-50 text-gray-700 border-gray-200' },
+  { value: 'protein', label: 'Protein', icon: '🥩', color: 'bg-red-50 dark:bg-red-500/15 text-red-700 border-red-200 dark:border-red-500/20' },
+  { value: 'creatine', label: 'Creatine', icon: '⚡', color: 'bg-yellow-50 dark:bg-yellow-500/15 text-yellow-700 border-yellow-200 dark:border-yellow-500/20' },
+  { value: 'preworkout', label: 'Pre-Workout', icon: '🔥', color: 'bg-orange-50 dark:bg-orange-500/15 text-orange-700 border-orange-200 dark:border-orange-500/20' },
+  { value: 'bcaa', label: 'BCAA', icon: '💪', color: 'bg-purple-50 dark:bg-purple-500/15 text-purple-700 border-purple-200 dark:border-purple-500/20' },
+  { value: 'vitamins', label: 'Vitamins', icon: '🌿', color: 'bg-green-50 dark:bg-green-500/15 text-green-700 border-green-200 dark:border-green-500/20' },
+  { value: 'fatburner', label: 'Fat Burner', icon: '🏃', color: 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 border-blue-200 dark:border-blue-500/20' },
+  { value: 'other', label: 'Other', icon: '💊', color: 'bg-gray-50 dark:bg-slate-800/60 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-800' },
 ];
 
 const getCatInfo = (cat: string): CategoryInfo =>
@@ -252,7 +252,7 @@ export default function Supplements() {
           <button onClick={() => setFilterCat('all')}
             aria-pressed={filterCat === 'all'}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${focusRing} ${
-              filterCat === 'all' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+              filterCat === 'all' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/60'
             }`}>
             All ({supplements.length})
           </button>
@@ -263,7 +263,7 @@ export default function Supplements() {
               <button key={cat.value} onClick={() => setFilterCat(cat.value)}
                 aria-pressed={filterCat === cat.value}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors flex items-center gap-1 ${focusRing} ${
-                  filterCat === cat.value ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                  filterCat === cat.value ? 'bg-gray-900 text-white border-gray-900' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/60'
                 }`}>
                 {cat.icon} {cat.label} ({count})
               </button>
@@ -306,11 +306,11 @@ export default function Supplements() {
               <Card key={s.id} className="p-5 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-2xl shrink-0">
+                    <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800 flex items-center justify-center text-2xl shrink-0">
                       {catInfo.icon}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-bold text-gray-900 text-sm truncate">{s.name}</h3>
+                      <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm truncate">{s.name}</h3>
                       <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${catInfo.color}`}>
                         {catInfo.label}
                       </span>
@@ -324,37 +324,37 @@ export default function Supplements() {
                 </div>
 
                 {s.description && (
-                  <p className="text-xs text-gray-500 mb-3 leading-relaxed wrap-break-word">{s.description}</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mb-3 leading-relaxed wrap-break-word">{s.description}</p>
                 )}
 
                 <div className="space-y-1.5">
                   {s.dosage && (
                     <div className="flex justify-between text-xs">
-                      <span className="text-gray-400">Dosage</span>
-                      <span className="font-semibold text-gray-700">{s.dosage}</span>
+                      <span className="text-gray-400 dark:text-slate-500">Dosage</span>
+                      <span className="font-semibold text-gray-700 dark:text-slate-300">{s.dosage}</span>
                     </div>
                   )}
                   {s.timing && (
                     <div className="flex justify-between text-xs">
-                      <span className="text-gray-400">Timing</span>
-                      <span className="font-semibold text-gray-700">{s.timing}</span>
+                      <span className="text-gray-400 dark:text-slate-500">Timing</span>
+                      <span className="font-semibold text-gray-700 dark:text-slate-300">{s.timing}</span>
                     </div>
                   )}
                   {s.price && (
                     <div className="flex justify-between text-xs">
-                      <span className="text-gray-400">Price</span>
+                      <span className="text-gray-400 dark:text-slate-500">Price</span>
                       <span className="font-bold text-green-700">Rs. {Number(s.price).toLocaleString()}</span>
                     </div>
                   )}
                 </div>
 
                 {/* Stock Badge */}
-                <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                  <span className="text-xs text-gray-400">Stock</span>
+                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between">
+                  <span className="text-xs text-gray-400 dark:text-slate-500">Stock</span>
                   <span className={`text-xs font-bold px-2 py-1 rounded-lg ${
-                    s.stock === 0 ? 'bg-red-100 text-red-700' :
-                    lowStock ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-green-100 text-green-700'
+                    s.stock === 0 ? 'bg-red-100 dark:bg-red-500/15 text-red-700' :
+                    lowStock ? 'bg-yellow-100 dark:bg-yellow-500/15 text-yellow-700' :
+                    'bg-green-100 dark:bg-green-500/15 text-green-700'
                   }`}>
                     {s.stock === 0 ? 'Out of stock' : `${s.stock} units`}
                   </span>
@@ -373,7 +373,7 @@ export default function Supplements() {
                     }
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${focusRing} ${
                       s.stock === 0 || s.price == null
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 cursor-not-allowed'
                         : 'bg-green-600 text-white hover:bg-green-700'
                     }`}
                   >
@@ -381,7 +381,7 @@ export default function Supplements() {
                   </button>
                   <button
                     onClick={() => openRestock(s)}
-                    className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors ${focusRing}`}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}
                   >
                     <PackagePlus size={12} /> Stock
                   </button>
@@ -401,10 +401,10 @@ export default function Supplements() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="supplement-modal-title"
-            className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg sm:mx-4 max-h-[92dvh] flex flex-col"
+            className="relative bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg sm:mx-4 max-h-[92dvh] flex flex-col"
           >
-            <div className="p-5 sm:p-6 border-b border-gray-100 shrink-0">
-              <h2 id="supplement-modal-title" className="text-lg font-bold text-gray-900">
+            <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
+              <h2 id="supplement-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
                 {editing ? 'Edit Supplement' : 'Add Supplement'}
               </h2>
             </div>
@@ -426,11 +426,11 @@ export default function Supplements() {
                       aria-pressed={form.category === cat.value}
                       className={`border rounded-xl py-2 px-1 text-center transition-all ${focusRing} ${
                         form.category === cat.value
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15'
+                          : 'border-gray-200 dark:border-slate-800 hover:border-gray-300'
                       }`}>
                       <p className="text-lg">{cat.icon}</p>
-                      <p className="text-xs font-medium text-gray-700 mt-0.5 leading-tight">{cat.label}</p>
+                      <p className="text-xs font-medium text-gray-700 dark:text-slate-300 mt-0.5 leading-tight">{cat.label}</p>
                     </button>
                   ))}
                 </div>
@@ -496,11 +496,11 @@ export default function Supplements() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="sell-modal-title"
-            className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
+            className="relative bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
           >
-            <div className="p-5 sm:p-6 border-b border-gray-100 shrink-0">
-              <h2 id="sell-modal-title" className="text-lg font-bold text-gray-900">Sell {selling.name}</h2>
-              <p className="text-sm text-gray-500 mt-0.5">
+            <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
+              <h2 id="sell-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">Sell {selling.name}</h2>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
                 Rs. {Number(selling.price).toLocaleString()} each · {selling.stock} in stock
               </p>
             </div>
@@ -528,7 +528,7 @@ export default function Supplements() {
                     <option key={m.id} value={m.id}>{m.memberNo} · {m.name}</option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-400 mt-1.5">
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5">
                   A member's purchase is also recorded as a payment. Walk-in money is
                   recorded on the sale only.
                 </p>
@@ -546,7 +546,7 @@ export default function Supplements() {
               </div>
 
               {Number(sellForm.quantity) > 0 && selling.price != null && (
-                <div className="rounded-lg bg-green-50 border border-green-100 px-3 py-2.5 flex items-center justify-between">
+                <div className="rounded-lg bg-green-50 dark:bg-green-500/15 border border-green-100 dark:border-green-500/20 px-3 py-2.5 flex items-center justify-between">
                   <span className="text-xs font-semibold text-green-800">Total</span>
                   <span className="text-lg font-bold text-green-900">
                     Rs. {(Number(sellForm.quantity) * selling.price).toLocaleString()}
@@ -576,13 +576,13 @@ export default function Supplements() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="restock-modal-title"
-            className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
+            className="relative bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
           >
-            <div className="p-5 sm:p-6 border-b border-gray-100 shrink-0">
-              <h2 id="restock-modal-title" className="text-lg font-bold text-gray-900">
+            <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
+              <h2 id="restock-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
                 Add stock — {restocking.name}
               </h2>
-              <p className="text-sm text-gray-500 mt-0.5">{restocking.stock} in stock now</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{restocking.stock} in stock now</p>
             </div>
 
             <form onSubmit={e => void handleRestock(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
@@ -606,11 +606,11 @@ export default function Supplements() {
                   className={inputClass}
                   placeholder="Supplier, invoice number…"
                 />
-                <p className="text-xs text-gray-400 mt-1.5">Recorded in the audit log.</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5">Recorded in the audit log.</p>
               </div>
 
               {Number(restockForm.quantity) > 0 && (
-                <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2.5 flex items-center justify-between">
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/20 px-3 py-2.5 flex items-center justify-between">
                   <span className="text-xs font-semibold text-blue-800">New stock</span>
                   <span className="text-lg font-bold text-blue-900">
                     {restocking.stock + Number(restockForm.quantity)} units

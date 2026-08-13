@@ -4,7 +4,26 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>GymPro</title>
+    <!--
+      Applied before the first paint, and before React mounts.
+
+      ThemeContext sets this same class, but it cannot run until the bundle has
+      parsed — by which time a dark-mode user has already been shown a full
+      white page. Inline and synchronous is the only placement that avoids it.
+      Kept deliberately tiny and duplicated rather than imported, since a
+      module script would be deferred and lose the whole point.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var dark = stored === 'dark' || (stored !== 'light' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) { /* blocked storage just means the default theme */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
