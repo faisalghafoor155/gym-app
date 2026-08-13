@@ -170,6 +170,32 @@ export interface Paginated<T> {
   hasMore: boolean;
 }
 
+/** The members page's tab counts, over the whole roster rather than a page. */
+export interface MemberCounts {
+  all: number;
+  active: number;
+  expiring: number;
+  expired: number;
+  lapsed: number;
+  none: number;
+}
+
+export interface PaginatedMembers extends Paginated<Member> {
+  counts: MemberCounts;
+}
+
+/**
+ * The payments list, which carries its own totals.
+ *
+ * They cover everything matching the filters rather than the rows in this page
+ * — the tiles above the table say "matching filters", and summing a page in the
+ * browser could only ever total the page.
+ */
+export interface PaginatedPayments extends Paginated<Payment> {
+  collected: number;
+  outstanding: number;
+}
+
 export interface AttendanceRecord {
   id: string;
   memberId: string;

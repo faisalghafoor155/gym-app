@@ -6,7 +6,7 @@ import {
   inputClass, primaryButton, secondaryButton,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
-import type { Plan, Member } from '../types';
+import type { Plan, Member, Paginated } from '../types';
 import toast from 'react-hot-toast';
 
 type Tab = 'workout' | 'diet';
@@ -32,7 +32,8 @@ export default function Plans() {
     Promise.all([
       api.get<Plan[]>('/plans/workout').then(r => setWorkoutPlans(r.data)),
       api.get<Plan[]>('/plans/diet').then(r => setDietPlans(r.data)),
-      api.get<Member[]>('/members').then(r => setMembers(r.data)),
+      // The assign-to picker has to offer everyone, not the first page.
+      api.get<Paginated<Member>>('/members?all=true').then(r => setMembers(r.data.data)),
     ])
       .catch(err => toast.error(apiError(err, 'Could not load plans')))
       .finally(() => setLoading(false));

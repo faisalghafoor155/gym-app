@@ -11,7 +11,7 @@ import {
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
-import type { Supplement, SupplementCategory, Member } from '../types';
+import type { Supplement, SupplementCategory, Member, Paginated } from '../types';
 import toast from 'react-hot-toast';
 
 interface CategoryInfo {
@@ -81,8 +81,8 @@ export default function Supplements() {
     void load();
     // For the "sold to" picker. A failure here is not worth a toast — the
     // sale still works, it just cannot be attributed to a member.
-    void api.get<Member[]>('/members')
-      .then(r => setMembers(r.data))
+    void api.get<Paginated<Member>>('/members?all=true')
+      .then(r => setMembers(r.data.data))
       .catch(() => { /* walk-in sales still work without it */ });
   }, []);
 

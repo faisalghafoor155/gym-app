@@ -9,7 +9,7 @@ import {
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import type { GymUser, Member, Role, StaffSeats, TeamResponse } from '../types';
+import type { GymUser, Member, Paginated, Role, StaffSeats, TeamResponse } from '../types';
 import toast from 'react-hot-toast';
 
 /** How a new account gets its password: emailed invite, or one the owner
@@ -122,7 +122,8 @@ export default function Team() {
         setUsers(r.data.users);
         setSeats(r.data.seats);
       }),
-      api.get<Member[]>('/members').then(r => setMembers(r.data)),
+      // Issuing a login means picking any member, so this one needs them all.
+      api.get<Paginated<Member>>('/members?all=true').then(r => setMembers(r.data.data)),
     ])
       .catch(err => toast.error(apiError(err, 'Could not load accounts')))
       .finally(() => setLoading(false));
