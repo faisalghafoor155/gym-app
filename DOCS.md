@@ -12,6 +12,7 @@ plans, and supplement stock — with owner / staff / member accounts.
 - [How the data fits together](#how-the-data-fits-together)
 - [Security notes](#security-notes)
 - [Email](#email)
+- [Scheduled work](#scheduled-work)
 - [Google sign-in](#google-sign-in)
 - [Tests](#tests)
 - [CI](#ci)
@@ -97,6 +98,8 @@ Backend variables (`backend/.env`, or the `docker/.env` equivalents):
 | `RESEND_API_KEY` | no | See [Email](#email) |
 | `MAIL_FROM` / `SMTP_*` | no | See [Email](#email) |
 | `GOOGLE_CLIENT_ID` | no | See [Google sign-in](#google-sign-in) |
+| `REMINDER_CRON` | no | When the daily reminder runs, in the server's timezone. Defaults to `0 9 * * *` — nine in the morning. An invalid expression disables reminders and says so in the log rather than stopping the app |
+| `RUN_JOBS` | no | `false` stops this process running scheduled work. Worth setting on all but one instance if you run several |
 
 Frontend: `VITE_GOOGLE_CLIENT_ID` only, and only for Google sign-in.
 
@@ -311,6 +314,49 @@ the connection hang rather than fail cleanly.
 Gmail rewrites `From` to the authenticated account, so `SMTP_FROM` is cosmetic
 there. Resend refuses a `From` on an unverified domain.
 
+## Scheduled work
+
+One job, run daily inside the backend process by `node-cron`: an email to each
+member whose membership expires **that day**. `REMINDER_CRON` decides when, and
+defaults to nine in the morning — early enough to act on, late enough that
+somebody is awake to read the log.
+
+Deliberately narrow. It does not chase members who lapsed months ago, and sends
+no second reminder a week later. Each of those is a decision about how often a
+gym should email its members, which belongs to the gym rather than to this app.
+
+**Running it twice is harmless, which matters more than it sounds.** A restart,
+a redeploy, or a second backend instance all re-run the job, and a member who
+gets the same notice three times learns to ignore the first one next month. Each
+send claims a `ReminderLog` row — unique on `(membershipId, kind, sentOn)` —
+*before* the mail goes out, so a duplicate insert is how a second attempt finds
+out it has nothing to do. Three simultaneous runs send exactly one email.
+
+A send that fails **gives the claim back**, so the next day tries again: one
+unreachable mail server should not silently cost a member their only notice. The
+exception is having no transport configured at all, where the claim is kept —
+otherwise the same notice would print to the log on every run for ever.
+
+Not everyone can be reached. A member's email is optional, so members without
+one are counted as `skippedNoEmail` and told nothing. A gym that wants this
+feature to work has to be collecting addresses.
+
+Every run logs a line whether or not it sent anything — `due 0` is how an
+operator tells a working job from one that has quietly stopped:
+
+```
+[jobs] expiry reminders — due 3, sent 2, already sent 0, no email 1, failed 0
+```
+
+Set `RUN_JOBS=false` to stop a process scheduling anything. It is off
+automatically under `NODE_ENV=test`, so the suite never fires a job it did not
+ask for.
+
+**In Docker, mind the timezone.** A container runs in UTC unless told
+otherwise, so the default `0 9 * * *` fires at 9am *UTC* — two in the afternoon
+in Karachi. Set `TZ` in `docker/.env` to the gym's own zone and the schedule
+means what it looks like.
+
 ## Google sign-in
 
 Optional and off unless configured, and it **only links to an account that
@@ -326,7 +372,7 @@ changing it — `VITE_` values are compiled in.
 
 ## Tests
 
-Vitest, on the backend, run with `npm test` in `backend/` — 181 tests across
+Vitest, on the backend, run with `npm test` in `backend/` — 198 tests across
 two layers.
 
 ### Unit tests
@@ -348,7 +394,7 @@ they are deterministic and run in under a second.
 
 ### Integration tests
 
-128 tests driving the real Express app over HTTP with supertest, against a real
+145 tests driving the real Express app over HTTP with supertest, against a real
 Postgres. Files are named `*.integration.test.ts` and cover:
 
 - **`auth`** — registration, login, sessions and rate limiting. That a null
@@ -375,6 +421,12 @@ Postgres. Files are named `*.integration.test.ts` and cover:
   once to prove the unique constraint holds where the controller's own check
   cannot. And that an expired membership never blocks the door, but does come
   back in the response.
+- **`expiryReminders`** — who gets told and how often. That a second run the
+  same day sends nothing, that three simultaneous runs send exactly one mail,
+  that a failed send frees its claim for tomorrow while a missing transport
+  keeps it, and that a superseded membership — the one the renewal replaced —
+  is never the subject of a "please renew". The transport is stubbed: these are
+  about the decisions, not about SMTP.
 
 **How the database is handled.** `src/test/setup.ts` drops and recreates a
 `gymapp_test` database once per run, applies the real migration files with
@@ -398,6 +450,12 @@ Google sign-in, the invite and password-reset flows end to end (token
 generation is tested; clicking the emailed link is not), plan assignment,
 supplement restocking and the sales report, audit-log contents, and the
 frontend, which has no tests at all.
+
+The mail transport is not covered either — every test that involves mail stubs
+`sendMail`. What a message says and who it goes to is tested; whether Resend or
+SMTP actually accepts it is not, and would need credentials the suite has no
+business holding. The same goes for `node-cron` firing: the reminder job is
+tested by calling it, and the schedule that calls it daily is not.
 
 ## CI
 
