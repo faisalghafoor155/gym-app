@@ -1,0 +1,107 @@
+name: Test
+
+# Pull requests as well as pushes, so a branch is checked before it is merged
+# and again once it lands.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch makes the first run's result irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend — typecheck and tests
+    runs-on: ubuntu-latest
+
+    services:
+      # Matches docker/docker-compose.yml, so the suite runs against the same
+      # major version production gets. The health check is what makes the
+      # "wait for Postgres" loop unnecessary.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gymapp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # src/test/setup.ts swaps the database name to gymapp_test and needs
+      # rights to CREATE DATABASE, which is why this connects as postgres.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gymapp
+      JWT_SECRET: ci-secret-at-least-32-characters-long!!
+      APP_URL: http://localhost:8080
+      NODE_ENV: test
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 22, as in docker/backend.Dockerfile.
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # The Prisma client is generated code and is not committed, so it has to
+      # exist before anything that imports @prisma/client is typechecked.
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # globalSetup drops, recreates and migrates gymapp_test itself, so there
+      # is no migrate step here — running one would only prepare a database the
+      # suite is about to throw away.
+      - name: Test
+        run: npm test
+
+  frontend:
+    name: Frontend — typecheck, lint and build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      # There are no frontend tests yet, so a build is what stands in for one:
+      # it catches an import that does not resolve or a bundle that cannot be
+      # produced, neither of which typecheck alone will find.
+      - name: Build
+        run: npm run build
