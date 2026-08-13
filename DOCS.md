@@ -13,6 +13,7 @@ plans, and supplement stock — with owner / staff / member accounts.
 - [Security notes](#security-notes)
 - [Email](#email)
 - [Scheduled work](#scheduled-work)
+- [Backups](#backups)
 - [Google sign-in](#google-sign-in)
 - [Tests](#tests)
 - [CI](#ci)
@@ -52,10 +53,10 @@ cp .env.example .env      # fill in the values
 docker compose up -d --build
 ```
 
-Then open <http://localhost:8080>. Three containers come up — Postgres, the
-API, and nginx serving the built frontend and proxying `/api`. Only nginx is
-published; the API and database stay on the internal network. See
-[docker/README.md](docker/README.md) for details.
+Then open <http://localhost:8080>. Four containers come up — Postgres, the API,
+nginx serving the built frontend and proxying `/api`, and a [backup](#backups)
+sidecar. Only nginx is published; everything else stays on the internal
+network. See [docker/README.md](docker/README.md) for details.
 
 Check it is alive with `curl http://localhost:8080/api/health`, which answers
 `{"status":"ok"}`.
@@ -359,6 +360,54 @@ otherwise, so the default `0 9 * * *` fires at 9am *UTC* — two in the afternoo
 in Karachi. Set `TZ` in `docker/.env` to the gym's own zone and the schedule
 means what it looks like.
 
+## Backups
+
+A `backup` container dumps the database on a loop and prunes old dumps. It is
+part of `docker compose up` and needs no configuration to work.
+
+| Variable | Default | |
+|---|---|---|
+| `BACKUP_DIR` | `./backups` | Where dumps land **on the host** |
+| `BACKUP_INTERVAL_SECONDS` | `86400` | Once a day |
+| `BACKUP_KEEP_DAYS` | `14` | Older dumps are deleted |
+
+It runs the same `postgres:17-alpine` image as the database, so `pg_dump` always
+matches the server version — an older client is refused outright, and a newer
+one can emit SQL the server cannot restore.
+
+**Dumps go to the host, not a Docker volume.** A backup living inside Docker is
+lost to the same `docker compose down -v` that loses the database. Copy them
+somewhere else as well: a backup on the same disk survives a bad migration, not
+a dead disk.
+
+### Restoring
+
+```sh
+gunzip -c docker/backups/gymapp-20260813-090000.sql.gz \
+  | docker compose exec -T db psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+```
+
+Verified end to end, not assumed: seed a row, dump, `DROP SCHEMA public
+CASCADE`, restore, and the row and all fourteen tables come back with no errors.
+
+### What it refuses to do
+
+- **Write a file that is not a whole backup.** The dump goes to a hidden
+  `.in-progress-*` name and is moved into place only on success. A directory
+  holding something that looks like a backup but is half a database is worse
+  than an empty one, because it is trusted.
+- **Report a failure as a success.** A shell pipeline reports only its last
+  command, so `pg_dump | gzip` succeeds whenever *gzip* does — and gzip will
+  happily compress nothing. The first version of this script did exactly that
+  and wrote zero-byte "backups" for as long as the database was down; the
+  status is now carried out of the pipeline by hand, and an empty archive is
+  rejected on top of that.
+- **Prune after a failure.** Retention runs only after a dump succeeds, so a
+  week of failures leaves the last good backup alone rather than quietly ageing
+  it out.
+- **Touch anything that is not a dump.** Only files matching
+  `${POSTGRES_DB}-*.sql.gz` are eligible for deletion.
+
 ## Google sign-in
 
 Optional and off unless configured, and it **only links to an account that
@@ -374,7 +423,7 @@ changing it — `VITE_` values are compiled in.
 
 ## Tests
 
-Vitest on both sides — `npm test` in `backend/` (198) and in `frontend/` (16).
+Vitest on both sides — `npm test` in `backend/` (198) and in `frontend/` (40).
 
 **Tests live in `tests/`, never beside the code they cover.** Both trees mirror
 the `src/` they test, so `src/` holds nothing but the app that ships and the
@@ -465,7 +514,7 @@ that has stopped working.
 
 ### Frontend tests
 
-16 tests in `frontend/tests/`, run with `npm test` there. jsdom rather than a
+40 tests in `frontend/tests/`, run with `npm test` there. jsdom rather than a
 real browser — these are unit tests of rendering and behaviour, and a browser
 would cost seconds per file for fidelity they do not use.
 
@@ -477,10 +526,27 @@ would cost seconds per file for fidelity they do not use.
   meaning (expired red because somebody can still be won back, lapsed grey
   because that moment has passed), and that an unknown status renders plain
   rather than unstyled.
+- **`pages/Members.tsx`** — that searching and the status tabs are *asked of
+  the server* rather than applied to the rows in hand. A page that quietly went
+  back to filtering locally would look right on one page of members and lose
+  people on the second, which a gym discovers by being unable to find somebody
+  standing in front of them. Also that the tab counts describe the whole roster
+  rather than the loaded page, and that a debounced search fires once per pause
+  rather than once per keystroke.
+- **`pages/Payments.tsx`** — that the tiles show the totals the server computed
+  over every matching row, not the sum of the page. A page holding five rows
+  worth Rs. 500 must still read `Rs. 4,000` when that is what the filters
+  match; summing locally would under-report money and look correct doing it.
 
-This is a beginning, not coverage. The pages holding the most logic — `Members`
-and `Payments` — are still untested, and that is the next thing worth doing
-here.
+`tests/helpers.tsx` carries the scaffolding: a render that supplies the router
+and auth context every page assumes, fixture builders, and `mockApi`, which
+routes by URL substring and **records every URL asked for**. That recording is
+the point — for server-side filtering, what the page *requests* is the
+behaviour, and asserting on the rendered rows would pass even if the filter
+never left the browser.
+
+Pages are still the thin part: two of eleven have tests, and neither covers
+creating or editing.
 
 **A gotcha worth knowing.** `vitest.config.ts` pins `pool: 'threads'`. A forked
 worker never finishes starting when the project path contains a space: it is
@@ -493,8 +559,8 @@ Threads share the parent's resolution and are unaffected.
 Google sign-in, the invite and password-reset flows end to end (token
 generation is tested; clicking the emailed link is not), plan assignment,
 supplement restocking and the sales report, and audit-log contents. On the
-frontend, every page — the two files above are utilities and a leaf component,
-not the screens the gym actually uses.
+frontend, nine of the eleven pages, and every create-or-edit flow — the tests
+there cover reading and filtering, not writing.
 
 The mail transport is not covered either — every test that involves mail stubs
 `sendMail`. What a message says and who it goes to is tested; whether Resend or
@@ -533,12 +599,10 @@ produced, neither of which the tests reach while coverage is this thin.
 
 ## Known gaps
 
-- **Frontend coverage is thin.** The harness exists and runs in CI, but it
-  covers a util and one leaf component. No page has a test, so nothing yet
-  proves that `Members` searches or that `Payments` totals what it claims to.
-  The build step still carries most of the weight there.
-- **No database backup.** Postgres data lives only in a Docker volume; a real
-  deployment wants a scheduled `pg_dump`.
+- **Frontend coverage is uneven.** `Members` and `Payments` are tested where
+  their logic lives — filtering, paging, and the totals. The other nine pages
+  have nothing, and no test anywhere covers creating or editing a record. The
+  build step still carries that weight.
 - **`GET /supplements` is unbounded.** Left that way deliberately: a gym stocks
   tens of products, not thousands, and the category counts on the page are
   computed from the whole list. It is the one list where paging would cost more

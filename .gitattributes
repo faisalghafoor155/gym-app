@@ -1,0 +1,10 @@
+# Shell scripts must keep LF endings whatever the checkout platform does.
+#
+# backup.sh runs inside an Alpine container. Checked out with CRLF — which is
+# what a Windows clone does by default — its shebang line ends in a carriage
+# return, and the container fails with `/bin/sh^M: not found`: an error that
+# names a file which appears to exist and says nothing about line endings.
+*.sh text eol=lf
+
+# Same reasoning for the entrypoint the backend image runs.
+docker-entrypoint.sh text eol=lf

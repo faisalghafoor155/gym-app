@@ -26,9 +26,9 @@ interface InviteResult {
 }
 
 const roleStyles: Record<Role, { label: string; icon: typeof Shield; className: string }> = {
-  owner: { label: 'Owner', icon: Crown, className: 'bg-purple-50 text-purple-700 border-purple-200' },
-  staff: { label: 'Staff', icon: UserCog, className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  member: { label: 'Member', icon: User, className: 'bg-gray-50 text-gray-600 border-gray-200' },
+  owner: { label: 'Owner', icon: Crown, className: 'bg-purple-50 dark:bg-purple-500/15 text-purple-700 border-purple-200 dark:border-purple-500/20' },
+  staff: { label: 'Staff', icon: UserCog, className: 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 border-blue-200 dark:border-blue-500/20' },
+  member: { label: 'Member', icon: User, className: 'bg-gray-50 dark:bg-slate-800/60 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-800' },
 };
 
 /**
@@ -57,8 +57,8 @@ function PasswordMethod({ method, onMethod, password, onPassword }: {
             aria-pressed={method === o.value}
             className={`border rounded-xl py-2.5 px-3 text-left transition-all ${focusRing} ${
               method === o.value
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700'
+                : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-gray-300'
             }`}
           >
             <p className="font-semibold text-xs">{o.title}</p>
@@ -76,12 +76,12 @@ function PasswordMethod({ method, onMethod, password, onPassword }: {
             placeholder="Min 8 characters"
             className={inputClass}
           />
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
             Share this with them; they can change it after signing in.
           </p>
         </div>
       ) : (
-        <p className="text-xs text-gray-500 bg-blue-50/60 border border-blue-100 rounded-xl px-3 py-2.5 leading-relaxed">
+        <p className="text-xs text-gray-500 dark:text-slate-400 bg-blue-50/60 border border-blue-100 dark:border-blue-500/20 rounded-xl px-3 py-2.5 leading-relaxed">
           They get an email with a link to choose their own password. The link
           lasts 48 hours and works once — you never see the password.
         </p>
@@ -304,7 +304,7 @@ export default function Team() {
       />
 
       {isOwner && seatsFull && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 flex items-start gap-3">
+        <div className="bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4 mb-5 flex items-start gap-3">
           <UserCog size={18} className="text-amber-600 shrink-0 mt-0.5" />
           <p className="text-sm text-amber-800">
             All {seats?.limit} staff seats are in use. To add someone else, remove an
@@ -315,7 +315,7 @@ export default function Team() {
       )}
 
       {!isOwner && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 flex items-start gap-3">
+        <div className="bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/20 rounded-xl p-4 mb-5 flex items-start gap-3">
           <Shield size={18} className="text-blue-600 shrink-0 mt-0.5" />
           <p className="text-sm text-blue-800">
             You can see who has access, but only the gym owner can add or remove accounts.
@@ -333,21 +333,21 @@ export default function Team() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className={`font-semibold truncate ${u.isActive ? 'text-gray-900' : 'text-gray-400'}`}>
+                    <p className={`font-semibold truncate ${u.isActive ? 'text-gray-900 dark:text-slate-100' : 'text-gray-400 dark:text-slate-500'}`}>
                       {u.name}
                     </p>
-                    {isMe && <span className="text-xs text-gray-400">(you)</span>}
+                    {isMe && <span className="text-xs text-gray-400 dark:text-slate-500">(you)</span>}
                     <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${style.className}`}>
                       <RoleIcon size={11} /> {style.label}
                     </span>
                     {!u.isActive && (
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200">
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-500/15 text-red-600 border border-red-200 dark:border-red-500/20">
                         Revoked
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1 truncate">{u.email}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 truncate">{u.email}</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
                     {u.lastLoginAt
                       ? `Last signed in ${new Date(u.lastLoginAt).toLocaleDateString()}`
                       : 'Never signed in'}
@@ -360,7 +360,7 @@ export default function Team() {
                       <>
                         <button
                           onClick={() => void toggleActive(u)}
-                          className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 ${focusRing}`}
+                          className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 ${focusRing}`}
                         >
                           {u.isActive ? 'Revoke' : 'Restore'}
                         </button>
@@ -380,7 +380,7 @@ export default function Team() {
                             title={u.role !== 'staff' && seatsFull
                               ? `All ${seats?.limit} staff seats are in use.`
                               : undefined}
-                            className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-transparent ${focusRing}`}
+                            className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 disabled:opacity-40 disabled:hover:bg-transparent ${focusRing}`}
                           >
                             {u.role === 'staff' ? 'Make member' : 'Make staff'}
                           </button>
@@ -410,13 +410,13 @@ export default function Team() {
       {showStaff && (
         <Modal title="Add Staff Account" onClose={() => setShowStaff(false)}>
           <form onSubmit={e => void handleAddStaff(e)} className="space-y-4">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Staff run the front desk: members, attendance, plans, supplement sales, and
               taking fees. They see only the payments they recorded themselves — never the
               gym's totals — and cannot edit the books or manage accounts.
             </p>
             {seats && (
-              <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+              <p className="text-xs text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 rounded-xl px-3 py-2.5">
                 {seats.remaining} of {seats.limit} staff{' '}
                 {seats.remaining === 1 ? 'seat' : 'seats'} left.
               </p>
@@ -458,11 +458,11 @@ export default function Team() {
       {showMemberLogin && (
         <Modal title="Give a Member Login Access" onClose={() => setShowMemberLogin(false)}>
           <form onSubmit={e => void handleAddMemberLogin(e)} className="space-y-4">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               The member will be able to see only their own plan, attendance and dues.
             </p>
             {membersWithoutLogin.length === 0 ? (
-              <p className="text-sm text-gray-400 py-4 text-center">
+              <p className="text-sm text-gray-400 dark:text-slate-500 py-4 text-center">
                 Every member already has a login.
               </p>
             ) : (
@@ -512,13 +512,13 @@ export default function Team() {
       {manualLink && (
         <Modal title="Send this link to them" onClose={() => setManualLink(null)}>
           <div className="space-y-4">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               The account was created, but the invite email could not be sent —
               no mail service is set up. Copy this link and give it to them
               yourself. It lasts 48 hours and works once.
             </p>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
-              <p className="text-xs text-gray-700 break-all font-mono leading-relaxed">
+            <div className="bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 rounded-xl p-3">
+              <p className="text-xs text-gray-700 dark:text-slate-300 break-all font-mono leading-relaxed">
                 {manualLink}
               </p>
             </div>

@@ -369,7 +369,7 @@ export default function Members() {
             ]}
           />
           <div className="relative flex-1 min-w-50 sm:ml-auto sm:max-w-xs">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
             <input
               type="search"
               value={search}
@@ -417,8 +417,8 @@ export default function Members() {
             return (
               <Card key={m.id} className={`p-5 hover:shadow-md transition-shadow ${
                 lapsed ? 'border-slate-200 bg-slate-50/60 opacity-75' :
-                ms?.status === 'expired' ? 'border-red-200 bg-red-50/30' :
-                ms?.status === 'expiring' ? 'border-yellow-200 bg-yellow-50/30' : ''
+                ms?.status === 'expired' ? 'border-red-200 dark:border-red-500/20 bg-red-50/30' :
+                ms?.status === 'expiring' ? 'border-yellow-200 dark:border-yellow-500/20 bg-yellow-50/30' : ''
               }`}>
                 <div className="flex items-start gap-3 mb-4">
                   {/* Avatar */}
@@ -429,9 +429,9 @@ export default function Members() {
                     }
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-gray-900 truncate">{m.name}</h3>
-                    <p className="text-xs font-medium text-gray-400 mt-0.5">{m.memberNo}</p>
-                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                    <h3 className="font-bold text-gray-900 dark:text-slate-100 truncate">{m.name}</h3>
+                    <p className="text-xs font-medium text-gray-400 dark:text-slate-500 mt-0.5">{m.memberNo}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
                       <Phone size={11} /> {m.phone || 'No phone'}
                     </p>
                   </div>
@@ -441,20 +441,20 @@ export default function Members() {
                 </div>
 
                 {ms ? (
-                  <div className="space-y-2 text-xs text-gray-500">
-                    <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                  <div className="space-y-2 text-xs text-gray-500 dark:text-slate-400">
+                    <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-800/60 rounded-lg px-3 py-2">
                       <span className="flex items-center gap-1.5"><Calendar size={12} /> Plan</span>
-                      <span className="font-semibold text-gray-800">{ms.planName}</span>
+                      <span className="font-semibold text-gray-800 dark:text-slate-200">{ms.planName}</span>
                     </div>
-                    <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                    <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-800/60 rounded-lg px-3 py-2">
                       <span className="flex items-center gap-1.5"><CreditCard size={12} /> Fee</span>
-                      <span className="font-semibold text-gray-800">
+                      <span className="font-semibold text-gray-800 dark:text-slate-200">
                         Rs. {ms.pricePaid.toLocaleString()}
                       </span>
                     </div>
                     <div className={`flex items-center justify-between rounded-lg px-3 py-2 ${
-                      ms.status === 'expired' ? 'bg-red-100' :
-                      ms.status === 'expiring' ? 'bg-yellow-100' : 'bg-green-50'
+                      ms.status === 'expired' ? 'bg-red-100 dark:bg-red-500/15' :
+                      ms.status === 'expiring' ? 'bg-yellow-100 dark:bg-yellow-500/15' : 'bg-green-50 dark:bg-green-500/15'
                     }`}>
                       <span className="flex items-center gap-1.5">
                         <Calendar size={12} /> Expiry
@@ -473,24 +473,24 @@ export default function Members() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-lg bg-gray-50 px-3 py-4 text-center text-xs text-gray-400">
+                  <div className="rounded-lg bg-gray-50 dark:bg-slate-800/60 px-3 py-4 text-center text-xs text-gray-400 dark:text-slate-500">
                     No membership yet
                   </div>
                 )}
 
-                <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100">
+                <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
                   <button onClick={() => openEdit(m)}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors ${focusRing}`}>
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}>
                     <Pencil size={12} /> Edit
                   </button>
                   {isOwner && canExtend(m) && (
                     <button onClick={() => openExtend(m)} aria-label={`Extend ${m.name}'s membership`}
-                      className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-blue-100 text-blue-600 hover:bg-blue-50 transition-colors ${focusRing}`}>
+                      className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-blue-100 dark:border-blue-500/20 text-blue-600 hover:bg-blue-50 transition-colors ${focusRing}`}>
                       <CalendarPlus size={12} /> Extend
                     </button>
                   )}
                   <button onClick={() => setDeleting(m)} aria-label={`Delete ${m.name}`}
-                    className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-red-100 text-red-500 hover:bg-red-50 transition-colors ${focusRing}`}>
+                    className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-red-100 dark:border-red-500/20 text-red-500 hover:bg-red-50 transition-colors ${focusRing}`}>
                     <Trash2 size={12} />
                   </button>
                 </div>
@@ -517,13 +517,13 @@ export default function Members() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="member-modal-title"
-            className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg sm:mx-4 max-h-[92dvh] flex flex-col"
+            className="relative bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg sm:mx-4 max-h-[92dvh] flex flex-col"
           >
-            <div className="p-5 sm:p-6 border-b border-gray-100 shrink-0">
-              <h2 id="member-modal-title" className="text-lg font-bold text-gray-900">
+            <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
+              <h2 id="member-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
                 {editing ? 'Edit Member' : 'Add New Member'}
               </h2>
-              <p className="text-sm text-gray-500 mt-0.5">
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
                 {editing ? 'Update member details' : 'Fill in details — expiry auto-calculated'}
               </p>
             </div>
@@ -554,7 +554,7 @@ export default function Members() {
 
               {/* Name */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name *</label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Full Name *</label>
                 <input
                   required
                   value={form.name}
@@ -566,7 +566,7 @@ export default function Members() {
 
               {/* Phone */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Phone</label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Phone</label>
                 <input
                   value={form.phone}
                   onChange={e => set('phone')(e.target.value)}
@@ -578,7 +578,7 @@ export default function Members() {
               {/* Gender + Date of birth */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="member-gender" className="block text-sm font-semibold text-gray-700 mb-1.5">Gender</label>
+                  <label htmlFor="member-gender" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Gender</label>
                   <select
                     id="member-gender"
                     value={form.gender}
@@ -592,7 +592,7 @@ export default function Members() {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="member-dob" className="block text-sm font-semibold text-gray-700 mb-1.5">Date of Birth</label>
+                  <label htmlFor="member-dob" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Date of Birth</label>
                   <input
                     id="member-dob"
                     type="date"
@@ -606,7 +606,7 @@ export default function Members() {
 
               {/* Address */}
               <div>
-                <label htmlFor="member-address" className="block text-sm font-semibold text-gray-700 mb-1.5">Address</label>
+                <label htmlFor="member-address" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Address</label>
                 <input
                   id="member-address"
                   value={form.address}
@@ -618,7 +618,7 @@ export default function Members() {
 
               {/* Emergency contact */}
               <div>
-                <label htmlFor="member-emergency" className="block text-sm font-semibold text-gray-700 mb-1.5">Emergency Contact</label>
+                <label htmlFor="member-emergency" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Emergency Contact</label>
                 <input
                   id="member-emergency"
                   value={form.emergencyContact}
@@ -631,11 +631,11 @@ export default function Members() {
               {/* Membership — only when registering. Changing what an existing
                   member bought is its own action, not a profile edit. */}
               {!editing && (
-                <div className="border-t border-gray-100 pt-4 space-y-4">
+                <div className="border-t border-gray-100 dark:border-slate-800 pt-4 space-y-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Membership Plan</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Membership Plan</label>
                     {plans.length === 0 ? (
-                      <p className="text-xs text-gray-400 bg-gray-50 rounded-xl px-3 py-3">
+                      <p className="text-xs text-gray-400 dark:text-slate-500 bg-gray-50 dark:bg-slate-800/60 rounded-xl px-3 py-3">
                         No plans set up yet — register the member now and give them
                         a membership later, or{' '}
                         <Link to="/membership-plans" className="text-blue-600 font-medium hover:underline">
@@ -648,8 +648,8 @@ export default function Members() {
                           onClick={() => set('planId')('')}
                           className={`border rounded-xl py-2.5 px-2 text-center transition-all ${focusRing} ${
                             form.planId === ''
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700'
+                              : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-gray-300'
                           }`}>
                           <p className="font-semibold text-xs">None</p>
                           <p className="text-xs opacity-60 mt-0.5">Add later</p>
@@ -659,8 +659,8 @@ export default function Members() {
                             onClick={() => set('planId')(p.id)}
                             className={`border rounded-xl py-2.5 px-2 text-center transition-all ${focusRing} ${
                               form.planId === p.id
-                                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700'
+                                : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-gray-300'
                             }`}>
                             <p className="font-semibold text-xs truncate">{p.name}</p>
                             <p className="text-xs opacity-60 mt-0.5">
@@ -674,7 +674,7 @@ export default function Members() {
 
                   {form.planId && (
                     <div>
-                      <label htmlFor="member-start" className="block text-sm font-semibold text-gray-700 mb-1.5">Start Date *</label>
+                      <label htmlFor="member-start" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Start Date *</label>
                       <input
                         id="member-start"
                         type="date"
@@ -689,7 +689,7 @@ export default function Members() {
                   {/* Preview of what the server will calculate — the server's
                       answer is the one that is stored. */}
                   {expiryPreview && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-2">
+                    <div className="bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/20 rounded-xl p-3 flex items-center gap-2">
                       <Calendar size={15} className="text-blue-600 shrink-0" />
                       <div>
                         <p className="text-xs font-semibold text-blue-800">Auto-calculated expiry</p>
@@ -725,43 +725,43 @@ export default function Members() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="extend-modal-title"
-            className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
+            className="relative bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
           >
-            <div className="p-5 sm:p-6 border-b border-gray-100 shrink-0">
-              <h2 id="extend-modal-title" className="text-lg font-bold text-gray-900">
+            <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
+              <h2 id="extend-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
                 Extend membership
               </h2>
-              <p className="text-sm text-gray-500 mt-0.5">
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
                 {extending.name} · {extending.memberNo}
               </p>
             </div>
 
             <form onSubmit={e => void handleExtend(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
-              <div className="rounded-lg bg-gray-50 px-3 py-2.5 space-y-1.5 text-xs">
+              <div className="rounded-lg bg-gray-50 dark:bg-slate-800/60 px-3 py-2.5 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Plan</span>
-                  <span className="font-semibold text-gray-800">
+                  <span className="text-gray-500 dark:text-slate-400">Plan</span>
+                  <span className="font-semibold text-gray-800 dark:text-slate-200">
                     {extending.currentMembership.planName}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Current expiry</span>
-                  <span className="font-semibold text-gray-800">
+                  <span className="text-gray-500 dark:text-slate-400">Current expiry</span>
+                  <span className="font-semibold text-gray-800 dark:text-slate-200">
                     {new Date(extending.currentMembership.expiryDate)
                       .toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500">Status</span>
-                  <span className="font-semibold text-gray-800">
+                  <span className="text-gray-500 dark:text-slate-400">Status</span>
+                  <span className="font-semibold text-gray-800 dark:text-slate-200">
                     {extending.currentMembership.daysLeft < 0
                       ? `Expired ${Math.abs(extending.currentMembership.daysLeft)}d ago`
                       : `${extending.currentMembership.daysLeft}d left`}
                   </span>
                 </div>
                 {extending.currentMembership.extendedDays > 0 && (
-                  <div className="flex items-center justify-between border-t border-gray-200 pt-1.5">
-                    <span className="text-gray-500">Already extended</span>
+                  <div className="flex items-center justify-between border-t border-gray-200 dark:border-slate-800 pt-1.5">
+                    <span className="text-gray-500 dark:text-slate-400">Already extended</span>
                     <span className="font-semibold text-blue-700">
                       +{extending.currentMembership.extendedDays}d
                     </span>
@@ -789,13 +789,13 @@ export default function Members() {
                   placeholder="e.g. Gym closed for maintenance"
                   className={inputClass}
                 />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
                   Recorded in the audit log against your name.
                 </p>
               </div>
 
               {Number(extendDays) > 0 && (
-                <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2.5">
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/20 px-3 py-2.5">
                   <p className="text-xs font-semibold text-blue-800">New expiry</p>
                   <p className="text-sm font-bold text-blue-900 mt-0.5">
                     {previewExtended(extending.currentMembership.expiryDate, Number(extendDays))}

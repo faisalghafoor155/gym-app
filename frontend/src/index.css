@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/**
+ * Dark mode is driven by a class on <html>, not by the media query alone.
+ *
+ * Tailwind v4's default `dark:` follows prefers-color-scheme, which cannot be
+ * overridden from the app — a user who wants dark at noon has no way to ask.
+ * Pointing the variant at a class instead lets ThemeContext own the decision,
+ * and "system" is then just the class being kept in step with the media query
+ * rather than a separate mode the styles have to know about.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 * {
   box-sizing: border-box;
 }
@@ -9,9 +20,26 @@ body {
   font-family: 'Segoe UI', system-ui, sans-serif;
   background: #f8fafc;
   color: #1e293b;
+  /* The one transition that is worth animating globally: without it the whole
+     page snaps between themes, which reads as a flash rather than a change. */
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+html.dark body {
+  background: #0b1120;
+  color: #e2e8f0;
 }
 
 #root {
   width: 100%;
   min-height: 100vh;
+}
+
+/**
+ * Form controls render their own chrome from the OS theme — a date picker's
+ * calendar icon and a select's arrow stay black-on-black otherwise, since no
+ * Tailwind class reaches inside them.
+ */
+html.dark {
+  color-scheme: dark;
 }

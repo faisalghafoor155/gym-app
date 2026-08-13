@@ -138,16 +138,16 @@ export default function Plans() {
             <Card key={p.id} className="p-5 hover:shadow-md transition-shadow">
               <div className="flex items-start gap-3 mb-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                  tab === 'workout' ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'
+                  tab === 'workout' ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-600' : 'bg-green-50 dark:bg-green-500/15 text-green-600'
                 }`}>
                   <TabIcon size={16} />
                 </div>
-                <h3 className="font-bold text-gray-900 min-w-0 truncate pt-1.5">{p.name}</h3>
+                <h3 className="font-bold text-gray-900 dark:text-slate-100 min-w-0 truncate pt-1.5">{p.name}</h3>
               </div>
-              <p className="text-sm text-gray-500 whitespace-pre-wrap wrap-break-word">
+              <p className="text-sm text-gray-500 dark:text-slate-400 whitespace-pre-wrap wrap-break-word">
                 {p.description || 'No description'}
               </p>
-              <p className="text-xs text-gray-400 mt-4 pt-3 border-t border-gray-100">
+              <p className="text-xs text-gray-400 dark:text-slate-500 mt-4 pt-3 border-t border-gray-100 dark:border-slate-800">
                 Added {new Date(p.createdAt).toLocaleDateString()}
               </p>
             </Card>

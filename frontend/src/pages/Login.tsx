@@ -29,18 +29,18 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-dvh bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 w-full max-w-md p-6 sm:p-8">
+    <div className="min-h-dvh bg-gray-50 dark:bg-slate-800/60 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 w-full max-w-md p-6 sm:p-8">
         <div className="flex items-center gap-2 mb-8">
           <Dumbbell className="text-blue-600" size={28} />
-          <span className="text-xl font-bold text-gray-900">GymPro</span>
+          <span className="text-xl font-bold text-gray-900 dark:text-slate-100">GymPro</span>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Welcome back</h1>
-        <p className="text-gray-500 text-sm mb-6">Sign in to your gym dashboard</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-1">Welcome back</h1>
+        <p className="text-gray-500 dark:text-slate-400 text-sm mb-6">Sign in to your gym dashboard</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Email</label>
             <input
               type="email"
               required
@@ -52,7 +52,7 @@ export default function Login() {
           </div>
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-gray-700">Password</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Password</label>
               <Link to="/forgot-password" className="text-xs text-blue-600 font-medium hover:underline">
                 Forgot password?
               </Link>
@@ -80,7 +80,7 @@ export default function Login() {
           navigate('/dashboard');
         }} />
 
-        <p className="text-center text-sm text-gray-500 mt-4">
+        <p className="text-center text-sm text-gray-500 dark:text-slate-400 mt-4">
           New gym?{' '}
           <Link to="/register" className="text-blue-600 font-medium hover:underline">
             Register here

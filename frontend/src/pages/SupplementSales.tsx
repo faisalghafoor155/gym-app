@@ -110,20 +110,20 @@ export default function SupplementSales() {
       ) : (
         <>
           <Card className="p-5 mb-5">
-            <h2 className="font-bold text-gray-900 mb-4">Revenue by month</h2>
+            <h2 className="font-bold text-gray-900 dark:text-slate-100 mb-4">Revenue by month</h2>
             <BarChart data={chartData} format={money} />
           </Card>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card className="p-5">
-              <h2 className="font-bold text-gray-900 mb-4">Top sellers</h2>
+              <h2 className="font-bold text-gray-900 dark:text-slate-100 mb-4">Top sellers</h2>
               {report && report.byProduct.length > 0 ? (
                 <div className="space-y-2.5">
                   {report.byProduct.slice(0, 8).map(p => (
                     <div key={p.id} className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 truncate">{p.name}</p>
-                        <p className="text-xs text-gray-400">{p.units} units</p>
+                        <p className="text-sm font-semibold text-gray-800 dark:text-slate-200 truncate">{p.name}</p>
+                        <p className="text-xs text-gray-400 dark:text-slate-500">{p.units} units</p>
                       </div>
                       <span className="text-sm font-bold text-green-700 shrink-0">
                         {money(p.revenue)}
@@ -132,32 +132,32 @@ export default function SupplementSales() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">Nothing sold yet.</p>
+                <p className="text-sm text-gray-400 dark:text-slate-500">Nothing sold yet.</p>
               )}
             </Card>
 
             <Card className="p-5">
-              <h2 className="font-bold text-gray-900 mb-4">Recent sales</h2>
+              <h2 className="font-bold text-gray-900 dark:text-slate-100 mb-4">Recent sales</h2>
               {report && report.recent.length > 0 ? (
                 <div className="space-y-2.5 max-h-96 overflow-y-auto">
                   {report.recent.map(s => (
-                    <div key={s.id} className="flex items-center justify-between gap-3 pb-2.5 border-b border-gray-50 last:border-0">
+                    <div key={s.id} className="flex items-center justify-between gap-3 pb-2.5 border-b border-gray-50 dark:border-slate-800 last:border-0">
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 truncate">
-                          {s.supplementName} <span className="text-gray-400">x{s.quantity}</span>
+                        <p className="text-sm font-semibold text-gray-800 dark:text-slate-200 truncate">
+                          {s.supplementName} <span className="text-gray-400 dark:text-slate-500">x{s.quantity}</span>
                         </p>
-                        <p className="text-xs text-gray-400 truncate">
+                        <p className="text-xs text-gray-400 dark:text-slate-500 truncate">
                           {s.buyer} · {new Date(s.soldAt).toLocaleDateString('en-PK', {
                             day: 'numeric', month: 'short',
                           })}
                         </p>
                       </div>
-                      <span className="text-sm font-bold text-gray-900 shrink-0">{money(s.total)}</span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-slate-100 shrink-0">{money(s.total)}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">No sales yet.</p>
+                <p className="text-sm text-gray-400 dark:text-slate-500">No sales yet.</p>
               )}
             </Card>
           </div>

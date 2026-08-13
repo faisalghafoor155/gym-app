@@ -369,18 +369,18 @@ export default function Payments() {
         <Card className="p-4 sm:p-5 mb-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
             <div>
-              <h2 className="font-bold text-gray-900">Monthly totals</h2>
-              <p className="text-xs text-gray-400">
+              <h2 className="font-bold text-gray-900 dark:text-slate-100">Monthly totals</h2>
+              <p className="text-xs text-gray-400 dark:text-slate-500">
                 Settled payments only · last {summary.months} months
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-400">This month</p>
-              <p className="text-xl font-bold text-gray-900">
+              <p className="text-xs text-gray-400 dark:text-slate-500">This month</p>
+              <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
                 Rs. {summary.thisMonth.toLocaleString()}
               </p>
               {summary.lastMonth > 0 && (
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-gray-400 dark:text-slate-500">
                   vs Rs. {summary.lastMonth.toLocaleString()} last month
                 </p>
               )}
@@ -389,55 +389,55 @@ export default function Payments() {
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-125">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-800">
                 <tr>
-                  <th className="text-left px-3 py-2 font-semibold text-gray-600">Month</th>
+                  <th className="text-left px-3 py-2 font-semibold text-gray-600 dark:text-slate-300">Month</th>
                   {['Membership', 'Supplements', 'Other'].map(h => (
-                    <th key={h} className="text-right px-3 py-2 font-semibold text-gray-600">{h}</th>
+                    <th key={h} className="text-right px-3 py-2 font-semibold text-gray-600 dark:text-slate-300">{h}</th>
                   ))}
-                  <th className="text-right px-3 py-2 font-semibold text-gray-600">Total</th>
+                  <th className="text-right px-3 py-2 font-semibold text-gray-600 dark:text-slate-300">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {summary.byMonth.map((m, i) => (
                   <tr
                     key={m.month}
-                    className={`border-b border-gray-100 last:border-0 ${
+                    className={`border-b border-gray-100 dark:border-slate-800 last:border-0 ${
                       // The current month is still being earned, so it reads as
                       // a running figure rather than a closed one.
                       i === summary.byMonth.length - 1 ? 'bg-blue-50/40' : ''
                     }`}
                   >
-                    <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">
+                    <td className="px-3 py-2 font-medium text-gray-900 dark:text-slate-100 whitespace-nowrap">
                       {m.label}
                       {i === summary.byMonth.length - 1 && (
                         <span className="ml-2 text-xs font-normal text-blue-600">so far</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                    <td className="px-3 py-2 text-right text-gray-600 dark:text-slate-300 tabular-nums">
                       {m.membership.toLocaleString()}
                     </td>
-                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                    <td className="px-3 py-2 text-right text-gray-600 dark:text-slate-300 tabular-nums">
                       {m.supplement.toLocaleString()}
                     </td>
-                    <td className="px-3 py-2 text-right text-gray-600 tabular-nums">
+                    <td className="px-3 py-2 text-right text-gray-600 dark:text-slate-300 tabular-nums">
                       {m.other.toLocaleString()}
                     </td>
-                    <td className="px-3 py-2 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
+                    <td className="px-3 py-2 text-right font-bold text-gray-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
                       Rs. {m.total.toLocaleString()}
                     </td>
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="border-t-2 border-gray-200">
+              <tfoot className="border-t-2 border-gray-200 dark:border-slate-800">
                 <tr>
-                  <td className="px-3 py-2.5 font-bold text-gray-900">Grand total</td>
+                  <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-slate-100">Grand total</td>
                   {(['membership', 'supplement', 'other'] as const).map(k => (
-                    <td key={k} className="px-3 py-2.5 text-right font-semibold text-gray-700 tabular-nums">
+                    <td key={k} className="px-3 py-2.5 text-right font-semibold text-gray-700 dark:text-slate-300 tabular-nums">
                       {summary.byMonth.reduce((s, m) => s + m[k], 0).toLocaleString()}
                     </td>
                   ))}
-                  <td className="px-3 py-2.5 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
+                  <td className="px-3 py-2.5 text-right font-bold text-gray-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
                     Rs. {summary.grandTotal.toLocaleString()}
                   </td>
                 </tr>
@@ -449,7 +449,7 @@ export default function Payments() {
             // Outstanding is the whole ledger, not just this window — money owed
             // from four months ago is still owed today. Kept out of the totals
             // above: it is a debt the gym is owed, not income it has received.
-            <p className="mt-3 text-xs text-gray-500">
+            <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
               Rs. {summary.dueTotal.toLocaleString()} still outstanding across{' '}
               {summary.dueCount} unpaid {summary.dueCount === 1 ? 'entry' : 'entries'}, not
               counted above.
@@ -464,7 +464,7 @@ export default function Payments() {
           <SegmentedControl value={filter} onChange={setFilter} options={FILTERS} />
 
           <div className="relative flex-1 min-w-50">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
             <input
               type="search"
               value={search}
@@ -481,7 +481,7 @@ export default function Payments() {
               onChange={e => setFrom(e.target.value)}
               aria-label="From date" className={`${inputClass} w-auto`}
             />
-            <span className="text-gray-400 text-sm">to</span>
+            <span className="text-gray-400 dark:text-slate-500 text-sm">to</span>
             <input
               type="date" value={to} min={from || undefined}
               onChange={e => setTo(e.target.value)}
@@ -532,24 +532,24 @@ export default function Payments() {
           {/* Mobile: cards — an eight-column table cannot fit a phone screen */}
           <div className="space-y-3 md:hidden">
             {shown.map(p => (
-              <Card key={p.id} className={`p-4 ${p.status === 'due' ? 'border-red-200 bg-red-50/40' : ''}`}>
+              <Card key={p.id} className={`p-4 ${p.status === 'due' ? 'border-red-200 dark:border-red-500/20 bg-red-50/40' : ''}`}>
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 truncate">{p.member.name}</p>
+                    <p className="font-semibold text-gray-900 dark:text-slate-100 truncate">{p.member.name}</p>
                     {p.member.memberNo && (
-                      <p className="text-xs text-gray-400">{p.member.memberNo}</p>
+                      <p className="text-xs text-gray-400 dark:text-slate-500">{p.member.memberNo}</p>
                     )}
                   </div>
-                  <p className="font-bold text-gray-900 shrink-0">Rs. {p.amount.toLocaleString()}</p>
+                  <p className="font-bold text-gray-900 dark:text-slate-100 shrink-0">Rs. {p.amount.toLocaleString()}</p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge status={p.status} />
                   <Badge status={p.method} />
-                  <span className="text-xs text-gray-400 ml-auto">
+                  <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">
                     {new Date(p.paymentDate).toLocaleDateString()}
                   </span>
                 </div>
-                {p.notes && <p className="text-xs text-gray-500 mt-2 wrap-break-word">{p.notes}</p>}
+                {p.notes && <p className="text-xs text-gray-500 dark:text-slate-400 mt-2 wrap-break-word">{p.notes}</p>}
                 {/* Correcting the record is the owner's — an entry that can be
                     edited by whoever took it is not a record of anything. The
                     API refuses staff either way; hiding the buttons just keeps
@@ -557,7 +557,7 @@ export default function Payments() {
                 {isOwner && (
                   <div className="flex items-center gap-1 mt-2 -mb-1 -mr-1">
                     {p.recordedBy && (
-                      <span className="text-xs text-gray-400 truncate mr-auto">
+                      <span className="text-xs text-gray-400 dark:text-slate-500 truncate mr-auto">
                         by {p.recordedBy.name}
                       </span>
                     )}
@@ -575,16 +575,16 @@ export default function Payments() {
           <Card className="hidden md:block overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-800">
                   <tr>
                     {['Member', 'Amount', 'Method', 'Date', 'Status', 'Notes'].map(h => (
-                      <th key={h} className="text-left px-4 py-3 font-semibold text-gray-600">{h}</th>
+                      <th key={h} className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-slate-300">{h}</th>
                     ))}
                     {/* Staff see only their own entries, so "who took this"
                         would tell them nothing they did not already know. */}
                     {isOwner && (
                       <>
-                        <th className="text-left px-4 py-3 font-semibold text-gray-600">Taken by</th>
+                        <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-slate-300">Taken by</th>
                         <th className="px-4 py-3 w-24"><span className="sr-only">Actions</span></th>
                       </>
                     )}
@@ -592,29 +592,29 @@ export default function Payments() {
                 </thead>
                 <tbody>
                   {shown.map(p => (
-                    <tr key={p.id} className={`border-b border-gray-100 last:border-0 hover:bg-gray-50 ${
+                    <tr key={p.id} className={`border-b border-gray-100 dark:border-slate-800 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-800/60 ${
                       p.status === 'due' ? 'bg-red-50/40' : ''
                     }`}>
                       <td className="px-4 py-3 max-w-55">
-                        <p className="font-medium text-gray-900 truncate">{p.member.name}</p>
+                        <p className="font-medium text-gray-900 dark:text-slate-100 truncate">{p.member.name}</p>
                         {p.member.memberNo && (
-                          <p className="text-xs text-gray-400">{p.member.memberNo}</p>
+                          <p className="text-xs text-gray-400 dark:text-slate-500">{p.member.memberNo}</p>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-gray-900 font-semibold whitespace-nowrap">
+                      <td className="px-4 py-3 text-gray-900 dark:text-slate-100 font-semibold whitespace-nowrap">
                         Rs. {p.amount.toLocaleString()}
                       </td>
                       <td className="px-4 py-3"><Badge status={p.method} /></td>
-                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                      <td className="px-4 py-3 text-gray-500 dark:text-slate-400 whitespace-nowrap">
                         {new Date(p.paymentDate).toLocaleDateString()}
                       </td>
                       <td className="px-4 py-3"><Badge status={p.status} /></td>
-                      <td className="px-4 py-3 text-gray-500 max-w-65 truncate" title={p.notes ?? ''}>
+                      <td className="px-4 py-3 text-gray-500 dark:text-slate-400 max-w-65 truncate" title={p.notes ?? ''}>
                         {p.notes || '—'}
                       </td>
                       {isOwner && (
                         <>
-                          <td className="px-4 py-3 text-gray-500 max-w-35 truncate">
+                          <td className="px-4 py-3 text-gray-500 dark:text-slate-400 max-w-35 truncate">
                             {/* An em dash rather than a guess: the row predates
                                 the column, or the account that took it is gone. */}
                             {p.recordedBy?.name ?? '—'}
@@ -654,7 +654,7 @@ export default function Payments() {
               {editing ? (
                 // Reassigning a payment is a delete and a re-entry, so the trail
                 // shows both. Shown read-only rather than hidden.
-                <p className="px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-600">
+                <p className="px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 text-sm text-gray-600 dark:text-slate-300">
                   {editing.member.name}
                 </p>
               ) : (
@@ -711,11 +711,11 @@ export default function Payments() {
                     </option>
                   </select>
                 ) : (
-                  <p className="px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-500">
+                  <p className="px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 text-sm text-gray-500 dark:text-slate-400">
                     This member has no membership to link to.
                   </p>
                 )}
-                <p className="text-xs text-gray-400 mt-1.5">
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5">
                   Linking is what lets the app tell a paid-up membership from an unpaid one.
                 </p>
               </div>

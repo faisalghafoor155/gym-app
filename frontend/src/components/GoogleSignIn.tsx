@@ -66,9 +66,9 @@ export default function GoogleSignIn({ onSuccess }: { onSuccess: (data: AuthResp
   return (
     <div className="mt-5">
       <div className="flex items-center gap-3 mb-4">
-        <span className="h-px bg-gray-200 flex-1" />
-        <span className="text-xs text-gray-400">or</span>
-        <span className="h-px bg-gray-200 flex-1" />
+        <span className="h-px bg-gray-200 dark:bg-slate-700 flex-1" />
+        <span className="text-xs text-gray-400 dark:text-slate-500">or</span>
+        <span className="h-px bg-gray-200 dark:bg-slate-700 flex-1" />
       </div>
       <div ref={ref} className="flex justify-center" />
     </div>

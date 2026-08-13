@@ -64,6 +64,50 @@ Migrations run from `docker-entrypoint.sh` via `prisma migrate deploy` before
 the server starts. The backend waits on the database's `pg_isready` healthcheck,
 so ordering on a cold start is handled.
 
+## Backups and restore
+
+The `backup` service dumps the database on a timer and keeps the dumps for
+`BACKUP_KEEP_DAYS`. They land in `./backups` on the host rather than in a
+Docker volume, on purpose: a backup that lives only inside Docker is lost to
+the same `docker compose down -v` that loses the database.
+
+```sh
+ls -lh backups/                  # what has been taken
+docker compose logs backup       # whether it is still running
+```
+
+### Restoring
+
+`restore.sh` is the other half. **Rehearse it before you ever need it** — a
+backup nobody has restored is an untested assumption, and the moment it gets
+tested is the worst possible moment to discover it does not work.
+
+```sh
+./restore.sh --list                          # what is available
+./restore.sh --into gymapp_check             # REHEARSAL — live db untouched
+./restore.sh                                 # restore the newest dump, live
+./restore.sh backups/gymapp-20260813-093554.sql.gz
+```
+
+`--into` restores to a scratch database and prints the row counts, so a dump
+can be proved good on a normal working day while the app carries on serving.
+Drop the copy when you are done:
+
+```sh
+docker compose exec -T db psql -U "$POSTGRES_USER" -d postgres \
+  -c 'DROP DATABASE "gymapp_check";'
+```
+
+A restore over the live database asks you to type the database name first, and
+takes a `pre-restore-*.sql.gz` safety dump before dropping anything — so
+restoring the *wrong* file is itself recoverable. It refuses to proceed if that
+safety dump cannot be written, checks the archive's integrity before touching
+the database, and verifies afterwards that tables actually arrived. The backend
+is restarted at the end so it reconnects.
+
+Anything recorded *after* the dump was taken is lost — members added, fees
+taken, attendance marked. Check the timestamp in the filename before restoring.
+
 ## Configuration
 
 All settings come from `.env` in this folder (see `.env.example`):
@@ -76,6 +120,9 @@ All settings come from `.env` in this folder (see `.env.example`):
 | `JWT_SECRET`        | backend token signing secret (min 32 chars — the server refuses to boot otherwise) |
 | `APP_PORT`          | host port for the app (default `8080`) |
 | `CORS_ORIGIN`       | optional; comma-separated allowed origins. Leave empty — the app is same-origin behind nginx |
+| `BACKUP_INTERVAL_SECONDS` | how often to dump (default `86400`, a day) |
+| `BACKUP_KEEP_DAYS`  | how many days of dumps to keep (default `14`) |
+| `BACKUP_DIR`        | where dumps are written on the host (default `./backups`) |
 
 `DATABASE_URL` is assembled from the Postgres values in `docker-compose.yml` —
 do not set it by hand. The backend's own `backend/.env` is excluded from the
