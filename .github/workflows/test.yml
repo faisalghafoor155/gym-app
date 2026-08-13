@@ -75,7 +75,7 @@ jobs:
         run: npm test
 
   frontend:
-    name: Frontend — typecheck, lint and build
+    name: Frontend — typecheck, lint, test and build
     runs-on: ubuntu-latest
 
     defaults:
@@ -100,8 +100,11 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # There are no frontend tests yet, so a build is what stands in for one:
-      # it catches an import that does not resolve or a bundle that cannot be
-      # produced, neither of which typecheck alone will find.
+      - name: Test
+        run: npm test
+
+      # Kept alongside the tests rather than replaced by them: a build catches
+      # an import that does not resolve or a bundle that cannot be produced,
+      # neither of which the tests exercise while coverage is this thin.
       - name: Build
         run: npm run build
