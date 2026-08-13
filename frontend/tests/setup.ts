@@ -13,5 +13,12 @@ import { afterEach, vi } from 'vitest';
  */
 afterEach(() => {
   cleanup();
-  vi.restoreAllMocks();
+  // `clearAllMocks`, not `restoreAllMocks`: restore *undoes* a mock, which for
+  // a bare `vi.fn()` means replacing its implementation with an empty one. A
+  // suite that builds its API stub out of `vi.fn()`s would find them returning
+  // `undefined` from the second test onward — the page then renders its error
+  // state, and the failure looks like a bug in the page rather than in this
+  // line. Clearing resets calls and leaves implementations alone; the spies
+  // that genuinely need restoring say so where they are installed.
+  vi.clearAllMocks();
 });
