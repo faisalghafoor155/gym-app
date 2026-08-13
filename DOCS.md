@@ -124,8 +124,10 @@ npm run db:seed
 # frontend
 npm run dev
 npm run build       # tsc -b && vite build
-npm run typecheck
+npm run typecheck   # tsc -b — app and tests both
 npm run lint
+npm run test        # vitest run
+npm run test:watch
 ```
 
 ## API reference
@@ -372,8 +374,25 @@ changing it — `VITE_` values are compiled in.
 
 ## Tests
 
-Vitest, on the backend, run with `npm test` in `backend/` — 198 tests across
-two layers.
+Vitest on both sides — `npm test` in `backend/` (198) and in `frontend/` (16).
+
+**Tests live in `tests/`, never beside the code they cover.** Both trees mirror
+the `src/` they test, so `src/` holds nothing but the app that ships and the
+backend's `dist/` cannot accidentally contain a test file. Each side has a
+`tsconfig.test.json` covering both trees, which is what `npm run typecheck`
+uses — without it the tests would be checked by nothing and a broken one would
+only surface when it ran.
+
+```
+backend/                      frontend/
+  src/     <- app only          src/     <- app only
+  tests/                        tests/
+    helpers.ts                    setup.ts
+    setup.ts                      components/
+    routes/                       utils/
+    services/
+    jobs/
+```
 
 ### Unit tests
 
@@ -444,12 +463,38 @@ requests carrying a test header. The limiter itself is still exercised — three
 tests drive it with the bypass off, so the accommodation cannot hide a limiter
 that has stopped working.
 
+### Frontend tests
+
+16 tests in `frontend/tests/`, run with `npm test` there. jsdom rather than a
+real browser — these are unit tests of rendering and behaviour, and a browser
+would cost seconds per file for fidelity they do not use.
+
+- **`utils/csv.ts`** — escaping, where the failure is silent and expensive. A
+  member called `Khan, Ali` or a note reading `paid 2,500 "cash"` does not
+  throw; it shifts every following column by one, and the gym reads the wrong
+  number against the wrong person in a spreadsheet nobody thinks to doubt.
+- **`components/Badge.tsx`** — that each status keeps the colour carrying its
+  meaning (expired red because somebody can still be won back, lapsed grey
+  because that moment has passed), and that an unknown status renders plain
+  rather than unstyled.
+
+This is a beginning, not coverage. The pages holding the most logic — `Members`
+and `Payments` — are still untested, and that is the next thing worth doing
+here.
+
+**A gotcha worth knowing.** `vitest.config.ts` pins `pool: 'threads'`. A forked
+worker never finishes starting when the project path contains a space: it is
+handed a percent-encoded path (`Gym%20App`) it cannot resolve, and the run dies
+on "Timeout waiting for worker to respond" having attempted no tests at all.
+Threads share the parent's resolution and are unaffected.
+
 ### Not covered
 
 Google sign-in, the invite and password-reset flows end to end (token
 generation is tested; clicking the emailed link is not), plan assignment,
-supplement restocking and the sales report, audit-log contents, and the
-frontend, which has no tests at all.
+supplement restocking and the sales report, and audit-log contents. On the
+frontend, every page — the two files above are utilities and a leaf component,
+not the screens the gym actually uses.
 
 The mail transport is not covered either — every test that involves mail stubs
 `sendMail`. What a message says and who it goes to is tested; whether Resend or
@@ -465,7 +510,7 @@ request, as two independent jobs:
 | Job | Steps |
 |---|---|
 | **backend** | `npm ci` → `prisma generate` → `typecheck` → `test` |
-| **frontend** | `npm ci` → `typecheck` → `lint` → `build` |
+| **frontend** | `npm ci` → `typecheck` → `lint` → `test` → `build` |
 
 Postgres comes from a `postgres:17-alpine` service container with a
 `pg_isready` health check, matching the version in `docker-compose.yml`. Node is
@@ -477,20 +522,21 @@ Two things are easy to get wrong here:
   committed — `npm ci` wipes `node_modules`, so anything importing
   `@prisma/client` fails to typecheck until it is regenerated. It also needs
   `DATABASE_URL` set, because `prisma.config.ts` reads it at config load.
-- **There is no `migrate deploy` step.** `src/test/setup.ts` drops, recreates
+- **There is no `migrate deploy` step.** `tests/setup.ts` drops, recreates
   and migrates `gymapp_test` itself, so migrating beforehand would only prepare
   a database the suite immediately throws away. `DATABASE_URL` connects as
   `postgres` because that setup needs rights to `CREATE DATABASE`.
 
-The frontend has no tests, so `build` stands in for one: it catches an import
-that does not resolve or a bundle that cannot be produced, neither of which
-`typecheck` alone will find.
+The frontend keeps its `build` step alongside the tests rather than replaced by
+them: a build catches an import that does not resolve or a bundle that cannot be
+produced, neither of which the tests reach while coverage is this thin.
 
 ## Known gaps
 
-- **No frontend tests.** The backend is covered at both layers; React
-  components and the API client are not. CI compensates only as far as a build
-  goes — it proves the bundle compiles, not that a page behaves.
+- **Frontend coverage is thin.** The harness exists and runs in CI, but it
+  covers a util and one leaf component. No page has a test, so nothing yet
+  proves that `Members` searches or that `Payments` totals what it claims to.
+  The build step still carries most of the weight there.
 - **No database backup.** Postgres data lives only in a Docker volume; a real
   deployment wants a scheduled `pg_dump`.
 - **`GET /supplements` is unbounded.** Left that way deliberately: a gym stocks

@@ -1,0 +1,16 @@
+{
+  // The tests, typechecked alongside the app rather than left to fail in CI.
+  //
+  // tsconfig.app.json covers `src` only, which is right — it describes what
+  // gets built. Without this third project the tests would be checked by
+  // nothing, and a broken one would only surface when `vitest` ran it.
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    // Vitest's globals are off, so `describe`/`it`/`expect` are imported —
+    // but jest-dom's matchers are registered by tests/setup.ts and reach the
+    // type system through this.
+    "types": ["vitest/globals", "@testing-library/jest-dom/vitest"]
+  },
+  // src too: a test importing a component has to see it.
+  "include": ["tests", "src"]
+}
