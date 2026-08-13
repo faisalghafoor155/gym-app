@@ -204,6 +204,21 @@ export interface AttendanceRecord {
   member: MemberSummary;
 }
 
+/**
+ * What a check-in answers with.
+ *
+ * `alreadyCheckedIn` is the server's verdict, not the page's: this page's own
+ * guard reads a list fetched seconds ago, so a second receptionist can beat it.
+ * When it is true the record is the existing row, and nothing was created.
+ *
+ * `membership` rides along so the desk learns the member's standing at the one
+ * moment it can act on it — an expired membership never blocks the check-in.
+ */
+export interface CheckinResult extends AttendanceRecord {
+  membership: Membership | null;
+  alreadyCheckedIn: boolean;
+}
+
 export interface Payment {
   id: string;
   memberId: string;
