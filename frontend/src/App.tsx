@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -53,6 +54,20 @@ function OwnerRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * The boundary that sits inside the app chrome.
+ *
+ * `key` is what makes it recoverable: React discards a component's state when
+ * its key changes, so navigating to another page gives this a fresh instance
+ * with no error. Calling reset from inside the boundary could not achieve the
+ * same thing — it would clear the error and immediately re-render the page
+ * that just threw.
+ */
+function PageErrorBoundary({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary key={pathname}>{children}</ErrorBoundary>;
+}
+
 /** Members have no gym dashboard, so "/" means different things per role. */
 function HomeRedirect() {
   const { isStaff, loading } = useAuth();
@@ -76,6 +91,16 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Layout>
+              {/*
+                A second boundary inside the chrome, so one broken page leaves
+                the sidebar and nav standing and the user can walk away from it
+                — the outer boundary would replace the whole window instead.
+
+                Keyed on the path so navigating away clears the error. Without
+                that the boundary keeps rendering its fallback after the route
+                changes, and every link looks broken once any page is.
+              */}
+              <PageErrorBoundary>
               <Routes>
                 <Route path="/my" element={<MyPortal />} />
                 <Route path="/dashboard" element={<StaffRoute><Dashboard /></StaffRoute>} />
@@ -97,6 +122,7 @@ function AppRoutes() {
                 <Route path="/team" element={<OwnerRoute><Team /></OwnerRoute>} />
                 <Route path="*" element={<HomeRedirect />} />
               </Routes>
+              </PageErrorBoundary>
             </Layout>
           </ProtectedRoute>
         }

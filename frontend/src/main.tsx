@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { Toaster } from 'react-hot-toast'
 import './index.css'
 import App from './App.tsx'
+import ErrorBoundary from './components/ErrorBoundary.tsx'
 import { ThemeProvider, useTheme } from './context/ThemeContext.tsx'
 
 /**
@@ -29,8 +30,16 @@ function ThemedToaster() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    {/*
+      Inside ThemeProvider, so the error screen is painted in the theme the
+      user chose rather than snapping to light at the worst moment. Outside
+      App, because a failure in the router or a provider is exactly the kind
+      this has to survive — a boundary nested any deeper would go down with it.
+    */}
     <ThemeProvider>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
       <ThemedToaster />
     </ThemeProvider>
   </StrictMode>,
