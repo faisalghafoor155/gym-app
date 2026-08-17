@@ -21,6 +21,7 @@ import {
   Receipt,
 } from "lucide-react";
 import Modal from "../components/Modal";
+import ReceiptModal from "../components/ReceiptModal";
 import Badge from "../components/Badge";
 import ConfirmDialog from "../components/ConfirmDialog";
 import {
@@ -122,6 +123,7 @@ export default function Payments() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Payment | null>(null);
   const [deleting, setDeleting] = useState<Payment | null>(null);
+  const [activeReceipt, setActiveReceipt] = useState<Payment | null>(null);
   const [form, setForm] = useState<PaymentForm>(emptyForm);
 
   // First paint shows a spinner; every later fetch dims the old list instead,
@@ -766,15 +768,13 @@ export default function Payments() {
                     {/* Staff see only their own entries, so "who took this"
                         would tell them nothing they did not already know. */}
                     {isOwner && (
-                      <>
-                        <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-slate-300">
-                          Taken by
-                        </th>
-                        <th className="px-4 py-3 w-24">
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      </>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-slate-300">
+                        Taken by
+                      </th>
                     )}
+                    <th className="px-4 py-3 w-28 text-right">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -814,14 +814,21 @@ export default function Payments() {
                         {p.notes || "—"}
                       </td>
                       {isOwner && (
-                        <>
-                          <td className="px-4 py-3 text-gray-500 dark:text-slate-400 max-w-35 truncate">
-                            {/* An em dash rather than a guess: the row predates
-                                the column, or the account that took it is gone. */}
-                            {p.recordedBy?.name ?? "—"}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex justify-end gap-1">
+                        <td className="px-4 py-3 text-gray-500 dark:text-slate-400 max-w-35 truncate">
+                          {/* An em dash rather than a guess: the row predates
+                              the column, or the account that took it is gone. */}
+                          {p.recordedBy?.name ?? "—"}
+                        </td>
+                      )}
+                      <td className="px-4 py-3">
+                        <div className="flex justify-end gap-1">
+                          <IconButton
+                            icon={Receipt}
+                            label={`Receipt for ${p.member.name}`}
+                            onClick={() => setActiveReceipt(p)}
+                          />
+                          {isOwner && (
+                            <>
                               <IconButton
                                 icon={Pencil}
                                 label={`Edit payment for ${p.member.name}`}
@@ -833,10 +840,10 @@ export default function Payments() {
                                 label={`Delete payment for ${p.member.name}`}
                                 onClick={() => setDeleting(p)}
                               />
-                            </div>
-                          </td>
-                        </>
-                      )}
+                            </>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1050,6 +1057,13 @@ export default function Payments() {
           busy={saving}
           onConfirm={() => void handleDelete()}
           onCancel={() => setDeleting(null)}
+        />
+      )}
+
+      {activeReceipt && (
+        <ReceiptModal
+          payment={activeReceipt}
+          onClose={() => setActiveReceipt(null)}
         />
       )}
     </Page>
