@@ -9,7 +9,8 @@ import {
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import type { GymUser, Member, Paginated, Role, StaffSeats, TeamResponse } from '../types';
+import type { GymUser, Member, Paginated, Role, StaffSeats, TeamResponse, StaffPermission } from '../types';
+import { getPermissionLabel, getPermissionDescription } from '../utils/permissions';
 import toast from 'react-hot-toast';
 
 /** How a new account gets its password: emailed invite, or one the owner
@@ -100,7 +101,7 @@ export default function Team() {
   const [saving, setSaving] = useState(false);
   const [showStaff, setShowStaff] = useState(false);
   const [showMemberLogin, setShowMemberLogin] = useState(false);
-  const [staffForm, setStaffForm] = useState({ name: '', email: '', password: '' });
+  const [staffForm, setStaffForm] = useState({ name: '', email: '', password: '', staffPermission: 'receptionist' as StaffPermission });
   const [loginForm, setLoginForm] = useState({ memberId: '', email: '', password: '' });
   // How the new account gets its password. Inviting is the default: an owner
   // who never learns the password cannot leak it.
@@ -115,6 +116,34 @@ export default function Team() {
   // applied on click: promoting somebody to staff hands them the till.
   const [changingRole, setChangingRole] =
     useState<{ user: GymUser; to: Exclude<Role, 'owner'> } | null>(null);
+  
+  const [editingPermissions, setEditingPermissions] = useState<GymUser | null>(null);
+  const [selectedPermission, setSelectedPermission] = useState<StaffPermission>('receptionist');
+
+  useEffect(() => {
+    if (editingPermissions?.staffPermission) {
+      setSelectedPermission(editingPermissions.staffPermission);
+    } else {
+      setSelectedPermission('receptionist');
+    }
+  }, [editingPermissions]);
+
+  const handleUpdatePermissions = async () => {
+    if (!editingPermissions) return;
+    setSaving(true);
+    try {
+      await api.put(`/users/${editingPermissions.id}`, {
+        staffPermission: selectedPermission,
+      });
+      toast.success('Permissions updated');
+      setEditingPermissions(null);
+      await load();
+    } catch (err) {
+      toast.error(apiError(err, 'Could not update permissions'));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const load = () =>
     Promise.all([
@@ -168,11 +197,12 @@ export default function Team() {
       const { data } = await api.post<{ invite: InviteResult | null }>('/users/staff', {
         name: staffForm.name,
         email: staffForm.email,
+        staffPermission: staffForm.staffPermission,
         ...(staffMethod === 'password' && { password: staffForm.password }),
       });
       announce(data.invite, 'Staff account created');
       setShowStaff(false);
-      setStaffForm({ name: '', email: '', password: '' });
+      setStaffForm({ name: '', email: '', password: '', staffPermission: 'receptionist' as StaffPermission });
       await load();
     } catch (err) {
       toast.error(apiError(err, 'Could not create the account'));
@@ -340,6 +370,11 @@ export default function Team() {
                     <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${style.className}`}>
                       <RoleIcon size={11} /> {style.label}
                     </span>
+                    {u.role === 'staff' && u.staffPermission && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800">
+                        {getPermissionLabel(u.staffPermission)}
+                      </span>
+                    )}
                     {!u.isActive && (
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-500/15 text-red-600 border border-red-200 dark:border-red-500/20">
                         Revoked
@@ -383,6 +418,14 @@ export default function Team() {
                             className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 disabled:opacity-40 disabled:hover:bg-transparent ${focusRing}`}
                           >
                             {u.role === 'staff' ? 'Make member' : 'Make staff'}
+                          </button>
+                        )}
+                        {u.role === 'staff' && (
+                          <button
+                            onClick={() => setEditingPermissions(u)}
+                            className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 ${focusRing}`}
+                          >
+                            Permissions
                           </button>
                         )}
                         {u.role === 'staff' && (
@@ -434,6 +477,21 @@ export default function Team() {
                 onChange={e => setStaffForm(f => ({ ...f, email: e.target.value }))}
                 placeholder="helper@gym.com"
                 className={inputClass} />
+            </div>
+            <div>
+              <FieldLabel required>Permission Level</FieldLabel>
+              <select required value={staffForm.staffPermission}
+                onChange={e => setStaffForm(f => ({ ...f, staffPermission: e.target.value as StaffPermission }))}
+                className={inputClass}>
+                <option value="receptionist">Receptionist (Check-in & Attendance)</option>
+                <option value="members_manager">Members Manager (Manage Members & Memberships)</option>
+                <option value="accountant">Accountant (Manage Payments & Reports)</option>
+                <option value="inventory_manager">Inventory Manager (Manage Supplements & Stock)</option>
+                <option value="manager">Manager (Full Access)</option>
+              </select>
+              <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5 leading-relaxed">
+                {getPermissionDescription(staffForm.staffPermission)}
+              </p>
             </div>
             <PasswordMethod
               method={staffMethod}
@@ -540,6 +598,44 @@ export default function Team() {
               </button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {editingPermissions && (
+        <Modal title={`Change Permissions for ${editingPermissions.name}`} onClose={() => setEditingPermissions(null)}>
+          <form onSubmit={e => {
+            e.preventDefault();
+            void handleUpdatePermissions();
+          }} className="space-y-4">
+            <div>
+              <FieldLabel required>Permission Level</FieldLabel>
+              <select
+                required
+                value={selectedPermission}
+                onChange={e => setSelectedPermission(e.target.value as StaffPermission)}
+                className={inputClass}
+              >
+                <option value="receptionist">Receptionist (Check-in & Attendance)</option>
+                <option value="members_manager">Members Manager (Manage Members & Memberships)</option>
+                <option value="accountant">Accountant (Manage Payments & Reports)</option>
+                <option value="inventory_manager">Inventory Manager (Manage Supplements & Stock)</option>
+                <option value="manager">Manager (Full Access)</option>
+              </select>
+              <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
+                {getPermissionDescription(selectedPermission)}
+              </p>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={() => setEditingPermissions(null)}
+                className={`flex-1 ${secondaryButton}`}>
+                Cancel
+              </button>
+              <button type="submit" disabled={saving}
+                className={`flex-1 ${primaryButton}`}>
+                {saving ? 'Saving...' : 'Save Permissions'}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
 

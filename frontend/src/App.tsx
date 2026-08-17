@@ -19,6 +19,7 @@ import Supplements from './pages/Supplements';
 import SupplementSales from './pages/SupplementSales';
 import Team from './pages/Team';
 import MyPortal from './pages/MyPortal';
+import Security from './pages/Security';
 import { Spinner } from './components/ui';
 
 /** The whole-app boot state, before the session is known. */
@@ -42,6 +43,20 @@ function StaffRoute({ children }: { children: ReactNode }) {
   if (loading) return <BootSpinner />;
   if (!isAuth) return <Navigate to="/login" replace />;
   if (!isStaff) return <Navigate to="/my" replace />;
+  return <>{children}</>;
+}
+
+import { hasPermission, type PermissionRequirements } from './utils/permissions';
+
+function PermissionRoute({ children, action }: { children: ReactNode; action: keyof PermissionRequirements }) {
+  const { isAuth, isStaff, isOwner, user, loading } = useAuth();
+  if (loading) return <BootSpinner />;
+  if (!isAuth) return <Navigate to="/login" replace />;
+  if (!isStaff) return <Navigate to="/my" replace />;
+  
+  const allowed = isOwner || (user?.staffPermission && hasPermission(user.role, user.staffPermission, action));
+  if (!allowed) return <Navigate to="/dashboard" replace />;
+  
   return <>{children}</>;
 }
 
@@ -103,19 +118,21 @@ function AppRoutes() {
               <PageErrorBoundary>
               <Routes>
                 <Route path="/my" element={<MyPortal />} />
-                <Route path="/dashboard" element={<StaffRoute><Dashboard /></StaffRoute>} />
-                <Route path="/attendance" element={<StaffRoute><Attendance /></StaffRoute>} />
-                <Route path="/plans" element={<StaffRoute><Plans /></StaffRoute>} />
-                <Route path="/membership-plans" element={<StaffRoute><MembershipPlans /></StaffRoute>} />
-                <Route path="/supplements" element={<StaffRoute><Supplements /></StaffRoute>} />
+                {/* Every role — the second factor guards an account, not a job. */}
+                <Route path="/security" element={<Security />} />
+                 <Route path="/dashboard" element={<StaffRoute><Dashboard /></StaffRoute>} />
+                <Route path="/attendance" element={<PermissionRoute action="canViewAttendance"><Attendance /></PermissionRoute>} />
+                <Route path="/plans" element={<PermissionRoute action="canManagePlans"><Plans /></PermissionRoute>} />
+                <Route path="/membership-plans" element={<PermissionRoute action="canManageMemberships"><MembershipPlans /></PermissionRoute>} />
+                <Route path="/supplements" element={<PermissionRoute action="canManageSupplements"><Supplements /></PermissionRoute>} />
                 {/* A report of what the gym earns, rather than a till — so it
                     stays owner-only, matching what the API enforces. */}
                 <Route path="/supplement-sales" element={<OwnerRoute><SupplementSales /></OwnerRoute>} />
-                <Route path="/members" element={<StaffRoute><Members /></StaffRoute>} />
+                <Route path="/members" element={<PermissionRoute action="canManageMembers"><Members /></PermissionRoute>} />
                 {/* Open to staff so the counter can take a fee. The page is not
                     the same for both: the API narrows staff to their own
                     entries and withholds the gym's totals. */}
-                <Route path="/payments" element={<StaffRoute><Payments /></StaffRoute>} />
+                <Route path="/payments" element={<PermissionRoute action="canViewPayments"><Payments /></PermissionRoute>} />
                 {/* Who paid in a given month — the gym's collection rather
                     than one counter's takings, so owner-only like the API. */}
                 <Route path="/monthly-collection" element={<OwnerRoute><MonthlyCollection /></OwnerRoute>} />

@@ -1,24 +1,57 @@
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react';
-import { useSearchParams } from 'react-router-dom';
+/** @format */
+
 import {
-  Plus, Search, X, Download, Pencil, Trash2, CreditCard, Wallet, AlertCircle, Receipt,
-} from 'lucide-react';
-import Modal from '../components/Modal';
-import Badge from '../components/Badge';
-import ConfirmDialog from '../components/ConfirmDialog';
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
+import { useSearchParams } from "react-router-dom";
 import {
-  Page, PageHeader, Card, StatTile, PageLoader, EmptyState, Refetching, IconButton,
-  SegmentedControl, FieldLabel, inputClass, primaryButton, secondaryButton,
-} from '../components/ui';
-import { useDebounced } from '../hooks/useDebounced';
-import { toCsv, downloadCsv } from '../utils/csv';
-import api, { apiError } from '../api/client';
-import { useAuth } from '../context/AuthContext';
+  Plus,
+  Search,
+  X,
+  Download,
+  Pencil,
+  Trash2,
+  CreditCard,
+  Wallet,
+  AlertCircle,
+  Receipt,
+} from "lucide-react";
+import Modal from "../components/Modal";
+import Badge from "../components/Badge";
+import ConfirmDialog from "../components/ConfirmDialog";
+import {
+  Page,
+  PageHeader,
+  Card,
+  StatTile,
+  PageLoader,
+  EmptyState,
+  Refetching,
+  IconButton,
+  SegmentedControl,
+  FieldLabel,
+  inputClass,
+  primaryButton,
+  secondaryButton,
+} from "../components/ui";
+import { useDebounced } from "../hooks/useDebounced";
+import api, { apiError } from "../api/client";
+import { useAuth } from "../context/AuthContext";
 import type {
-  Payment, Member, PaymentMethod, PaymentStatus, PaymentType, PaymentSummary,
-  Paginated, PaginatedPayments,
-} from '../types';
-import toast from 'react-hot-toast';
+  Payment,
+  Member,
+  PaymentMethod,
+  PaymentStatus,
+  PaymentType,
+  PaymentSummary,
+  Paginated,
+  PaginatedPayments,
+} from "../types";
+import toast from "react-hot-toast";
 
 interface PaymentForm {
   memberId: string;
@@ -32,25 +65,31 @@ interface PaymentForm {
   paymentDate: string;
 }
 
-const today = () => new Date().toISOString().split('T')[0]!;
+const today = () => new Date().toISOString().split("T")[0]!;
 
 const emptyForm = (): PaymentForm => ({
-  memberId: '', amount: '', method: 'cash', notes: '', status: 'paid',
-  type: 'membership', membershipId: '', paymentDate: today(),
+  memberId: "",
+  amount: "",
+  method: "cash",
+  notes: "",
+  status: "paid",
+  type: "membership",
+  membershipId: "",
+  paymentDate: today(),
 });
 
 const TYPE_LABELS: Record<PaymentType, string> = {
-  membership: 'Membership fee',
-  supplement: 'Supplement',
-  other: 'Other',
+  membership: "Membership fee",
+  supplement: "Supplement",
+  other: "Other",
 };
 
-type Filter = 'all' | PaymentStatus;
+type Filter = "all" | PaymentStatus;
 
 const FILTERS = [
-  { value: 'all' as const, label: 'All' },
-  { value: 'paid' as const, label: 'Paid' },
-  { value: 'due' as const, label: 'Due' },
+  { value: "all" as const, label: "All" },
+  { value: "paid" as const, label: "Paid" },
+  { value: "due" as const, label: "Due" },
 ];
 
 /** Rows per request. The table stops being something anyone reads long before
@@ -66,10 +105,10 @@ export default function Payments() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [summary, setSummary] = useState<PaymentSummary | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
-  const [filter, setFilter] = useState<Filter>('all');
-  const [search, setSearch] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const [filter, setFilter] = useState<Filter>("all");
+  const [search, setSearch] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -95,12 +134,12 @@ export default function Payments() {
 
   const query = useMemo(() => {
     const q = new URLSearchParams();
-    if (filter !== 'all') q.set('status', filter);
+    if (filter !== "all") q.set("status", filter);
     // Blank values are omitted rather than sent — the API rejects "" for a date.
-    if (debouncedSearch.trim()) q.set('search', debouncedSearch.trim());
-    if (from) q.set('from', from);
-    if (to) q.set('to', to);
-    q.set('limit', String(PAGE_SIZE));
+    if (debouncedSearch.trim()) q.set("search", debouncedSearch.trim());
+    if (from) q.set("from", from);
+    if (to) q.set("to", to);
+    q.set("limit", String(PAGE_SIZE));
     return `?${q.toString()}`;
   }, [filter, debouncedSearch, from, to]);
 
@@ -109,19 +148,32 @@ export default function Payments() {
   useEffect(() => {
     let cancelled = false;
     setRefetching(true);
-    api.get<PaginatedPayments>(`/payments${query}`)
-      .then(r => {
+    api
+      .get<PaginatedPayments>(`/payments${query}`)
+      .then((r) => {
         if (cancelled) return;
         setPayments(r.data.data);
-        setTotals({ collected: r.data.collected, outstanding: r.data.outstanding });
+        setTotals({
+          collected: r.data.collected,
+          outstanding: r.data.outstanding,
+        });
         setTotal(r.data.total);
         setHasMore(r.data.hasMore);
         setPage(1);
       })
-      .catch(err => { if (!cancelled) toast.error(apiError(err, 'Could not load payments')); })
-      .finally(() => { if (!cancelled) { setLoading(false); setRefetching(false); } });
+      .catch((err) => {
+        if (!cancelled) toast.error(apiError(err, "Could not load payments"));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+          setRefetching(false);
+        }
+      });
     // A slow earlier response must not overwrite a newer one.
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [query]);
 
   /**
@@ -132,22 +184,28 @@ export default function Payments() {
   const loadMore = () => {
     const next = page + 1;
     setLoadingMore(true);
-    api.get<PaginatedPayments>(`/payments${query}&page=${next}`)
-      .then(r => {
-        setPayments(prev => [...prev, ...r.data.data]);
+    api
+      .get<PaginatedPayments>(`/payments${query}&page=${next}`)
+      .then((r) => {
+        setPayments((prev) => [...prev, ...r.data.data]);
         setHasMore(r.data.hasMore);
         setPage(next);
       })
-      .catch(err => toast.error(apiError(err, 'Could not load more payments')))
+      .catch((err) =>
+        toast.error(apiError(err, "Could not load more payments")),
+      )
       .finally(() => setLoadingMore(false));
   };
 
   // The member list never changes with the filters, so it loads once. The
   // picker has to offer every member, hence all=true.
   useEffect(() => {
-    api.get<Paginated<Member>>('/members?all=true')
-      .then(r => setMembers(r.data.data))
-      .catch(() => { /* the payments error toast already covers a dead API */ });
+    api
+      .get<Paginated<Member>>("/members?all=true")
+      .then((r) => setMembers(r.data.data))
+      .catch(() => {
+        /* the payments error toast already covers a dead API */
+      });
   }, []);
 
   /**
@@ -158,25 +216,36 @@ export default function Payments() {
    * say so, while this answers "what did the gym take in August", which no
    * filter should be able to change the answer to.
    */
-  const loadSummary = useMemo(() => () => {
-    if (!isOwner) return Promise.resolve();
-    return api.get<PaymentSummary>(`/payments/summary?months=${SUMMARY_MONTHS}`)
-      .then(r => setSummary(r.data))
-      .catch(err => toast.error(apiError(err, 'Could not load the monthly totals')));
-  }, [isOwner]);
+  const loadSummary = useMemo(
+    () => () => {
+      if (!isOwner) return Promise.resolve();
+      return api
+        .get<PaymentSummary>(`/payments/summary?months=${SUMMARY_MONTHS}`)
+        .then((r) => setSummary(r.data))
+        .catch((err) =>
+          toast.error(apiError(err, "Could not load the monthly totals")),
+        );
+    },
+    [isOwner],
+  );
 
-  useEffect(() => { void loadSummary(); }, [loadSummary]);
+  useEffect(() => {
+    void loadSummary();
+  }, [loadSummary]);
 
   // The dashboard's "Record Payment" shortcut lands here as ?new=1. The param
   // is cleared once used, so refreshing does not reopen the modal.
   useEffect(() => {
-    if (!params.get('new')) return;
+    if (!params.get("new")) return;
     openAdd();
-    setParams(prev => {
-      const next = new URLSearchParams(prev);
-      next.delete('new');
-      return next;
-    }, { replace: true });
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("new");
+        return next;
+      },
+      { replace: true },
+    );
     // Runs on the landing param only — this is a hint, not a live binding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -186,30 +255,40 @@ export default function Payments() {
   // next page load.
   // Back to page one: a correction can move a row out of the current filter
   // entirely, and re-fetching a later page would leave a gap above it.
-  const reload = () => Promise.all([
-    api.get<PaginatedPayments>(`/payments${query}`)
-      .then(r => {
-        setPayments(r.data.data);
-        setTotals({ collected: r.data.collected, outstanding: r.data.outstanding });
-        setTotal(r.data.total);
-        setHasMore(r.data.hasMore);
-        setPage(1);
-      })
-      .catch(err => toast.error(apiError(err, 'Could not load payments'))),
-    loadSummary(),
-  ]);
+  const reload = () =>
+    Promise.all([
+      api
+        .get<PaginatedPayments>(`/payments${query}`)
+        .then((r) => {
+          setPayments(r.data.data);
+          setTotals({
+            collected: r.data.collected,
+            outstanding: r.data.outstanding,
+          });
+          setTotal(r.data.total);
+          setHasMore(r.data.hasMore);
+          setPage(1);
+        })
+        .catch((err) => toast.error(apiError(err, "Could not load payments"))),
+      loadSummary(),
+    ]);
 
-  const set = (k: keyof PaymentForm) =>
+  const set =
+    (k: keyof PaymentForm) =>
     (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm(f => ({ ...f, [k]: e.target.value }));
+      setForm((f) => ({ ...f, [k]: e.target.value }));
 
   // The member the form is about — the picked one when adding, the payment's
   // own when editing, since the member select is read-only there.
   const formMember = members.find(
-    m => m.id === (editing ? editing.memberId : form.memberId),
+    (m) => m.id === (editing ? editing.memberId : form.memberId),
   );
 
-  const openAdd = () => { setEditing(null); setForm(emptyForm()); setShowModal(true); };
+  const openAdd = () => {
+    setEditing(null);
+    setForm(emptyForm());
+    setShowModal(true);
+  };
 
   const openEdit = (p: Payment) => {
     setEditing(p);
@@ -217,11 +296,11 @@ export default function Payments() {
       memberId: p.memberId,
       amount: String(p.amount),
       method: p.method,
-      notes: p.notes ?? '',
+      notes: p.notes ?? "",
       status: p.status,
       type: p.type,
-      membershipId: p.membershipId ?? '',
-      paymentDate: p.paymentDate.split('T')[0]!,
+      membershipId: p.membershipId ?? "",
+      paymentDate: p.paymentDate.split("T")[0]!,
     });
     setShowModal(true);
   };
@@ -236,19 +315,20 @@ export default function Payments() {
       // rather than leaving a stale one attached.
       const payload = {
         ...form,
-        membershipId: form.type === 'membership' && form.membershipId
-          ? form.membershipId
-          : null,
+        membershipId:
+          form.type === "membership" && form.membershipId
+            ? form.membershipId
+            : null,
       };
       if (editing) {
         // The member a payment belongs to is not editable — the API rejects it,
         // and moving money between members should be a delete and a re-entry.
         const { memberId: _memberId, ...editable } = payload;
         await api.put(`/payments/${editing.id}`, editable);
-        toast.success('Payment updated');
+        toast.success("Payment updated");
       } else {
-        await api.post('/payments', payload);
-        toast.success('Payment recorded');
+        await api.post("/payments", payload);
+        toast.success("Payment recorded");
       }
       setShowModal(false);
       setEditing(null);
@@ -257,7 +337,7 @@ export default function Payments() {
     } catch (err) {
       // The modal stays open with its values intact, so a rejected save is one
       // correction away from succeeding.
-      toast.error(apiError(err, 'Could not save the payment'));
+      toast.error(apiError(err, "Could not save the payment"));
     } finally {
       setSaving(false);
     }
@@ -268,52 +348,67 @@ export default function Payments() {
     setSaving(true);
     try {
       await api.delete(`/payments/${deleting.id}`);
-      toast.success('Payment deleted');
+      toast.success("Payment deleted");
       setDeleting(null);
       await reload();
     } catch (err) {
-      toast.error(apiError(err, 'Could not delete the payment'));
+      toast.error(apiError(err, "Could not delete the payment"));
     } finally {
       setSaving(false);
     }
   };
 
-  const hasFilters = filter !== 'all' || search !== '' || from !== '' || to !== '';
-  const clearFilters = () => { setFilter('all'); setSearch(''); setFrom(''); setTo(''); };
+  const hasFilters =
+    filter !== "all" || search !== "" || from !== "" || to !== "";
+  const clearFilters = () => {
+    setFilter("all");
+    setSearch("");
+    setFrom("");
+    setTo("");
+  };
 
   const { collected, outstanding } = totals;
 
   /**
-   * Exports the rows that have been loaded, filters and all — an export that
-   * quietly returned everything would be read as the filtered total.
-   *
-   * With the list now paged, that means what has been fetched so far rather
-   * than every match, so the toast says how many of the total went out. Getting
-   * the rest is a matter of pressing Show more first, which is honest about the
-   * cost instead of quietly fetching thousands of rows behind a button labelled
-   * Export.
+   * Export all payments matching the current filters as CSV from the server.
+   * This fetches the complete filtered dataset, not just loaded rows.
    */
-  const handleExport = () => {
-    if (payments.length === 0) { toast.error('Nothing to export'); return; }
-    const csv = toCsv(
-      [
-        'Member No', 'Member', 'Phone', 'Amount', 'For', 'Method', 'Status', 'Date', 'Notes',
-        ...(isOwner ? ['Taken by'] : []),
-      ],
-      payments.map(p => [
-        p.member.memberNo ?? '', p.member.name, p.member.phone ?? '', p.amount,
-        TYPE_LABELS[p.type], p.method,
-        p.status, new Date(p.paymentDate).toLocaleDateString(), p.notes ?? '',
-        ...(isOwner ? [p.recordedBy?.name ?? ''] : []),
-      ]),
-    );
-    downloadCsv(`payments-${today()}.csv`, csv);
-    toast.success(
-      payments.length < total
-        // Say so plainly rather than letting a partial file read as the lot.
-        ? `Exported ${payments.length} of ${total} — press Show more for the rest`
-        : `Exported ${payments.length} payment${payments.length === 1 ? '' : 's'}`,
-    );
+  const handleExport = async () => {
+    try {
+      // Build query string with current filters
+      const params = new URLSearchParams();
+      if (filter !== "all") params.append("status", filter);
+      if (search) params.append("search", search);
+      if (from) params.append("from", from);
+      if (to) params.append("to", to);
+
+      // Fetch CSV from server
+      const response = await fetch(`/api/payments/export/csv?${params}`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error || "Failed to export");
+        return;
+      }
+
+      // Download the CSV file
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `payments-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.success(`Exported ${total} payment${total === 1 ? "" : "s"}`);
+    } catch (err) {
+      console.error("Export failed:", err);
+      toast.error("Failed to export CSV");
+    }
   };
 
   if (loading) return <PageLoader />;
@@ -325,9 +420,11 @@ export default function Payments() {
       <PageHeader
         icon={CreditCard}
         title="Payments"
-        subtitle={isOwner
-          ? 'What the gym has taken, and what is still owed'
-          : 'Fees you have recorded, and who still owes'}
+        subtitle={
+          isOwner
+            ? "What the gym has taken, and what is still owed"
+            : "Fees you have recorded, and who still owes"
+        }
         action={
           <button onClick={openAdd} className={primaryButton}>
             <Plus size={16} />
@@ -339,18 +436,25 @@ export default function Payments() {
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-5">
         <StatTile
-          icon={Wallet} tone="green" label="Collected"
+          icon={Wallet}
+          tone="green"
+          label="Collected"
           value={`Rs. ${collected.toLocaleString()}`}
-          hint={hasFilters ? 'matching filters' : undefined}
+          hint={hasFilters ? "matching filters" : undefined}
         />
         <StatTile
-          icon={AlertCircle} tone="red" label="Outstanding"
+          icon={AlertCircle}
+          tone="red"
+          label="Outstanding"
           value={`Rs. ${outstanding.toLocaleString()}`}
-          hint={hasFilters ? 'matching filters' : undefined}
+          hint={hasFilters ? "matching filters" : undefined}
         />
         <StatTile
-          icon={Receipt} tone="blue" label="Payments"
-          value={total} hint={hasFilters ? 'matching filters' : undefined}
+          icon={Receipt}
+          tone="blue"
+          label="Payments"
+          value={total}
+          hint={hasFilters ? "matching filters" : undefined}
         />
       </div>
 
@@ -369,13 +473,17 @@ export default function Payments() {
         <Card className="p-4 sm:p-5 mb-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
             <div>
-              <h2 className="font-bold text-gray-900 dark:text-slate-100">Monthly totals</h2>
+              <h2 className="font-bold text-gray-900 dark:text-slate-100">
+                Monthly totals
+              </h2>
               <p className="text-xs text-gray-400 dark:text-slate-500">
                 Settled payments only · last {summary.months} months
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-400 dark:text-slate-500">This month</p>
+              <p className="text-xs text-gray-400 dark:text-slate-500">
+                This month
+              </p>
               <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
                 Rs. {summary.thisMonth.toLocaleString()}
               </p>
@@ -391,11 +499,20 @@ export default function Payments() {
             <table className="w-full text-sm min-w-125">
               <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-800">
                 <tr>
-                  <th className="text-left px-3 py-2 font-semibold text-gray-600 dark:text-slate-300">Month</th>
-                  {['Membership', 'Supplements', 'Other'].map(h => (
-                    <th key={h} className="text-right px-3 py-2 font-semibold text-gray-600 dark:text-slate-300">{h}</th>
+                  <th className="text-left px-3 py-2 font-semibold text-gray-600 dark:text-slate-300">
+                    Month
+                  </th>
+                  {["Membership", "Supplements", "Other"].map((h) => (
+                    <th
+                      key={h}
+                      className="text-right px-3 py-2 font-semibold text-gray-600 dark:text-slate-300"
+                    >
+                      {h}
+                    </th>
                   ))}
-                  <th className="text-right px-3 py-2 font-semibold text-gray-600 dark:text-slate-300">Total</th>
+                  <th className="text-right px-3 py-2 font-semibold text-gray-600 dark:text-slate-300">
+                    Total
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -405,13 +522,15 @@ export default function Payments() {
                     className={`border-b border-gray-100 dark:border-slate-800 last:border-0 ${
                       // The current month is still being earned, so it reads as
                       // a running figure rather than a closed one.
-                      i === summary.byMonth.length - 1 ? 'bg-blue-50/40' : ''
+                      i === summary.byMonth.length - 1 ? "bg-blue-50/40" : ""
                     }`}
                   >
                     <td className="px-3 py-2 font-medium text-gray-900 dark:text-slate-100 whitespace-nowrap">
                       {m.label}
                       {i === summary.byMonth.length - 1 && (
-                        <span className="ml-2 text-xs font-normal text-blue-600">so far</span>
+                        <span className="ml-2 text-xs font-normal text-blue-600">
+                          so far
+                        </span>
                       )}
                     </td>
                     <td className="px-3 py-2 text-right text-gray-600 dark:text-slate-300 tabular-nums">
@@ -431,10 +550,17 @@ export default function Payments() {
               </tbody>
               <tfoot className="border-t-2 border-gray-200 dark:border-slate-800">
                 <tr>
-                  <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-slate-100">Grand total</td>
-                  {(['membership', 'supplement', 'other'] as const).map(k => (
-                    <td key={k} className="px-3 py-2.5 text-right font-semibold text-gray-700 dark:text-slate-300 tabular-nums">
-                      {summary.byMonth.reduce((s, m) => s + m[k], 0).toLocaleString()}
+                  <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-slate-100">
+                    Grand total
+                  </td>
+                  {(["membership", "supplement", "other"] as const).map((k) => (
+                    <td
+                      key={k}
+                      className="px-3 py-2.5 text-right font-semibold text-gray-700 dark:text-slate-300 tabular-nums"
+                    >
+                      {summary.byMonth
+                        .reduce((s, m) => s + m[k], 0)
+                        .toLocaleString()}
                     </td>
                   ))}
                   <td className="px-3 py-2.5 text-right font-bold text-gray-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
@@ -450,9 +576,9 @@ export default function Payments() {
             // from four months ago is still owed today. Kept out of the totals
             // above: it is a debt the gym is owed, not income it has received.
             <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
-              Rs. {summary.dueTotal.toLocaleString()} still outstanding across{' '}
-              {summary.dueCount} unpaid {summary.dueCount === 1 ? 'entry' : 'entries'}, not
-              counted above.
+              Rs. {summary.dueTotal.toLocaleString()} still outstanding across{" "}
+              {summary.dueCount} unpaid{" "}
+              {summary.dueCount === 1 ? "entry" : "entries"}, not counted above.
             </p>
           )}
         </Card>
@@ -461,14 +587,21 @@ export default function Payments() {
       {/* Filters */}
       <Card className="p-3 sm:p-4 mb-5">
         <div className="flex flex-wrap items-center gap-3">
-          <SegmentedControl value={filter} onChange={setFilter} options={FILTERS} />
+          <SegmentedControl
+            value={filter}
+            onChange={setFilter}
+            options={FILTERS}
+          />
 
           <div className="relative flex-1 min-w-50">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500"
+            />
             <input
               type="search"
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search member, phone or member no..."
               aria-label="Search payments"
               className={`${inputClass} pl-9`}
@@ -477,15 +610,23 @@ export default function Payments() {
 
           <div className="flex items-center gap-2">
             <input
-              type="date" value={from} max={to || undefined}
-              onChange={e => setFrom(e.target.value)}
-              aria-label="From date" className={`${inputClass} w-auto`}
+              type="date"
+              value={from}
+              max={to || undefined}
+              onChange={(e) => setFrom(e.target.value)}
+              aria-label="From date"
+              className={`${inputClass} w-auto`}
             />
-            <span className="text-gray-400 dark:text-slate-500 text-sm">to</span>
+            <span className="text-gray-400 dark:text-slate-500 text-sm">
+              to
+            </span>
             <input
-              type="date" value={to} min={from || undefined}
-              onChange={e => setTo(e.target.value)}
-              aria-label="To date" className={`${inputClass} w-auto`}
+              type="date"
+              value={to}
+              min={from || undefined}
+              onChange={(e) => setTo(e.target.value)}
+              aria-label="To date"
+              className={`${inputClass} w-auto`}
             />
           </div>
 
@@ -495,8 +636,12 @@ export default function Payments() {
             </button>
           )}
 
-          <button onClick={handleExport} className={`${secondaryButton} ml-auto`}>
-            <Download size={14} /> <span className="hidden sm:inline">Export CSV</span>
+          <button
+            onClick={handleExport}
+            className={`${secondaryButton} ml-auto`}
+          >
+            <Download size={14} />{" "}
+            <span className="hidden sm:inline">Export CSV</span>
           </button>
         </div>
       </Card>
@@ -516,10 +661,16 @@ export default function Payments() {
         ) : (
           <EmptyState
             icon={Receipt}
-            title={isOwner ? 'No payments recorded yet' : 'You have not recorded any payments yet'}
-            hint={isOwner
-              ? 'Every fee a member pays is logged here, so the books and the renewal list stay honest.'
-              : 'Fees you take are logged here. The gym’s full books are the owner’s to see.'}
+            title={
+              isOwner
+                ? "No payments recorded yet"
+                : "You have not recorded any payments yet"
+            }
+            hint={
+              isOwner
+                ? "Every fee a member pays is logged here, so the books and the renewal list stay honest."
+                : "Fees you take are logged here. The gym’s full books are the owner’s to see."
+            }
             action={
               <button onClick={openAdd} className={primaryButton}>
                 <Plus size={16} /> Record the first payment
@@ -531,16 +682,25 @@ export default function Payments() {
         <Refetching busy={refetching}>
           {/* Mobile: cards — an eight-column table cannot fit a phone screen */}
           <div className="space-y-3 md:hidden">
-            {shown.map(p => (
-              <Card key={p.id} className={`p-4 ${p.status === 'due' ? 'border-red-200 dark:border-red-500/20 bg-red-50/40' : ''}`}>
+            {shown.map((p) => (
+              <Card
+                key={p.id}
+                className={`p-4 ${p.status === "due" ? "border-red-200 dark:border-red-500/20 bg-red-50/40" : ""}`}
+              >
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 dark:text-slate-100 truncate">{p.member.name}</p>
+                    <p className="font-semibold text-gray-900 dark:text-slate-100 truncate">
+                      {p.member.name}
+                    </p>
                     {p.member.memberNo && (
-                      <p className="text-xs text-gray-400 dark:text-slate-500">{p.member.memberNo}</p>
+                      <p className="text-xs text-gray-400 dark:text-slate-500">
+                        {p.member.memberNo}
+                      </p>
                     )}
                   </div>
-                  <p className="font-bold text-gray-900 dark:text-slate-100 shrink-0">Rs. {p.amount.toLocaleString()}</p>
+                  <p className="font-bold text-gray-900 dark:text-slate-100 shrink-0">
+                    Rs. {p.amount.toLocaleString()}
+                  </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge status={p.status} />
@@ -549,7 +709,11 @@ export default function Payments() {
                     {new Date(p.paymentDate).toLocaleDateString()}
                   </span>
                 </div>
-                {p.notes && <p className="text-xs text-gray-500 dark:text-slate-400 mt-2 wrap-break-word">{p.notes}</p>}
+                {p.notes && (
+                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-2 wrap-break-word">
+                    {p.notes}
+                  </p>
+                )}
                 {/* Correcting the record is the owner's — an entry that can be
                     edited by whoever took it is not a record of anything. The
                     API refuses staff either way; hiding the buttons just keeps
@@ -561,10 +725,17 @@ export default function Payments() {
                         by {p.recordedBy.name}
                       </span>
                     )}
-                    <IconButton icon={Pencil} label={`Edit payment for ${p.member.name}`}
-                      onClick={() => openEdit(p)} />
-                    <IconButton icon={Trash2} tone="red" label={`Delete payment for ${p.member.name}`}
-                      onClick={() => setDeleting(p)} />
+                    <IconButton
+                      icon={Pencil}
+                      label={`Edit payment for ${p.member.name}`}
+                      onClick={() => openEdit(p)}
+                    />
+                    <IconButton
+                      icon={Trash2}
+                      tone="red"
+                      label={`Delete payment for ${p.member.name}`}
+                      onClick={() => setDeleting(p)}
+                    />
                   </div>
                 )}
               </Card>
@@ -577,54 +748,91 @@ export default function Payments() {
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-800">
                   <tr>
-                    {['Member', 'Amount', 'Method', 'Date', 'Status', 'Notes'].map(h => (
-                      <th key={h} className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-slate-300">{h}</th>
+                    {[
+                      "Member",
+                      "Amount",
+                      "Method",
+                      "Date",
+                      "Status",
+                      "Notes",
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-slate-300"
+                      >
+                        {h}
+                      </th>
                     ))}
                     {/* Staff see only their own entries, so "who took this"
                         would tell them nothing they did not already know. */}
                     {isOwner && (
                       <>
-                        <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-slate-300">Taken by</th>
-                        <th className="px-4 py-3 w-24"><span className="sr-only">Actions</span></th>
+                        <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-slate-300">
+                          Taken by
+                        </th>
+                        <th className="px-4 py-3 w-24">
+                          <span className="sr-only">Actions</span>
+                        </th>
                       </>
                     )}
                   </tr>
                 </thead>
                 <tbody>
-                  {shown.map(p => (
-                    <tr key={p.id} className={`border-b border-gray-100 dark:border-slate-800 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-800/60 ${
-                      p.status === 'due' ? 'bg-red-50/40' : ''
-                    }`}>
+                  {shown.map((p) => (
+                    <tr
+                      key={p.id}
+                      className={`border-b border-gray-100 dark:border-slate-800 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-800/60 ${
+                        p.status === "due" ? "bg-red-50/40" : ""
+                      }`}
+                    >
                       <td className="px-4 py-3 max-w-55">
-                        <p className="font-medium text-gray-900 dark:text-slate-100 truncate">{p.member.name}</p>
+                        <p className="font-medium text-gray-900 dark:text-slate-100 truncate">
+                          {p.member.name}
+                        </p>
                         {p.member.memberNo && (
-                          <p className="text-xs text-gray-400 dark:text-slate-500">{p.member.memberNo}</p>
+                          <p className="text-xs text-gray-400 dark:text-slate-500">
+                            {p.member.memberNo}
+                          </p>
                         )}
                       </td>
                       <td className="px-4 py-3 text-gray-900 dark:text-slate-100 font-semibold whitespace-nowrap">
                         Rs. {p.amount.toLocaleString()}
                       </td>
-                      <td className="px-4 py-3"><Badge status={p.method} /></td>
+                      <td className="px-4 py-3">
+                        <Badge status={p.method} />
+                      </td>
                       <td className="px-4 py-3 text-gray-500 dark:text-slate-400 whitespace-nowrap">
                         {new Date(p.paymentDate).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-3"><Badge status={p.status} /></td>
-                      <td className="px-4 py-3 text-gray-500 dark:text-slate-400 max-w-65 truncate" title={p.notes ?? ''}>
-                        {p.notes || '—'}
+                      <td className="px-4 py-3">
+                        <Badge status={p.status} />
+                      </td>
+                      <td
+                        className="px-4 py-3 text-gray-500 dark:text-slate-400 max-w-65 truncate"
+                        title={p.notes ?? ""}
+                      >
+                        {p.notes || "—"}
                       </td>
                       {isOwner && (
                         <>
                           <td className="px-4 py-3 text-gray-500 dark:text-slate-400 max-w-35 truncate">
                             {/* An em dash rather than a guess: the row predates
                                 the column, or the account that took it is gone. */}
-                            {p.recordedBy?.name ?? '—'}
+                            {p.recordedBy?.name ?? "—"}
                           </td>
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-1">
-                              <IconButton icon={Pencil} label={`Edit payment for ${p.member.name}`}
-                                onClick={() => openEdit(p)} />
-                              <IconButton icon={Trash2} tone="red" label={`Delete payment for ${p.member.name}`}
-                                onClick={() => setDeleting(p)} />
+                              <IconButton
+                                icon={Pencil}
+                                label={`Edit payment for ${p.member.name}`}
+                                onClick={() => openEdit(p)}
+                              />
+                              <IconButton
+                                icon={Trash2}
+                                tone="red"
+                                label={`Delete payment for ${p.member.name}`}
+                                onClick={() => setDeleting(p)}
+                              />
                             </div>
                           </td>
                         </>
@@ -638,8 +846,14 @@ export default function Payments() {
 
           {hasMore && (
             <div className="flex justify-center mt-5">
-              <button onClick={loadMore} disabled={loadingMore} className={secondaryButton}>
-                {loadingMore ? 'Loading…' : `Show more · ${total - payments.length} left`}
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className={secondaryButton}
+              >
+                {loadingMore
+                  ? "Loading…"
+                  : `Show more · ${total - payments.length} left`}
               </button>
             </div>
           )}
@@ -647,8 +861,11 @@ export default function Payments() {
       )}
 
       {showModal && (
-        <Modal title={editing ? 'Edit Payment' : 'Record Payment'} onClose={() => setShowModal(false)}>
-          <form onSubmit={e => void handleSave(e)} className="space-y-4">
+        <Modal
+          title={editing ? "Edit Payment" : "Record Payment"}
+          onClose={() => setShowModal(false)}
+        >
+          <form onSubmit={(e) => void handleSave(e)} className="space-y-4">
             <div>
               <FieldLabel required>Member</FieldLabel>
               {editing ? (
@@ -663,15 +880,20 @@ export default function Payments() {
                   value={form.memberId}
                   // Changing the member invalidates any membership already
                   // picked — it belongs to the previous one.
-                  onChange={e => setForm(f => ({
-                    ...f, memberId: e.target.value, membershipId: '',
-                  }))}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      memberId: e.target.value,
+                      membershipId: "",
+                    }))
+                  }
                   className={inputClass}
                 >
                   <option value="">Select member...</option>
-                  {members.map(m => (
+                  {members.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.name}{m.phone ? ` · ${m.phone}` : ''}
+                      {m.name}
+                      {m.phone ? ` · ${m.phone}` : ""}
                     </option>
                   ))}
                 </select>
@@ -685,9 +907,15 @@ export default function Payments() {
 
             <div>
               <FieldLabel>For</FieldLabel>
-              <select value={form.type} onChange={set('type')} className={inputClass}>
-                {(Object.keys(TYPE_LABELS) as PaymentType[]).map(t => (
-                  <option key={t} value={t}>{TYPE_LABELS[t]}</option>
+              <select
+                value={form.type}
+                onChange={set("type")}
+                className={inputClass}
+              >
+                {(Object.keys(TYPE_LABELS) as PaymentType[]).map((t) => (
+                  <option key={t} value={t}>
+                    {TYPE_LABELS[t]}
+                  </option>
                 ))}
               </select>
             </div>
@@ -695,19 +923,28 @@ export default function Payments() {
             {/* Which membership this settles. Offered only for membership money,
                 and only once a member is chosen — there is nothing to list
                 before that. */}
-            {form.type === 'membership' && formMember && (
+            {form.type === "membership" && formMember && (
               <div>
                 <FieldLabel>Membership</FieldLabel>
                 {formMember.currentMembership ? (
-                  <select value={form.membershipId} onChange={set('membershipId')} className={inputClass}>
+                  <select
+                    value={form.membershipId}
+                    onChange={set("membershipId")}
+                    className={inputClass}
+                  >
                     <option value="">Not linked to a membership</option>
                     <option value={formMember.currentMembership.id}>
                       {formMember.currentMembership.planName}
-                      {' · Rs. '}
+                      {" · Rs. "}
                       {formMember.currentMembership.pricePaid.toLocaleString()}
-                      {' · expires '}
-                      {new Date(formMember.currentMembership.expiryDate)
-                        .toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {" · expires "}
+                      {new Date(
+                        formMember.currentMembership.expiryDate,
+                      ).toLocaleDateString("en-PK", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </option>
                   </select>
                 ) : (
@@ -716,7 +953,8 @@ export default function Payments() {
                   </p>
                 )}
                 <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5">
-                  Linking is what lets the app tell a paid-up membership from an unpaid one.
+                  Linking is what lets the app tell a paid-up membership from an
+                  unpaid one.
                 </p>
               </div>
             )}
@@ -724,27 +962,49 @@ export default function Payments() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <FieldLabel required>Amount (Rs.)</FieldLabel>
-                <input type="number" required min="1" step="any" value={form.amount}
-                  onChange={set('amount')} className={inputClass} placeholder="2500" />
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  step="any"
+                  value={form.amount}
+                  onChange={set("amount")}
+                  className={inputClass}
+                  placeholder="2500"
+                />
               </div>
               <div>
                 <FieldLabel required>Date</FieldLabel>
-                <input type="date" required max={today()} value={form.paymentDate}
-                  onChange={set('paymentDate')} className={inputClass} />
+                <input
+                  type="date"
+                  required
+                  max={today()}
+                  value={form.paymentDate}
+                  onChange={set("paymentDate")}
+                  className={inputClass}
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <FieldLabel>Method</FieldLabel>
-                <select value={form.method} onChange={set('method')} className={inputClass}>
+                <select
+                  value={form.method}
+                  onChange={set("method")}
+                  className={inputClass}
+                >
                   <option value="cash">Cash</option>
                   <option value="online">Online</option>
                 </select>
               </div>
               <div>
                 <FieldLabel>Status</FieldLabel>
-                <select value={form.status} onChange={set('status')} className={inputClass}>
+                <select
+                  value={form.status}
+                  onChange={set("status")}
+                  className={inputClass}
+                >
                   <option value="paid">Paid</option>
                   <option value="due">Due</option>
                 </select>
@@ -753,17 +1013,30 @@ export default function Payments() {
 
             <div>
               <FieldLabel>Notes</FieldLabel>
-              <input type="text" maxLength={500} value={form.notes} onChange={set('notes')}
-                className={inputClass} placeholder="Optional note..." />
+              <input
+                type="text"
+                maxLength={500}
+                value={form.notes}
+                onChange={set("notes")}
+                className={inputClass}
+                placeholder="Optional note..."
+              />
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={() => setShowModal(false)}
-                className={`flex-1 ${secondaryButton}`}>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className={`flex-1 ${secondaryButton}`}
+              >
                 Cancel
               </button>
-              <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
-                {saving ? 'Saving...' : editing ? 'Save changes' : 'Record'}
+              <button
+                type="submit"
+                disabled={saving}
+                className={`flex-1 ${primaryButton}`}
+              >
+                {saving ? "Saving..." : editing ? "Save changes" : "Record"}
               </button>
             </div>
           </form>

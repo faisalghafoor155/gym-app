@@ -23,6 +23,8 @@ export type SupplementCategory =
 
 export type Role = 'owner' | 'staff' | 'member';
 
+export type StaffPermission = 'manager' | 'members_manager' | 'accountant' | 'receptionist' | 'inventory_manager';
+
 export interface Gym {
   id: string;
   name: string;
@@ -36,6 +38,7 @@ export interface SessionUser {
   role: Role;
   /** Set only when the account belongs to a gym member. */
   memberId: string | null;
+  staffPermission?: StaffPermission | null;
 }
 
 /** How many staff accounts the gym may have, and how many are spoken for.
@@ -62,6 +65,7 @@ export interface GymUser {
   lastLoginAt: string | null;
   createdAt: string;
   member?: { id: string; name: string } | null;
+  staffPermission?: StaffPermission | null;
 }
 
 export interface MyProfile {
@@ -480,3 +484,20 @@ export interface AuthResponse {
   user: SessionUser;
   gym: Gym;
 }
+
+/**
+ * The answer to a password or Google sign-in when the account has a second
+ * factor. No session is issued yet — the token proves the first factor and
+ * is traded, with the authenticator code, at /auth/two-factor/verify-login.
+ */
+export interface TwoFactorChallenge {
+  requiresTwoFactor: true;
+  twoFactorToken: string;
+}
+
+/** What /auth/login and /auth/google answer: a session, or the challenge. */
+export type LoginResponse = AuthResponse | TwoFactorChallenge;
+
+/** Narrows a LoginResponse — the challenge carries no user object. */
+export const isTwoFactorChallenge = (r: LoginResponse): r is TwoFactorChallenge =>
+  'requiresTwoFactor' in r;

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import api, { apiError } from '../api/client';
-import type { AuthResponse } from '../types';
+import type { LoginResponse } from '../types';
 import toast from 'react-hot-toast';
 
 const CLIENT_ID = import.meta.env['VITE_GOOGLE_CLIENT_ID'] as string | undefined;
@@ -29,8 +29,11 @@ const loadScript = (): Promise<void> =>
 /**
  * Renders Google's own sign-in button. Nothing is shown when no client id is
  * configured, so the app works normally before Google is set up.
+ *
+ * `onSuccess` receives either the session or a 2FA challenge — deciding which
+ * is the caller's job, which is why the response type is the union.
  */
-export default function GoogleSignIn({ onSuccess }: { onSuccess: (data: AuthResponse) => void }) {
+export default function GoogleSignIn({ onSuccess }: { onSuccess: (data: LoginResponse) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const onSuccessRef = useRef(onSuccess);
   onSuccessRef.current = onSuccess;
@@ -47,7 +50,7 @@ export default function GoogleSignIn({ onSuccess }: { onSuccess: (data: AuthResp
         google.accounts.id.initialize({
           client_id: CLIENT_ID,
           callback: (response) => {
-            api.post<AuthResponse>('/auth/google', { credential: response.credential })
+            api.post<LoginResponse>('/auth/google', { credential: response.credential })
               .then(r => onSuccessRef.current(r.data))
               .catch(err => toast.error(apiError(err, 'Google sign-in failed')));
           },

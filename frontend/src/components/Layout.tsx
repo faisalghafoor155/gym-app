@@ -3,9 +3,10 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
 import ThemeToggle from './ThemeToggle';
+import { hasPermission, type PermissionRequirements } from '../utils/permissions';
 import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
-  Dumbbell, LogOut, Shield, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
+  Dumbbell, LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
   BarChart3, CalendarRange,
   type LucideIcon,
 } from 'lucide-react';
@@ -52,6 +53,9 @@ const memberNavItems: NavItem[] = [
   { to: '/my', label: 'My Membership', icon: User },
 ];
 
+/** Account security is everyone's, so it trails whatever list the role gets. */
+const securityNavItem: NavItem = { to: '/security', label: 'Security', icon: ShieldCheck };
+
 export default function Layout({ children }: { children: ReactNode }) {
   const { gym, user, logout, isStaff, isOwner } = useAuth();
   const navigate = useNavigate();
@@ -68,9 +72,28 @@ export default function Layout({ children }: { children: ReactNode }) {
     navigate('/login');
   };
 
-  const navItems = isStaff
-    ? [...staffNavItems, ...(isOwner ? ownerNavItems : [])]
-    : memberNavItems;
+  const navItemPermissions: Record<string, keyof PermissionRequirements> = {
+    '/members': 'canManageMembers',
+    '/attendance': 'canViewAttendance',
+    '/membership-plans': 'canManageMemberships',
+    '/plans': 'canManagePlans',
+    '/supplements': 'canManageSupplements',
+    '/payments': 'canViewPayments',
+  };
+
+  const navItems = [
+    ...(isStaff
+      ? [
+          ...staffNavItems.filter(item => {
+            const reqPerm = navItemPermissions[item.to];
+            if (!reqPerm) return true; // dashboard is always allowed
+            return isOwner || (user?.staffPermission && hasPermission(user.role, user.staffPermission, reqPerm));
+          }),
+          ...(isOwner ? ownerNavItems : [])
+        ]
+      : memberNavItems),
+    securityNavItem,
+  ];
 
   const sidebar = (
     <>
