@@ -11,7 +11,7 @@ import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
 import { useDebounced } from '../hooks/useDebounced';
-import type { Gender, Member, MembershipPlan, MemberCounts, PaginatedMembers } from '../types';
+import type { Gender, Member, MembershipPlan, MemberCounts, PaginatedMembers, Trainer } from '../types';
 import toast from 'react-hot-toast';
 
 interface MemberForm {
@@ -27,12 +27,13 @@ interface MemberForm {
    *  the membership flow, not by editing the person. */
   planId: string;
   startDate: string;
+  trainerId: string;
 }
 
 const emptyForm: MemberForm = {
   name: '', email: '', phone: '', photo: '',
   gender: '', dateOfBirth: '', address: '', emergencyContact: '',
-  planId: '', startDate: '',
+  planId: '', startDate: '', trainerId: '',
 };
 
 /** The filters worth offering. The stored statuses a member never sees
@@ -87,6 +88,7 @@ export default function Members() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<MemberForm>(emptyForm);
+  const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [params, setParams] = useSearchParams();
@@ -197,6 +199,10 @@ export default function Members() {
         }
       })
       .catch(err => toast.error(apiError(err, 'Could not load membership plans')));
+
+    void api.get<Trainer[]>('/trainers')
+      .then(r => setTrainers(r.data))
+      .catch(err => console.error('Could not load trainers', err));
     // Deliberately once on mount: this is a landing hint, not a live binding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -242,9 +248,8 @@ export default function Members() {
       dateOfBirth: m.dateOfBirth ? m.dateOfBirth.split('T')[0]! : '',
       address: m.address ?? '',
       emergencyContact: m.emergencyContact ?? '',
-      // Membership is not edited here — changing what somebody bought is its
-      // own action, with its own audit trail.
       planId: '', startDate: '',
+      trainerId: m.trainerId || '',
     });
     setShowModal(true);
   };
@@ -263,6 +268,7 @@ export default function Members() {
         ...(form.dateOfBirth && { dateOfBirth: form.dateOfBirth }),
         address: form.address,
         emergencyContact: form.emergencyContact,
+        trainerId: form.trainerId || null,
       };
       if (editing) {
         await api.put(`/members/${editing}`, payload);
@@ -500,6 +506,14 @@ export default function Members() {
                   </div>
                 )}
 
+                {/* Trainer Assignment */}
+                {m.trainer && (
+                  <div className="mt-3 px-3 py-1.5 rounded-lg bg-indigo-50/50 dark:bg-indigo-950/20 text-xs flex items-center justify-between text-indigo-700 dark:text-indigo-400">
+                    <span className="font-semibold flex items-center gap-1.5">🏋️ Trainer</span>
+                    <span className="font-bold">{m.trainer.name}</span>
+                  </div>
+                )}
+
                 <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
                   <button onClick={() => openEdit(m)}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}>
@@ -636,6 +650,21 @@ export default function Members() {
                     className={inputClass}
                   />
                 </div>
+              </div>
+
+              {/* Personal Trainer Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Personal Trainer (PT)</label>
+                <select
+                  value={form.trainerId}
+                  onChange={e => set('trainerId')(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">No trainer assigned</option>
+                  {trainers.map(t => (
+                    <option key={t.id} value={t.id}>{t.name} ({t.specialization || 'General'})</option>
+                  ))}
+                </select>
               </div>
 
               {/* Address */}

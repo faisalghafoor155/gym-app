@@ -132,6 +132,8 @@ export interface Member {
   createdAt: string;
   /** Null for a member who has not been sold a membership yet. */
   currentMembership: Membership | null;
+  trainerId?: string | null;
+  trainer?: { id: string; name: string } | null;
 }
 
 export interface MemberSummary {
@@ -502,3 +504,36 @@ export type LoginResponse = AuthResponse | TwoFactorChallenge;
 /** Narrows a LoginResponse — the challenge carries no user object. */
 export const isTwoFactorChallenge = (r: LoginResponse): r is TwoFactorChallenge =>
   'requiresTwoFactor' in r;
+
+export interface Trainer {
+  id: string;
+  name: string;
+  phone?: string | null;
+  specialization?: string | null;
+  commissionPercentage: number;
+  isActive: boolean;
+  createdAt: string;
+  activeMembersCount: number;
+}
+
+export interface PtSession {
+  id: string;
+  member: { id: string; name: string; memberNo?: string | null };
+  trainer: { id: string; name: string; specialization?: string | null };
+  sessionDate: string;
+  priceCharged: number;
+  trainerCommission: number;
+  status: 'scheduled' | 'completed' | 'cancelled';
+  paymentStatus: 'unpaid' | 'paid';
+  createdAt: string;
+}
+
+export interface TrainerCommissionReport {
+  trainerId: string;
+  trainerName: string;
+  specialization: string | null;
+  commissionPercentage: number;
+  totalSessions: number;
+  totalRevenue: number;
+  totalCommission: number;
+}

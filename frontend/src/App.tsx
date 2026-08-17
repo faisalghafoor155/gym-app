@@ -18,6 +18,7 @@ import MembershipPlans from './pages/MembershipPlans';
 import Supplements from './pages/Supplements';
 import SupplementSales from './pages/SupplementSales';
 import Team from './pages/Team';
+import Trainers from './pages/Trainers';
 import MyPortal from './pages/MyPortal';
 import Security from './pages/Security';
 import { Spinner } from './components/ui';
@@ -137,6 +138,7 @@ function AppRoutes() {
                     than one counter's takings, so owner-only like the API. */}
                 <Route path="/monthly-collection" element={<OwnerRoute><MonthlyCollection /></OwnerRoute>} />
                 <Route path="/team" element={<OwnerRoute><Team /></OwnerRoute>} />
+                <Route path="/trainers" element={<PermissionRoute action="canManageTrainers"><Trainers /></PermissionRoute>} />
                 <Route path="*" element={<HomeRedirect />} />
               </Routes>
               </PageErrorBoundary>
