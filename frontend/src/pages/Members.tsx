@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, Camera, CalendarPlus } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, Camera, CalendarPlus, QrCode } from 'lucide-react';
 import Badge from '../components/Badge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
@@ -13,6 +13,7 @@ import { useDialog } from '../hooks/useDialog';
 import { useDebounced } from '../hooks/useDebounced';
 import type { Gender, Member, MembershipPlan, MemberCounts, PaginatedMembers, Trainer } from '../types';
 import toast from 'react-hot-toast';
+import QRCode from 'qrcode';
 
 interface MemberForm {
   name: string;
@@ -86,6 +87,8 @@ export default function Members() {
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [qrMember, setQrMember] = useState<Member | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<MemberForm>(emptyForm);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -515,6 +518,15 @@ export default function Members() {
                 )}
 
                 <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
+                  <button onClick={() => {
+                      setQrMember(m);
+                      QRCode.toDataURL(m.id, { width: 280, margin: 2, color: { dark: '#1e293b', light: '#ffffff' } })
+                        .then(url => setQrDataUrl(url))
+                        .catch(() => toast.error('Failed to generate QR code'));
+                    }}
+                    className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}>
+                    <QrCode size={12} />
+                  </button>
                   <button onClick={() => openEdit(m)}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}>
                     <Pencil size={12} /> Edit
@@ -888,6 +900,33 @@ export default function Members() {
           onConfirm={() => void handleDelete()}
           onCancel={() => setDeleting(null)}
         />
+      )}
+
+      {/* QR Code Modal */}
+      {qrMember && qrDataUrl && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in"
+             onClick={() => { setQrMember(null); setQrDataUrl(''); }}>
+          <div className="w-full max-w-xs p-6 text-center bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+            <div className="w-16 h-16 rounded-full bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto mb-4 overflow-hidden">
+              {qrMember.photo
+                ? <img src={qrMember.photo} alt={qrMember.name} className="w-full h-full object-cover" />
+                : <span className="text-white text-lg font-bold">{qrMember.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}</span>
+              }
+            </div>
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg">{qrMember.name}</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-5">{qrMember.memberNo} · {qrMember.phone || 'No phone'}</p>
+            <div className="bg-white p-3 rounded-xl inline-block shadow-sm border border-gray-100">
+              <img src={qrDataUrl} alt={`QR Code for ${qrMember.name}`} className="w-56 h-56" />
+            </div>
+            <p className="text-xs text-gray-400 dark:text-slate-500 mt-4">Scan this code at the front desk for instant check-in</p>
+            <button
+              onClick={() => { setQrMember(null); setQrDataUrl(''); }}
+              className={`mt-4 w-full ${secondaryButton}`}
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </Page>
   );

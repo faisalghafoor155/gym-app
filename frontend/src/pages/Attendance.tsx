@@ -1,30 +1,57 @@
-import { useEffect, useState } from 'react';
-import { Search, CheckCircle2, Clock, Users, CalendarCheck, UserX } from 'lucide-react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { Search, CheckCircle2, Clock, Users, CalendarCheck, UserX, QrCode, ScanLine, X } from 'lucide-react';
 import {
-  Page, PageHeader, Card, PageLoader, inputClass, focusRing,
+  Page, PageHeader, Card, PageLoader, inputClass, focusRing, SegmentedControl,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import type { Member, AttendanceRecord, CheckinResult, Paginated } from '../types';
 import toast from 'react-hot-toast';
+import { Html5Qrcode } from 'html5-qrcode';
 
 function getInitials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 }
 
+/** Plays a short, pleasant beep tone using the Web Audio API. */
+function playBeep() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.value = 0.3;
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+    osc.stop(ctx.currentTime + 0.3);
+  } catch {
+    // Silently fail — audio is a nicety, not a necessity.
+  }
+}
+
+type TabType = 'search' | 'scanner';
+
 export default function Attendance() {
+  const [activeTab, setActiveTab] = useState<TabType>('search');
   const [search, setSearch] = useState('');
   const [members, setMembers] = useState<Member[]>([]);
   const [todayList, setTodayList] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<string | null>(null);
 
+  // QR Scanner state
+  const [scannerActive, setScannerActive] = useState(false);
+  const [lastScanned, setLastScanned] = useState<{ name: string; photo?: string | null; status: string } | null>(null);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const cooldownRef = useRef(false);
+
   const loadToday = () =>
     api.get<AttendanceRecord[]>('/attendance/today').then(r => setTodayList(r.data));
 
   useEffect(() => {
     Promise.all([
-      // Every member, not a page of them: this list is searched here to find
-      // whoever is standing at the desk.
       api.get<Paginated<Member>>('/members?all=true').then(r => setMembers(r.data.data)),
       loadToday(),
     ])
@@ -52,19 +79,12 @@ export default function Attendance() {
         '/attendance/checkin', { memberId: member.id },
       );
 
-      // The server is the authority on whether this was a fresh arrival: this
-      // page's own guard reads a list fetched seconds ago, so a second
-      // receptionist can beat it. Saying "checked in!" for a row somebody else
-      // created an hour ago would be a small lie the desk acts on.
       if (data.alreadyCheckedIn) {
         toast(`${member.name} was already checked in today`, { icon: 'ℹ️' });
       } else {
         toast.success(`${member.name} checked in!`);
       }
 
-      // Said separately, and after: an expired membership is not a failed
-      // check-in, and the desk can only do something about it while the member
-      // is still standing there.
       const ms = data.membership;
       if (!ms) {
         toast(`${member.name} has no membership`, { icon: '⚠️', duration: 6000 });
@@ -93,6 +113,110 @@ export default function Attendance() {
     }
   };
 
+  /** Process a scanned QR code value (memberId UUID). */
+  const handleQrScan = useCallback(async (decodedText: string) => {
+    if (cooldownRef.current) return;
+    cooldownRef.current = true;
+
+    // UUID format check
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(decodedText)) {
+      toast.error('Invalid QR code format');
+      setTimeout(() => { cooldownRef.current = false; }, 2000);
+      return;
+    }
+
+    try {
+      const { data } = await api.post<CheckinResult>(
+        '/attendance/checkin', { memberId: decodedText },
+      );
+
+      playBeep();
+
+      // Find member details from loaded members list
+      const member = members.find(m => m.id === decodedText);
+      const memberName = member?.name || 'Member';
+
+      const msStatus = data.membership?.status || 'none';
+
+      setLastScanned({
+        name: memberName,
+        photo: member?.photo,
+        status: data.alreadyCheckedIn ? 'already' : msStatus,
+      });
+
+      if (data.alreadyCheckedIn) {
+        toast(`${memberName} was already checked in today`, { icon: 'ℹ️' });
+      } else {
+        toast.success(`${memberName} checked in!`);
+      }
+
+      const ms = data.membership;
+      if (!ms) {
+        toast(`${memberName} has no membership`, { icon: '⚠️', duration: 6000 });
+      } else if (ms.status === 'expired') {
+        toast(
+          `${memberName}'s membership expired ${Math.abs(ms.daysLeft)} day${Math.abs(ms.daysLeft) === 1 ? '' : 's'} ago`,
+          { icon: '⚠️', duration: 6000 },
+        );
+      }
+
+      await loadToday();
+    } catch (err) {
+      toast.error(apiError(err, 'QR Check-in failed'));
+    }
+
+    // Cooldown: 3 seconds before allowing another scan
+    setTimeout(() => {
+      cooldownRef.current = false;
+      setLastScanned(null);
+    }, 3000);
+  }, [members]);
+
+  /** Start the camera scanner. */
+  const startScanner = useCallback(async () => {
+    try {
+      const scanner = new Html5Qrcode('qr-reader');
+      scannerRef.current = scanner;
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          void handleQrScan(decodedText);
+        },
+        () => {
+          // Ignore scan errors (no QR detected in frame)
+        },
+      );
+      setScannerActive(true);
+    } catch (err) {
+      toast.error('Could not access camera. Please allow camera permissions.');
+      console.error(err);
+    }
+  }, [handleQrScan]);
+
+  /** Stop the camera scanner. */
+  const stopScanner = useCallback(async () => {
+    try {
+      if (scannerRef.current?.isScanning) {
+        await scannerRef.current.stop();
+      }
+      scannerRef.current = null;
+      setScannerActive(false);
+      setLastScanned(null);
+    } catch {
+      // Ignore stop errors
+    }
+  }, []);
+
+  // Cleanup scanner on unmount or tab switch
+  useEffect(() => {
+    if (activeTab !== 'scanner') {
+      void stopScanner();
+    }
+    return () => { void stopScanner(); };
+  }, [activeTab, stopScanner]);
+
   if (loading) return <PageLoader />;
 
   const today = new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -119,8 +243,23 @@ export default function Attendance() {
         }
       />
 
+      <div className="mb-5">
+        <Card className="p-2 inline-block">
+          <SegmentedControl
+            value={activeTab}
+            onChange={setActiveTab}
+            options={[
+              { value: 'search', label: 'Search Check-In' },
+              { value: 'scanner', label: 'QR Scanner' },
+            ]}
+          />
+        </Card>
+      </div>
+
       <div className="space-y-5 sm:space-y-6">
-      {/* Check-in Panel */}
+
+      {/* TAB 1: Search Check-In */}
+      {activeTab === 'search' && (
       <Card className="p-4 sm:p-5">
         <h2 className="font-bold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
           <Search size={16} className="text-blue-600" />
@@ -211,6 +350,86 @@ export default function Attendance() {
           </p>
         )}
       </Card>
+      )}
+
+      {/* TAB 2: QR Scanner */}
+      {activeTab === 'scanner' && (
+        <Card className="p-4 sm:p-6">
+          <h2 className="font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <ScanLine size={16} className="text-blue-600" />
+            Camera QR Scanner
+          </h2>
+
+          {!scannerActive ? (
+            <div className="text-center py-12">
+              <div className="w-20 h-20 rounded-2xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center mx-auto mb-5">
+                <QrCode size={36} className="text-blue-600" />
+              </div>
+              <p className="text-gray-600 dark:text-slate-300 font-semibold mb-2">Ready to scan member QR codes</p>
+              <p className="text-sm text-gray-400 dark:text-slate-500 mb-6 max-w-sm mx-auto">
+                Point your camera at a member's QR code for instant check-in. The scanner will automatically detect and process the code.
+              </p>
+              <button
+                onClick={() => void startScanner()}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-500/25"
+              >
+                <QrCode size={18} />
+                Start Camera Scanner
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Camera Feed */}
+              <div className="relative rounded-xl overflow-hidden bg-black">
+                <div id="qr-reader" className="w-full" />
+                <button
+                  onClick={() => void stopScanner()}
+                  className="absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors z-10"
+                  aria-label="Stop scanner"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Scan Result Overlay */}
+              {lastScanned && (
+                <div className={`p-4 rounded-xl border-2 flex items-center gap-4 animate-fade-in ${
+                  lastScanned.status === 'already'
+                    ? 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300'
+                    : lastScanned.status === 'expired'
+                      ? 'bg-red-50 dark:bg-red-950/20 border-red-300'
+                      : 'bg-green-50 dark:bg-green-950/20 border-green-300'
+                }`}>
+                  <div className="w-14 h-14 rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 overflow-hidden">
+                    {lastScanned.photo
+                      ? <img src={lastScanned.photo} alt={lastScanned.name} className="w-full h-full object-cover" />
+                      : <span className="text-white font-bold">{getInitials(lastScanned.name)}</span>
+                    }
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900 dark:text-slate-100 text-lg">{lastScanned.name}</p>
+                    <p className={`text-sm font-semibold ${
+                      lastScanned.status === 'already' ? 'text-yellow-700' :
+                      lastScanned.status === 'expired' ? 'text-red-600' :
+                      lastScanned.status === 'none' ? 'text-gray-500' :
+                      'text-green-700'
+                    }`}>
+                      {lastScanned.status === 'already' ? '✓ Already checked in today' :
+                       lastScanned.status === 'expired' ? '⚠ Checked in — Membership expired!' :
+                       lastScanned.status === 'none' ? '✓ Checked in — No membership' :
+                       '✓ Checked in successfully!'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-center text-gray-400 dark:text-slate-500">
+                Hold a member's QR code in front of the camera. The scanner auto-detects and checks in.
+              </p>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Today's Log */}
       <Card className="p-4 sm:p-5">
