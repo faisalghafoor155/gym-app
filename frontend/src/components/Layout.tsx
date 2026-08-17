@@ -7,7 +7,7 @@ import { hasPermission, type PermissionRequirements } from '../utils/permissions
 import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   Dumbbell, LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
-  BarChart3, CalendarRange, Award,
+  BarChart3, CalendarRange, Award, Calendar,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -31,6 +31,7 @@ const staffNavItems: NavItem[] = [
   // themselves, and refuses them the gym's totals outright.
   { to: '/payments', label: 'Payments', icon: CreditCard },
   { to: '/trainers', label: 'Trainers & PT', icon: Award },
+  { to: '/classes', label: 'Classes & Schedules', icon: Calendar },
 ];
 
 /**
@@ -81,6 +82,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     '/supplements': 'canManageSupplements',
     '/payments': 'canViewPayments',
     '/trainers': 'canManageTrainers',
+    '/classes': 'canManageClasses',
   };
 
   const navItems = [

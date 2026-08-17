@@ -19,6 +19,7 @@ import Supplements from './pages/Supplements';
 import SupplementSales from './pages/SupplementSales';
 import Team from './pages/Team';
 import Trainers from './pages/Trainers';
+import Classes from './pages/Classes';
 import MyPortal from './pages/MyPortal';
 import Security from './pages/Security';
 import { Spinner } from './components/ui';
@@ -139,6 +140,7 @@ function AppRoutes() {
                 <Route path="/monthly-collection" element={<OwnerRoute><MonthlyCollection /></OwnerRoute>} />
                 <Route path="/team" element={<OwnerRoute><Team /></OwnerRoute>} />
                 <Route path="/trainers" element={<PermissionRoute action="canManageTrainers"><Trainers /></PermissionRoute>} />
+                <Route path="/classes" element={<PermissionRoute action="canManageClasses"><Classes /></PermissionRoute>} />
                 <Route path="*" element={<HomeRedirect />} />
               </Routes>
               </PageErrorBoundary>

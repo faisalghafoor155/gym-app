@@ -15,6 +15,7 @@ export interface PermissionRequirements {
   canManageStaff: boolean;
   canModifyStaff: boolean;
   canManageTrainers: boolean;
+  canManageClasses: boolean;
 }
 
 /**
@@ -38,6 +39,7 @@ export const getStaffPermissions = (
     canManageStaff: false,
     canModifyStaff: false,
     canManageTrainers: false,
+    canManageClasses: false,
   };
 
   switch (staffPermission) {
@@ -57,6 +59,7 @@ export const getStaffPermissions = (
         canManageStaff: true,
         canModifyStaff: true,
         canManageTrainers: true,
+        canManageClasses: true,
       };
 
     case 'members_manager':
@@ -65,6 +68,7 @@ export const getStaffPermissions = (
         canManageMembers: true,
         canManageMemberships: true,
         canViewPayments: true,
+        canManageClasses: true,
       };
 
     case 'accountant':
@@ -83,6 +87,7 @@ export const getStaffPermissions = (
         canCheckIn: true,
         canViewAttendance: true,
         canViewPayments: true,
+        canManageClasses: true,
       };
 
     case 'inventory_manager':

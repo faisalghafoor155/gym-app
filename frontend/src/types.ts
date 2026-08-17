@@ -537,3 +537,41 @@ export interface TrainerCommissionReport {
   totalRevenue: number;
   totalCommission: number;
 }
+
+export interface Class {
+  id: string;
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface ClassSchedule {
+  id: string;
+  classId: string;
+  className: string;
+  classDescription?: string | null;
+  trainer: { id: string; name: string } | null;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  bookingsCount: number;
+  remainingCapacity: number;
+}
+
+export interface ClassBooking {
+  id: string;
+  bookingDate: string;
+  status: 'booked' | 'attended' | 'cancelled';
+  createdAt: string;
+  member: { id: string; name: string; memberNo?: string | null };
+  schedule: {
+    id: string;
+    className: string;
+    trainerName?: string | null;
+    startTime: string;
+    endTime: string;
+    dayOfWeek: number;
+  };
+}
