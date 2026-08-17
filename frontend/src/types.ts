@@ -107,6 +107,7 @@ export interface Membership {
   extensionReason: string | null;
   status: MemberStatus;
   daysLeft: number;
+  freezeStartDate: string | null;
 }
 
 export interface Member {

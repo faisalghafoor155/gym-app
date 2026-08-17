@@ -328,6 +328,28 @@ export default function Members() {
     }
   };
 
+  const handleFreeze = async (m: Member) => {
+    if (!m.currentMembership) return;
+    try {
+      await api.post(`/members/${m.id}/memberships/${m.currentMembership.id}/freeze`);
+      toast.success('Membership frozen');
+      await load();
+    } catch (err) {
+      toast.error(apiError(err, 'Could not freeze membership'));
+    }
+  };
+
+  const handleResume = async (m: Member) => {
+    if (!m.currentMembership) return;
+    try {
+      await api.post(`/members/${m.id}/memberships/${m.currentMembership.id}/resume`);
+      toast.success('Membership resumed');
+      await load();
+    } catch (err) {
+      toast.error(apiError(err, 'Could not resume membership'));
+    }
+  };
+
   // Searching, filtering and counting all happen on the server now — what
   // arrives in `members` is already the page being shown.
   if (loading) return <PageLoader />;
@@ -483,6 +505,18 @@ export default function Members() {
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}>
                     <Pencil size={12} /> Edit
                   </button>
+                  {ms?.status === 'active' && (
+                    <button onClick={() => void handleFreeze(m)}
+                      className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-cyan-100 dark:border-cyan-500/20 text-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-900/10 transition-colors ${focusRing}`}>
+                      Freeze
+                    </button>
+                  )}
+                  {ms?.status === 'suspended' && (
+                    <button onClick={() => void handleResume(m)}
+                      className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-green-100 dark:border-green-500/20 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors ${focusRing}`}>
+                      Resume
+                    </button>
+                  )}
                   {isOwner && canExtend(m) && (
                     <button onClick={() => openExtend(m)} aria-label={`Extend ${m.name}'s membership`}
                       className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-blue-100 dark:border-blue-500/20 text-blue-600 hover:bg-blue-50 transition-colors ${focusRing}`}>

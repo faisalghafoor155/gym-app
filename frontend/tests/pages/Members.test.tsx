@@ -236,6 +236,7 @@ describe('Members — what staff may do', () => {
           originalExpiryDate: new Date().toISOString(),
           pricePaid: 2500, durationDays: 30, extendedDays: 0,
           extensionReason: null, status: 'active', daysLeft: 20,
+          freezeStartDate: null,
         },
       })]),
     });
