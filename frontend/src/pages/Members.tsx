@@ -651,17 +651,6 @@ export default function Members() {
                     <option value="other">Other</option>
                   </select>
                 </div>
-                <div>
-                  <label htmlFor="member-dob" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Date of Birth</label>
-                  <input
-                    id="member-dob"
-                    type="date"
-                    max={new Date().toISOString().split('T')[0]}
-                    value={form.dateOfBirth}
-                    onChange={e => set('dateOfBirth')(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
               </div>
 
               {/* Personal Trainer Selection */}
