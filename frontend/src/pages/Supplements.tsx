@@ -60,15 +60,27 @@ export default function Supplements() {
   const [deleting, setDeleting] = useState<Supplement | null>(null);
   const modalRef = useDialog(showModal, () => setShowModal(false));
 
+  // POS Shopping Cart states
+  interface CartItem {
+    supplementId: string;
+    name: string;
+    price: number;
+    quantity: number;
+    maxStock: number;
+  }
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartMemberId, setCartMemberId] = useState('');
+  const [cartPaymentMethod, setCartPaymentMethod] = useState<'cash' | 'card'>('cash');
+  const [cartNotes, setCartNotes] = useState('');
+  const [checkoutCartLoading, setCheckoutCartLoading] = useState(false);
+  const [showCartDrawer, setShowCartDrawer] = useState(false);
+
   // Selling and restocking are front-desk work, so staff get them too. Only
   // the revenue link below is owner-only.
   const { isOwner } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
-  const [selling, setSelling] = useState<Supplement | null>(null);
-  const [sellForm, setSellForm] = useState({ quantity: '1', memberId: '', notes: '' });
   const [restocking, setRestocking] = useState<Supplement | null>(null);
   const [restockForm, setRestockForm] = useState({ quantity: '', notes: '' });
-  const sellRef = useDialog(!!selling, () => setSelling(null));
   const restockRef = useDialog(!!restocking, () => setRestocking(null));
 
   const load = () =>
@@ -134,36 +146,80 @@ export default function Supplements() {
     }
   };
 
-  const openSell = (s: Supplement) => {
-    setSellForm({ quantity: '1', memberId: '', notes: '' });
-    setSelling(s);
+  const addToCart = (s: Supplement) => {
+    if (s.stock === 0 || s.price == null) return;
+    setCart(prev => {
+      const existing = prev.find(item => item.supplementId === s.id);
+      if (existing) {
+        if (existing.quantity >= s.stock) {
+          toast.error(`Cannot add more. Only ${s.stock} in stock.`);
+          return prev;
+        }
+        toast.success(`Increased ${s.name} quantity in cart`);
+        return prev.map(item =>
+          item.supplementId === s.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      toast.success(`Added ${s.name} to cart`);
+      return [...prev, {
+        supplementId: s.id,
+        name: s.name,
+        price: Number(s.price),
+        quantity: 1,
+        maxStock: s.stock
+      }];
+    });
   };
 
-  const handleSell = async (e: FormEvent<HTMLFormElement>) => {
+  const handleCartCheckout = async (e: FormEvent) => {
     e.preventDefault();
-    if (!selling) return;
-    setSaving(true);
+    if (cart.length === 0) return;
+    setCheckoutCartLoading(true);
     try {
-      const { data } = await api.post<{ stockLeft: number; total: number }>(
-        `/supplements/${selling.id}/sell`,
-        {
-          quantity: Number(sellForm.quantity),
-          // '' means walk-in, which the API stores as null.
-          memberId: sellForm.memberId || null,
-          notes: sellForm.notes,
-        },
-      );
-      toast.success(`Sold — Rs. ${data.total.toLocaleString()}, ${data.stockLeft} left`);
-      setSelling(null);
+      await api.post('/supplements/checkout-pos', {
+        memberId: cartMemberId || null,
+        paymentMethod: cartPaymentMethod,
+        notes: cartNotes,
+        items: cart.map(item => ({
+          supplementId: item.supplementId,
+          quantity: item.quantity,
+        })),
+      });
+
+      // Play sound
+      try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+      } catch (err) {
+        // audio context not allowed
+      }
+
+      toast.success('POS Cart checked out successfully!');
+      setCart([]);
+      setCartMemberId('');
+      setCartNotes('');
+      setCartPaymentMethod('cash');
+      setShowCartDrawer(false);
       await load();
     } catch (err) {
-      // Stays open with its values: an out-of-stock or quantity error is one
-      // correction away from succeeding.
-      toast.error(apiError(err, 'Could not record the sale'));
+      toast.error(apiError(err, 'Failed to checkout cart'));
     } finally {
-      setSaving(false);
+      setCheckoutCartLoading(false);
     }
   };
+
+
 
   const openRestock = (s: Supplement) => {
     setRestockForm({ quantity: '', notes: '' });
@@ -218,6 +274,15 @@ export default function Supplements() {
         subtitle="Protein, creatine, pre-workout and the rest of the shelf"
         action={
           <div className="flex gap-2">
+            {cart.length > 0 && (
+              <button
+                onClick={() => setShowCartDrawer(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-md relative"
+              >
+                <ShoppingCart size={16} />
+                <span>Cart ({cart.reduce((total, it) => total + it.quantity, 0)})</span>
+              </button>
+            )}
             {/* Revenue is the owner's to see — the same rule the API enforces. */}
             {isOwner && (
               <Link to="/supplement-sales" className={secondaryButton}>
@@ -362,9 +427,7 @@ export default function Supplements() {
 
                 <div className="mt-3 flex gap-2">
                   <button
-                    onClick={() => openSell(s)}
-                    // Nothing to sell, or no price to sell it at — the API
-                    // refuses both, so the button says so first.
+                    onClick={() => addToCart(s)}
                     disabled={s.stock === 0 || s.price == null}
                     title={
                       s.stock === 0 ? 'Out of stock'
@@ -374,10 +437,10 @@ export default function Supplements() {
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${focusRing} ${
                       s.stock === 0 || s.price == null
                         ? 'bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 cursor-not-allowed'
-                        : 'bg-green-600 text-white hover:bg-green-700'
+                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
                     }`}
                   >
-                    <ShoppingCart size={12} /> Sell
+                    <Plus size={12} /> Cart
                   </button>
                   <button
                     onClick={() => openRestock(s)}
@@ -488,84 +551,7 @@ export default function Supplements() {
       )}
 
       {/* Sell */}
-      {selling && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setSelling(null)} aria-hidden="true" />
-          <div
-            ref={sellRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="sell-modal-title"
-            className="relative bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
-          >
-            <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
-              <h2 id="sell-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">Sell {selling.name}</h2>
-              <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
-                Rs. {Number(selling.price).toLocaleString()} each · {selling.stock} in stock
-              </p>
-            </div>
-
-            <form onSubmit={e => void handleSell(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
-              <div>
-                <FieldLabel required>Quantity</FieldLabel>
-                <input
-                  type="number" min={1} max={selling.stock} step={1} required
-                  value={sellForm.quantity}
-                  onChange={e => setSellForm(f => ({ ...f, quantity: e.target.value }))}
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <FieldLabel>Sold to</FieldLabel>
-                <select
-                  value={sellForm.memberId}
-                  onChange={e => setSellForm(f => ({ ...f, memberId: e.target.value }))}
-                  className={inputClass}
-                >
-                  <option value="">Walk-in (not a member)</option>
-                  {members.map(m => (
-                    <option key={m.id} value={m.id}>{m.memberNo} · {m.name}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5">
-                  A member's purchase is also recorded as a payment. Walk-in money is
-                  recorded on the sale only.
-                </p>
-              </div>
-
-              <div>
-                <FieldLabel>Notes</FieldLabel>
-                <input
-                  type="text" maxLength={500}
-                  value={sellForm.notes}
-                  onChange={e => setSellForm(f => ({ ...f, notes: e.target.value }))}
-                  className={inputClass}
-                  placeholder="Optional"
-                />
-              </div>
-
-              {Number(sellForm.quantity) > 0 && selling.price != null && (
-                <div className="rounded-lg bg-green-50 dark:bg-green-500/15 border border-green-100 dark:border-green-500/20 px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-green-800">Total</span>
-                  <span className="text-lg font-bold text-green-900">
-                    Rs. {(Number(sellForm.quantity) * selling.price).toLocaleString()}
-                  </span>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setSelling(null)} className={`flex-1 ${secondaryButton}`}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
-                  {saving ? 'Recording...' : 'Record sale'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      ) /* Sell modal removed */
 
       {/* Restock */}
       {restocking && (
@@ -639,6 +625,159 @@ export default function Supplements() {
           onConfirm={() => void handleDelete()}
           onCancel={() => setDeleting(null)}
         />
+      )}
+
+      {/* POS Shopping Cart Drawer Modal */}
+      {showCartDrawer && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowCartDrawer(false)} aria-hidden="true" />
+          <div className="relative bg-white dark:bg-slate-900 shadow-2xl w-full max-w-md h-full flex flex-col z-10 animate-slide-in">
+            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between shrink-0">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+                <ShoppingCart className="text-emerald-600" size={18} />
+                POS Shopping Cart
+              </h2>
+              <button
+                onClick={() => setShowCartDrawer(false)}
+                className="p-1 rounded-lg text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-800"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {cart.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <ShoppingCart size={32} className="mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm">Your shopping cart is empty</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {cart.map(item => (
+                    <div key={item.supplementId} className="flex justify-between items-center p-3 rounded-xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/40">
+                      <div className="min-w-0 flex-1 pr-3">
+                        <p className="font-semibold text-sm text-gray-900 dark:text-slate-100 truncate">{item.name}</p>
+                        <p className="text-xs text-green-700 font-bold mt-0.5">Rs. {item.price.toLocaleString()}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            setCart(prev =>
+                              prev.map(it =>
+                                it.supplementId === item.supplementId
+                                  ? { ...it, quantity: Math.max(1, it.quantity - 1) }
+                                  : it
+                              )
+                            );
+                          }}
+                          className="px-2 py-0.5 border border-gray-200 dark:border-slate-700 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 text-xs font-bold"
+                        >
+                          -
+                        </button>
+                        <span className="text-sm font-bold w-6 text-center text-gray-800 dark:text-slate-200">{item.quantity}</span>
+                        <button
+                          onClick={() => {
+                            if (item.quantity >= item.maxStock) {
+                              toast.error(`Only ${item.maxStock} in stock`);
+                              return;
+                            }
+                            setCart(prev =>
+                              prev.map(it =>
+                                it.supplementId === item.supplementId
+                                  ? { ...it, quantity: it.quantity + 1 }
+                                  : it
+                              )
+                            );
+                          }}
+                          className="px-2 py-0.5 border border-gray-200 dark:border-slate-700 rounded text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 text-xs font-bold"
+                        >
+                          +
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCart(prev => prev.filter(it => it.supplementId !== item.supplementId));
+                            toast.success('Removed item from cart');
+                          }}
+                          className="ml-2 text-xs text-red-500 hover:text-red-700 font-semibold"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {cart.length > 0 && (
+              <form onSubmit={handleCartCheckout} className="p-5 border-t border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/60 space-y-4 shrink-0">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-400">Cart Subtotal</span>
+                  <span className="text-xl font-black text-indigo-600">
+                    Rs. {cart.reduce((total, item) => total + (item.price * item.quantity), 0).toLocaleString()}
+                  </span>
+                </div>
+
+                <div>
+                  <FieldLabel>Associate Member (Optional)</FieldLabel>
+                  <select
+                    value={cartMemberId}
+                    onChange={e => setCartMemberId(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="">-- Walk-in Customer --</option>
+                    {members.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.memberNo} · {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {cartMemberId && (
+                  <div>
+                    <FieldLabel>Payment Method</FieldLabel>
+                    <select
+                      value={cartPaymentMethod}
+                      onChange={e => setCartPaymentMethod(e.target.value as 'cash' | 'card')}
+                      className={inputClass}
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="card">Card / POS Terminal</option>
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <FieldLabel>Sales Notes / Comments</FieldLabel>
+                  <input
+                    placeholder="Add discount details, invoice remarks..."
+                    value={cartNotes}
+                    onChange={e => setCartNotes(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setCart([])}
+                    className={`flex-1 ${secondaryButton}`}
+                  >
+                    Clear Cart
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={checkoutCartLoading}
+                    className={`flex-1 ${primaryButton}`}
+                  >
+                    {checkoutCartLoading ? 'Processing…' : 'Checkout Cart'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       )}
     </Page>
   );
