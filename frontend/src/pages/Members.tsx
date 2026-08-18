@@ -32,12 +32,14 @@ interface MemberForm {
   /** What was agreed for the trainer, when it was haggled. Blank means "use
    *  the trainer's rate, then the gym's" — not "free". */
   ptFee: string;
+  /** Whether the fee was taken at the counter. False records a due. */
+  ptFeePaid: boolean;
 }
 
 const emptyForm: MemberForm = {
   name: '', email: '', phone: '', photo: '',
   gender: '', dateOfBirth: '', address: '', emergencyContact: '',
-  planId: '', startDate: '', trainerId: '', ptFee: '',
+  planId: '', startDate: '', trainerId: '', ptFee: '', ptFeePaid: false,
 };
 
 /** The filters worth offering. The stored statuses a member never sees
@@ -284,6 +286,7 @@ export default function Members() {
       planId: '', startDate: '',
       trainerId: m.trainerId || '',
       ptFee: '',
+      ptFeePaid: false,
     });
     // Remembered so the fee field appears only when the trainer is actually
     // changing — re-saving a member with the trainer they already have raises
@@ -312,6 +315,7 @@ export default function Members() {
         // deliberate decision to charge nothing.
         ...(form.trainerId && {
           ptFee: form.ptFee.trim() === '' ? null : Number(form.ptFee),
+          ptFeePaid: form.ptFeePaid,
         }),
       };
       if (editing) {
@@ -730,9 +734,29 @@ export default function Members() {
                     className={inputClass}
                   />
                   <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-                    Charged once as a due. Leave blank for the usual rate, or type what you
+                    Charged once. Leave blank for the usual rate, or type what you
                     agreed — enter 0 to charge nothing.
                   </p>
+
+                  <label className="flex items-start gap-2.5 mt-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.ptFeePaid}
+                      onChange={e => set('ptFeePaid')(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 shrink-0"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-slate-300">
+                      Fee collected now
+                      <span className="block text-xs text-gray-400 dark:text-slate-500">
+                        {/* Unticked is the safe default: recording money that never
+                            arrived is worse than leaving a real payment to be settled
+                            on the Payments page. */}
+                        {form.ptFeePaid
+                          ? 'Recorded as paid — it will not show as outstanding.'
+                          : 'Left as a due for the member to settle later.'}
+                      </span>
+                    </span>
+                  </label>
                 </div>
               )}
 
