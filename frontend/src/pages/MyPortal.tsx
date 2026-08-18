@@ -1,23 +1,82 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
-  CalendarCheck, CreditCard, Dumbbell, Utensils, AlertTriangle, Clock,
+  CalendarCheck, CreditCard, Dumbbell, Utensils, AlertTriangle, Clock, ShieldCheck, Sparkles,
 } from 'lucide-react';
 import Badge from '../components/Badge';
-import { Page, Card, PageLoader } from '../components/ui';
+import { Page, Card, PageLoader, inputClass, primaryButton, secondaryButton } from '../components/ui';
 import api, { apiError } from '../api/client';
-import type { MyProfile } from '../types';
+import type { MyProfile, MembershipPlan } from '../types';
 import toast from 'react-hot-toast';
 
 export default function MyPortal() {
   const [data, setData] = useState<MyProfile | null>(null);
+  const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Online checkout state
+  const [checkoutItem, setCheckoutItem] = useState<{ type: 'due' | 'renew'; id: string; name: string; price: number } | null>(null);
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [paying, setPaying] = useState(false);
+
+  const loadData = async () => {
+    try {
+      const [profileRes, plansRes] = await Promise.all([
+        api.get<MyProfile>('/me'),
+        api.get<MembershipPlan[]>('/online-payments/plans'),
+      ]);
+      setData(profileRes.data);
+      setPlans(plansRes.data);
+    } catch (err) {
+      toast.error(apiError(err, 'Could not load portal details'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    api.get<MyProfile>('/me')
-      .then(r => setData(r.data))
-      .catch(err => toast.error(apiError(err, 'Could not load your details')))
-      .finally(() => setLoading(false));
+    void loadData();
   }, []);
+
+  const handleCheckoutSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!checkoutItem) return;
+
+    if (!/^\d{16}$/.test(cardNumber.replace(/\s+/g, ''))) {
+      toast.error('Card number must be 16 digits');
+      return;
+    }
+    if (!/^\d{3}$/.test(cardCvv)) {
+      toast.error('CVV must be 3 digits');
+      return;
+    }
+
+    setPaying(true);
+    try {
+      const payload = checkoutItem.type === 'due'
+        ? { type: 'due', paymentId: checkoutItem.id }
+        : { type: 'renew', planId: checkoutItem.id };
+
+      await api.post('/online-payments/checkout', payload);
+      toast.success(
+        checkoutItem.type === 'due'
+          ? 'Outstanding dues paid successfully!'
+          : 'Membership renewed successfully!'
+      );
+      setCheckoutItem(null);
+      setCardNumber('');
+      setCardExpiry('');
+      setCardCvv('');
+      
+      setLoading(true);
+      await loadData();
+    } catch (err) {
+      toast.error(apiError(err, 'Online checkout payment failed'));
+    } finally {
+      setPaying(false);
+    }
+  };
 
   if (loading) return <PageLoader />;
 
@@ -38,10 +97,14 @@ export default function MyPortal() {
   const { member, plan, attendance, payments, dueTotal } = data;
   const membership = member.currentMembership;
 
+  // Find the outstanding payment due item
+  const duePayment = payments.find(p => p.status === 'due');
+
   return (
     <Page>
       <div className="space-y-5">
-      {/* Membership card */}
+      
+      {/* Membership status card */}
       <Card className="p-5">
         <div className="flex items-start gap-4">
           <div className="w-14 h-14 rounded-2xl overflow-hidden shrink-0 bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
@@ -80,15 +143,62 @@ export default function MyPortal() {
           </div>
         )}
 
-        {dueTotal > 0 && (
-          <div className="mt-3 bg-red-50 dark:bg-red-500/15 border border-red-200 dark:border-red-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
-            <CreditCard size={18} className="text-red-600 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-red-800">
-                Rs. {dueTotal.toLocaleString()} outstanding
-              </p>
-              <p className="text-xs text-red-600">Please clear your dues at the gym.</p>
+        {dueTotal > 0 && duePayment && (
+          <div className="mt-3 bg-red-50 dark:bg-red-500/15 border border-red-200 dark:border-red-500/20 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <CreditCard size={18} className="text-red-600 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-red-800">
+                  Rs. {dueTotal.toLocaleString()} outstanding
+                </p>
+                <p className="text-xs text-red-600">Clear your unpaid invoices easily online.</p>
+              </div>
             </div>
+            <button
+              onClick={() => setCheckoutItem({
+                type: 'due',
+                id: duePayment.id,
+                name: 'Outstanding Gym Dues',
+                price: dueTotal,
+              })}
+              className="py-1.5 px-3 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-colors"
+            >
+              Pay Dues Online
+            </button>
+          </div>
+        )}
+      </Card>
+
+      {/* Online Renewal & Upgrades Section */}
+      <Card className="p-5">
+        <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+          <Sparkles size={16} className="text-indigo-600" />
+          Renew or Upgrade Membership
+        </h2>
+        {plans.length === 0 ? (
+          <p className="text-sm text-gray-400 dark:text-slate-500 py-4 text-center">No plans available at this time.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {plans.map(p => (
+              <div key={p.id} className="p-4 rounded-xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/40 flex flex-col justify-between">
+                <div>
+                  <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm">{p.name}</h3>
+                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{p.durationDays} Days duration</p>
+                  <p className="text-lg font-black text-indigo-600 mt-2">Rs. {p.price.toLocaleString()}</p>
+                </div>
+                <button
+                  onClick={() => setCheckoutItem({
+                    type: 'renew',
+                    id: p.id,
+                    name: p.name,
+                    price: p.price,
+                  })}
+                  className="mt-4 w-full py-2 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                >
+                  Renew / Purchase
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </Card>
@@ -179,6 +289,86 @@ export default function MyPortal() {
         )}
       </Card>
       </div>
+
+      {/* ONLINE CHECKOUT DIALOG MODAL */}
+      {checkoutItem && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in"
+             onClick={() => setCheckoutItem(null)}>
+          <div className="w-full max-w-md p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-2">Secure Online Checkout</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mb-5">
+              Confirm your checkout details below. Payments are encrypted and securely simulated.
+            </p>
+
+            <div className="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800 mb-5">
+              <span className="text-xs text-gray-400 font-semibold uppercase">Item to checkout</span>
+              <p className="font-bold text-gray-800 dark:text-slate-200 mt-0.5">{checkoutItem.name}</p>
+              <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
+                <span className="text-xs font-bold text-gray-400 uppercase">Amount Due</span>
+                <span className="text-lg font-black text-indigo-600">Rs. {checkoutItem.price.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleCheckoutSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Cardholder Card Number</label>
+                <input
+                  required
+                  placeholder="4000 1234 5678 9010"
+                  maxLength={16}
+                  value={cardNumber}
+                  onChange={e => setCardNumber(e.target.value.replace(/\D/g, ''))}
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Expiry Date</label>
+                  <input
+                    required
+                    placeholder="MM/YY"
+                    maxLength={5}
+                    value={cardExpiry}
+                    onChange={e => setCardExpiry(e.target.value)}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">CVV / CVC</label>
+                  <input
+                    required
+                    type="password"
+                    placeholder="123"
+                    maxLength={3}
+                    value={cardCvv}
+                    onChange={e => setCardCvv(e.target.value.replace(/\D/g, ''))}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end pt-4">
+                <button
+                  type="button"
+                  onClick={() => setCheckoutItem(null)}
+                  className={secondaryButton}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={paying}
+                  className={`flex items-center gap-1.5 ${primaryButton}`}
+                >
+                  <ShieldCheck size={16} />
+                  {paying ? 'Processing…' : 'Submit Secure Payment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </Page>
   );
 }
