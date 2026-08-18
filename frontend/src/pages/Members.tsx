@@ -11,7 +11,7 @@ import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
 import { useDebounced } from '../hooks/useDebounced';
-import type { Gender, Member, MembershipPlan, MemberCounts, PaginatedMembers, Trainer } from '../types';
+import type { Gender, GymSettings, Member, MembershipPlan, MemberCounts, PaginatedMembers, Trainer } from '../types';
 import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
 
@@ -29,12 +29,15 @@ interface MemberForm {
   planId: string;
   startDate: string;
   trainerId: string;
+  /** What was agreed for the trainer, when it was haggled. Blank means "use
+   *  the trainer's rate, then the gym's" — not "free". */
+  ptFee: string;
 }
 
 const emptyForm: MemberForm = {
   name: '', email: '', phone: '', photo: '',
   gender: '', dateOfBirth: '', address: '', emergencyContact: '',
-  planId: '', startDate: '', trainerId: '',
+  planId: '', startDate: '', trainerId: '', ptFee: '',
 };
 
 /** The filters worth offering. The stored statuses a member never sees
@@ -92,6 +95,12 @@ export default function Members() {
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<MemberForm>(emptyForm);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
+  /** The trainer the member already had, so a re-save is told apart from a
+   *  new assignment — only the latter is billed. */
+  const [originalTrainerId, setOriginalTrainerId] = useState('');
+  /** The gym's fallback rate, shown as the blank field's placeholder so staff
+   *  can see what leaving it empty will charge. */
+  const [gymPtFee, setGymPtFee] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [params, setParams] = useSearchParams();
@@ -206,12 +215,30 @@ export default function Members() {
     void api.get<Trainer[]>('/trainers')
       .then(r => setTrainers(r.data))
       .catch(err => console.error('Could not load trainers', err));
+
+    // Only for the fee field's placeholder. A failure is not worth a toast —
+    // the form still works, the hint is just missing.
+    void api.get<GymSettings>('/gym-settings')
+      .then(r => setGymPtFee(r.data.defaultPtFee))
+      .catch(() => { /* the placeholder simply says nothing */ });
     // Deliberately once on mount: this is a landing hint, not a live binding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const set = <K extends keyof MemberForm>(k: K) => (v: MemberForm[K]) =>
     setForm(f => ({ ...f, [k]: v }));
+
+  /**
+   * What leaving the fee blank will actually charge — the same trainer-then-gym
+   * resolution the server does, so the hint cannot promise one number while the
+   * API bills another.
+   */
+  const ptFeePlaceholder = (() => {
+    const trainer = trainers.find(t => t.id === form.trainerId);
+    const rate = trainer?.ptFee ?? gymPtFee;
+    if (rate === null || rate === undefined) return 'Usual rate';
+    return rate === 0 ? 'No charge' : `Usual rate — ${rate.toLocaleString('en-PK')}`;
+  })();
 
   const selectedPlan = plans.find(p => p.id === form.planId);
   const expiryPreview = selectedPlan
@@ -239,6 +266,9 @@ export default function Members() {
       // Preselect the cheapest offered plan so the common case is one click.
       planId: from[0]?.id ?? '',
     });
+    // A new member has no trainer yet, so picking one is always a fresh
+    // assignment and the fee field should show.
+    setOriginalTrainerId('');
     setShowModal(true);
   };
 
@@ -253,7 +283,12 @@ export default function Members() {
       emergencyContact: m.emergencyContact ?? '',
       planId: '', startDate: '',
       trainerId: m.trainerId || '',
+      ptFee: '',
     });
+    // Remembered so the fee field appears only when the trainer is actually
+    // changing — re-saving a member with the trainer they already have raises
+    // no charge, and a field offering to set one would be lying.
+    setOriginalTrainerId(m.trainerId || '');
     setShowModal(true);
   };
 
@@ -272,6 +307,12 @@ export default function Members() {
         address: form.address,
         emergencyContact: form.emergencyContact,
         trainerId: form.trainerId || null,
+        // Only meaningful alongside a trainer, and blank has to reach the API
+        // as null: `Number('')` is 0, which the server would read as a
+        // deliberate decision to charge nothing.
+        ...(form.trainerId && {
+          ptFee: form.ptFee.trim() === '' ? null : Number(form.ptFee),
+        }),
       };
       if (editing) {
         await api.put(`/members/${editing}`, payload);
@@ -667,6 +708,33 @@ export default function Members() {
                   ))}
                 </select>
               </div>
+
+              {/* The fee is only asked for when a trainer is actually being
+                  assigned, and only when it is a *new* assignment — re-saving
+                  a member who already has this trainer bills nothing, so a
+                  field offering to charge them again would be a trap. */}
+              {form.trainerId && form.trainerId !== originalTrainerId && (
+                <div>
+                  <label htmlFor="member-ptfee" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
+                    Trainer Fee (Rs.)
+                  </label>
+                  <input
+                    id="member-ptfee"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder={ptFeePlaceholder}
+                    value={form.ptFee}
+                    onChange={e => set('ptFee')(e.target.value)}
+                    className={inputClass}
+                  />
+                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
+                    Charged once as a due. Leave blank for the usual rate, or type what you
+                    agreed — enter 0 to charge nothing.
+                  </p>
+                </div>
+              )}
 
               {/* Address */}
               <div>
