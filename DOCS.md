@@ -296,6 +296,124 @@ counter with cash in hand is exactly who the gym wants inside.
 - `forgot-password` answers identically whether or not the address exists, and
   a mail failure is logged rather than thrown — so the response never leaks
   which accounts are real.
+- **Nothing a member sends can grant them anything.** See Online payments below.
+
+## Online payments
+
+A member can renew or clear their dues from the portal. The rule the whole
+design turns on: **starting a payment grants nothing.** `POST /checkout` writes
+a `pending` PaymentIntent priced from the gym's own plan row — never from the
+request — and returns a signed form for the provider. A Membership is created,
+and a due is settled, only in the provider's callback, after:
+
+1. the **signature** over the body verifies against the integrity salt, which
+   the member does not have;
+2. the **amount** in that callback equals the amount stored on the intent;
+3. the intent is still `pending` and inside its one-hour window.
+
+Callbacks are idempotent — `@@unique([provider, providerRef])` plus a
+status-conditioned `updateMany` inside the settling transaction — so a provider
+retrying, or the browser return racing the server-to-server post, cannot grant
+a second membership. Membership and Payment are written in **one** transaction,
+so neither can exist without the other.
+
+`/callback/:provider` and `/return/:provider` are mounted **before** `auth`
+deliberately: a provider carries no session cookie, and the signature is a
+stronger claim than a session would be here — it proves the provider sent it.
+
+Providers are pluggable (`services/gateways/`): JazzCash and Easypaisa ship,
+and adding one means a file implementing `PaymentGateway` plus an enum value.
+Watch the two things that differ between them — JazzCash amounts are in
+**paisa** and signed with HMAC-SHA256, Easypaisa's are in **rupees** and hashed
+with plain SHA-256.
+
+With no gateway configured the flow still works: it files a front-desk request
+that staff confirm with `canRecordPayments`. That path is restricted to the
+`manual` provider, so the confirm button can never settle a real gateway
+payment the provider never charged for.
+
+### Setting a gateway up
+
+Credentials come from the environment, so they are per **deployment**, not per
+gym — one merchant account serves the whole instance. Get them by opening a
+merchant account with JazzCash or Easypaisa; there is nothing to generate here.
+
+In `backend/.env` for a local run, or `docker/.env` for the Docker stack:
+
+```bash
+APP_BASE_URL=https://api.yourgym.com   # see the warning below
+
+JAZZCASH_MERCHANT_ID=MC12345
+JAZZCASH_PASSWORD=abcdefghij
+JAZZCASH_INTEGRITY_SALT=your-integrity-salt
+
+EASYPAISA_STORE_ID=12345
+EASYPAISA_HASH_KEY=your-hash-key
+```
+
+Restart the server. Whichever provider has all of its variables set appears in
+the portal automatically; `manual` disappears once a real one is live.
+
+Three things to get right:
+
+- **`APP_BASE_URL` must be reachable from the provider's servers.** It is where
+  they post the confirmation. Behind localhost, a private address, or an
+  unforwarded port, the callback never arrives and every payment sits pending
+  no matter how well the rest is configured. This is the usual cause of "the
+  member paid but nothing happened".
+- **The integrity salt and hash key are passwords, not identifiers.** They are
+  what sign and verify callbacks — anyone holding one can forge a payment
+  confirmation. They never belong in the repo, in a screenshot, or in a
+  frontend build.
+- **`JAZZCASH_POST_URL` defaults to sandbox.** Test there first, then set it to
+  the live URL. A gym left on sandbox takes no real money.
+
+## Expenses and profit
+
+`Expense` is the other half of the books, and the reason a profit figure is
+possible at all. Deliberately **not** a negative `Payment`: a payment belongs
+to a member and settles something they owe, and every query over that table
+assumes so — rent has no member.
+
+`GET /api/expenses/profit` reports revenue, expenses, and the difference over
+an optional date window. Two rules matter:
+
+- Only **`paid`** payments count as revenue. A due is money the gym is owed,
+  not money it has; counting it would report a profit the bank account
+  disagrees with. It is reported alongside as `outstanding`.
+- Both sides are summed in `Decimal` and converted once at the boundary, so
+  `0.1 + 0.2 - 0.3` is `0` rather than `5.5e-17`.
+
+The whole module sits behind one permission, `canManageExpenses` — owner,
+manager or accountant. Unlike payments there is no per-row narrowing that would
+make a partial view meaningful, so a receptionist who can see what a member
+paid still sees nothing of the rent. The dashboard carries `expenses` and
+`profit` per month inside the same `revenue` block, which is already omitted
+entirely for staff without `canViewReports`.
+
+## Prices that used to be hardcoded
+
+The personal-trainer fee was the literal `10000`, written twice in
+`membersController`. It now resolves trainer → gym: `Trainer.ptFee` if set,
+otherwise `Gym.defaultPtFee`. A null `ptFee` means "use the gym's price", which
+is not the same as `0` — that is a deliberate decision to charge nothing, and a
+fee resolving to zero raises no due at all rather than a zero-rupee debt that
+would sit on the member's balance forever.
+
+The migration backfills `defaultPtFee = 10000` for gyms that already have a
+trainer, so an existing gym keeps charging what it was charging. New gyms start
+at 0, because a wrong price looks like a real one.
+
+## Permissions are generated, not duplicated
+
+`backend/src/services/permissions.ts` is the **only** copy anybody edits.
+`frontend/src/utils/permissions.generated.ts` is written from it by
+`npm run gen:permissions` (in `backend/`), and
+`tests/services/permissions.test.ts` fails if the committed output no longer
+matches its source.
+
+This replaces two hand-maintained 150-line files that had already begun to
+drift. Change the table, run the generator, commit both.
 
 ## Email
 

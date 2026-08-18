@@ -280,6 +280,48 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* What the month left after spending. Shown whenever anything has
+              been recorded either way — a gym that has entered no expenses
+              yet would otherwise see a "profit" equal to its revenue, which
+              reads as a claim rather than as a missing input. */}
+          {(revenue.expensesThisMonth > 0 || revenue.thisMonth > 0) && (
+            <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-gray-100 dark:border-slate-800">
+              <div className="rounded-xl bg-red-50 dark:bg-red-500/15 border border-red-100 dark:border-red-500/20 px-4 py-3">
+                <p className="text-xs font-medium text-red-700 dark:text-red-300">Expenses</p>
+                <p className="text-lg font-bold text-red-900 dark:text-red-200 mt-0.5">
+                  {money(revenue.expensesThisMonth)}
+                </p>
+                {revenue.expensesThisMonth === 0 && (
+                  <p className="text-[11px] text-red-600/70 dark:text-red-300/70 mt-0.5">
+                    None recorded yet
+                  </p>
+                )}
+              </div>
+              <div
+                className={`rounded-xl px-4 py-3 border ${
+                  revenue.profitThisMonth >= 0
+                    ? 'bg-emerald-50 dark:bg-emerald-500/15 border-emerald-100 dark:border-emerald-500/20'
+                    : 'bg-amber-50 dark:bg-amber-500/15 border-amber-100 dark:border-amber-500/20'
+                }`}
+              >
+                <p className={`text-xs font-medium ${
+                  revenue.profitThisMonth >= 0
+                    ? 'text-emerald-700 dark:text-emerald-300'
+                    : 'text-amber-700 dark:text-amber-300'
+                }`}>
+                  {revenue.profitThisMonth >= 0 ? 'Profit' : 'Loss'}
+                </p>
+                <p className={`text-lg font-bold mt-0.5 ${
+                  revenue.profitThisMonth >= 0
+                    ? 'text-emerald-900 dark:text-emerald-200'
+                    : 'text-amber-900 dark:text-amber-200'
+                }`}>
+                  {money(Math.abs(revenue.profitThisMonth))}
+                </p>
+              </div>
+            </div>
+          )}
+
           {revenue.dueTotal > 0 && (
             <p className="text-xs text-gray-500 dark:text-slate-400 mt-3">
               Not counted above: <span className="font-semibold text-red-600 dark:text-red-400">

@@ -9,7 +9,7 @@ import {
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import type { GymUser, Member, Paginated, Role, StaffSeats, TeamResponse, StaffPermission } from '../types';
+import type { GymUser, GymSettings, Member, Paginated, Role, StaffSeats, TeamResponse, StaffPermission } from '../types';
 import { getPermissionLabel, getPermissionDescription } from '../utils/permissions';
 import toast from 'react-hot-toast';
 
@@ -118,6 +118,11 @@ export default function Team() {
     useState<{ user: GymUser; to: Exclude<Role, 'owner'> } | null>(null);
   
   const [editingPermissions, setEditingPermissions] = useState<GymUser | null>(null);
+
+  // Gym-wide pricing. Held as a string so an emptied field does not become 0
+  // while the owner is mid-edit.
+  const [ptFeeInput, setPtFeeInput] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
   const [selectedPermission, setSelectedPermission] = useState<StaffPermission>('receptionist');
 
   useEffect(() => {
@@ -153,11 +158,25 @@ export default function Team() {
       }),
       // Issuing a login means picking any member, so this one needs them all.
       api.get<Paginated<Member>>('/members?all=true').then(r => setMembers(r.data.data)),
+      api.get<GymSettings>('/gym-settings').then(r => setPtFeeInput(String(r.data.defaultPtFee))),
     ])
       .catch(err => toast.error(apiError(err, 'Could not load accounts')))
       .finally(() => setLoading(false));
 
   useEffect(() => { void load(); }, []);
+
+  const handleSettingsSave = async (e: FormEvent) => {
+    e.preventDefault();
+    setSavingSettings(true);
+    try {
+      await api.put('/gym-settings', { defaultPtFee: Number(ptFeeInput) });
+      toast.success('Pricing updated');
+    } catch (err) {
+      toast.error(apiError(err, 'Could not update pricing'));
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   // The dashboard's "Add Staff" shortcut lands here as ?new=1. The param is
   // cleared once used, so refreshing does not reopen the modal.
@@ -332,6 +351,35 @@ export default function Team() {
           </div>
         ) : undefined}
       />
+
+      {isOwner && (
+        <Card className="p-5 mb-5">
+          <h3 className="font-semibold text-gray-900 dark:text-slate-100 mb-1">Gym pricing</h3>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
+            Charged once when a member is put with a personal trainer. A trainer with their own
+            fee set overrides this. Set it to 0 to charge nothing.
+          </p>
+          <form onSubmit={handleSettingsSave} className="flex flex-wrap items-end gap-3">
+            <div className="grow max-w-xs">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                Default trainer assignment fee (Rs.)
+              </label>
+              <input
+                required
+                type="number"
+                min="0"
+                step="0.01"
+                value={ptFeeInput}
+                onChange={e => setPtFeeInput(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <button type="submit" disabled={savingSettings} className={primaryButton}>
+              {savingSettings ? 'Saving…' : 'Save'}
+            </button>
+          </form>
+        </Card>
+      )}
 
       {isOwner && seatsFull && (
         <div className="bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4 mb-5 flex items-start gap-3">

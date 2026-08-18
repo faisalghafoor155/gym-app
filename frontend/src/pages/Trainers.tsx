@@ -8,13 +8,15 @@ import {
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import toast from 'react-hot-toast';
-import type { Trainer, PtSession, TrainerCommissionReport, Member } from '../types';
+import type { Trainer, PtSession, TrainerCommissionReport, Member, GymSettings } from '../types';
 
 interface TrainerForm {
   name: string;
   phone: string;
   specialization: string;
   commissionPercentage: number;
+  /** Empty means "use the gym default", which is not the same as 0. */
+  ptFee: string;
 }
 
 const emptyTrainerForm: TrainerForm = {
@@ -22,6 +24,7 @@ const emptyTrainerForm: TrainerForm = {
   phone: '',
   specialization: '',
   commissionPercentage: 10,
+  ptFee: '',
 };
 
 interface PtSessionForm {
@@ -63,15 +66,20 @@ export default function Trainers() {
   const [ptForm, setPtForm] = useState<PtSessionForm>(emptyPtForm());
 
   const [deactivatingTrainer, setDeactivatingTrainer] = useState<Trainer | null>(null);
+  const [gymDefaultPtFee, setGymDefaultPtFee] = useState<number | null>(null);
 
   const loadData = async () => {
     try {
-      const [tRes, mRes] = await Promise.all([
+      const [tRes, mRes, settingsRes] = await Promise.all([
         api.get<Trainer[]>('/trainers'),
         api.get<{ data: Member[] }>('/members?all=true'),
+        // Shown as the placeholder on a blank fee field, so "leave blank" says
+        // what it will actually charge rather than leaving staff to guess.
+        api.get<GymSettings>('/gym-settings'),
       ]);
       setTrainers(tRes.data.filter(t => t.isActive));
       setMembers(mRes.data.data);
+      setGymDefaultPtFee(settingsRes.data.defaultPtFee);
 
       if (activeTab === 'bookings') {
         const sRes = await api.get<PtSession[]>('/pt-sessions');
@@ -97,11 +105,17 @@ export default function Trainers() {
     e.preventDefault();
     setSaving(true);
     try {
+      // A blank field means "use the gym default" and has to reach the API as
+      // null; Number('') would send 0, which means "charge nothing" instead.
+      const payload = {
+        ...trainerForm,
+        ptFee: trainerForm.ptFee.trim() === '' ? null : Number(trainerForm.ptFee),
+      };
       if (editingTrainerId) {
-        await api.put(`/trainers/${editingTrainerId}`, trainerForm);
+        await api.put(`/trainers/${editingTrainerId}`, payload);
         toast.success('Trainer updated');
       } else {
-        await api.post('/trainers', trainerForm);
+        await api.post('/trainers', payload);
         toast.success('Trainer added successfully');
       }
       setShowTrainerModal(false);
@@ -256,6 +270,14 @@ export default function Trainers() {
                     <p className="flex items-center gap-2">
                       <span className="text-gray-400">👥</span> {t.activeMembersCount} Active Members Assigned
                     </p>
+                    <p className="flex items-center gap-2">
+                      <span className="text-gray-400">💰</span>
+                      {t.ptFee === null
+                        ? `Assignment fee: gym default${gymDefaultPtFee === null ? '' : ` (Rs. ${gymDefaultPtFee.toLocaleString()})`}`
+                        : t.ptFee === 0
+                          ? 'Assignment fee: none'
+                          : `Assignment fee: Rs. ${t.ptFee.toLocaleString()}`}
+                    </p>
                   </div>
                 </div>
 
@@ -268,6 +290,11 @@ export default function Trainers() {
                         phone: t.phone || '',
                         specialization: t.specialization || '',
                         commissionPercentage: t.commissionPercentage,
+                        // Null becomes the empty field that means "use the gym
+                        // default"; a stored 0 becomes "0", because charging
+                        // nothing is a real choice and must not read back as
+                        // an unset field.
+                        ptFee: t.ptFee === null ? '' : String(t.ptFee),
                       });
                       setShowTrainerModal(true);
                     }}
@@ -491,6 +518,23 @@ export default function Trainers() {
                   className={inputClass}
                 />
                 <p className="text-xs text-gray-400 mt-1">Trainer earns this percentage on every personal training session booked.</p>
+              </div>
+
+              <div>
+                <FieldLabel>Assignment Fee (Rs.)</FieldLabel>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder={`Gym default${gymDefaultPtFee === null ? '' : ` — Rs. ${gymDefaultPtFee.toLocaleString()}`}`}
+                  value={trainerForm.ptFee}
+                  onChange={e => setTrainerForm(prev => ({ ...prev, ptFee: e.target.value }))}
+                  className={inputClass}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Charged once when this trainer is assigned to a member. Leave blank to use the
+                  gym default; enter 0 to charge nothing.
+                </p>
               </div>
 
               <div className="flex gap-3 justify-end pt-4">

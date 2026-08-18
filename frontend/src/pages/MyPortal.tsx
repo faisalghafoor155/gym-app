@@ -1,12 +1,34 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import {
   CalendarCheck, CreditCard, Dumbbell, Utensils, AlertTriangle, Clock, ShieldCheck, Sparkles,
 } from 'lucide-react';
 import Badge from '../components/Badge';
-import { Page, Card, PageLoader, inputClass, primaryButton, secondaryButton } from '../components/ui';
+import { Page, Card, PageLoader, primaryButton, secondaryButton } from '../components/ui';
 import api, { apiError } from '../api/client';
-import type { MyProfile, MembershipPlan } from '../types';
+import type { MyProfile, MembershipPlan, PaymentProviderOption, CheckoutStarted } from '../types';
 import toast from 'react-hot-toast';
+
+/**
+ * Hands the browser to the payment provider with a real form POST.
+ *
+ * A redirect would not do: providers expect their signed fields as form data,
+ * and posting from a form we build and immediately submit means the member's
+ * payment credentials are entered on the provider's page rather than ours.
+ */
+const postToProvider = (url: string, fields: Record<string, string>): void => {
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = url;
+  for (const [name, value] of Object.entries(fields)) {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+  document.body.appendChild(form);
+  form.submit();
+};
 
 export default function MyPortal() {
   const [data, setData] = useState<MyProfile | null>(null);
@@ -15,19 +37,21 @@ export default function MyPortal() {
 
   // Online checkout state
   const [checkoutItem, setCheckoutItem] = useState<{ type: 'due' | 'renew'; id: string; name: string; price: number } | null>(null);
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
+  const [providers, setProviders] = useState<PaymentProviderOption[]>([]);
+  const [provider, setProvider] = useState<string>('');
   const [paying, setPaying] = useState(false);
 
   const loadData = async () => {
     try {
-      const [profileRes, plansRes] = await Promise.all([
+      const [profileRes, plansRes, providersRes] = await Promise.all([
         api.get<MyProfile>('/me'),
         api.get<MembershipPlan[]>('/online-payments/plans'),
+        api.get<PaymentProviderOption[]>('/online-payments/providers'),
       ]);
       setData(profileRes.data);
       setPlans(plansRes.data);
+      setProviders(providersRes.data);
+      setProvider(prev => prev || providersRes.data[0]?.provider || '');
     } catch (err) {
       toast.error(apiError(err, 'Could not load portal details'));
     } finally {
@@ -39,44 +63,66 @@ export default function MyPortal() {
     void loadData();
   }, []);
 
-  const handleCheckoutSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!checkoutItem) return;
+  /**
+   * The provider drops the member back here with `?payment=…` once they are
+   * done. That parameter is only ever a hint for what to say — the server
+   * decided the outcome from the gateway's signed callback, and `loadData`
+   * above is what shows the real state.
+   */
+  useEffect(() => {
+    const status = new URLSearchParams(window.location.search).get('payment');
+    if (!status) return;
 
-    if (!/^\d{16}$/.test(cardNumber.replace(/\s+/g, ''))) {
-      toast.error('Card number must be 16 digits');
-      return;
-    }
-    if (!/^\d{3}$/.test(cardCvv)) {
-      toast.error('CVV must be 3 digits');
-      return;
-    }
+    if (status === 'success') toast.success('Payment received — your membership is up to date.');
+    else if (status === 'failed') toast.error('That payment did not go through. Nothing was charged.');
+    else if (status === 'pending') toast('Payment is still being confirmed. This page will update shortly.');
+
+    // Cleared so a refresh does not replay the message.
+    window.history.replaceState({}, '', window.location.pathname);
+  }, []);
+
+  /**
+   * Starts a payment and hands the member to their provider.
+   *
+   * Nothing here decides whether anything was paid. The server records a
+   * pending intent and returns a signed form; the membership changes only
+   * after the provider calls back. The previous version collected a card
+   * number and CVV that were never sent anywhere — this takes no card details
+   * at all, which is both the honest design and the one that keeps raw card
+   * data out of the app entirely.
+   */
+  const handleCheckoutSubmit = async () => {
+    if (!checkoutItem || !provider) return;
 
     setPaying(true);
     try {
       const payload = checkoutItem.type === 'due'
-        ? { type: 'due', paymentId: checkoutItem.id }
-        : { type: 'renew', planId: checkoutItem.id };
+        ? { type: 'due', paymentId: checkoutItem.id, provider }
+        : { type: 'renew', planId: checkoutItem.id, provider };
 
-      await api.post('/online-payments/checkout', payload);
-      toast.success(
-        checkoutItem.type === 'due'
-          ? 'Outstanding dues paid successfully!'
-          : 'Membership renewed successfully!'
-      );
+      const { data: started } = await api.post<CheckoutStarted>('/online-payments/checkout', payload);
+
+      if (started.url) {
+        // Handed over via a real form POST: providers expect their fields as
+        // form data, and this leaves their page, not ours, holding the
+        // payment credentials.
+        postToProvider(started.url, started.fields);
+        return;
+      }
+
+      // No gateway configured — the intent is a request the front desk settles.
+      toast.success('Request sent. Please pay at the front desk to activate it.');
       setCheckoutItem(null);
-      setCardNumber('');
-      setCardExpiry('');
-      setCardCvv('');
-      
       setLoading(true);
       await loadData();
     } catch (err) {
-      toast.error(apiError(err, 'Online checkout payment failed'));
+      toast.error(apiError(err, 'Could not start the payment'));
     } finally {
       setPaying(false);
     }
   };
+
+  const hasRedirectProvider = providers.some(p => p.provider === provider && p.redirects);
 
   if (loading) return <PageLoader />;
 
@@ -293,11 +339,13 @@ export default function MyPortal() {
       {/* ONLINE CHECKOUT DIALOG MODAL */}
       {checkoutItem && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in"
-             onClick={() => setCheckoutItem(null)}>
+             onClick={() => !paying && setCheckoutItem(null)}>
           <div className="w-full max-w-md p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-2">Secure Online Checkout</h3>
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-2">Checkout</h3>
             <p className="text-xs text-gray-500 dark:text-slate-400 mb-5">
-              Confirm your checkout details below. Payments are encrypted and securely simulated.
+              {hasRedirectProvider
+                ? 'You will be taken to your payment provider to complete this securely. Your membership updates once they confirm the payment.'
+                : 'This gym takes payment at the front desk. We will let the staff know you want to pay.'}
             </p>
 
             <div className="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800 mb-5">
@@ -309,63 +357,51 @@ export default function MyPortal() {
               </div>
             </div>
 
-            <form onSubmit={handleCheckoutSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Cardholder Card Number</label>
-                <input
-                  required
-                  placeholder="4000 1234 5678 9010"
-                  maxLength={16}
-                  value={cardNumber}
-                  onChange={e => setCardNumber(e.target.value.replace(/\D/g, ''))}
-                  className={inputClass}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">Expiry Date</label>
-                  <input
-                    required
-                    placeholder="MM/YY"
-                    maxLength={5}
-                    value={cardExpiry}
-                    onChange={e => setCardExpiry(e.target.value)}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">CVV / CVC</label>
-                  <input
-                    required
-                    type="password"
-                    placeholder="123"
-                    maxLength={3}
-                    value={cardCvv}
-                    onChange={e => setCardCvv(e.target.value.replace(/\D/g, ''))}
-                    className={inputClass}
-                  />
+            {providers.length > 1 && (
+              <div className="mb-5">
+                <span className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-2">Pay with</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {providers.map(p => (
+                    <button
+                      key={p.provider}
+                      type="button"
+                      onClick={() => setProvider(p.provider)}
+                      className={`px-3 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                        provider === p.provider
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300'
+                          : 'border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400 hover:border-gray-300'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
                 </div>
               </div>
+            )}
 
-              <div className="flex gap-3 justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={() => setCheckoutItem(null)}
-                  className={secondaryButton}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={paying}
-                  className={`flex items-center gap-1.5 ${primaryButton}`}
-                >
-                  <ShieldCheck size={16} />
-                  {paying ? 'Processing…' : 'Submit Secure Payment'}
-                </button>
-              </div>
-            </form>
+            <div className="flex gap-3 justify-end pt-1">
+              <button
+                type="button"
+                onClick={() => setCheckoutItem(null)}
+                disabled={paying}
+                className={secondaryButton}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCheckoutSubmit()}
+                disabled={paying || !provider}
+                className={`flex items-center gap-1.5 ${primaryButton}`}
+              >
+                <ShieldCheck size={16} />
+                {paying
+                  ? 'Starting…'
+                  : hasRedirectProvider
+                    ? 'Continue to payment'
+                    : 'Request at front desk'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -411,6 +411,10 @@ export interface RevenueMonth {
   month: string;
   label: string;
   total: number;
+  expenses: number;
+  /** Carried per month rather than derived here, so the chart and the tiles
+   *  are reading the same number. */
+  profit: number;
 }
 
 export interface AttendanceDay {
@@ -453,6 +457,12 @@ export interface MonthCollection {
 export interface DashboardRevenue {
   thisMonth: number;
   lastMonth: number;
+  expensesThisMonth: number;
+  expensesLastMonth: number;
+  /** What the gym actually kept: revenue less expenses, computed server-side
+   *  so the tile and the chart can never disagree. */
+  profitThisMonth: number;
+  profitLastMonth: number;
   /** Every payment ever marked `due`, across all time — not this month's
    *  shortfall. `collection.shortfall` is the figure for that. */
   dueTotal: number;
@@ -511,9 +521,20 @@ export interface Trainer {
   phone?: string | null;
   specialization?: string | null;
   commissionPercentage: number;
+  /** What assigning this trainer costs. Null means the gym default applies —
+   *  distinct from 0, which is a deliberate decision to charge nothing. */
+  ptFee: number | null;
   isActive: boolean;
   createdAt: string;
   activeMembersCount: number;
+}
+
+/** Gym-wide settings: the prices that are not a plan or a product. */
+export interface GymSettings {
+  name: string;
+  ownerName: string;
+  phone: string | null;
+  defaultPtFee: number;
 }
 
 export interface PtSession {
@@ -574,4 +595,61 @@ export interface ClassBooking {
     endTime: string;
     dayOfWeek: number;
   };
+}
+
+/** A payment provider the member may pick at checkout. */
+export interface PaymentProviderOption {
+  provider: string;
+  label: string;
+  /** False for the front-desk fallback, which has nowhere to redirect to. */
+  redirects: boolean;
+}
+
+/**
+ * What starting a checkout returns. Deliberately not a receipt: it is the
+ * signed form to hand the provider, and says nothing about whether money
+ * moved. `url` is empty when the gym has no gateway configured.
+ */
+export interface CheckoutStarted {
+  intentId: string;
+  provider: string;
+  amount: number;
+  url: string;
+  fields: Record<string, string>;
+}
+
+/** Money the gym spent. The other half of the books from Payment. */
+export interface Expense {
+  id: string;
+  category: string;
+  amount: number;
+  spentOn: string;
+  vendor: string | null;
+  notes: string | null;
+  createdAt: string;
+  recordedBy: { id: string; name: string } | null;
+}
+
+export interface ExpenseList {
+  data: Expense[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  /** Across the whole filtered set, not just the page shown. */
+  totalSpent: number;
+  byCategory: { category: string; total: number }[];
+}
+
+/** Money in, money out, and what is left. */
+export interface ProfitReport {
+  from: string | null;
+  to: string | null;
+  revenue: number;
+  expenses: number;
+  profit: number;
+  /** Owed but not yet received — reported beside profit, never inside it. */
+  outstanding: number;
+  revenueByType: { type: string; total: number }[];
+  expensesByCategory: { category: string; total: number }[];
 }
