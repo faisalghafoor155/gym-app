@@ -7,7 +7,7 @@ import { hasPermission, type PermissionRequirements } from '../utils/permissions
 import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   Dumbbell, LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
-  BarChart3, CalendarRange, Award, Calendar,
+  BarChart3, CalendarRange, Award, Calendar, Wallet,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -30,6 +30,9 @@ const staffNavItems: NavItem[] = [
   // is not: the server narrows their list to the payments they recorded
   // themselves, and refuses them the gym's totals outright.
   { to: '/payments', label: 'Payments', icon: CreditCard },
+  // Not in the owner-only list below, because an accountant needs it too —
+  // the permission gate rather than the role is what decides who sees it.
+  { to: '/expenses', label: 'Expenses', icon: Wallet },
   { to: '/trainers', label: 'Trainers & PT', icon: Award },
   { to: '/classes', label: 'Classes & Schedules', icon: Calendar },
 ];
@@ -81,6 +84,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     '/plans': 'canManagePlans',
     '/supplements': 'canManageSupplements',
     '/payments': 'canViewPayments',
+    '/expenses': 'canManageExpenses',
     '/trainers': 'canManageTrainers',
     '/classes': 'canManageClasses',
   };

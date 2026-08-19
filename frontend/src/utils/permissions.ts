@@ -1,111 +1,51 @@
 import type { StaffPermission } from '../types';
-
-export interface PermissionRequirements {
-  canManageMembers: boolean;
-  canManageMemberships: boolean;
-  canManagePayments: boolean;
-  canViewPayments: boolean;
-  canRecordPayments: boolean;
-  canCheckIn: boolean;
-  canViewAttendance: boolean;
-  canManageSupplements: boolean;
-  canSellSupplements: boolean;
-  canManagePlans: boolean;
-  canViewReports: boolean;
-  canManageStaff: boolean;
-  canModifyStaff: boolean;
-  canManageTrainers: boolean;
-  canManageClasses: boolean;
-}
+import {
+  PERMISSION_DESCRIPTIONS,
+  PERMISSION_LABELS,
+  STAFF_PERMISSIONS,
+  type PermissionRequirements,
+} from './permissions.generated';
 
 /**
- * Get permissions for a staff permission level
+ * What the signed-in account may do, as the client understands it.
+ *
+ * The table itself is not here: it is generated from
+ * `backend/src/services/permissions.ts`, which is the only copy anybody edits.
+ * This file holds the parts that are genuinely client-side — chiefly the role
+ * check below, which the server does in middleware instead.
+ *
+ * None of this is a security boundary. Hiding a button the API would refuse is
+ * a courtesy to the user, not a defence: every one of these capabilities is
+ * enforced again server-side, and that check is the one that counts.
  */
+
+export type { PermissionRequirements };
+export { STAFF_PERMISSIONS };
+
+/**
+ * Every capability, denied — what an account with no staff level gets.
+ *
+ * Built by mapping the manager's table (the one level that grants everything,
+ * so it names every key) rather than written out: a capability added to the
+ * generated table is denied here automatically instead of being silently
+ * `undefined` until somebody remembers this file.
+ */
+const NONE: PermissionRequirements = Object.keys(STAFF_PERMISSIONS.manager).reduce(
+  (acc, key) => ({ ...acc, [key]: false }),
+  {} as PermissionRequirements,
+);
+
 export const getStaffPermissions = (
   staffPermission: StaffPermission,
-): PermissionRequirements => {
-  const basePermissions: PermissionRequirements = {
-    canManageMembers: false,
-    canManageMemberships: false,
-    canManagePayments: false,
-    canViewPayments: false,
-    canRecordPayments: false,
-    canCheckIn: false,
-    canViewAttendance: false,
-    canManageSupplements: false,
-    canSellSupplements: false,
-    canManagePlans: false,
-    canViewReports: false,
-    canManageStaff: false,
-    canModifyStaff: false,
-    canManageTrainers: false,
-    canManageClasses: false,
-  };
-
-  switch (staffPermission) {
-    case 'manager':
-      return {
-        canManageMembers: true,
-        canManageMemberships: true,
-        canManagePayments: true,
-        canViewPayments: true,
-        canRecordPayments: true,
-        canCheckIn: true,
-        canViewAttendance: true,
-        canManageSupplements: true,
-        canSellSupplements: true,
-        canManagePlans: true,
-        canViewReports: true,
-        canManageStaff: true,
-        canModifyStaff: true,
-        canManageTrainers: true,
-        canManageClasses: true,
-      };
-
-    case 'members_manager':
-      return {
-        ...basePermissions,
-        canManageMembers: true,
-        canManageMemberships: true,
-        canViewPayments: true,
-        canManageClasses: true,
-      };
-
-    case 'accountant':
-      return {
-        ...basePermissions,
-        canManagePayments: true,
-        canViewPayments: true,
-        canRecordPayments: true,
-        canViewReports: true,
-        canManageTrainers: true,
-      };
-
-    case 'receptionist':
-      return {
-        ...basePermissions,
-        canCheckIn: true,
-        canViewAttendance: true,
-        canViewPayments: true,
-        canManageClasses: true,
-      };
-
-    case 'inventory_manager':
-      return {
-        ...basePermissions,
-        canManageSupplements: true,
-        canSellSupplements: true,
-        canRecordPayments: true,
-        canViewPayments: true,
-      };
-
-    default:
-      return basePermissions;
-  }
-};
+): PermissionRequirements => STAFF_PERMISSIONS[staffPermission] ?? NONE;
 
 /**
- * Check if a user has permission to perform an action
+ * Whether this account may do something.
+ *
+ * Takes the role as well as the staff level, unlike the server's equivalent:
+ * an owner bypasses the table entirely, and a member has no staff level at all
+ * — both facts the client has to hand and the server's middleware handles
+ * before the table is ever consulted.
  */
 export const hasPermission = (
   role: string | null,
@@ -114,36 +54,13 @@ export const hasPermission = (
 ): boolean => {
   if (role === 'owner') return true;
   if (role !== 'staff' || !staffPermission) return false;
-  const permissions = getStaffPermissions(staffPermission);
-  return permissions[action];
+  return getStaffPermissions(staffPermission)[action];
 };
 
-/**
- * Get readable name for a permission level
- */
-export const getPermissionLabel = (permission: StaffPermission): string => {
-  const labels: Record<StaffPermission, string> = {
-    manager: 'Manager',
-    members_manager: 'Members Manager',
-    accountant: 'Accountant',
-    receptionist: 'Receptionist',
-    inventory_manager: 'Inventory Manager',
-  };
-  return labels[permission];
-};
+/** Get readable name for a permission level. */
+export const getPermissionLabel = (permission: StaffPermission): string =>
+  PERMISSION_LABELS[permission];
 
-/**
- * Describe what a permission level can do
- */
-export const getPermissionDescription = (
-  permission: StaffPermission,
-): string => {
-  const descriptions: Record<StaffPermission, string> = {
-    manager: 'Full access to all features including staff management',
-    members_manager: 'Can manage members, memberships, and view payments',
-    accountant: 'Can manage and view payments and reports',
-    receptionist: 'Can check in members and view attendance',
-    inventory_manager: 'Can manage supplements, inventory, and sell items',
-  };
-  return descriptions[permission];
-};
+/** Describe what a permission level can do. */
+export const getPermissionDescription = (permission: StaffPermission): string =>
+  PERMISSION_DESCRIPTIONS[permission];

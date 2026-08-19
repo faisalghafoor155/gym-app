@@ -190,6 +190,42 @@ const memberBase = {
   address: optionalText(500),
   emergencyContact: optionalText(100),
   trainerId: uuid.or(z.literal("").transform(() => null)).nullish(),
+  /**
+   * What the front desk agreed for the trainer assignment, when it was
+   * haggled rather than taken from the price list.
+   *
+   * Null or absent means "use the trainer's rate, then the gym's" — the
+   * common case, which should need no typing. An explicit 0 charges nothing.
+   * Only read when a trainer is actually being assigned; sent without one it
+   * is ignored rather than rejected, since a form that keeps the field around
+   * while the trainer picker is empty is not making an error.
+   *
+   * The empty-string branch comes FIRST deliberately. `money` is
+   * `z.coerce.number()`, and coercion turns `""` into `0` — so with the
+   * branches the other way round a blank field would silently mean "charge
+   * nothing" instead of "use the default", and the gym's price would never
+   * apply.
+   */
+  ptFee: z
+    .literal("")
+    .transform(() => null)
+    .or(money)
+    .nullish(),
+  /**
+   * Whether the trainer fee was collected at the counter there and then.
+   *
+   * Defaults to false, which records a due — the safe answer, since claiming
+   * money arrived when it did not is the worse error of the two. At
+   * registration the cash usually is taken on the spot, so this saves the
+   * front desk a second trip to the Payments page to settle a fee they are
+   * holding in their hand.
+   *
+   * A strict boolean, deliberately not `z.coerce.boolean()`: coercion is
+   * JavaScript truthiness, so the string `"false"` would arrive as `true` and
+   * silently mark an uncollected fee as paid. The client sends JSON, so it has
+   * a real boolean to send.
+   */
+  ptFeePaid: z.boolean().optional(),
 };
 
 // Membership details are no longer part of a member. A member can be created
@@ -357,6 +393,54 @@ export const auditLogQuerySchema = z
 // --- attendance --------------------------------------------------------
 
 export const checkinSchema = z.object({ memberId: uuid });
+
+// --- fingerprint -------------------------------------------------------
+
+/**
+ * A template as it arrives over the wire: base64, because JSON has no way to
+ * carry bytes. Decoded to a Buffer at the controller and stored as `Bytes` —
+ * the encoding is a transport detail and does not reach the database.
+ *
+ * The ceiling is generous by the standards of the hardware. Vendor templates
+ * run to a few hundred bytes and the largest in common use is under 2 KB; 64 KB
+ * of base64 is roughly 48 KB decoded, which no reader will produce and which is
+ * small enough that a bad request cannot be used to push anything substantial
+ * into the row.
+ */
+const fingerprintTemplate = z
+  .string()
+  .min(1, "is required")
+  .max(65_536, "is too large")
+  .refine(
+    (v) => /^[A-Za-z0-9+/]+={0,2}$/.test(v) && v.length % 4 === 0,
+    "must be base64",
+  );
+
+export const enrollFingerprintSchema = z.object({
+  memberId: uuid,
+  template: fingerprintTemplate,
+  /** Whose encoding the template is in. Must match the active device, which
+   *  the controller checks — a template from a reader the gym no longer owns
+   *  is unmatchable, and storing it would only fail later at the desk. */
+  format: z.string().trim().min(1, "is required").max(50, "is too long"),
+  /** Free text, for the desk's benefit: "right thumb". Nothing branches on it. */
+  finger: z.string().trim().max(30, "is too long").optional(),
+});
+
+/**
+ * A check-in attempt from the reader.
+ *
+ * Both fields are optional and exactly one is expected, which the controller
+ * enforces rather than the schema: which one arrives depends on whether the
+ * device matches internally, and that is a fact about the hardware the client
+ * should not have to encode as a request shape. A device that matched locally
+ * sends `externalId`; one that did not sends the `template` it captured.
+ */
+export const identifyFingerprintSchema = z.object({
+  externalId: uuid.optional(),
+  template: fingerprintTemplate.optional(),
+  format: z.string().trim().min(1).max(50).optional(),
+});
 
 // --- payments ----------------------------------------------------------
 
@@ -555,6 +639,9 @@ export const createTrainerSchema = z.object({
   phone: optionalText(50),
   specialization: optionalText(100),
   commissionPercentage: z.coerce.number().min(0).max(100).default(0),
+  /** Null (or absent) means "charge whatever the gym charges", which is not
+   *  the same as 0 — that is a deliberate decision to charge nothing. */
+  ptFee: money.nullish(),
 });
 
 export const updateTrainerSchema = createTrainerSchema.partial();
@@ -598,6 +685,137 @@ export const updateClassBookingSchema = z.object({
   status: z.enum(['booked', 'attended', 'cancelled']),
 });
 
+// --- expenses ----------------------------------------------------------
+
+/**
+ * The categories the client offers as suggestions. Not an enum on the column:
+ * a gym's spending is its own, and anything typed here is accepted — these are
+ * only what the picker shows first.
+ */
+export const EXPENSE_CATEGORIES = [
+  'rent',
+  'utilities',
+  'salaries',
+  'equipment',
+  'maintenance',
+  'marketing',
+  'supplies',
+  'other',
+] as const;
+
+const expenseFields = {
+  category: z.string().trim().min(1, 'is required').max(50, 'is too long'),
+  amount: money.refine((v) => v > 0, 'must be greater than zero'),
+  spentOn: date,
+  vendor: optionalText(120),
+  notes: optionalText(500),
+};
+
+export const createExpenseSchema = z.object(expenseFields);
+
+/** Every field optional, but the same rules — a partial update must not be a
+ *  way to store an amount the create path would have rejected. */
+export const updateExpenseSchema = z.object(expenseFields).partial();
+
+export const expenseQuerySchema = z
+  .object({
+    category: z
+      .string()
+      .trim()
+      .max(50)
+      .transform((v) => v || undefined)
+      .optional(),
+    search: z
+      .string()
+      .trim()
+      .max(100, 'is too long')
+      .transform((v) => v || undefined)
+      .optional(),
+    from: date.or(blankToUndefined).optional(),
+    to: date.or(blankToUndefined).optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(25),
+  })
+  .superRefine((data, ctx) => {
+    if (data.from && data.to && data.to < data.from) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['to'],
+        message: 'must be after the from date',
+      });
+    }
+  });
+
+/** The profit report's window. Both ends optional — no bounds means all time. */
+export const profitQuerySchema = z
+  .object({
+    from: date.or(blankToUndefined).optional(),
+    to: date.or(blankToUndefined).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.from && data.to && data.to < data.from) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['to'],
+        message: 'must be after the from date',
+      });
+    }
+  });
+
+// --- gym settings ------------------------------------------------------
+
+/** Gym-wide settings the owner can change. */
+export const updateGymSettingsSchema = z.object({
+  /** What a trainer assignment costs when the trainer sets no price of their
+   *  own. Zero is valid and means the gym charges nothing for it. */
+  defaultPtFee: money,
+});
+
+// --- online payments ---------------------------------------------------
+
+/**
+ * Starting a checkout. Note what is *not* here: no amount.
+ *
+ * The price is read from the plan or the due row on the server, because a
+ * request that can name its own price is a request that can buy a membership
+ * for one rupee.
+ *
+ * `superRefine` rather than two schemas: which id is required depends on
+ * `type`, and letting a `renew` through without a `planId` would only fail
+ * later, in the controller, as a 404 that reads like the plan was missing.
+ */
+export const checkoutSchema = z
+  .object({
+    type: z.enum(['due', 'renew']),
+    planId: uuid.optional(),
+    paymentId: uuid.optional(),
+    provider: z.enum(['jazzcash', 'easypaisa', 'manual']),
+  })
+  .superRefine((val, ctx) => {
+    if (val.type === 'renew' && !val.planId) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['planId'],
+        message: 'planId is required to renew',
+      });
+    }
+    if (val.type === 'due' && !val.paymentId) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['paymentId'],
+        message: 'paymentId is required to pay dues',
+      });
+    }
+  });
+
+/**
+ * The provider in a callback URL. Constrained to the known set so an unknown
+ * name is rejected by the router rather than reaching a `getGateway` lookup.
+ */
+export const providerParams = z.object({
+  provider: z.enum(['jazzcash', 'easypaisa', 'manual']),
+});
+
 // --- inferred request-body types ---------------------------------------
 
 export type RegisterBody = z.infer<typeof registerSchema>;
@@ -627,6 +845,8 @@ export type ExtendMembershipBody = z.infer<typeof extendMembershipSchema>;
 export type MembershipParams = z.infer<typeof membershipParams>;
 export type AuditLogQuery = z.infer<typeof auditLogQuerySchema>;
 export type CheckinBody = z.infer<typeof checkinSchema>;
+export type EnrollFingerprintBody = z.infer<typeof enrollFingerprintSchema>;
+export type IdentifyFingerprintBody = z.infer<typeof identifyFingerprintSchema>;
 export type CreatePaymentBody = z.infer<typeof createPaymentSchema>;
 export type UpdatePaymentBody = z.infer<typeof updatePaymentSchema>;
 export type PaymentQuery = z.infer<typeof paymentQuerySchema>;
@@ -653,5 +873,15 @@ export type CreateClassBody = z.infer<typeof createClassSchema>;
 export type CreateClassScheduleBody = z.infer<typeof createClassScheduleSchema>;
 export type CreateClassBookingBody = z.infer<typeof createClassBookingSchema>;
 export type UpdateClassBookingBody = z.infer<typeof updateClassBookingSchema>;
+
+export type CreateExpenseBody = z.infer<typeof createExpenseSchema>;
+export type UpdateExpenseBody = z.infer<typeof updateExpenseSchema>;
+export type ExpenseQuery = z.infer<typeof expenseQuerySchema>;
+export type ProfitQuery = z.infer<typeof profitQuerySchema>;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+export type UpdateGymSettingsBody = z.infer<typeof updateGymSettingsSchema>;
+export type CheckoutBody = z.infer<typeof checkoutSchema>;
+export type ProviderParams = z.infer<typeof providerParams>;
+export type ConfirmManualParams = z.infer<typeof idParam>;
 
 export type Gender = (typeof GENDERS)[number];

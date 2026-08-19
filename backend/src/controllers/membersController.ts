@@ -20,6 +20,7 @@ import {
   base64ToBuffer,
   extractFilename,
 } from "../services/s3.js";
+import { buildPtFeeCharge, trainerFeeSelect } from "../services/trainerFee.js";
 import type { AuthedRequest } from "../types.js";
 import type {
   CreateMemberBody,
@@ -47,6 +48,16 @@ const memberFields = {
   createdAt: true,
   trainerId: true,
   trainer: { select: { id: true, name: true } },
+  /**
+   * The member's fingerprint enrolment, minus the template itself.
+   *
+   * Deliberately not `true`: that would put every enrolled member's biometric
+   * on the wire on every page of the roster. The list only needs to know
+   * whether there is one and when it was taken, so that is all it is given.
+   */
+  fingerprint: {
+    select: { id: true, enrolledAt: true, finger: true, format: true },
+  },
 } as const;
 
 /**
@@ -259,7 +270,10 @@ export const create = async (
   req: AuthedRequest<Record<string, string>, unknown, CreateMemberBody>,
   res: Response,
 ): Promise<void> => {
-  const { planId, startDate, photo, ...fields } = req.body;
+  // `ptFee`/`ptFeePaid` are pulled out with the rest: they price and settle the
+  // trainer assignment and are not columns on the member, so they must not
+  // reach the create below.
+  const { planId, startDate, photo, ptFee, ptFeePaid, ...fields } = req.body;
   try {
     if (planId) {
       const plan = await prisma.membershipPlan.findFirst({
@@ -304,7 +318,7 @@ export const create = async (
       const gym = await tx.gym.update({
         where: { id: req.gymId },
         data: { memberSeq: { increment: 1 } },
-        select: { memberSeq: true },
+        select: { memberSeq: true, defaultPtFee: true },
       });
 
       const created = await tx.member.create({
@@ -338,21 +352,21 @@ export const create = async (
       }
 
       if (fields.trainerId) {
-        const trainer = await tx.trainer.findUnique({
-          where: { id: fields.trainerId },
+        const trainer = await tx.trainer.findFirst({
+          // Scoped by gym: a trainer id from elsewhere must not resolve here
+          // and put another gym's name on this member's bill.
+          where: { id: fields.trainerId, gymId: req.gymId },
+          select: trainerFeeSelect,
         });
         if (trainer) {
-          await tx.payment.create({
-            data: {
-              gymId: req.gymId,
-              memberId: created.id,
-              amount: new Prisma.Decimal(10000),
-              status: 'due',
-              method: 'cash',
-              type: 'other',
-              notes: `Trainer Fee (PT) for instructor: ${trainer.name}`,
-            },
-          });
+          const charge = buildPtFeeCharge(
+            req.gymId,
+            created.id,
+            trainer,
+            { defaultPtFee: gym.defaultPtFee },
+            { override: ptFee, paid: ptFeePaid, recordedById: req.userId },
+          );
+          if (charge) await tx.payment.create({ data: charge });
         }
       }
 
@@ -408,6 +422,8 @@ export const update = async (
     address,
     emergencyContact,
     trainerId,
+    ptFee,
+    ptFeePaid,
   } = req.body;
   try {
     const existing = await prisma.member.findFirst({
@@ -458,23 +474,27 @@ export const update = async (
     }
 
     await prisma.$transaction(async (tx) => {
-      // If trainerId is changing from none to a specific trainer, charge the fee
+      // Charged when the member moves onto a trainer they were not already
+      // with — including a switch between trainers, since that is a new
+      // engagement with a fee of its own.
       if (trainerId && trainerId !== existing.trainerId) {
-        const trainer = await tx.trainer.findUnique({
-          where: { id: trainerId },
-        });
+        const [trainer, gym] = await Promise.all([
+          tx.trainer.findFirst({
+            where: { id: trainerId, gymId: req.gymId },
+            select: trainerFeeSelect,
+          }),
+          tx.gym.findUniqueOrThrow({
+            where: { id: req.gymId },
+            select: { defaultPtFee: true },
+          }),
+        ]);
         if (trainer) {
-          await tx.payment.create({
-            data: {
-              gymId: req.gymId,
-              memberId: id,
-              amount: new Prisma.Decimal(10000),
-              status: 'due',
-              method: 'cash',
-              type: 'other',
-              notes: `Trainer Fee (PT) for instructor: ${trainer.name}`,
-            },
+          const charge = buildPtFeeCharge(req.gymId, id, trainer, gym, {
+            override: ptFee,
+            paid: ptFeePaid,
+            recordedById: req.userId,
           });
+          if (charge) await tx.payment.create({ data: charge });
         }
       }
 
