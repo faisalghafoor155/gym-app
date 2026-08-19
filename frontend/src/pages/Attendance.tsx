@@ -1,10 +1,13 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { Search, CheckCircle2, Clock, Users, CalendarCheck, UserX, QrCode, ScanLine, X } from 'lucide-react';
+import { Search, CheckCircle2, Clock, Users, CalendarCheck, UserX, QrCode, ScanLine, X, Fingerprint, AlertCircle } from 'lucide-react';
 import {
   Page, PageHeader, Card, PageLoader, inputClass, focusRing, SegmentedControl,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
-import type { Member, AttendanceRecord, CheckinResult, Paginated } from '../types';
+import type {
+  Member, AttendanceRecord, CheckinResult, Paginated,
+  FingerprintStatus, FingerprintIdentifyResult,
+} from '../types';
 import toast from 'react-hot-toast';
 import { Html5Qrcode } from 'html5-qrcode';
 
@@ -31,7 +34,7 @@ function playBeep() {
   }
 }
 
-type TabType = 'search' | 'scanner';
+type TabType = 'search' | 'scanner' | 'fingerprint';
 
 export default function Attendance() {
   const [activeTab, setActiveTab] = useState<TabType>('search');
@@ -47,6 +50,11 @@ export default function Attendance() {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const cooldownRef = useRef(false);
 
+  // Fingerprint state
+  const [fpStatus, setFpStatus] = useState<FingerprintStatus | null>(null);
+  const [fpScanning, setFpScanning] = useState(false);
+  const [fpMessage, setFpMessage] = useState<string | null>(null);
+
   const loadToday = () =>
     api.get<AttendanceRecord[]>('/attendance/today').then(r => setTodayList(r.data));
 
@@ -54,6 +62,13 @@ export default function Attendance() {
     Promise.all([
       api.get<Paginated<Member>>('/members?all=true').then(r => setMembers(r.data.data)),
       loadToday(),
+      // Whether there is a reader at all. Failing quietly is right: the tab
+      // renders as "not set up", which is the same thing the endpoint would
+      // have said, and a gym with no reader should not get an error toast on
+      // every visit to a page it uses all day.
+      api.get<FingerprintStatus>('/fingerprint/status')
+        .then(r => setFpStatus(r.data))
+        .catch(() => setFpStatus(null)),
     ])
       .catch(err => toast.error(apiError(err, 'Could not load attendance')))
       .finally(() => setLoading(false));
@@ -113,35 +128,41 @@ export default function Attendance() {
     }
   };
 
-  /** Process a scanned QR code value (memberId UUID). */
-  const handleQrScan = useCallback(async (decodedText: string) => {
-    if (cooldownRef.current) return;
-    cooldownRef.current = true;
-
-    // UUID format check
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(decodedText)) {
-      toast.error('Invalid QR code format');
-      setTimeout(() => { cooldownRef.current = false; }, 2000);
-      return;
-    }
-
+  /**
+   * Check a member in from a scan, and show the result panel.
+   *
+   * Shared by the QR scanner and the fingerprint reader: both arrive at a
+   * member id by their own means and then want exactly the same thing done
+   * with it. The `label` only names which one is speaking, for the error
+   * message — everything else about a hands-free check-in is identical, and
+   * writing it twice is how the two would drift.
+   *
+   * The caller owns the cooldown, because the two devices reset differently:
+   * a camera keeps firing at the same code until it is taken away.
+   */
+  const checkinFromScan = useCallback(async (
+    memberId: string,
+    label: string,
+    known?: { name: string; photo?: string | null },
+  ) => {
     try {
       const { data } = await api.post<CheckinResult>(
-        '/attendance/checkin', { memberId: decodedText },
+        '/attendance/checkin', { memberId },
       );
 
       playBeep();
 
-      // Find member details from loaded members list
-      const member = members.find(m => m.id === decodedText);
-      const memberName = member?.name || 'Member';
+      // The reader may have told us who this is; the QR scanner has only an
+      // id and looks it up in the roster it already holds.
+      const member = members.find(m => m.id === memberId);
+      const memberName = known?.name || member?.name || 'Member';
+      const photo = known?.photo ?? member?.photo;
 
       const msStatus = data.membership?.status || 'none';
 
       setLastScanned({
         name: memberName,
-        photo: member?.photo,
+        photo,
         status: data.alreadyCheckedIn ? 'already' : msStatus,
       });
 
@@ -163,15 +184,80 @@ export default function Attendance() {
 
       await loadToday();
     } catch (err) {
-      toast.error(apiError(err, 'QR Check-in failed'));
+      toast.error(apiError(err, `${label} check-in failed`));
     }
+  }, [members]);
+
+  /** Process a scanned QR code value (memberId UUID). */
+  const handleQrScan = useCallback(async (decodedText: string) => {
+    if (cooldownRef.current) return;
+    cooldownRef.current = true;
+
+    // UUID format check
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(decodedText)) {
+      toast.error('Invalid QR code format');
+      setTimeout(() => { cooldownRef.current = false; }, 2000);
+      return;
+    }
+
+    await checkinFromScan(decodedText, 'QR');
 
     // Cooldown: 3 seconds before allowing another scan
     setTimeout(() => {
       cooldownRef.current = false;
       setLastScanned(null);
     }, 3000);
-  }, [members]);
+  }, [checkinFromScan]);
+
+  /**
+   * Read a finger and check the member in.
+   *
+   * Two steps on purpose. `/fingerprint/identify` answers only "who is this",
+   * and the check-in that follows is the same one the search tab and the QR
+   * scanner post — so the rules about a check-in live in one place and a
+   * fingerprint cannot acquire its own dialect of them.
+   *
+   * A miss is not an error. An unenrolled member putting a finger on the
+   * reader is ordinary, and the page says so in place of the result panel
+   * rather than through a red toast.
+   */
+  const handleFingerprintScan = useCallback(async () => {
+    if (fpScanning) return;
+    setFpScanning(true);
+    setFpMessage(null);
+    setLastScanned(null);
+
+    try {
+      // No body: a locally-matching reader is asked directly, and the backend
+      // knows which kind it has. A bridge for a non-matching scanner posts the
+      // template it captured to this same endpoint.
+      const { data } = await api.post<FingerprintIdentifyResult>(
+        '/fingerprint/identify', {},
+      );
+
+      if (!data.matched) {
+        setFpMessage(
+          data.reason === 'no_enrolments'
+            ? 'No fingerprints are enrolled yet. Enrol members from their profile page.'
+            : 'Fingerprint not recognised. Try again, or use Search Check-In.',
+        );
+        return;
+      }
+
+      await checkinFromScan(data.member.id, 'Fingerprint', {
+        name: data.member.name,
+        photo: data.member.photo,
+      });
+    } catch (err) {
+      setFpMessage(apiError(err, 'Could not read the fingerprint'));
+    } finally {
+      setFpScanning(false);
+      // Same 3s the camera uses, so the desk sees the result long enough to
+      // read it before the panel clears itself for the next member.
+      setTimeout(() => setLastScanned(null), 3000);
+    }
+  }, [fpScanning, checkinFromScan]);
 
   /** Start the camera scanner. */
   const startScanner = useCallback(async () => {
@@ -251,6 +337,7 @@ export default function Attendance() {
             options={[
               { value: 'search', label: 'Search Check-In' },
               { value: 'scanner', label: 'QR Scanner' },
+              { value: 'fingerprint', label: 'Fingerprint' },
             ]}
           />
         </Card>
@@ -425,6 +512,131 @@ export default function Attendance() {
 
               <p className="text-xs text-center text-gray-400 dark:text-slate-500">
                 Hold a member's QR code in front of the camera. The scanner auto-detects and checks in.
+              </p>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* TAB 3: Fingerprint */}
+      {activeTab === 'fingerprint' && (
+        <Card className="p-4 sm:p-6">
+          <h2 className="font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <Fingerprint size={16} className="text-blue-600" />
+            Fingerprint Check-In
+          </h2>
+
+          {/* No reader wired up. Not an error state — most gyms will see this
+              until they buy one — so it explains rather than warns. */}
+          {!fpStatus?.configured ? (
+            <div className="text-center py-12">
+              <div className="w-20 h-20 rounded-2xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-5">
+                <Fingerprint size={36} className="text-gray-400 dark:text-slate-500" />
+              </div>
+              <p className="text-gray-600 dark:text-slate-300 font-semibold mb-2">
+                No fingerprint reader is set up
+              </p>
+              <p className="text-sm text-gray-400 dark:text-slate-500 max-w-sm mx-auto">
+                Connect a reader to check members in by fingerprint. Until then,
+                use the QR scanner or search by name.
+              </p>
+            </div>
+          ) : !fpStatus.online ? (
+            <div className="text-center py-12">
+              <div className="w-20 h-20 rounded-2xl bg-red-50 dark:bg-red-950/30 flex items-center justify-center mx-auto mb-5">
+                <AlertCircle size={36} className="text-red-500" />
+              </div>
+              <p className="text-gray-900 dark:text-slate-100 font-semibold mb-2">
+                {fpStatus.label} is not responding
+              </p>
+              <p className="text-sm text-gray-400 dark:text-slate-500 mb-6 max-w-sm mx-auto">
+                Check that it is powered on and connected. Members can still be
+                checked in by QR code or by name.
+              </p>
+              <button
+                onClick={() => {
+                  void api.get<FingerprintStatus>('/fingerprint/status')
+                    .then(r => setFpStatus(r.data))
+                    .catch(() => toast.error('Could not reach the reader'));
+                }}
+                className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${focusRing}`}
+              >
+                Check again
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="text-center py-8">
+                <button
+                  onClick={() => void handleFingerprintScan()}
+                  disabled={fpScanning}
+                  aria-label="Scan fingerprint to check in"
+                  className={`w-32 h-32 rounded-full flex items-center justify-center mx-auto mb-5 transition-all ${focusRing} ${
+                    fpScanning
+                      ? 'bg-blue-100 dark:bg-blue-950/40 animate-pulse cursor-wait'
+                      : 'bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-950/50 active:scale-95'
+                  }`}
+                >
+                  <Fingerprint size={56} className="text-blue-600" />
+                </button>
+                <p className="text-gray-600 dark:text-slate-300 font-semibold mb-1">
+                  {fpScanning ? 'Reading fingerprint…' : 'Ready to scan'}
+                </p>
+                <p className="text-sm text-gray-400 dark:text-slate-500">
+                  {fpScanning
+                    ? 'Ask the member to keep their finger on the reader'
+                    : 'Press to scan, then place a finger on the reader'}
+                </p>
+              </div>
+
+              {/* A miss, or a reader that failed mid-scan. Sits where the
+                  result panel would, so the desk looks in one place. */}
+              {fpMessage && (
+                <div className="p-4 rounded-xl border-2 border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20 flex items-start gap-3">
+                  <AlertCircle size={18} className="text-yellow-600 shrink-0 mt-0.5" />
+                  <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                    {fpMessage}
+                  </p>
+                </div>
+              )}
+
+              {/* Same panel the QR tab shows, for the same reason: whoever is
+                  at the desk should see one shape of answer however the member
+                  identified themselves. */}
+              {lastScanned && (
+                <div className={`p-4 rounded-xl border-2 flex items-center gap-4 animate-fade-in ${
+                  lastScanned.status === 'already'
+                    ? 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300'
+                    : lastScanned.status === 'expired'
+                      ? 'bg-red-50 dark:bg-red-950/20 border-red-300'
+                      : 'bg-green-50 dark:bg-green-950/20 border-green-300'
+                }`}>
+                  <div className="w-14 h-14 rounded-xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 overflow-hidden">
+                    {lastScanned.photo
+                      ? <img src={lastScanned.photo} alt={lastScanned.name} className="w-full h-full object-cover" />
+                      : <span className="text-white font-bold">{getInitials(lastScanned.name)}</span>
+                    }
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900 dark:text-slate-100 text-lg">{lastScanned.name}</p>
+                    <p className={`text-sm font-semibold ${
+                      lastScanned.status === 'already' ? 'text-yellow-700' :
+                      lastScanned.status === 'expired' ? 'text-red-600' :
+                      lastScanned.status === 'none' ? 'text-gray-500' :
+                      'text-green-700'
+                    }`}>
+                      {lastScanned.status === 'already' ? '✓ Already checked in today' :
+                       lastScanned.status === 'expired' ? '⚠ Checked in — Membership expired!' :
+                       lastScanned.status === 'none' ? '✓ Checked in — No membership' :
+                       '✓ Checked in successfully!'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-center text-gray-400 dark:text-slate-500">
+                {fpStatus.enrolledCount} member{fpStatus.enrolledCount === 1 ? '' : 's'} enrolled ·{' '}
+                {fpStatus.label}
               </p>
             </div>
           )}

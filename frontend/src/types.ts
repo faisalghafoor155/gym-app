@@ -134,6 +134,9 @@ export interface Member {
   currentMembership: Membership | null;
   trainerId?: string | null;
   trainer?: { id: string; name: string } | null;
+  /** The member's fingerprint enrolment, or null. Never carries the template
+   *  itself — the roster only needs to know one exists. */
+  fingerprint?: FingerprintEnrolment | null;
 }
 
 export interface MemberSummary {
@@ -224,6 +227,39 @@ export interface AttendanceRecord {
 export interface CheckinResult extends AttendanceRecord {
   membership: Membership | null;
   alreadyCheckedIn: boolean;
+}
+
+/** Whether the gym has a fingerprint reader, and whether it is answering. */
+export interface FingerprintStatus {
+  /** A reader is wired up in the backend's device registry. */
+  configured: boolean;
+  /** It is configured *and* responding right now. */
+  online: boolean;
+  label: string;
+  /** The template encoding this reader produces, e.g. `zkteco-v10`. */
+  format: string;
+  /** True when the reader holds its own template store and matches internally,
+   *  which decides whether check-in sends an id or a captured template. */
+  matchesLocally: boolean;
+  enrolledCount: number;
+}
+
+/** What identifying a finger answers with. A miss is an ordinary outcome
+ *  rather than an error, hence `matched` instead of a thrown status. */
+export type FingerprintIdentifyResult =
+  | {
+      matched: true;
+      member: Pick<Member, 'id' | 'name' | 'photo' | 'memberNo'>;
+      score?: number;
+    }
+  | { matched: false; reason: 'no_match' | 'no_enrolments' };
+
+/** A member's enrolment, as the member page shows it. */
+export interface FingerprintEnrolment {
+  id: string;
+  enrolledAt: string;
+  finger: string | null;
+  format: string;
 }
 
 export interface Payment {

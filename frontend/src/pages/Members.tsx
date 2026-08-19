@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef, useMemo, type ChangeEvent, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, Camera, CalendarPlus, QrCode } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, Camera, CalendarPlus, QrCode, Fingerprint } from 'lucide-react';
 import Badge from '../components/Badge';
 import ConfirmDialog from '../components/ConfirmDialog';
+import FingerprintEnrollModal from '../components/FingerprintEnrollModal';
 import {
   Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl,
   FieldLabel, inputClass, primaryButton, secondaryButton, focusRing,
@@ -11,7 +12,7 @@ import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
 import { useDebounced } from '../hooks/useDebounced';
-import type { Gender, GymSettings, Member, MembershipPlan, MemberCounts, PaginatedMembers, Trainer } from '../types';
+import type { FingerprintStatus, Gender, GymSettings, Member, MembershipPlan, MemberCounts, PaginatedMembers, Trainer } from '../types';
 import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
 
@@ -94,6 +95,14 @@ export default function Members() {
   const [showModal, setShowModal] = useState(false);
   const [qrMember, setQrMember] = useState<Member | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [fingerprintMember, setFingerprintMember] = useState<Member | null>(null);
+  /** True when the dialog opened itself after a registration rather than being
+   *  asked for from the roster — only affects its wording. */
+  const [fingerprintAfterRegister, setFingerprintAfterRegister] = useState(false);
+  /** Whether a reader is attached at all. Gates the prompt after registering a
+   *  member: a gym with no reader should not be shown a dialog offering a scan
+   *  it cannot take. */
+  const [fingerprintReady, setFingerprintReady] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<MemberForm>(emptyForm);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
@@ -223,6 +232,13 @@ export default function Members() {
     void api.get<GymSettings>('/gym-settings')
       .then(r => setGymPtFee(r.data.defaultPtFee))
       .catch(() => { /* the placeholder simply says nothing */ });
+
+    // Whether to offer enrolment after registering somebody. Silent on
+    // failure: the fallback is not prompting, which is what a gym without a
+    // reader wants anyway.
+    void api.get<FingerprintStatus>('/fingerprint/status')
+      .then(r => setFingerprintReady(r.data.configured))
+      .catch(() => setFingerprintReady(false));
     // Deliberately once on mount: this is a landing hint, not a live binding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -321,16 +337,28 @@ export default function Members() {
       if (editing) {
         await api.put(`/members/${editing}`, payload);
         toast.success('Member updated');
+        setShowModal(false);
       } else {
         // A plan sells the membership in the same call; without one the member
         // is registered and can be given a membership later.
-        await api.post('/members', {
+        const { data: created } = await api.post<Member>('/members', {
           ...payload,
           ...(form.planId && { planId: form.planId, startDate: form.startDate }),
         });
         toast.success('Member added successfully');
+        setShowModal(false);
+
+        // Enrolment needs a member id, which only exists now — so the scan
+        // cannot happen inside the form and has to follow the save. Opening
+        // the dialog here keeps it one errand for the front desk instead of
+        // two: register the member, take their finger, done. It is skippable,
+        // and only offered when a reader is actually attached — a gym without
+        // one should not be shown a dialog it can do nothing with.
+        if (fingerprintReady) {
+          setFingerprintAfterRegister(true);
+          setFingerprintMember(created);
+        }
       }
-      setShowModal(false);
       await load();
     } catch (err) {
       toast.error(apiError(err, 'Error saving member'));
@@ -571,6 +599,20 @@ export default function Members() {
                     }}
                     className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}>
                     <QrCode size={12} />
+                  </button>
+                  {/* Filled when enrolled, outlined when not — the desk can see
+                      at a glance who can use the reader without opening it. */}
+                  <button onClick={() => { setFingerprintAfterRegister(false); setFingerprintMember(m); }}
+                    aria-label={m.fingerprint
+                      ? `Manage ${m.name}'s fingerprint`
+                      : `Enrol ${m.name}'s fingerprint`}
+                    title={m.fingerprint ? 'Fingerprint enrolled' : 'No fingerprint enrolled'}
+                    className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${focusRing} ${
+                      m.fingerprint
+                        ? 'border-blue-200 dark:border-blue-500/30 text-blue-600 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-50 dark:hover:bg-blue-950/40'
+                        : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60'
+                    }`}>
+                    <Fingerprint size={12} />
                   </button>
                   <button onClick={() => openEdit(m)}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}>
@@ -1008,6 +1050,18 @@ export default function Members() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Fingerprint enrolment */}
+      {fingerprintMember && (
+        <FingerprintEnrollModal
+          member={fingerprintMember}
+          existing={fingerprintMember.fingerprint ?? null}
+          justRegistered={fingerprintAfterRegister}
+          onClose={() => { setFingerprintMember(null); setFingerprintAfterRegister(false); }}
+          // Reload so the button's enrolled state matches what just happened.
+          onChanged={() => { void load(); }}
+        />
       )}
     </Page>
   );
