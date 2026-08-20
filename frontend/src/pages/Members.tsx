@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard,
 import Badge from '../components/Badge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FingerprintEnrollModal from '../components/FingerprintEnrollModal';
+import RenewModal from '../components/members/RenewModal';
 import {
   Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl,
   FieldLabel, inputClass, primaryButton, secondaryButton, focusRing,
@@ -44,16 +45,6 @@ interface MemberForm {
   feeChannel: PaymentChannel | '';
   /** The wallet's transaction id, when the front desk was given one. */
   feeReference: string;
-}
-
-/** What the desk fills in to renew: the next period, and the money for it. */
-interface RenewForm {
-  /** Blank means the same plan again. */
-  planId: string;
-  amount: string;
-  method: PaymentMethod;
-  channel: PaymentChannel | '';
-  reference: string;
 }
 
 const emptyForm: MemberForm = {
@@ -104,29 +95,6 @@ function previewExpiry(startDate: string, durationDays: number): string {
   const d = new Date(startDate);
   d.setDate(d.getDate() + durationDays);
   return d.toISOString().split('T')[0]!;
-}
-
-/**
- * When a renewal's new period will begin — the day after the current expiry,
- * or today if that has already passed.
- *
- * Mirrors `renewalStart` on the server so the modal can say what the member is
- * buying before they pay for it. The server's answer is still the one stored.
- */
-function renewalStart(expiryDate: string): Date {
-  const dayAfter = new Date(expiryDate);
-  dayAfter.setDate(dayAfter.getDate() + 1);
-  const now = new Date();
-  return dayAfter > now ? dayAfter : now;
-}
-
-/** What the renewal will run to, given the plan picked. */
-function previewRenewal(expiryDate: string, durationDays: number): string {
-  const d = renewalStart(expiryDate);
-  d.setDate(d.getDate() + durationDays);
-  return d.toLocaleDateString('en-PK', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
 }
 
 /**
@@ -214,14 +182,10 @@ export default function Members() {
   // First paint shows a spinner; later fetches dim the old list instead.
   const [refetching, setRefetching] = useState(false);
   const [deleting, setDeleting] = useState<Member | null>(null);
-  /** The member being renewed, and what the desk is taking for it. */
+  /** The member being renewed. What is taken for it lives in the modal. */
   const [renewing, setRenewing] = useState<Member | null>(null);
-  const [renewForm, setRenewForm] = useState<RenewForm>({
-    planId: '', amount: '', method: 'cash', channel: '', reference: '',
-  });
   const photoRef = useRef<HTMLInputElement>(null);
   const modalRef = useDialog(showModal, () => setShowModal(false));
-  const renewRef = useDialog(!!renewing, () => setRenewing(null));
 
   const debouncedSearch = useDebounced(search);
 
@@ -568,48 +532,6 @@ export default function Members() {
     }
   };
 
-  const openRenew = (m: Member) => {
-    const plan = plans.find(p => p.id === m.currentMembership?.planId);
-    setRenewForm({
-      // Same plan again is the common case, so it is preselected.
-      planId: m.currentMembership?.planId ?? plans[0]?.id ?? '',
-      // Prefilled from the plan's price, and editable — a haggled renewal is
-      // recorded at what was actually taken, not what the list says.
-      amount: plan ? String(plan.price) : '',
-      method: 'cash',
-      channel: '',
-      reference: '',
-    });
-    setRenewing(m);
-  };
-
-  const handleRenew = async (e: FormEvent) => {
-    e.preventDefault();
-    const ms = renewing?.currentMembership;
-    if (!renewing || !ms) return;
-    setSaving(true);
-    try {
-      await api.post(`/members/${renewing.id}/memberships/${ms.id}/renew`, {
-        ...(renewForm.planId && { planId: renewForm.planId }),
-        amount: Number(renewForm.amount),
-        method: renewForm.method,
-        ...(renewForm.method === 'online' && {
-          channel: renewForm.channel || null,
-          reference: renewForm.reference.trim() || null,
-        }),
-      });
-      toast.success('Membership renewed');
-      setRenewing(null);
-      await load();
-    } catch (err) {
-      // The modal stays open with its values, so a mistyped amount can be
-      // corrected without retyping the rest.
-      toast.error(apiError(err, 'Could not renew membership'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   // Searching, filtering and counting all happen on the server now — what
   // arrives in `members` is already the page being shown.
   if (loading) return <PageLoader />;
@@ -816,7 +738,7 @@ export default function Members() {
                     <Pencil size={12} /> Edit
                   </button>
                   {canRenew(m) && (
-                    <button onClick={() => openRenew(m)} aria-label={`Renew ${m.name}'s membership`}
+                    <button onClick={() => setRenewing(m)} aria-label={`Renew ${m.name}'s membership`}
                       className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-blue-100 dark:border-blue-500/20 text-blue-600 hover:bg-blue-50 transition-colors ${focusRing}`}>
                       <CalendarPlus size={12} /> Renew
                     </button>
@@ -1237,182 +1159,15 @@ export default function Members() {
 
       {/* Renew Modal. Nothing renews on its own — a membership sits expired
           until somebody here takes the fee and presses the button. */}
-      {renewing?.currentMembership && (() => {
-        const ms = renewing.currentMembership;
-        const picked = plans.find(p => p.id === renewForm.planId);
-        return (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setRenewing(null)} aria-hidden="true" />
-          <div
-            ref={renewRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="renew-modal-title"
-            className="relative bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
-          >
-            <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
-              <h2 id="renew-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
-                Renew membership
-              </h2>
-              <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
-                {renewing.name} · {renewing.memberNo}
-              </p>
-            </div>
-
-            <form onSubmit={e => void handleRenew(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
-              <div className="rounded-lg bg-gray-50 dark:bg-slate-800/60 px-3 py-2.5 space-y-1.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500 dark:text-slate-400">Current plan</span>
-                  <span className="font-semibold text-gray-800 dark:text-slate-200">{ms.planName}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500 dark:text-slate-400">Expires</span>
-                  <span className="font-semibold text-gray-800 dark:text-slate-200">
-                    {new Date(ms.expiryDate)
-                      .toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-500 dark:text-slate-400">Status</span>
-                  <span className="font-semibold text-gray-800 dark:text-slate-200">
-                    {ms.daysLeft < 0
-                      ? `Expired ${Math.abs(ms.daysLeft)}d ago`
-                      : `${ms.daysLeft}d left`}
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <FieldLabel required>Plan</FieldLabel>
-                <select
-                  value={renewForm.planId}
-                  onChange={e => {
-                    const planId = e.target.value;
-                    const plan = plans.find(p => p.id === planId);
-                    // The price follows the plan, so switching plans does not
-                    // leave the old plan's figure sitting in the amount.
-                    setRenewForm(f => ({
-                      ...f, planId, ...(plan && { amount: String(plan.price) }),
-                    }));
-                  }}
-                  className={inputClass}
-                >
-                  {/* The member's own plan stays offered even if it has since
-                      been retired — renewing what they already hold is not
-                      buying something new. */}
-                  {!plans.some(p => p.id === ms.planId) && (
-                    <option value={ms.planId}>{ms.planName} (current)</option>
-                  )}
-                  {plans.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} — Rs. {p.price.toLocaleString('en-PK')} / {p.durationDays}d
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <FieldLabel required>Fee collected (Rs.)</FieldLabel>
-                <input
-                  type="number" min={1} step={1} required
-                  value={renewForm.amount}
-                  onChange={e => setRenewForm(f => ({ ...f, amount: e.target.value }))}
-                  className={inputClass}
-                />
-                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-                  Change it if a different amount was agreed.
-                </p>
-              </div>
-
-              <div>
-                <FieldLabel required>Paid by</FieldLabel>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['cash', 'online'] as PaymentMethod[]).map(m => (
-                    <button key={m} type="button"
-                      onClick={() => setRenewForm(f => ({
-                        ...f, method: m,
-                        // Cash carries no wallet; drop what an earlier online
-                        // selection left behind.
-                        ...(m === 'cash' && { channel: '' as const, reference: '' }),
-                      }))}
-                      className={`border rounded-xl py-2.5 px-2 text-center transition-all ${focusRing} ${
-                        renewForm.method === m
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700'
-                          : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-gray-300'
-                      }`}>
-                      <p className="font-semibold text-xs capitalize">{m}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {renewForm.method === 'online' && (
-                <>
-                  <div>
-                    <FieldLabel>Received in</FieldLabel>
-                    <select
-                      value={renewForm.channel}
-                      onChange={e => setRenewForm(f => ({ ...f, channel: e.target.value as PaymentChannel | '' }))}
-                      className={inputClass}
-                    >
-                      <option value="">Select account</option>
-                      {CHANNELS.map(c => (
-                        <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
-                      ))}
-                    </select>
-                    {accountFor(settings, renewForm.channel) && (
-                      <div className="mt-2 bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/20 rounded-xl px-3 py-2">
-                        <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">Send to</p>
-                        <p className="text-sm font-bold text-blue-700 dark:text-blue-200 break-words">
-                          {accountFor(settings, renewForm.channel)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <FieldLabel>Transaction ID <span className="font-normal text-gray-400">(optional)</span></FieldLabel>
-                    <input
-                      type="text" maxLength={100}
-                      value={renewForm.reference}
-                      onChange={e => setRenewForm(f => ({ ...f, reference: e.target.value }))}
-                      placeholder="e.g. 4429183756"
-                      className={inputClass}
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* Says what the member is buying before they pay for it. Days
-                  still on the clock are carried, so renewing early costs them
-                  nothing. */}
-              {picked && (
-                <div className="rounded-lg bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/20 px-3 py-2.5">
-                  <p className="text-xs font-semibold text-blue-800">New expiry</p>
-                  <p className="text-sm font-bold text-blue-900 mt-0.5">
-                    {previewRenewal(ms.expiryDate, picked.durationDays)}
-                  </p>
-                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
-                    {ms.daysLeft > 0
-                      ? `Starts when the current one ends — their ${ms.daysLeft} remaining day${ms.daysLeft === 1 ? '' : 's'} are kept.`
-                      : 'Starts today.'}
-                  </p>
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setRenewing(null)}
-                  className={`flex-1 ${secondaryButton}`}>
-                  Cancel
-                </button>
-                <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
-                  {saving ? 'Renewing...' : 'Renew'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-        );
-      })()}
+      {renewing?.currentMembership && (
+        <RenewModal
+          member={renewing as Member & { currentMembership: NonNullable<Member['currentMembership']> }}
+          plans={plans}
+          settings={settings}
+          onClose={() => setRenewing(null)}
+          onRenewed={() => { setRenewing(null); void load(); }}
+        />
+      )}
 
       {deleting && (
         <ConfirmDialog

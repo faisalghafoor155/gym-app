@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import {
@@ -299,5 +299,101 @@ describe('Members — when renew is offered', () => {
 
     // Nothing to renew from: they need a first membership, not a renewal.
     expect(renewButton()).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The renew modal itself, which owns its own form.
+ *
+ * What the desk sends is the thing to hold down: the endpoint carries the
+ * membership being replaced, and a renewal taken in cash must not carry a
+ * wallet left behind by an earlier online selection.
+ */
+describe('Members — renewing', () => {
+  const expiringMember = () => aMember({
+    id: 'member-1',
+    name: 'Ali Khan',
+    currentMembership: aMembership({
+      id: 'membership-9',
+      planId: 'plan-1',
+      planName: 'Monthly',
+      status: 'expiring',
+      daysLeft: 3,
+    }),
+  });
+
+  const openRenew = async () => {
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+    await user.click(screen.getByRole('button', { name: /renew ali khan/i }));
+    return user;
+  };
+
+  it('opens against the membership being replaced', async () => {
+    api.current = mockApi({
+      '/membership-plans': [{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }],
+      '/members': membersPage([expiringMember()]),
+    });
+    auth.current = ownerAuth;
+
+    const user = await openRenew();
+    expect(await screen.findByRole('dialog', { name: /renew membership/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^renew$/i }));
+
+    await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
+    // The old membership's id is in the path: a renewal supersedes a specific
+    // row rather than whatever the member currently holds.
+    const [url] = api.current!.post.mock.calls[0] as unknown as [string, unknown];
+    expect(url).toBe('/members/member-1/memberships/membership-9/renew');
+  });
+
+  it('prefills the fee from the plan and sends what was actually typed', async () => {
+    api.current = mockApi({
+      '/membership-plans': [{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }],
+      '/members': membersPage([expiringMember()]),
+    });
+    auth.current = ownerAuth;
+
+    const user = await openRenew();
+    const dialog = await screen.findByRole('dialog', { name: /renew membership/i });
+    // `FieldLabel` renders no `htmlFor`, so the fee field is reached by role
+    // rather than by its label.
+    const amount = within(dialog).getByRole('spinbutton');
+    // Prefilled from the plan's price so the common case is one click...
+    expect(amount).toHaveValue(2500);
+
+    // ...and editable, because a haggled renewal is recorded at what was taken.
+    await user.clear(amount);
+    await user.type(amount, '2000');
+    await user.click(screen.getByRole('button', { name: /^renew$/i }));
+
+    await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
+    const [, body] = api.current!.post.mock.calls[0] as unknown as [string, { amount: number }];
+    expect(body.amount).toBe(2000);
+  });
+
+  it('sends no wallet for a renewal switched back to cash', async () => {
+    api.current = mockApi({
+      '/membership-plans': [{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }],
+      '/members': membersPage([expiringMember()]),
+    });
+    auth.current = ownerAuth;
+
+    const user = await openRenew();
+    const dialog = await screen.findByRole('dialog', { name: /renew membership/i });
+    await user.click(within(dialog).getByRole('button', { name: /online/i }));
+    // The channel picker is the only select to appear once online is chosen.
+    const channel = within(dialog).getAllByRole('combobox').at(-1)!;
+    await user.selectOptions(channel, 'easypaisa');
+    // Switching back must drop the wallet, not leave it on a cash row.
+    await user.click(within(dialog).getByRole('button', { name: /cash/i }));
+    await user.click(within(dialog).getByRole('button', { name: /^renew$/i }));
+
+    await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
+    const [, body] = api.current!.post.mock.calls[0] as unknown as [string, Record<string, unknown>];
+    expect(body.method).toBe('cash');
+    expect(body).not.toHaveProperty('channel');
   });
 });
