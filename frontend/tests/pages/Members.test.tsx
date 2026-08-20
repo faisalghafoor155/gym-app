@@ -25,7 +25,9 @@ const auth = vi.hoisted(() => ({ current: null as unknown as AuthState }));
 
 vi.mock('../../src/api/client', () => ({
   default: {
-    get: (url: string) => api.current!.get(url),
+    // All arguments forwarded, not just the URL: the duplicate check carries
+    // what it is asking about in a config object rather than the path.
+    get: (...args: unknown[]) => api.current!.get(...args as [string]),
     post: (...args: unknown[]) => api.current!.post(...args as []),
     put: (...args: unknown[]) => api.current!.put(...args as []),
     delete: (...args: unknown[]) => api.current!.delete(...args as []),
@@ -465,5 +467,169 @@ describe('Members — the check-in code', () => {
     await user.keyboard('{Escape}');
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+});
+
+/**
+ * The add/edit form, which owns what is typed into it.
+ *
+ * The two modes send to different endpoints with different payloads, and the
+ * split is the thing to hold down: an edit that carried the registration
+ * fields would sell a membership to somebody whose phone number was being
+ * corrected, and a plan or a fee reaching PUT is money recorded twice.
+ *
+ * The enrolment handoff is the other half. A registered member's id does not
+ * exist until the save returns, so the prompt cannot live in the form — it
+ * crosses back to the page, and a boundary is exactly where that wiring goes
+ * quietly missing.
+ */
+describe('Members — the member form', () => {
+  const withPlans = (members = membersPage([aMember({ name: 'Ali Khan' })])) => {
+    auth.current = ownerAuth;
+    api.current = mockApi({
+      '/membership-plans': [{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }],
+      '/trainers': [],
+      '/gym-settings': { defaultPtFee: null },
+      '/fingerprint/status': { configured: false },
+      '/members/check-duplicate': { duplicate: false },
+      '/members': members,
+    });
+    return api.current;
+  };
+
+  it('registers on POST, with the plan and the fee taken at the counter', async () => {
+    const stub = withPlans();
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+
+    await user.click(screen.getByRole('button', { name: /add member/i }));
+    const dialog = await screen.findByRole('dialog', { name: /add new member/i });
+    await user.type(within(dialog).getByPlaceholderText(/ahmed khan/i), 'Zainab Malik');
+    await user.type(within(dialog).getByLabelText(/fee collected/i), '2500');
+    await user.click(within(dialog).getByRole('button', { name: /^add member$/i }));
+
+    await waitFor(() => expect(stub.post).toHaveBeenCalled());
+    const [url, body] = stub.post.mock.calls[0] as unknown as [string, Record<string, unknown>];
+    expect(url).toBe('/members');
+    expect(body.name).toBe('Zainab Malik');
+    // The plan is preselected, so a registration carries the membership it sold.
+    expect(body.planId).toBe('plan-1');
+    expect(body.feeAmount).toBe(2500);
+  });
+
+  it('records no payment when the fee is left blank', async () => {
+    const stub = withPlans();
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+
+    await user.click(screen.getByRole('button', { name: /add member/i }));
+    const dialog = await screen.findByRole('dialog', { name: /add new member/i });
+    await user.type(within(dialog).getByPlaceholderText(/ahmed khan/i), 'Zainab Malik');
+    await user.click(within(dialog).getByRole('button', { name: /^add member$/i }));
+
+    await waitFor(() => expect(stub.post).toHaveBeenCalled());
+    const [, body] = stub.post.mock.calls[0] as unknown as [string, Record<string, unknown>];
+    // A blank amount means no money changed hands, not a payment of nothing —
+    // a zero here would post a Rs. 0 receipt into the day's collection.
+    expect(body).not.toHaveProperty('feeAmount');
+    expect(body).not.toHaveProperty('feeMethod');
+  });
+
+  it('edits on PUT, carrying nothing that belongs to registration', async () => {
+    const stub = withPlans(membersPage([aMember({ id: 'member-1', name: 'Ali Khan' })]));
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+
+    await user.click(screen.getByRole('button', { name: /edit ali khan/i }));
+    const dialog = await screen.findByRole('dialog', { name: /edit member/i });
+    await user.click(within(dialog).getByRole('button', { name: /update member/i }));
+
+    await waitFor(() => expect(stub.put).toHaveBeenCalled());
+    const [url, body] = stub.put.mock.calls[0] as unknown as [string, Record<string, unknown>];
+    expect(url).toBe('/members/member-1');
+    // Correcting a profile must not sell anything: a plan or a fee reaching
+    // PUT would bill a member who only had their address changed.
+    expect(body).not.toHaveProperty('planId');
+    expect(body).not.toHaveProperty('feeAmount');
+    expect(stub.post).not.toHaveBeenCalled();
+  });
+
+  it('does not offer the membership section when editing', async () => {
+    withPlans(membersPage([aMember({ id: 'member-1', name: 'Ali Khan' })]));
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+
+    await user.click(screen.getByRole('button', { name: /edit ali khan/i }));
+    const dialog = await screen.findByRole('dialog', { name: /edit member/i });
+
+    expect(within(dialog).queryByLabelText(/fee collected/i)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/membership plan/i)).not.toBeInTheDocument();
+  });
+
+  it('excludes the edited member from its own duplicate check', async () => {
+    const stub = withPlans(membersPage([aMember({ id: 'member-1', name: 'Ali Khan' })]));
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+
+    await user.click(screen.getByRole('button', { name: /edit ali khan/i }));
+    const dialog = await screen.findByRole('dialog', { name: /edit member/i });
+    await user.type(within(dialog).getByPlaceholderText(/03001234567/), '03001234567');
+    await user.tab();
+
+    await waitFor(() => {
+      expect(stub.get.mock.calls.some(([u]) => String(u).includes('check-duplicate'))).toBe(true);
+    });
+    const call = stub.get.mock.calls.find(([u]) => String(u).includes('check-duplicate'))!;
+    const config = call[1] as { params: Record<string, unknown> };
+    // Without this the form flags every edited member as a duplicate of
+    // themselves and disables its own save button.
+    expect(config.params.excludeId).toBe('member-1');
+  });
+
+  it('offers enrolment after registering, once the save has returned an id', async () => {
+    const stub = withPlans();
+    // A reader is attached, so the prompt is worth offering.
+    stub.get.mockImplementation((url: string) => {
+      stub.calls.push(url);
+      if (url.includes('/fingerprint/status')) return Promise.resolve({ data: { configured: true } });
+      if (url.includes('/membership-plans')) return Promise.resolve({ data: [] });
+      if (url.includes('/check-duplicate')) return Promise.resolve({ data: { duplicate: false } });
+      if (url.includes('/trainers')) return Promise.resolve({ data: [] });
+      if (url.includes('/gym-settings')) return Promise.resolve({ data: { defaultPtFee: null } });
+      return Promise.resolve({ data: membersPage([aMember({ name: 'Ali Khan' })]) });
+    });
+    stub.post.mockResolvedValue({ data: aMember({ id: 'member-new', name: 'Zainab Malik' }) });
+
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+
+    await user.click(screen.getByRole('button', { name: /add member/i }));
+    const dialog = await screen.findByRole('dialog', { name: /add new member/i });
+    await user.type(within(dialog).getByPlaceholderText(/ahmed khan/i), 'Zainab Malik');
+    await user.click(within(dialog).getByRole('button', { name: /^add member$/i }));
+
+    // The id only exists once POST answered, so this prompt has to cross back
+    // from the form to the page rather than live inside the form. It is the
+    // newly-created member being enrolled, not whoever was on the roster.
+    expect(await screen.findByText(/zainab malik/i)).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /add new member/i })).not.toBeInTheDocument();
+  });
+
+  it('opens the form ready to register when the dashboard deep-links to it', async () => {
+    withPlans();
+    renderPage(<Members />, { route: '/members?new=1' });
+
+    // The plans arrive and the form opens in the same render, so the picker is
+    // populated rather than showing the "no plans set up yet" fallback to a gym
+    // that has plans.
+    const dialog = await screen.findByRole('dialog', { name: /add new member/i });
+    expect(within(dialog).getByText(/monthly/i)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/no plans set up yet/i)).not.toBeInTheDocument();
   });
 });
