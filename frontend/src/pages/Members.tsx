@@ -8,11 +8,12 @@ import {
   Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl,
   FieldLabel, inputClass, primaryButton, secondaryButton, focusRing,
 } from '../components/ui';
+import type { AxiosError } from 'axios';
 import api, { apiError } from '../api/client';
-import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
 import { useDebounced } from '../hooks/useDebounced';
-import type { FingerprintStatus, Gender, GymSettings, Member, MembershipPlan, MemberCounts, PaginatedMembers, Trainer } from '../types';
+import type { FingerprintStatus, Gender, GymSettings, Member, MembershipPlan, MemberCounts, PaginatedMembers, PaymentChannel, PaymentMethod, Trainer } from '../types';
+import { CHANNELS, CHANNEL_LABELS, accountFor } from '../utils/paymentChannels';
 import toast from 'react-hot-toast';
 import QRCode from 'qrcode';
 
@@ -35,12 +36,31 @@ interface MemberForm {
   ptFee: string;
   /** Whether the fee was taken at the counter. False records a due. */
   ptFeePaid: boolean;
+  /** The joining fee handed over at the counter. Blank means none was taken —
+   *  the member is registered and can be billed from the Payments page. */
+  feeAmount: string;
+  feeMethod: PaymentMethod;
+  /** Which wallet, when the money came in online. */
+  feeChannel: PaymentChannel | '';
+  /** The wallet's transaction id, when the front desk was given one. */
+  feeReference: string;
+}
+
+/** What the desk fills in to renew: the next period, and the money for it. */
+interface RenewForm {
+  /** Blank means the same plan again. */
+  planId: string;
+  amount: string;
+  method: PaymentMethod;
+  channel: PaymentChannel | '';
+  reference: string;
 }
 
 const emptyForm: MemberForm = {
   name: '', email: '', phone: '', photo: '',
   gender: '', dateOfBirth: '', address: '', emergencyContact: '',
   planId: '', startDate: '', trainerId: '', ptFee: '', ptFeePaid: false,
+  feeAmount: '', feeMethod: 'cash', feeChannel: '', feeReference: '',
 };
 
 /** The filters worth offering. The stored statuses a member never sees
@@ -51,9 +71,27 @@ type StatusFilter = (typeof FILTERS)[number];
 const isFilter = (v: string | null): v is StatusFilter =>
   !!v && (FILTERS as readonly string[]).includes(v);
 
+/** '' is "everyone", which includes members whose gender was never recorded. */
+const GENDER_FILTERS = ['', 'male', 'female', 'other'] as const;
+type GenderFilter = (typeof GENDER_FILTERS)[number];
+
+const isGenderFilter = (v: string | null): v is GenderFilter =>
+  v !== null && (GENDER_FILTERS as readonly string[]).includes(v);
+
 /** Members per request. The rest arrive on demand rather than up front — a
  *  member row carries a photo, so a full roster is expensive to ship. */
 const PAGE_SIZE = 24;
+
+/**
+ * Reads a 409 from the member endpoints back into the field warning the form
+ * shows. Anything else — a 500, a network failure — is not a duplicate and is
+ * left to the generic error path.
+ */
+function isDuplicateError(err: unknown): { field: 'phone' | 'name'; message: string } | null {
+  const res = (err as AxiosError<{ error?: string; field?: 'phone' | 'name' }>)?.response;
+  if (res?.status !== 409 || !res.data?.field || !res.data.error) return null;
+  return { field: res.data.field, message: res.data.error };
+}
 
 function getInitials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -68,25 +106,55 @@ function previewExpiry(startDate: string, durationDays: number): string {
   return d.toISOString().split('T')[0]!;
 }
 
-/** Local preview of the extended expiry, on the same terms as previewExpiry:
- *  the server's answer is the one that counts. */
-function previewExtended(expiryDate: string, days: number): string {
-  const d = new Date(expiryDate);
-  d.setDate(d.getDate() + days);
+/**
+ * When a renewal's new period will begin — the day after the current expiry,
+ * or today if that has already passed.
+ *
+ * Mirrors `renewalStart` on the server so the modal can say what the member is
+ * buying before they pay for it. The server's answer is still the one stored.
+ */
+function renewalStart(expiryDate: string): Date {
+  const dayAfter = new Date(expiryDate);
+  dayAfter.setDate(dayAfter.getDate() + 1);
+  const now = new Date();
+  return dayAfter > now ? dayAfter : now;
+}
+
+/** What the renewal will run to, given the plan picked. */
+function previewRenewal(expiryDate: string, durationDays: number): string {
+  const d = renewalStart(expiryDate);
+  d.setDate(d.getDate() + durationDays);
   return d.toLocaleDateString('en-PK', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
 }
 
 /**
- * Whether a membership can still be given extra days. Superseded and cancelled
- * ones are closed history — the same rule the API enforces, mirrored here so
- * the button is absent rather than failing on click.
+ * Whether to offer Renew on a member's row.
+ *
+ * Only once renewing is actually the next thing to do: the last week of the
+ * term, or any time after it has run out. Offering it against a membership
+ * with three weeks left puts a button on every row in the gym, which is the
+ * same as having no button at all — the ones that need attention stop
+ * standing out.
+ *
+ * Keyed off the status the server already derives rather than a day count of
+ * its own. `expiring` is its word for "a week or less left", so the button and
+ * the yellow badge turn on together and cannot drift apart if that week is
+ * ever changed to something else.
+ *
+ * Superseded and cancelled are closed history — the same rule the API
+ * enforces, mirrored here so the button is absent rather than failing on
+ * click.
  */
-const canExtend = (m: Member): boolean =>
-  !!m.currentMembership
-  && m.currentMembership.status !== 'superseded'
-  && m.currentMembership.status !== 'cancelled';
+const canRenew = (m: Member): boolean => {
+  // `expired` covers the lapsed too: lapsing describes the member, not the
+  // thing they bought, so a membership that ran out six months ago still
+  // reads as expired here — and somebody who drifted away is exactly who the
+  // desk wants to sell a renewal to when they reappear.
+  const status = m.currentMembership?.status;
+  return status === 'expiring' || status === 'expired';
+};
 
 export default function Members() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -111,7 +179,10 @@ export default function Members() {
   const [originalTrainerId, setOriginalTrainerId] = useState('');
   /** The gym's fallback rate, shown as the blank field's placeholder so staff
    *  can see what leaving it empty will charge. */
-  const [gymPtFee, setGymPtFee] = useState<number | null>(null);
+  /** The gym's own settings: the default PT rate, and the accounts members are
+   *  told to send money to. */
+  const [settings, setSettings] = useState<GymSettings | null>(null);
+  const gymPtFee = settings?.defaultPtFee ?? null;
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [params, setParams] = useSearchParams();
@@ -120,6 +191,12 @@ export default function Members() {
   const [filterStatus, setFilterStatus] = useState<StatusFilter>(() => {
     const s = params.get('status');
     return isFilter(s) ? s : 'all';
+  });
+  // Read from the URL like the status tab is, so a filtered roster survives a
+  // refresh and can be linked to.
+  const [filterGender, setFilterGender] = useState<GenderFilter>(() => {
+    const g = params.get('gender');
+    return isGenderFilter(g) ? g : '';
   });
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -137,14 +214,14 @@ export default function Members() {
   // First paint shows a spinner; later fetches dim the old list instead.
   const [refetching, setRefetching] = useState(false);
   const [deleting, setDeleting] = useState<Member | null>(null);
-  // Granting days is owner-only, so staff never see the action at all.
-  const { isOwner } = useAuth();
-  const [extending, setExtending] = useState<Member | null>(null);
-  const [extendDays, setExtendDays] = useState('');
-  const [extendReason, setExtendReason] = useState('');
+  /** The member being renewed, and what the desk is taking for it. */
+  const [renewing, setRenewing] = useState<Member | null>(null);
+  const [renewForm, setRenewForm] = useState<RenewForm>({
+    planId: '', amount: '', method: 'cash', channel: '', reference: '',
+  });
   const photoRef = useRef<HTMLInputElement>(null);
   const modalRef = useDialog(showModal, () => setShowModal(false));
-  const extendRef = useDialog(!!extending, () => setExtending(null));
+  const renewRef = useDialog(!!renewing, () => setRenewing(null));
 
   const debouncedSearch = useDebounced(search);
 
@@ -158,9 +235,10 @@ export default function Members() {
     const q = new URLSearchParams();
     if (debouncedSearch.trim()) q.set('search', debouncedSearch.trim());
     if (filterStatus !== 'all') q.set('status', filterStatus);
+    if (filterGender) q.set('gender', filterGender);
     q.set('limit', String(PAGE_SIZE));
     return `?${q.toString()}`;
-  }, [debouncedSearch, filterStatus]);
+  }, [debouncedSearch, filterStatus, filterGender]);
 
   /**
    * Replaces the list from page one, under the filters in force.
@@ -227,11 +305,12 @@ export default function Members() {
       .then(r => setTrainers(r.data))
       .catch(err => console.error('Could not load trainers', err));
 
-    // Only for the fee field's placeholder. A failure is not worth a toast —
-    // the form still works, the hint is just missing.
+    // The fee field's placeholder and the account line under the channel
+    // picker. A failure is not worth a toast — the form still works, the hints
+    // are just missing.
     void api.get<GymSettings>('/gym-settings')
-      .then(r => setGymPtFee(r.data.defaultPtFee))
-      .catch(() => { /* the placeholder simply says nothing */ });
+      .then(r => setSettings(r.data))
+      .catch(() => { /* the hints simply say nothing */ });
 
     // Whether to offer enrolment after registering somebody. Silent on
     // failure: the fallback is not prompting, which is what a gym without a
@@ -245,6 +324,71 @@ export default function Members() {
 
   const set = <K extends keyof MemberForm>(k: K) => (v: MemberForm[K]) =>
     setForm(f => ({ ...f, [k]: v }));
+
+  /**
+   * Whether what has been typed so far already belongs to somebody, and under
+   * which field to say so. Cleared as soon as the offending field is edited,
+   * so a corrected number stops complaining without waiting for a round trip.
+   */
+  const [duplicate, setDuplicate] = useState<{ field: 'phone' | 'name'; message: string } | null>(null);
+
+  /** Guards against a slow answer landing after the field has moved on. */
+  const dupCheckSeq = useRef(0);
+
+  /**
+   * Asks the server whether this would be a duplicate, on leaving a field
+   * rather than on every keystroke.
+   *
+   * Only ever a hint: the save re-checks server-side, so a failure here is
+   * swallowed. Blocking a registration because a lookup timed out would be a
+   * worse bug than the duplicate it was trying to prevent.
+   */
+  const checkDuplicate = async (next: MemberForm) => {
+    const phone = next.phone.trim();
+    const name = next.name.trim();
+    const dob = next.dateOfBirth;
+    if (!phone && !(name && dob)) { setDuplicate(null); return; }
+
+    const seq = ++dupCheckSeq.current;
+    try {
+      const { data } = await api.get<{
+        duplicate: boolean;
+        field?: 'phone' | 'name';
+        message?: string;
+      }>('/members/check-duplicate', {
+        params: {
+          ...(phone && { phone }),
+          ...(name && { name }),
+          ...(dob && { dateOfBirth: dob }),
+          // An edit must not find the member being edited.
+          ...(editing && { excludeId: editing }),
+        },
+      });
+      // A newer check has been asked for since; this answer is about text the
+      // user has already replaced.
+      if (seq !== dupCheckSeq.current) return;
+      setDuplicate(
+        data.duplicate && data.field && data.message
+          ? { field: data.field, message: data.message }
+          : null,
+      );
+    } catch {
+      // Fail open — let the save attempt decide.
+      if (seq === dupCheckSeq.current) setDuplicate(null);
+    }
+  };
+
+  /** Editing a flagged field clears its warning; the blur will re-ask. */
+  const setChecked = <K extends 'name' | 'phone' | 'dateOfBirth'>(k: K) => (v: MemberForm[K]) => {
+    setForm(f => ({ ...f, [k]: v }));
+    setDuplicate(d => {
+      if (!d) return null;
+      return (d.field === 'phone' && k === 'phone') ||
+        (d.field === 'name' && (k === 'name' || k === 'dateOfBirth'))
+        ? null
+        : d;
+    });
+  };
 
   /**
    * What leaving the fee blank will actually charge — the same trainer-then-gym
@@ -287,27 +431,31 @@ export default function Members() {
     // A new member has no trainer yet, so picking one is always a fresh
     // assignment and the fee field should show.
     setOriginalTrainerId('');
+    setDuplicate(null);
     setShowModal(true);
   };
 
   const openEdit = (m: Member) => {
     setEditing(m.id);
+    // Built on `emptyForm` rather than listing every field: an edit only fills
+    // in what the member already has, and the rest — the plan and the fee,
+    // which belong to registration — should stay at their blank defaults
+    // whatever fields the form grows later.
     setForm({
+      ...emptyForm,
       name: m.name, email: m.email || '', phone: m.phone || '',
       photo: m.photo || '',
       gender: m.gender ?? '',
       dateOfBirth: m.dateOfBirth ? m.dateOfBirth.split('T')[0]! : '',
       address: m.address ?? '',
       emergencyContact: m.emergencyContact ?? '',
-      planId: '', startDate: '',
       trainerId: m.trainerId || '',
-      ptFee: '',
-      ptFeePaid: false,
     });
     // Remembered so the fee field appears only when the trainer is actually
     // changing — re-saving a member with the trainer they already have raises
     // no charge, and a field offering to set one would be lying.
     setOriginalTrainerId(m.trainerId || '');
+    setDuplicate(null);
     setShowModal(true);
   };
 
@@ -344,6 +492,16 @@ export default function Members() {
         const { data: created } = await api.post<Member>('/members', {
           ...payload,
           ...(form.planId && { planId: form.planId, startDate: form.startDate }),
+          // Only sent when money actually changed hands. A blank amount means
+          // no payment was taken, not a payment of nothing.
+          ...(form.feeAmount.trim() !== '' && Number(form.feeAmount) > 0 && {
+            feeAmount: Number(form.feeAmount),
+            feeMethod: form.feeMethod,
+            ...(form.feeMethod === 'online' && {
+              feeChannel: form.feeChannel || null,
+              feeReference: form.feeReference.trim() || null,
+            }),
+          }),
         });
         toast.success('Member added successfully');
         setShowModal(false);
@@ -361,7 +519,16 @@ export default function Members() {
       }
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Error saving member'));
+      // The server found a duplicate the live check missed — either it was
+      // never asked, or somebody else registered this person in between. Keep
+      // the modal and the typed data, and point at the field at fault.
+      const conflict = isDuplicateError(err);
+      if (conflict) {
+        setDuplicate(conflict);
+        toast.error(conflict.message);
+      } else {
+        toast.error(apiError(err, 'Error saving member'));
+      }
     } finally {
       setSaving(false);
     }
@@ -382,53 +549,45 @@ export default function Members() {
     }
   };
 
-  const openExtend = (m: Member) => {
-    setExtendDays('');
-    setExtendReason('');
-    setExtending(m);
+  const openRenew = (m: Member) => {
+    const plan = plans.find(p => p.id === m.currentMembership?.planId);
+    setRenewForm({
+      // Same plan again is the common case, so it is preselected.
+      planId: m.currentMembership?.planId ?? plans[0]?.id ?? '',
+      // Prefilled from the plan's price, and editable — a haggled renewal is
+      // recorded at what was actually taken, not what the list says.
+      amount: plan ? String(plan.price) : '',
+      method: 'cash',
+      channel: '',
+      reference: '',
+    });
+    setRenewing(m);
   };
 
-  const handleExtend = async (e: FormEvent) => {
+  const handleRenew = async (e: FormEvent) => {
     e.preventDefault();
-    const ms = extending?.currentMembership;
-    if (!extending || !ms) return;
+    const ms = renewing?.currentMembership;
+    if (!renewing || !ms) return;
     setSaving(true);
     try {
-      await api.post(`/members/${extending.id}/memberships/${ms.id}/extend`, {
-        days: Number(extendDays),
-        reason: extendReason.trim(),
+      await api.post(`/members/${renewing.id}/memberships/${ms.id}/renew`, {
+        ...(renewForm.planId && { planId: renewForm.planId }),
+        amount: Number(renewForm.amount),
+        method: renewForm.method,
+        ...(renewForm.method === 'online' && {
+          channel: renewForm.channel || null,
+          reference: renewForm.reference.trim() || null,
+        }),
       });
-      toast.success(`Extended by ${extendDays} day${Number(extendDays) === 1 ? '' : 's'}`);
-      setExtending(null);
+      toast.success('Membership renewed');
+      setRenewing(null);
       await load();
     } catch (err) {
-      // The modal stays open with its values, so a rejected reason or a
-      // mistyped number can be corrected without retyping the rest.
-      toast.error(apiError(err, 'Could not extend membership'));
+      // The modal stays open with its values, so a mistyped amount can be
+      // corrected without retyping the rest.
+      toast.error(apiError(err, 'Could not renew membership'));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleFreeze = async (m: Member) => {
-    if (!m.currentMembership) return;
-    try {
-      await api.post(`/members/${m.id}/memberships/${m.currentMembership.id}/freeze`);
-      toast.success('Membership frozen');
-      await load();
-    } catch (err) {
-      toast.error(apiError(err, 'Could not freeze membership'));
-    }
-  };
-
-  const handleResume = async (m: Member) => {
-    if (!m.currentMembership) return;
-    try {
-      await api.post(`/members/${m.id}/memberships/${m.currentMembership.id}/resume`);
-      toast.success('Membership resumed');
-      await load();
-    } catch (err) {
-      toast.error(apiError(err, 'Could not resume membership'));
     }
   };
 
@@ -472,7 +631,26 @@ export default function Members() {
               { value: 'none', label: 'No membership', count: counts.none },
             ]}
           />
-          <div className="relative flex-1 min-w-50 sm:ml-auto sm:max-w-xs">
+          {/* Narrows the roster to one gender — for working through the
+              women's list on ladies' day, or counting either side of the
+              floor. "All" keeps members whose gender was never recorded,
+              which is most of the older rows.
+
+              Full width on a phone, where it wraps onto its own line under the
+              tabs; it only shrinks to its content once there is room beside
+              the search box. */}
+          <select
+            value={filterGender}
+            onChange={e => setFilterGender(e.target.value as GenderFilter)}
+            aria-label="Filter members by gender"
+            className={`${inputClass} sm:w-auto sm:ml-auto`}
+          >
+            <option value="">All genders</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+          <div className="relative flex-1 min-w-50 sm:max-w-xs">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
             <input
               type="search"
@@ -618,22 +796,10 @@ export default function Members() {
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}>
                     <Pencil size={12} /> Edit
                   </button>
-                  {ms?.status === 'active' && (
-                    <button onClick={() => void handleFreeze(m)}
-                      className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-cyan-100 dark:border-cyan-500/20 text-cyan-600 hover:bg-cyan-50 dark:hover:bg-cyan-900/10 transition-colors ${focusRing}`}>
-                      Freeze
-                    </button>
-                  )}
-                  {ms?.status === 'suspended' && (
-                    <button onClick={() => void handleResume(m)}
-                      className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-green-100 dark:border-green-500/20 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/10 transition-colors ${focusRing}`}>
-                      Resume
-                    </button>
-                  )}
-                  {isOwner && canExtend(m) && (
-                    <button onClick={() => openExtend(m)} aria-label={`Extend ${m.name}'s membership`}
+                  {canRenew(m) && (
+                    <button onClick={() => openRenew(m)} aria-label={`Renew ${m.name}'s membership`}
                       className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-blue-100 dark:border-blue-500/20 text-blue-600 hover:bg-blue-50 transition-colors ${focusRing}`}>
-                      <CalendarPlus size={12} /> Extend
+                      <CalendarPlus size={12} /> Renew
                     </button>
                   )}
                   <button onClick={() => setDeleting(m)} aria-label={`Delete ${m.name}`}
@@ -705,10 +871,17 @@ export default function Members() {
                 <input
                   required
                   value={form.name}
-                  onChange={e => set('name')(e.target.value)}
+                  onChange={e => setChecked('name')(e.target.value)}
+                  onBlur={() => void checkDuplicate(form)}
                   placeholder="Ahmed Khan"
+                  aria-invalid={duplicate?.field === 'name'}
                   className={inputClass}
                 />
+                {duplicate?.field === 'name' && (
+                  <p role="alert" className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">
+                    {duplicate.message}
+                  </p>
+                )}
               </div>
 
               {/* Phone */}
@@ -716,10 +889,17 @@ export default function Members() {
                 <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Phone</label>
                 <input
                   value={form.phone}
-                  onChange={e => set('phone')(e.target.value)}
+                  onChange={e => setChecked('phone')(e.target.value)}
+                  onBlur={() => void checkDuplicate(form)}
                   placeholder="03001234567"
+                  aria-invalid={duplicate?.field === 'phone'}
                   className={inputClass}
                 />
+                {duplicate?.field === 'phone' && (
+                  <p role="alert" className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">
+                    {duplicate.message}
+                  </p>
+                )}
               </div>
 
               {/* Gender + Date of birth */}
@@ -737,6 +917,21 @@ export default function Members() {
                     <option value="female">Female</option>
                     <option value="other">Other</option>
                   </select>
+                </div>
+                {/* Half of the name+DOB duplicate rule, so the form has to be
+                    able to set it — a rule keyed on a field nobody can fill
+                    would never fire. */}
+                <div>
+                  <label htmlFor="member-dob" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Date of Birth</label>
+                  <input
+                    id="member-dob"
+                    type="date"
+                    value={form.dateOfBirth}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={e => setChecked('dateOfBirth')(e.target.value)}
+                    onBlur={() => void checkDuplicate(form)}
+                    className={inputClass}
+                  />
                 </div>
               </div>
 
@@ -897,6 +1092,113 @@ export default function Members() {
                       </div>
                     </div>
                   )}
+
+                  {/* Fee taken at the counter. Always offered, plan or no plan:
+                      a gym takes a registration fee from somebody who has not
+                      picked a package yet, and that money still has to land in
+                      the books. Leaving the amount blank records no payment. */}
+                  <div className="border-t border-gray-100 dark:border-slate-800 pt-4 space-y-3">
+                    <div>
+                      <label htmlFor="member-fee" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
+                        Fee Collected (Rs.)
+                      </label>
+                      <input
+                        id="member-fee"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={form.feeAmount}
+                        onChange={e => set('feeAmount')(e.target.value)}
+                        placeholder={
+                          selectedPlan
+                            ? `Plan price — ${selectedPlan.price.toLocaleString('en-PK')}`
+                            : 'Leave blank if nothing was paid yet'
+                        }
+                        className={inputClass}
+                      />
+                      <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+                        Leave blank to register without taking payment.
+                      </p>
+                    </div>
+
+                    {/* The rest of the section is only meaningful once there is
+                        money to describe. */}
+                    {form.feeAmount.trim() !== '' && Number(form.feeAmount) > 0 && (
+                      <>
+                        <div>
+                          <FieldLabel>Paid by</FieldLabel>
+                          <div className="grid grid-cols-2 gap-2">
+                            {(['cash', 'online'] as PaymentMethod[]).map(m => (
+                              <button key={m} type="button"
+                                onClick={() => {
+                                  set('feeMethod')(m);
+                                  // Cash carries no channel; drop anything a
+                                  // previous online selection left behind.
+                                  if (m === 'cash') { set('feeChannel')(''); set('feeReference')(''); }
+                                }}
+                                className={`border rounded-xl py-2.5 px-2 text-center transition-all ${focusRing} ${
+                                  form.feeMethod === m
+                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700'
+                                    : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-gray-300'
+                                }`}>
+                                <p className="font-semibold text-xs capitalize">{m}</p>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {form.feeMethod === 'online' && (
+                          <>
+                            <div>
+                              <label htmlFor="member-fee-channel" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
+                                Received in
+                              </label>
+                              <select
+                                id="member-fee-channel"
+                                value={form.feeChannel}
+                                onChange={e => set('feeChannel')(e.target.value as PaymentChannel | '')}
+                                className={inputClass}
+                              >
+                                <option value="">Select account</option>
+                                {CHANNELS.map(c => (
+                                  <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
+                                ))}
+                              </select>
+                              {/* What the front desk reads out to the member.
+                                  Absent when the owner has not published this
+                                  channel's details in Settings. */}
+                              {accountFor(settings, form.feeChannel) && (
+                                <div className="mt-2 bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/20 rounded-xl px-3 py-2">
+                                  <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">Send to</p>
+                                  <p className="text-sm font-bold text-blue-700 dark:text-blue-200 break-words">
+                                    {accountFor(settings, form.feeChannel)}
+                                  </p>
+                                </div>
+                              )}
+                              {form.feeChannel && !accountFor(settings, form.feeChannel) && (
+                                <p className="mt-1.5 text-xs text-gray-400 dark:text-slate-500">
+                                  No account saved for this — the owner can add one in Team &rsaquo; Gym Settings.
+                                </p>
+                              )}
+                            </div>
+
+                            <div>
+                              <label htmlFor="member-fee-ref" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
+                                Transaction ID <span className="font-normal text-gray-400">(optional)</span>
+                              </label>
+                              <input
+                                id="member-fee-ref"
+                                value={form.feeReference}
+                                onChange={e => set('feeReference')(e.target.value)}
+                                placeholder="e.g. 4429183756"
+                                className={inputClass}
+                              />
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -905,7 +1207,7 @@ export default function Members() {
                   className={`flex-1 ${secondaryButton}`}>
                   Cancel
                 </button>
-                <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
+                <button type="submit" disabled={saving || duplicate !== null} className={`flex-1 ${primaryButton}`}>
                   {saving ? 'Saving...' : editing ? 'Update Member' : 'Add Member'}
                 </button>
               </div>
@@ -914,106 +1216,184 @@ export default function Members() {
         </div>
       )}
 
-      {/* Extend Modal — owner only, and only for a live membership. */}
-      {extending?.currentMembership && (
+      {/* Renew Modal. Nothing renews on its own — a membership sits expired
+          until somebody here takes the fee and presses the button. */}
+      {renewing?.currentMembership && (() => {
+        const ms = renewing.currentMembership;
+        const picked = plans.find(p => p.id === renewForm.planId);
+        return (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setExtending(null)} aria-hidden="true" />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setRenewing(null)} aria-hidden="true" />
           <div
-            ref={extendRef}
+            ref={renewRef}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="extend-modal-title"
+            aria-labelledby="renew-modal-title"
             className="relative bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md sm:mx-4 max-h-[92dvh] flex flex-col"
           >
             <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
-              <h2 id="extend-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
-                Extend membership
+              <h2 id="renew-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
+                Renew membership
               </h2>
               <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
-                {extending.name} · {extending.memberNo}
+                {renewing.name} · {renewing.memberNo}
               </p>
             </div>
 
-            <form onSubmit={e => void handleExtend(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
+            <form onSubmit={e => void handleRenew(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
               <div className="rounded-lg bg-gray-50 dark:bg-slate-800/60 px-3 py-2.5 space-y-1.5 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500 dark:text-slate-400">Plan</span>
-                  <span className="font-semibold text-gray-800 dark:text-slate-200">
-                    {extending.currentMembership.planName}
-                  </span>
+                  <span className="text-gray-500 dark:text-slate-400">Current plan</span>
+                  <span className="font-semibold text-gray-800 dark:text-slate-200">{ms.planName}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-500 dark:text-slate-400">Current expiry</span>
+                  <span className="text-gray-500 dark:text-slate-400">Expires</span>
                   <span className="font-semibold text-gray-800 dark:text-slate-200">
-                    {new Date(extending.currentMembership.expiryDate)
+                    {new Date(ms.expiryDate)
                       .toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500 dark:text-slate-400">Status</span>
                   <span className="font-semibold text-gray-800 dark:text-slate-200">
-                    {extending.currentMembership.daysLeft < 0
-                      ? `Expired ${Math.abs(extending.currentMembership.daysLeft)}d ago`
-                      : `${extending.currentMembership.daysLeft}d left`}
+                    {ms.daysLeft < 0
+                      ? `Expired ${Math.abs(ms.daysLeft)}d ago`
+                      : `${ms.daysLeft}d left`}
                   </span>
                 </div>
-                {extending.currentMembership.extendedDays > 0 && (
-                  <div className="flex items-center justify-between border-t border-gray-200 dark:border-slate-800 pt-1.5">
-                    <span className="text-gray-500 dark:text-slate-400">Already extended</span>
-                    <span className="font-semibold text-blue-700">
-                      +{extending.currentMembership.extendedDays}d
-                    </span>
-                  </div>
-                )}
               </div>
 
               <div>
-                <FieldLabel required>Extra days</FieldLabel>
-                <input
-                  type="number" min={1} max={365} step={1} required
-                  value={extendDays}
-                  onChange={e => setExtendDays(e.target.value)}
-                  placeholder="e.g. 7"
+                <FieldLabel required>Plan</FieldLabel>
+                <select
+                  value={renewForm.planId}
+                  onChange={e => {
+                    const planId = e.target.value;
+                    const plan = plans.find(p => p.id === planId);
+                    // The price follows the plan, so switching plans does not
+                    // leave the old plan's figure sitting in the amount.
+                    setRenewForm(f => ({
+                      ...f, planId, ...(plan && { amount: String(plan.price) }),
+                    }));
+                  }}
                   className={inputClass}
-                />
+                >
+                  {/* The member's own plan stays offered even if it has since
+                      been retired — renewing what they already hold is not
+                      buying something new. */}
+                  {!plans.some(p => p.id === ms.planId) && (
+                    <option value={ms.planId}>{ms.planName} (current)</option>
+                  )}
+                  {plans.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} — Rs. {p.price.toLocaleString('en-PK')} / {p.durationDays}d
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <FieldLabel required>Reason</FieldLabel>
+                <FieldLabel required>Fee collected (Rs.)</FieldLabel>
                 <input
-                  type="text" required minLength={3} maxLength={200}
-                  value={extendReason}
-                  onChange={e => setExtendReason(e.target.value)}
-                  placeholder="e.g. Gym closed for maintenance"
+                  type="number" min={1} step={1} required
+                  value={renewForm.amount}
+                  onChange={e => setRenewForm(f => ({ ...f, amount: e.target.value }))}
                   className={inputClass}
                 />
                 <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-                  Recorded in the audit log against your name.
+                  Change it if a different amount was agreed.
                 </p>
               </div>
 
-              {Number(extendDays) > 0 && (
+              <div>
+                <FieldLabel required>Paid by</FieldLabel>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['cash', 'online'] as PaymentMethod[]).map(m => (
+                    <button key={m} type="button"
+                      onClick={() => setRenewForm(f => ({
+                        ...f, method: m,
+                        // Cash carries no wallet; drop what an earlier online
+                        // selection left behind.
+                        ...(m === 'cash' && { channel: '' as const, reference: '' }),
+                      }))}
+                      className={`border rounded-xl py-2.5 px-2 text-center transition-all ${focusRing} ${
+                        renewForm.method === m
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700'
+                          : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-gray-300'
+                      }`}>
+                      <p className="font-semibold text-xs capitalize">{m}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {renewForm.method === 'online' && (
+                <>
+                  <div>
+                    <FieldLabel>Received in</FieldLabel>
+                    <select
+                      value={renewForm.channel}
+                      onChange={e => setRenewForm(f => ({ ...f, channel: e.target.value as PaymentChannel | '' }))}
+                      className={inputClass}
+                    >
+                      <option value="">Select account</option>
+                      {CHANNELS.map(c => (
+                        <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
+                      ))}
+                    </select>
+                    {accountFor(settings, renewForm.channel) && (
+                      <div className="mt-2 bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/20 rounded-xl px-3 py-2">
+                        <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">Send to</p>
+                        <p className="text-sm font-bold text-blue-700 dark:text-blue-200 break-words">
+                          {accountFor(settings, renewForm.channel)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <FieldLabel>Transaction ID <span className="font-normal text-gray-400">(optional)</span></FieldLabel>
+                    <input
+                      type="text" maxLength={100}
+                      value={renewForm.reference}
+                      onChange={e => setRenewForm(f => ({ ...f, reference: e.target.value }))}
+                      placeholder="e.g. 4429183756"
+                      className={inputClass}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Says what the member is buying before they pay for it. Days
+                  still on the clock are carried, so renewing early costs them
+                  nothing. */}
+              {picked && (
                 <div className="rounded-lg bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/20 px-3 py-2.5">
                   <p className="text-xs font-semibold text-blue-800">New expiry</p>
                   <p className="text-sm font-bold text-blue-900 mt-0.5">
-                    {previewExtended(extending.currentMembership.expiryDate, Number(extendDays))}
+                    {previewRenewal(ms.expiryDate, picked.durationDays)}
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                    {ms.daysLeft > 0
+                      ? `Starts when the current one ends — their ${ms.daysLeft} remaining day${ms.daysLeft === 1 ? '' : 's'} are kept.`
+                      : 'Starts today.'}
                   </p>
                 </div>
               )}
 
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setExtending(null)}
+                <button type="button" onClick={() => setRenewing(null)}
                   className={`flex-1 ${secondaryButton}`}>
                   Cancel
                 </button>
                 <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
-                  {saving ? 'Extending...' : 'Extend'}
+                  {saving ? 'Renewing...' : 'Renew'}
                 </button>
               </div>
             </form>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {deleting && (
         <ConfirmDialog
