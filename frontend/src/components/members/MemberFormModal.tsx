@@ -23,6 +23,8 @@ interface MemberForm {
   dateOfBirth: string;
   address: string;
   emergencyContact: string;
+  /** Only ever sent from an edit — see the field in the form. */
+  whatsappOptOut: boolean;
   /** Only sent when adding — an existing member's membership is changed from
    *  the membership flow, not by editing the person. */
   planId: string;
@@ -46,6 +48,7 @@ interface MemberForm {
 const emptyForm: MemberForm = {
   name: '', email: '', phone: '', photo: '',
   gender: '', dateOfBirth: '', address: '', emergencyContact: '',
+  whatsappOptOut: false,
   planId: '', startDate: '', trainerId: '', ptFee: '', ptFeePaid: false,
   feeAmount: '', feeMethod: 'cash', feeChannel: '', feeReference: '',
 };
@@ -101,6 +104,7 @@ function editDefaults(m: Member): MemberForm {
     dateOfBirth: m.dateOfBirth ? m.dateOfBirth.split('T')[0]! : '',
     address: m.address ?? '',
     emergencyContact: m.emergencyContact ?? '',
+    whatsappOptOut: m.whatsappOptOut,
     trainerId: m.trainerId || '',
   };
 }
@@ -254,6 +258,9 @@ export default function MemberFormModal({
         ...(form.dateOfBirth && { dateOfBirth: form.dateOfBirth }),
         address: form.address,
         emergencyContact: form.emergencyContact,
+        // Only meaningful on an edit, and the create endpoint rejects what it
+        // does not know — so it travels only where it is accepted.
+        ...(editing && { whatsappOptOut: form.whatsappOptOut }),
         trainerId: form.trainerId || null,
         // Only meaningful alongside a trainer, and blank has to reach the API
         // as null: `Number('')` is 0, which the server would read as a
@@ -504,6 +511,28 @@ export default function MemberFormModal({
               className={inputClass}
             />
           </div>
+
+          {/* Only on an edit. Nobody opts out before they have been
+              registered, and a box on the registration form invites the desk
+              to answer it on the member's behalf. */}
+          {editing && (
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.whatsappOptOut}
+                onChange={e => set('whatsappOptOut')(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 shrink-0"
+              />
+              <span className="text-sm text-gray-700 dark:text-slate-300">
+                No WhatsApp messages
+                <span className="block text-xs text-gray-400 dark:text-slate-500">
+                  {form.whatsappOptOut
+                    ? 'Renewal reminders and receipts will not be sent to them on WhatsApp.'
+                    : 'Tick if the member has asked not to be messaged. Email is unaffected.'}
+                </span>
+              </span>
+            </label>
+          )}
 
           {/* Membership — only when registering. Changing what an existing
               member bought is its own action, not a profile edit. */}

@@ -69,6 +69,7 @@ export const aMember = (over: Partial<Member> = {}): Member => ({
   dateOfBirth: null,
   address: null,
   emergencyContact: null,
+  whatsappOptOut: false,
   status: 'active',
   storedStatus: 'active',
   currentMembership: null,

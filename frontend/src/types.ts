@@ -148,6 +148,9 @@ export interface Member {
   dateOfBirth: string | null;
   address: string | null;
   emergencyContact: string | null;
+  /** True once the member has asked not to be messaged on WhatsApp. Email is
+   *  unaffected — opting out of one is not opting out of both. */
+  whatsappOptOut: boolean;
   /** Effective status: `inactive` once a membership has been expired for more
    *  than 60 days, computed by the server on every read. */
   status: string;
