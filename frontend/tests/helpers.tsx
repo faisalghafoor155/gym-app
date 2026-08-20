@@ -194,7 +194,10 @@ export const paymentsPage = (
 export const mockApi = (routes: Record<string, unknown>) => {
   const calls: string[] = [];
 
-  const get = vi.fn((url: string) => {
+  // The config is accepted as well as the URL, because some calls carry what
+  // they are asking about in `params` rather than in the path — a test that
+  // asserts on those needs the argument to have survived the stub.
+  const get = vi.fn((url: string, _config?: { params?: Record<string, unknown> }) => {
     calls.push(url);
     const hit = Object.entries(routes).find(([key]) => url.includes(key));
     if (!hit) return Promise.reject(new Error(`No stub for GET ${url}`));

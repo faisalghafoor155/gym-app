@@ -584,11 +584,10 @@ describe('Members — the member form', () => {
     await waitFor(() => {
       expect(stub.get.mock.calls.some(([u]) => String(u).includes('check-duplicate'))).toBe(true);
     });
-    const call = stub.get.mock.calls.find(([u]) => String(u).includes('check-duplicate'))!;
-    const config = call[1] as { params: Record<string, unknown> };
+    const call = stub.get.mock.calls.find(([u]) => u.includes('check-duplicate'))!;
     // Without this the form flags every edited member as a duplicate of
     // themselves and disables its own save button.
-    expect(config.params.excludeId).toBe('member-1');
+    expect(call[1]?.params?.excludeId).toBe('member-1');
   });
 
   it('offers enrolment after registering, once the save has returned an id', async () => {
