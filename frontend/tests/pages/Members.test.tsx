@@ -39,6 +39,10 @@ vi.mock('react-hot-toast', () => ({
   default: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
 }));
 
+/** Encoding is the library's job; what matters here is what it was handed. */
+const qr = vi.hoisted(() => ({ toDataURL: vi.fn() }));
+vi.mock('qrcode', () => ({ default: qr }));
+
 const Members = (await import('../../src/pages/Members')).default;
 
 const setup = (over: {
@@ -395,5 +399,71 @@ describe('Members — renewing', () => {
     const [, body] = api.current!.post.mock.calls[0] as unknown as [string, Record<string, unknown>];
     expect(body.method).toBe('cash');
     expect(body).not.toHaveProperty('channel');
+  });
+});
+
+/**
+ * The check-in code.
+ *
+ * The code encodes the member's id, not anything shown next to it. A code built
+ * from the member number or the name would scan cleanly at the front desk and
+ * check in the wrong person — or nobody — so what gets encoded is the thing to
+ * pin down.
+ *
+ * The failure path matters for the same reason it was worth moving: the page
+ * holds only which member is on screen, so a code that never arrives has to
+ * clear that rather than leave the member set behind an invisible modal.
+ */
+describe('Members — the check-in code', () => {
+  const member = () => aMember({ id: 'member-1', name: 'Ali Khan', memberNo: 'M-004' });
+
+  const openQr = async () => {
+    auth.current = ownerAuth;
+    api.current = mockApi({
+      '/membership-plans': [],
+      '/members': membersPage([member()]),
+    });
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+    await user.click(screen.getByRole('button', { name: /show ali khan's check-in code/i }));
+    return user;
+  };
+
+  it('encodes the member id rather than anything on display', async () => {
+    qr.toDataURL.mockResolvedValue('data:image/png;base64,ZmFrZQ==');
+    await openQr();
+
+    await screen.findByRole('dialog', { name: /ali khan/i });
+    // The id is what the reader resolves a member by. The member number is
+    // printed on the card beside it and is not interchangeable with it.
+    expect(qr.toDataURL).toHaveBeenCalledWith('member-1', expect.anything());
+  });
+
+  it('releases the member when the code cannot be generated', async () => {
+    qr.toDataURL.mockRejectedValue(new Error('encode failed'));
+    const user = await openQr();
+
+    const toast = (await import('react-hot-toast')).default;
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    // A failure that only rendered nothing would leave the member set behind an
+    // invisible modal, and asking for the same code again would be a no-op —
+    // the state never changed. Succeeding this time proves it was cleared.
+    qr.toDataURL.mockResolvedValue('data:image/png;base64,ZmFrZQ==');
+    await user.click(screen.getByRole('button', { name: /show ali khan's check-in code/i }));
+
+    expect(await screen.findByRole('dialog', { name: /ali khan/i })).toBeInTheDocument();
+  });
+
+  it('dismisses on Escape', async () => {
+    qr.toDataURL.mockResolvedValue('data:image/png;base64,ZmFrZQ==');
+    const user = await openQr();
+
+    await screen.findByRole('dialog', { name: /ali khan/i });
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 });
