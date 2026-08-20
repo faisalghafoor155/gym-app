@@ -631,4 +631,16 @@ describe('Members — the member form', () => {
     expect(within(dialog).getByText(/monthly/i)).toBeInTheDocument();
     expect(within(dialog).queryByText(/no plans set up yet/i)).not.toBeInTheDocument();
   });
+
+  it('asks the reader once, not once per consumer', async () => {
+    const stub = withPlans();
+    renderPage(<Members />);
+    await loaded();
+
+    // The page and the dialog both need to know about the reader, but the page
+    // only needs it to decide whether to offer the prompt. Two fetches on a
+    // single page load meant two answers that could disagree, with the page
+    // holding the staler of them.
+    await waitFor(() => expect(stub.callsTo('/fingerprint/status').length).toBe(1));
+  });
 });

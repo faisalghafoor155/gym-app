@@ -13,7 +13,8 @@ import {
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useDebounced } from '../hooks/useDebounced';
-import type { FingerprintStatus, GymSettings, Member, MembershipPlan, MemberCounts, PaginatedMembers, Trainer } from '../types';
+import { useFingerprintReader } from '../hooks/useFingerprintReader';
+import type { GymSettings, Member, MembershipPlan, MemberCounts, PaginatedMembers, Trainer } from '../types';
 import toast from 'react-hot-toast';
 
 /** The filters worth offering. The stored statuses a member never sees
@@ -80,8 +81,10 @@ export default function Members() {
   const [fingerprintAfterRegister, setFingerprintAfterRegister] = useState(false);
   /** Whether a reader is attached at all. Gates the prompt after registering a
    *  member: a gym with no reader should not be shown a dialog offering a scan
-   *  it cannot take. */
-  const [fingerprintReady, setFingerprintReady] = useState(false);
+   *  it cannot take. The dialog asks again when it opens — this is only about
+   *  whether to offer it. */
+  const { status: reader } = useFingerprintReader();
+  const fingerprintReady = reader?.configured ?? false;
   /** The member being edited, or null when the form is registering a new one.
    *  What is typed about them is the modal's business. */
   const [editing, setEditing] = useState<Member | null>(null);
@@ -234,12 +237,6 @@ export default function Members() {
       .then(r => setSettings(r.data))
       .catch(() => { /* the hints simply say nothing */ });
 
-    // Whether to offer enrolment after registering somebody. Silent on
-    // failure: the fallback is not prompting, which is what a gym without a
-    // reader wants anyway.
-    void api.get<FingerprintStatus>('/fingerprint/status')
-      .then(r => setFingerprintReady(r.data.configured))
-      .catch(() => setFingerprintReady(false));
     // Deliberately once on mount: this is a landing hint, not a live binding.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
