@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import {
@@ -25,7 +25,9 @@ const auth = vi.hoisted(() => ({ current: null as unknown as AuthState }));
 
 vi.mock('../../src/api/client', () => ({
   default: {
-    get: (url: string) => api.current!.get(url),
+    // All arguments forwarded, not just the URL: the duplicate check carries
+    // what it is asking about in a config object rather than the path.
+    get: (...args: unknown[]) => api.current!.get(...args as [string]),
     post: (...args: unknown[]) => api.current!.post(...args as []),
     put: (...args: unknown[]) => api.current!.put(...args as []),
     delete: (...args: unknown[]) => api.current!.delete(...args as []),
@@ -38,6 +40,10 @@ vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => auth.current })
 vi.mock('react-hot-toast', () => ({
   default: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
 }));
+
+/** Encoding is the library's job; what matters here is what it was handed. */
+const qr = vi.hoisted(() => ({ toDataURL: vi.fn() }));
+vi.mock('qrcode', () => ({ default: qr }));
 
 const Members = (await import('../../src/pages/Members')).default;
 
@@ -299,5 +305,330 @@ describe('Members — when renew is offered', () => {
 
     // Nothing to renew from: they need a first membership, not a renewal.
     expect(renewButton()).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The renew modal itself, which owns its own form.
+ *
+ * What the desk sends is the thing to hold down: the endpoint carries the
+ * membership being replaced, and a renewal taken in cash must not carry a
+ * wallet left behind by an earlier online selection.
+ */
+describe('Members — renewing', () => {
+  const expiringMember = () => aMember({
+    id: 'member-1',
+    name: 'Ali Khan',
+    currentMembership: aMembership({
+      id: 'membership-9',
+      planId: 'plan-1',
+      planName: 'Monthly',
+      status: 'expiring',
+      daysLeft: 3,
+    }),
+  });
+
+  const openRenew = async () => {
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+    await user.click(screen.getByRole('button', { name: /renew ali khan/i }));
+    return user;
+  };
+
+  it('opens against the membership being replaced', async () => {
+    api.current = mockApi({
+      '/membership-plans': [{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }],
+      '/members': membersPage([expiringMember()]),
+    });
+    auth.current = ownerAuth;
+
+    const user = await openRenew();
+    expect(await screen.findByRole('dialog', { name: /renew membership/i })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^renew$/i }));
+
+    await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
+    // The old membership's id is in the path: a renewal supersedes a specific
+    // row rather than whatever the member currently holds.
+    const [url] = api.current!.post.mock.calls[0] as unknown as [string, unknown];
+    expect(url).toBe('/members/member-1/memberships/membership-9/renew');
+  });
+
+  it('prefills the fee from the plan and sends what was actually typed', async () => {
+    api.current = mockApi({
+      '/membership-plans': [{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }],
+      '/members': membersPage([expiringMember()]),
+    });
+    auth.current = ownerAuth;
+
+    const user = await openRenew();
+    const dialog = await screen.findByRole('dialog', { name: /renew membership/i });
+    // `FieldLabel` renders no `htmlFor`, so the fee field is reached by role
+    // rather than by its label.
+    const amount = within(dialog).getByRole('spinbutton');
+    // Prefilled from the plan's price so the common case is one click...
+    expect(amount).toHaveValue(2500);
+
+    // ...and editable, because a haggled renewal is recorded at what was taken.
+    await user.clear(amount);
+    await user.type(amount, '2000');
+    await user.click(screen.getByRole('button', { name: /^renew$/i }));
+
+    await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
+    const [, body] = api.current!.post.mock.calls[0] as unknown as [string, { amount: number }];
+    expect(body.amount).toBe(2000);
+  });
+
+  it('sends no wallet for a renewal switched back to cash', async () => {
+    api.current = mockApi({
+      '/membership-plans': [{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }],
+      '/members': membersPage([expiringMember()]),
+    });
+    auth.current = ownerAuth;
+
+    const user = await openRenew();
+    const dialog = await screen.findByRole('dialog', { name: /renew membership/i });
+    await user.click(within(dialog).getByRole('button', { name: /online/i }));
+    // The channel picker is the only select to appear once online is chosen.
+    const channel = within(dialog).getAllByRole('combobox').at(-1)!;
+    await user.selectOptions(channel, 'easypaisa');
+    // Switching back must drop the wallet, not leave it on a cash row.
+    await user.click(within(dialog).getByRole('button', { name: /cash/i }));
+    await user.click(within(dialog).getByRole('button', { name: /^renew$/i }));
+
+    await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
+    const [, body] = api.current!.post.mock.calls[0] as unknown as [string, Record<string, unknown>];
+    expect(body.method).toBe('cash');
+    expect(body).not.toHaveProperty('channel');
+  });
+});
+
+/**
+ * The check-in code.
+ *
+ * The code encodes the member's id, not anything shown next to it. A code built
+ * from the member number or the name would scan cleanly at the front desk and
+ * check in the wrong person — or nobody — so what gets encoded is the thing to
+ * pin down.
+ *
+ * The failure path matters for the same reason it was worth moving: the page
+ * holds only which member is on screen, so a code that never arrives has to
+ * clear that rather than leave the member set behind an invisible modal.
+ */
+describe('Members — the check-in code', () => {
+  const member = () => aMember({ id: 'member-1', name: 'Ali Khan', memberNo: 'M-004' });
+
+  const openQr = async () => {
+    auth.current = ownerAuth;
+    api.current = mockApi({
+      '/membership-plans': [],
+      '/members': membersPage([member()]),
+    });
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+    await user.click(screen.getByRole('button', { name: /show ali khan's check-in code/i }));
+    return user;
+  };
+
+  it('encodes the member id rather than anything on display', async () => {
+    qr.toDataURL.mockResolvedValue('data:image/png;base64,ZmFrZQ==');
+    await openQr();
+
+    await screen.findByRole('dialog', { name: /ali khan/i });
+    // The id is what the reader resolves a member by. The member number is
+    // printed on the card beside it and is not interchangeable with it.
+    expect(qr.toDataURL).toHaveBeenCalledWith('member-1', expect.anything());
+  });
+
+  it('releases the member when the code cannot be generated', async () => {
+    qr.toDataURL.mockRejectedValue(new Error('encode failed'));
+    const user = await openQr();
+
+    const toast = (await import('react-hot-toast')).default;
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    // A failure that only rendered nothing would leave the member set behind an
+    // invisible modal, and asking for the same code again would be a no-op —
+    // the state never changed. Succeeding this time proves it was cleared.
+    qr.toDataURL.mockResolvedValue('data:image/png;base64,ZmFrZQ==');
+    await user.click(screen.getByRole('button', { name: /show ali khan's check-in code/i }));
+
+    expect(await screen.findByRole('dialog', { name: /ali khan/i })).toBeInTheDocument();
+  });
+
+  it('dismisses on Escape', async () => {
+    qr.toDataURL.mockResolvedValue('data:image/png;base64,ZmFrZQ==');
+    const user = await openQr();
+
+    await screen.findByRole('dialog', { name: /ali khan/i });
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+});
+
+/**
+ * The add/edit form, which owns what is typed into it.
+ *
+ * The two modes send to different endpoints with different payloads, and the
+ * split is the thing to hold down: an edit that carried the registration
+ * fields would sell a membership to somebody whose phone number was being
+ * corrected, and a plan or a fee reaching PUT is money recorded twice.
+ *
+ * The enrolment handoff is the other half. A registered member's id does not
+ * exist until the save returns, so the prompt cannot live in the form — it
+ * crosses back to the page, and a boundary is exactly where that wiring goes
+ * quietly missing.
+ */
+describe('Members — the member form', () => {
+  const withPlans = (members = membersPage([aMember({ name: 'Ali Khan' })])) => {
+    auth.current = ownerAuth;
+    api.current = mockApi({
+      '/membership-plans': [{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }],
+      '/trainers': [],
+      '/gym-settings': { defaultPtFee: null },
+      '/fingerprint/status': { configured: false },
+      '/members/check-duplicate': { duplicate: false },
+      '/members': members,
+    });
+    return api.current;
+  };
+
+  it('registers on POST, with the plan and the fee taken at the counter', async () => {
+    const stub = withPlans();
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+
+    await user.click(screen.getByRole('button', { name: /add member/i }));
+    const dialog = await screen.findByRole('dialog', { name: /add new member/i });
+    await user.type(within(dialog).getByPlaceholderText(/ahmed khan/i), 'Zainab Malik');
+    await user.type(within(dialog).getByLabelText(/fee collected/i), '2500');
+    await user.click(within(dialog).getByRole('button', { name: /^add member$/i }));
+
+    await waitFor(() => expect(stub.post).toHaveBeenCalled());
+    const [url, body] = stub.post.mock.calls[0] as unknown as [string, Record<string, unknown>];
+    expect(url).toBe('/members');
+    expect(body.name).toBe('Zainab Malik');
+    // The plan is preselected, so a registration carries the membership it sold.
+    expect(body.planId).toBe('plan-1');
+    expect(body.feeAmount).toBe(2500);
+  });
+
+  it('records no payment when the fee is left blank', async () => {
+    const stub = withPlans();
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+
+    await user.click(screen.getByRole('button', { name: /add member/i }));
+    const dialog = await screen.findByRole('dialog', { name: /add new member/i });
+    await user.type(within(dialog).getByPlaceholderText(/ahmed khan/i), 'Zainab Malik');
+    await user.click(within(dialog).getByRole('button', { name: /^add member$/i }));
+
+    await waitFor(() => expect(stub.post).toHaveBeenCalled());
+    const [, body] = stub.post.mock.calls[0] as unknown as [string, Record<string, unknown>];
+    // A blank amount means no money changed hands, not a payment of nothing —
+    // a zero here would post a Rs. 0 receipt into the day's collection.
+    expect(body).not.toHaveProperty('feeAmount');
+    expect(body).not.toHaveProperty('feeMethod');
+  });
+
+  it('edits on PUT, carrying nothing that belongs to registration', async () => {
+    const stub = withPlans(membersPage([aMember({ id: 'member-1', name: 'Ali Khan' })]));
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+
+    await user.click(screen.getByRole('button', { name: /edit ali khan/i }));
+    const dialog = await screen.findByRole('dialog', { name: /edit member/i });
+    await user.click(within(dialog).getByRole('button', { name: /update member/i }));
+
+    await waitFor(() => expect(stub.put).toHaveBeenCalled());
+    const [url, body] = stub.put.mock.calls[0] as unknown as [string, Record<string, unknown>];
+    expect(url).toBe('/members/member-1');
+    // Correcting a profile must not sell anything: a plan or a fee reaching
+    // PUT would bill a member who only had their address changed.
+    expect(body).not.toHaveProperty('planId');
+    expect(body).not.toHaveProperty('feeAmount');
+    expect(stub.post).not.toHaveBeenCalled();
+  });
+
+  it('does not offer the membership section when editing', async () => {
+    withPlans(membersPage([aMember({ id: 'member-1', name: 'Ali Khan' })]));
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+
+    await user.click(screen.getByRole('button', { name: /edit ali khan/i }));
+    const dialog = await screen.findByRole('dialog', { name: /edit member/i });
+
+    expect(within(dialog).queryByLabelText(/fee collected/i)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/membership plan/i)).not.toBeInTheDocument();
+  });
+
+  it('excludes the edited member from its own duplicate check', async () => {
+    const stub = withPlans(membersPage([aMember({ id: 'member-1', name: 'Ali Khan' })]));
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+
+    await user.click(screen.getByRole('button', { name: /edit ali khan/i }));
+    const dialog = await screen.findByRole('dialog', { name: /edit member/i });
+    await user.type(within(dialog).getByPlaceholderText(/03001234567/), '03001234567');
+    await user.tab();
+
+    await waitFor(() => {
+      expect(stub.get.mock.calls.some(([u]) => String(u).includes('check-duplicate'))).toBe(true);
+    });
+    const call = stub.get.mock.calls.find(([u]) => u.includes('check-duplicate'))!;
+    // Without this the form flags every edited member as a duplicate of
+    // themselves and disables its own save button.
+    expect(call[1]?.params?.excludeId).toBe('member-1');
+  });
+
+  it('offers enrolment after registering, once the save has returned an id', async () => {
+    const stub = withPlans();
+    // A reader is attached, so the prompt is worth offering.
+    stub.get.mockImplementation((url: string) => {
+      stub.calls.push(url);
+      if (url.includes('/fingerprint/status')) return Promise.resolve({ data: { configured: true } });
+      if (url.includes('/membership-plans')) return Promise.resolve({ data: [] });
+      if (url.includes('/check-duplicate')) return Promise.resolve({ data: { duplicate: false } });
+      if (url.includes('/trainers')) return Promise.resolve({ data: [] });
+      if (url.includes('/gym-settings')) return Promise.resolve({ data: { defaultPtFee: null } });
+      return Promise.resolve({ data: membersPage([aMember({ name: 'Ali Khan' })]) });
+    });
+    stub.post.mockResolvedValue({ data: aMember({ id: 'member-new', name: 'Zainab Malik' }) });
+
+    const user = userEvent.setup();
+    renderPage(<Members />);
+    await loaded();
+
+    await user.click(screen.getByRole('button', { name: /add member/i }));
+    const dialog = await screen.findByRole('dialog', { name: /add new member/i });
+    await user.type(within(dialog).getByPlaceholderText(/ahmed khan/i), 'Zainab Malik');
+    await user.click(within(dialog).getByRole('button', { name: /^add member$/i }));
+
+    // The id only exists once POST answered, so this prompt has to cross back
+    // from the form to the page rather than live inside the form. It is the
+    // newly-created member being enrolled, not whoever was on the roster.
+    expect(await screen.findByText(/zainab malik/i)).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /add new member/i })).not.toBeInTheDocument();
+  });
+
+  it('opens the form ready to register when the dashboard deep-links to it', async () => {
+    withPlans();
+    renderPage(<Members />, { route: '/members?new=1' });
+
+    // The plans arrive and the form opens in the same render, so the picker is
+    // populated rather than showing the "no plans set up yet" fallback to a gym
+    // that has plans.
+    const dialog = await screen.findByRole('dialog', { name: /add new member/i });
+    expect(within(dialog).getByText(/monthly/i)).toBeInTheDocument();
+    expect(within(dialog).queryByText(/no plans set up yet/i)).not.toBeInTheDocument();
   });
 });
