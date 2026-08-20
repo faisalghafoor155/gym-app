@@ -122,6 +122,12 @@ export default function Team() {
   // Gym-wide pricing. Held as a string so an emptied field does not become 0
   // while the owner is mid-edit.
   const [ptFeeInput, setPtFeeInput] = useState('');
+  /**
+   * Where members are told to send money, per channel. Read out at the front
+   * desk when somebody pays online, so what matters is that it is exactly what
+   * the owner typed — free text, not a parsed account number.
+   */
+  const [accounts, setAccounts] = useState({ easypaisa: '', jazzcash: '', bank: '' });
   const [savingSettings, setSavingSettings] = useState(false);
   const [selectedPermission, setSelectedPermission] = useState<StaffPermission>('receptionist');
 
@@ -158,7 +164,14 @@ export default function Team() {
       }),
       // Issuing a login means picking any member, so this one needs them all.
       api.get<Paginated<Member>>('/members?all=true').then(r => setMembers(r.data.data)),
-      api.get<GymSettings>('/gym-settings').then(r => setPtFeeInput(String(r.data.defaultPtFee))),
+      api.get<GymSettings>('/gym-settings').then(r => {
+        setPtFeeInput(String(r.data.defaultPtFee));
+        setAccounts({
+          easypaisa: r.data.easypaisaAccount ?? '',
+          jazzcash: r.data.jazzcashAccount ?? '',
+          bank: r.data.bankAccount ?? '',
+        });
+      }),
     ])
       .catch(err => toast.error(apiError(err, 'Could not load accounts')))
       .finally(() => setLoading(false));
@@ -169,10 +182,17 @@ export default function Team() {
     e.preventDefault();
     setSavingSettings(true);
     try {
-      await api.put('/gym-settings', { defaultPtFee: Number(ptFeeInput) });
-      toast.success('Pricing updated');
+      await api.put('/gym-settings', {
+        defaultPtFee: Number(ptFeeInput),
+        // Blank clears the channel's published details — the channel is still
+        // offered at the counter, just without an account line to read out.
+        easypaisaAccount: accounts.easypaisa.trim(),
+        jazzcashAccount: accounts.jazzcash.trim(),
+        bankAccount: accounts.bank.trim(),
+      });
+      toast.success('Settings updated');
     } catch (err) {
-      toast.error(apiError(err, 'Could not update pricing'));
+      toast.error(apiError(err, 'Could not update settings'));
     } finally {
       setSavingSettings(false);
     }
@@ -354,13 +374,12 @@ export default function Team() {
 
       {isOwner && (
         <Card className="p-5 mb-5">
-          <h3 className="font-semibold text-gray-900 dark:text-slate-100 mb-1">Gym pricing</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-slate-100 mb-1">Gym settings</h3>
           <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
-            Charged once when a member is put with a personal trainer. A trainer with their own
-            fee set overrides this. Set it to 0 to charge nothing.
+            Pricing, and the accounts members send money to.
           </p>
-          <form onSubmit={handleSettingsSave} className="flex flex-wrap items-end gap-3">
-            <div className="grow max-w-xs">
+          <form onSubmit={handleSettingsSave} className="space-y-4">
+            <div className="max-w-xs">
               <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                 Default trainer assignment fee (Rs.)
               </label>
@@ -373,7 +392,63 @@ export default function Team() {
                 onChange={e => setPtFeeInput(e.target.value)}
                 className={inputClass}
               />
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+                Charged once when a member is put with a personal trainer. A trainer with their
+                own fee set overrides this. Set it to 0 to charge nothing.
+              </p>
             </div>
+
+            <div className="border-t border-gray-100 dark:border-slate-800 pt-4">
+              <p className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                Payment accounts
+              </p>
+              <p className="text-xs text-gray-400 dark:text-slate-500 mb-3">
+                Shown to the front desk when a member pays online, so they can say where to send
+                it. Leave blank for any channel you do not use.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label htmlFor="acct-easypaisa" className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Easypaisa
+                  </label>
+                  <input
+                    id="acct-easypaisa"
+                    maxLength={200}
+                    value={accounts.easypaisa}
+                    onChange={e => setAccounts(a => ({ ...a, easypaisa: e.target.value }))}
+                    placeholder="03001234567"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="acct-jazzcash" className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    JazzCash
+                  </label>
+                  <input
+                    id="acct-jazzcash"
+                    maxLength={200}
+                    value={accounts.jazzcash}
+                    onChange={e => setAccounts(a => ({ ...a, jazzcash: e.target.value }))}
+                    placeholder="03001234567"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="acct-bank" className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                    Bank account
+                  </label>
+                  <input
+                    id="acct-bank"
+                    maxLength={300}
+                    value={accounts.bank}
+                    onChange={e => setAccounts(a => ({ ...a, bank: e.target.value }))}
+                    placeholder="Meezan Bank — PK00MEZN0001234567890"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            </div>
+
             <button type="submit" disabled={savingSettings} className={primaryButton}>
               {savingSettings ? 'Saving…' : 'Save'}
             </button>
