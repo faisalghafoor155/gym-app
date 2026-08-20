@@ -45,6 +45,8 @@ import { useAuth } from "../context/AuthContext";
 import type {
   Payment,
   Member,
+  GymSettings,
+  PaymentChannel,
   PaymentMethod,
   PaymentStatus,
   PaymentType,
@@ -52,12 +54,21 @@ import type {
   Paginated,
   PaginatedPayments,
 } from "../types";
+import {
+  CHANNELS,
+  CHANNEL_LABELS,
+  accountFor,
+  channelLabel,
+} from "../utils/paymentChannels";
 import toast from "react-hot-toast";
 
 interface PaymentForm {
   memberId: string;
   amount: string;
   method: PaymentMethod;
+  /** Which wallet the money came through. '' on cash, and until one is picked. */
+  channel: PaymentChannel | "";
+  reference: string;
   notes: string;
   status: PaymentStatus;
   type: PaymentType;
@@ -72,6 +83,8 @@ const emptyForm = (): PaymentForm => ({
   memberId: "",
   amount: "",
   method: "cash",
+  channel: "",
+  reference: "",
   notes: "",
   status: "paid",
   type: "membership",
@@ -125,6 +138,9 @@ export default function Payments() {
   const [deleting, setDeleting] = useState<Payment | null>(null);
   const [activeReceipt, setActiveReceipt] = useState<Payment | null>(null);
   const [form, setForm] = useState<PaymentForm>(emptyForm);
+  /** Only for the account line under the channel picker — the gym's published
+   *  details, so the front desk can read out where to send the money. */
+  const [settings, setSettings] = useState<GymSettings | null>(null);
 
   // First paint shows a spinner; every later fetch dims the old list instead,
   // so typing in the search box does not blank the page.
@@ -207,6 +223,15 @@ export default function Payments() {
       .then((r) => setMembers(r.data.data))
       .catch(() => {
         /* the payments error toast already covers a dead API */
+      });
+
+    // Only feeds the account hint under the channel picker, so a failure is
+    // silent — the form still records the payment without it.
+    api
+      .get<GymSettings>("/gym-settings")
+      .then((r) => setSettings(r.data))
+      .catch(() => {
+        /* the hint simply says nothing */
       });
   }, []);
 
@@ -298,6 +323,8 @@ export default function Payments() {
       memberId: p.memberId,
       amount: String(p.amount),
       method: p.method,
+      channel: p.channel ?? "",
+      reference: p.reference ?? "",
       notes: p.notes ?? "",
       status: p.status,
       type: p.type,
@@ -321,6 +348,12 @@ export default function Payments() {
           form.type === "membership" && form.membershipId
             ? form.membershipId
             : null,
+        // Cash carries no channel — the API rejects the contradiction outright.
+        // Switching an online payment back to cash has to send the null, not
+        // omit the field, or the wallet's name stays on a cash row.
+        channel: form.method === "cash" ? null : form.channel || null,
+        reference:
+          form.method === "cash" ? null : form.reference.trim() || null,
       };
       if (editing) {
         // The member a payment belongs to is not editable — the API rejects it,
@@ -707,6 +740,11 @@ export default function Payments() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge status={p.status} />
                   <Badge status={p.method} />
+                  {p.channel && (
+                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400">
+                      {channelLabel(p.channel)}
+                    </span>
+                  )}
                   <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">
                     {new Date(p.paymentDate).toLocaleDateString()}
                   </span>
@@ -800,6 +838,11 @@ export default function Payments() {
                       </td>
                       <td className="px-4 py-3">
                         <Badge status={p.method} />
+                        {p.channel && (
+                          <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                            {channelLabel(p.channel)}
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-500 dark:text-slate-400 whitespace-nowrap">
                         {new Date(p.paymentDate).toLocaleDateString()}
@@ -998,7 +1041,17 @@ export default function Payments() {
                 <FieldLabel>Method</FieldLabel>
                 <select
                   value={form.method}
-                  onChange={set("method")}
+                  onChange={(e) => {
+                    const method = e.target.value as PaymentMethod;
+                    // Switching to cash drops the wallet details with it —
+                    // leaving them would send a channel the API rejects, and
+                    // show one on a row that never had it.
+                    setForm((f) => ({
+                      ...f,
+                      method,
+                      ...(method === "cash" && { channel: "", reference: "" }),
+                    }));
+                  }}
                   className={inputClass}
                 >
                   <option value="cash">Cash</option>
@@ -1017,6 +1070,47 @@ export default function Payments() {
                 </select>
               </div>
             </div>
+
+            {/* Which wallet, and its transaction id. Only meaningful for money
+                that came in online — cash has no channel to record. */}
+            {form.method === "online" && (
+              // Stacked on a phone: "Bank Transfer" and a transaction id do
+              // not both fit in half of a 360px screen, and a channel nobody
+              // can read is a channel picked wrong.
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <FieldLabel>Received in</FieldLabel>
+                  <select
+                    value={form.channel}
+                    onChange={set("channel")}
+                    className={inputClass}
+                  >
+                    <option value="">Select account</option>
+                    {CHANNELS.map((c) => (
+                      <option key={c} value={c}>
+                        {CHANNEL_LABELS[c]}
+                      </option>
+                    ))}
+                  </select>
+                  {accountFor(settings, form.channel) && (
+                    <p className="mt-1.5 text-xs text-gray-500 dark:text-slate-400 break-words">
+                      {accountFor(settings, form.channel)}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <FieldLabel>Transaction ID</FieldLabel>
+                  <input
+                    type="text"
+                    maxLength={100}
+                    value={form.reference}
+                    onChange={set("reference")}
+                    placeholder="Optional"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            )}
 
             <div>
               <FieldLabel>Notes</FieldLabel>
