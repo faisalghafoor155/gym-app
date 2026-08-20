@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Fingerprint, AlertCircle, Trash2, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api, { apiError } from '../api/client';
 import { primaryButton, secondaryButton, focusRing, inputClass } from './ui';
 import { useDialog } from '../hooks/useDialog';
-import type { Member, FingerprintStatus, FingerprintEnrolment } from '../types';
+import { useFingerprintReader } from '../hooks/useFingerprintReader';
+import type { Member, FingerprintEnrolment } from '../types';
 
 /**
  * Enrol a member's fingerprint, or remove one already enrolled.
@@ -15,8 +16,8 @@ import type { Member, FingerprintStatus, FingerprintEnrolment } from '../types';
  * `/fingerprint/capture` call below starts returning templates and nothing on
  * this page changes.
  *
- * Kept out of `Members.tsx` deliberately. That file is already past a thousand
- * lines and this is a self-contained dialog with its own device states.
+ * Kept out of `Members.tsx` deliberately: this is a self-contained dialog with
+ * its own device states, and the page has no use for any of them.
  */
 export default function FingerprintEnrollModal({
   member,
@@ -40,18 +41,13 @@ export default function FingerprintEnrollModal({
   onChanged: () => void;
 }) {
   const ref = useDialog(true, onClose);
-  const [status, setStatus] = useState<FingerprintStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Asked here rather than taken from the caller: the page's answer is from
+  // whenever it loaded, and a reader can be unplugged since. What this dialog
+  // reports has to be current, because it is about to try using the thing.
+  const { status, loading } = useFingerprintReader();
   const [busy, setBusy] = useState(false);
   const [finger, setFinger] = useState(existing?.finger ?? '');
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api.get<FingerprintStatus>('/fingerprint/status')
-      .then(r => setStatus(r.data))
-      .catch(() => setStatus(null))
-      .finally(() => setLoading(false));
-  }, []);
 
   const handleEnroll = async () => {
     setBusy(true);
