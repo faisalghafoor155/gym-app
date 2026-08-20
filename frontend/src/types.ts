@@ -14,6 +14,8 @@ export type MemberStatus = MembershipStatus | 'expiring';
 
 export type Gender = 'male' | 'female' | 'other';
 export type PaymentMethod = 'cash' | 'online';
+/** Which wallet or bank an online payment came through. Null on cash. */
+export type PaymentChannel = 'easypaisa' | 'jazzcash' | 'bank';
 export type PaymentStatus = 'paid' | 'due';
 /** What the money was for. Membership payments name the membership they
  *  settle; supplement sales and one-off fees have nothing to point at. */
@@ -53,6 +55,33 @@ export interface StaffSeats {
 export interface TeamResponse {
   users: GymUser[];
   seats: StaffSeats;
+}
+
+/**
+ * One recorded action. Owner-only: the trail names which member of staff did
+ * what.
+ *
+ * `before`/`after` carry only the fields that changed, so a row is readable
+ * without fetching the thing it points at — which matters most when that thing
+ * has since been deleted and the log is all that is left of it.
+ */
+export interface AuditLog {
+  id: string;
+  actorId: string;
+  actorName: string;
+  actorRole: Role;
+  /** Dotted verb, e.g. `member.create`, `membership.renew`. */
+  action: string;
+  /** The kind of thing acted on, e.g. `member`, `payment`. */
+  entity: string;
+  entityId: string;
+  /** Human-readable stand-in, e.g. "MEM-00125 · Ali Khan". */
+  entityLabel: string | null;
+  before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null;
+  /** Why, where the action called for a justification. */
+  reason: string | null;
+  createdAt: string;
 }
 
 export interface GymUser {
@@ -100,14 +129,10 @@ export interface Membership {
   planName: string;
   startDate: string;
   expiryDate: string;
-  originalExpiryDate: string;
   pricePaid: number;
   durationDays: number;
-  extendedDays: number;
-  extensionReason: string | null;
   status: MemberStatus;
   daysLeft: number;
-  freezeStartDate: string | null;
 }
 
 export interface Member {
@@ -269,6 +294,11 @@ export interface Payment {
   amount: number;
   paymentDate: string;
   method: PaymentMethod;
+  /** Which wallet the money came through. Null for cash, and for online rows
+   *  recorded before the channel was tracked. */
+  channel: PaymentChannel | null;
+  /** The wallet's transaction id, when the front desk was given one. */
+  reference: string | null;
   notes: string | null;
   status: PaymentStatus;
   type: PaymentType;
@@ -312,6 +342,7 @@ export interface MonthlyCollectionEntry {
   id: string;
   amount: number;
   method: PaymentMethod;
+  channel: PaymentChannel | null;
   status: PaymentStatus;
   type: PaymentType;
   notes: string | null;
@@ -571,6 +602,12 @@ export interface GymSettings {
   ownerName: string;
   phone: string | null;
   defaultPtFee: number;
+  /** Where members are told to send money, per channel. Free text — a wallet
+   *  is a phone number, a bank is a name plus an IBAN. Null when the gym has
+   *  not published that channel's details. */
+  easypaisaAccount: string | null;
+  jazzcashAccount: string | null;
+  bankAccount: string | null;
 }
 
 export interface PtSession {

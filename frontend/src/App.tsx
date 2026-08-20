@@ -13,6 +13,7 @@ import Members from './pages/Members';
 import Attendance from './pages/Attendance';
 import Payments from './pages/Payments';
 import MonthlyCollection from './pages/MonthlyCollection';
+import AuditLog from './pages/AuditLog';
 import Expenses from './pages/Expenses';
 import Plans from './pages/Plans';
 import MembershipPlans from './pages/MembershipPlans';
@@ -139,6 +140,9 @@ function AppRoutes() {
                 {/* Who paid in a given month — the gym's collection rather
                     than one counter's takings, so owner-only like the API. */}
                 <Route path="/monthly-collection" element={<OwnerRoute><MonthlyCollection /></OwnerRoute>} />
+                {/* Owner-only, matching the API: the trail names which member
+                    of staff did what. */}
+                <Route path="/audit-log" element={<OwnerRoute><AuditLog /></OwnerRoute>} />
                 {/* Permission-gated rather than owner-only: an accountant keeps
                     the books too, and the API gates it the same way. */}
                 <Route path="/expenses" element={<PermissionRoute action="canManageExpenses"><Expenses /></PermissionRoute>} />

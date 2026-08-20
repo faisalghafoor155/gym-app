@@ -4,7 +4,8 @@ import { render, type RenderOptions } from '@testing-library/react';
 import { vi } from 'vitest';
 
 import type {
-  Member, Payment, PaginatedMembers, PaginatedPayments, MemberCounts, PaymentSummary,
+  AuditLog, Member, Membership, Payment, PaginatedMembers, PaginatedPayments,
+  MemberCounts, PaymentSummary,
 } from '../src/types';
 
 /**
@@ -75,6 +76,40 @@ export const aMember = (over: Partial<Member> = {}): Member => ({
   ...over,
 });
 
+/**
+ * A membership on a member's row. `status` and `daysLeft` are what the server
+ * derives and the page reads, so a test wanting an expiring member sets those
+ * two rather than doing date arithmetic of its own.
+ */
+export const aMembership = (over: Partial<Membership> = {}): Membership => ({
+  id: over.id ?? 'membership-1',
+  planId: 'plan-1',
+  planName: 'Monthly',
+  startDate: new Date().toISOString(),
+  expiryDate: new Date().toISOString(),
+  pricePaid: 2500,
+  durationDays: 30,
+  status: 'active',
+  daysLeft: 20,
+  ...over,
+});
+
+export const anAuditLog = (over: Partial<AuditLog> = {}): AuditLog => ({
+  id: over.id ?? `log-${seq + 1}`,
+  actorId: 'user-1',
+  actorName: 'Owner User',
+  actorRole: 'owner',
+  action: 'member.create',
+  entity: 'member',
+  entityId: 'member-1',
+  entityLabel: 'MEM-00001 · Ali Khan',
+  before: null,
+  after: null,
+  reason: null,
+  createdAt: new Date().toISOString(),
+  ...over,
+});
+
 export const aPayment = (over: Partial<Payment> = {}): Payment => ({
   id: over.id ?? `payment-${seq + 1}`,
   memberId: 'member-1',
@@ -82,6 +117,10 @@ export const aPayment = (over: Partial<Payment> = {}): Payment => ({
   amount: 2500,
   paymentDate: new Date().toISOString(),
   method: 'cash',
+  // Cash by default, so no wallet and no transaction id — a test wanting an
+  // online row overrides all three together.
+  channel: null,
+  reference: null,
   notes: null,
   status: 'paid',
   type: 'membership',

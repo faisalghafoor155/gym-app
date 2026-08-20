@@ -7,7 +7,7 @@ import { hasPermission, type PermissionRequirements } from '../utils/permissions
 import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   Dumbbell, LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
-  BarChart3, CalendarRange, Award, Calendar, Wallet,
+  BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -52,6 +52,9 @@ const ownerNavItems: NavItem[] = [
   // Named for what the owner comes here to do — add a helper — rather than for
   // the abstraction. "Team & Access" read as settings, so nobody found it.
   { to: '/team', label: 'Staff & Logins', icon: UserCog },
+  // Last in the owner's half: it is what you open when you want to know who
+  // did something, which is rarely and after the fact.
+  { to: '/audit-log', label: 'Audit Log', icon: ScrollText },
 ];
 
 const memberNavItems: NavItem[] = [

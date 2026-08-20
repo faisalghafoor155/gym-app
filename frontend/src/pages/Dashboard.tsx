@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Users, UserCheck, CreditCard, CalendarCheck,
@@ -10,10 +10,9 @@ import {
   Page, Card, StatTile, PageLoader, EmptyState, BarChart, LineChart,
   primaryButton, secondaryButton, focusRing,
 } from '../components/ui';
-import api, { apiError } from '../api/client';
+import { useFetch } from '../hooks/useFetch';
 import { useAuth } from '../context/AuthContext';
 import type { DashboardStats } from '../types';
-import toast from 'react-hot-toast';
 
 const GYM_IMAGES = [
   'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80',
@@ -88,18 +87,14 @@ function PanelHeader({ icon: Icon, tone, title, count, to }: {
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
   const [imgIndex] = useState(() => Math.floor(Math.random() * GYM_IMAGES.length));
   const [quoteIndex] = useState(() => Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length));
   const { gym, isOwner } = useAuth();
 
-  useEffect(() => {
-    api.get<DashboardStats>('/dashboard')
-      .then(r => setStats(r.data))
-      .catch(err => toast.error(apiError(err, 'Could not load the dashboard')))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: stats, loading } = useFetch<DashboardStats>(
+    '/dashboard',
+    'Could not load the dashboard',
+  );
 
   if (loading) return <PageLoader />;
 

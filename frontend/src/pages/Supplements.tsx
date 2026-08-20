@@ -11,6 +11,7 @@ import {
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
+import { useFetch } from '../hooks/useFetch';
 import type { Supplement, SupplementCategory, Member, Paginated } from '../types';
 import toast from 'react-hot-toast';
 
@@ -50,8 +51,6 @@ const emptyForm: SupplementForm = {
 };
 
 export default function Supplements() {
-  const [supplements, setSupplements] = useState<Supplement[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<SupplementForm>(emptyForm);
@@ -83,16 +82,17 @@ export default function Supplements() {
   const [restockForm, setRestockForm] = useState({ quantity: '', notes: '' });
   const restockRef = useDialog(!!restocking, () => setRestocking(null));
 
-  const load = () =>
-    api.get<Supplement[]>('/supplements')
-      .then(r => setSupplements(r.data))
-      .catch(err => toast.error(apiError(err, 'Could not load supplements')))
-      .finally(() => setLoading(false));
+  const { data, loading, reload: load } = useFetch<Supplement[]>(
+    '/supplements',
+    'Could not load supplements',
+  );
+  // Null only before the first load lands, which the spinner covers.
+  const supplements = data ?? [];
 
   useEffect(() => {
-    void load();
     // For the "sold to" picker. A failure here is not worth a toast — the
-    // sale still works, it just cannot be attributed to a member.
+    // sale still works, it just cannot be attributed to a member. Kept out of
+    // the loader above so a missing picker never blanks the stock list.
     void api.get<Paginated<Member>>('/members?all=true')
       .then(r => setMembers(r.data.data))
       .catch(() => { /* walk-in sales still work without it */ });

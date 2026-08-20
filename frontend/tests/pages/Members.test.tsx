@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import {
-  aMember, mockApi, membersPage, ownerAuth, staffAuth, renderPage, type AuthState,
+  aMember, aMembership, mockApi, membersPage, ownerAuth, staffAuth, renderPage, type AuthState,
 } from '../helpers';
 
 /**
@@ -224,28 +224,80 @@ describe('Members — empty states', () => {
 });
 
 describe('Members — what staff may do', () => {
-  it('keeps the extend action away from staff', async () => {
+  it('offers renew to staff, not just the owner', async () => {
     setup({
       auth: staffAuth,
       members: membersPage([aMember({
         name: 'Ali Khan',
-        currentMembership: {
-          id: 'ms-1', planId: 'p1', planName: 'Monthly',
-          startDate: new Date().toISOString(),
-          expiryDate: new Date().toISOString(),
-          originalExpiryDate: new Date().toISOString(),
-          pricePaid: 2500, durationDays: 30, extendedDays: 0,
-          extensionReason: null, status: 'active', daysLeft: 20,
-          freezeStartDate: null,
-        },
+        currentMembership: aMembership({ status: 'expiring', daysLeft: 3 }),
       })]),
     });
 
     renderPage(<Members />);
     await loaded();
 
-    // Granting free days is spending the gym's money, and the API refuses
-    // staff outright — so the button is absent rather than failing on click.
-    expect(screen.queryByRole('button', { name: /extend/i })).not.toBeInTheDocument();
+    // Taking a fee and selling the next month is what the front desk is for.
+    expect(screen.getByRole('button', { name: /renew ali khan/i })).toBeInTheDocument();
+  });
+});
+
+/**
+ * Renew is offered only when renewing is the next thing to do. A button on
+ * every row in the gym is the same as no button at all — the members who need
+ * chasing stop standing out.
+ */
+describe('Members — when renew is offered', () => {
+  const withMembership = (over: Partial<ReturnType<typeof aMembership>>) =>
+    setup({
+      members: membersPage([aMember({
+        name: 'Ali Khan',
+        currentMembership: aMembership(over),
+      })]),
+    });
+
+  const renewButton = () => screen.queryByRole('button', { name: /renew ali khan/i });
+
+  it('stays hidden while there is still a month to run', async () => {
+    withMembership({ status: 'active', daysLeft: 25 });
+    renderPage(<Members />);
+    await loaded();
+
+    expect(renewButton()).not.toBeInTheDocument();
+  });
+
+  it('appears once the membership is expiring', async () => {
+    withMembership({ status: 'expiring', daysLeft: 5 });
+    renderPage(<Members />);
+    await loaded();
+
+    expect(renewButton()).toBeInTheDocument();
+  });
+
+  it('appears for a membership that has already run out', async () => {
+    withMembership({ status: 'expired', daysLeft: -12 });
+    renderPage(<Members />);
+    await loaded();
+
+    // The member who lapsed and walked back in is exactly who this is for.
+    expect(renewButton()).toBeInTheDocument();
+  });
+
+  it('stays hidden on a cancelled membership', async () => {
+    withMembership({ status: 'cancelled', daysLeft: 10 });
+    renderPage(<Members />);
+    await loaded();
+
+    // Closed history — the API refuses it, so the button must not be there
+    // to fail on click.
+    expect(renewButton()).not.toBeInTheDocument();
+  });
+
+  it('stays hidden for a member who never bought anything', async () => {
+    setup({ members: membersPage([aMember({ name: 'Ali Khan', currentMembership: null })]) });
+    renderPage(<Members />);
+    await loaded();
+
+    // Nothing to renew from: they need a first membership, not a renewal.
+    expect(renewButton()).not.toBeInTheDocument();
   });
 });

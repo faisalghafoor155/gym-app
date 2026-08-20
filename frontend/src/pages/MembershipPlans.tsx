@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import {
   Plus, Pencil, Archive, RotateCcw, Tag, CalendarRange, Wallet, EyeOff,
 } from 'lucide-react';
@@ -8,6 +8,7 @@ import {
   inputClass, primaryButton, secondaryButton, focusRing,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
+import { useFetch } from '../hooks/useFetch';
 import { useDialog } from '../hooks/useDialog';
 import type { MembershipPlan } from '../types';
 import toast from 'react-hot-toast';
@@ -36,8 +37,6 @@ function describeDuration(days: number): string | null {
 }
 
 export default function MembershipPlans() {
-  const [plans, setPlans] = useState<MembershipPlan[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<PlanForm>(emptyForm);
@@ -48,13 +47,12 @@ export default function MembershipPlans() {
 
   // Always fetch everything; the toggle is a display choice, so flipping it
   // does not cost a round trip.
-  const load = () =>
-    api.get<MembershipPlan[]>('/membership-plans?includeInactive=true')
-      .then(r => setPlans(r.data))
-      .catch(err => toast.error(apiError(err, 'Could not load membership plans')))
-      .finally(() => setLoading(false));
-
-  useEffect(() => { void load(); }, []);
+  const { data, loading, reload: load } = useFetch<MembershipPlan[]>(
+    '/membership-plans?includeInactive=true',
+    'Could not load membership plans',
+  );
+  // Null only before the first load lands, which the spinner covers.
+  const plans = data ?? [];
 
   const set = (k: keyof PlanForm) => (v: string) => setForm(f => ({ ...f, [k]: v }));
 
