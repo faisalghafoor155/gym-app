@@ -78,34 +78,42 @@ export default function Classes() {
 
   const [deactivatingSchedule, setDeactivatingSchedule] = useState<ClassSchedule | null>(null);
 
-  const loadData = async () => {
+  const loadData = async (isStale: () => boolean = () => false) => {
     try {
       const [cRes, tRes, mRes] = await Promise.all([
         api.get<Class[]>('/classes'),
         api.get<Trainer[]>('/trainers'),
         api.get<{ data: Member[] }>('/members?all=true'),
       ]);
+      if (isStale()) return;
       setClasses(cRes.data.filter(c => c.isActive));
       setTrainers(tRes.data.filter(t => t.isActive));
       setMembers(mRes.data.data);
 
       const sRes = await api.get<ClassSchedule[]>(`/classes/schedules?date=${targetDate}`);
+      if (isStale()) return;
       setSchedules(sRes.data);
 
       if (activeTab === 'bookings') {
         const bRes = await api.get<ClassBooking[]>(`/class-bookings?date=${targetDate}`);
+        if (isStale()) return;
         setBookings(bRes.data);
       }
     } catch (err) {
-      toast.error(apiError(err, 'Failed to fetch data'));
+      if (!isStale()) toast.error(apiError(err, 'Failed to fetch data'));
     } finally {
-      setLoading(false);
+      if (!isStale()) setLoading(false);
     }
   };
 
   useEffect(() => {
+    // Changing the date or the tab mid-load must not let the previous day's
+    // schedules and bookings land under the new one — both calls carry the
+    // date they were issued for.
+    let cancelled = false;
     setLoading(true);
-    void loadData();
+    void loadData(() => cancelled);
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, targetDate]);
 

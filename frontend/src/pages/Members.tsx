@@ -240,6 +240,12 @@ export default function Members() {
     return `?${q.toString()}`;
   }, [debouncedSearch, filterStatus, filterGender]);
 
+  // Read by in-flight requests to tell whether the filters they were issued
+  // under are still the ones on screen. A ref rather than the value itself:
+  // `loadMore` closes over `query` at the moment it was clicked.
+  const queryRef = useRef(query);
+  queryRef.current = query;
+
   /**
    * Replaces the list from page one, under the filters in force.
    *
@@ -247,32 +253,45 @@ export default function Members() {
    * current tab entirely, and refetching some later page would leave a hole
    * above whatever came back.
    */
-  const load = useMemo(() => () =>
+  const load = useMemo(() => (isStale: () => boolean = () => false) =>
     api.get<PaginatedMembers>(`/members${query}`)
       .then(r => {
+        if (isStale()) return;
         setMembers(r.data.data);
         setCounts(r.data.counts);
         setTotal(r.data.total);
         setHasMore(r.data.hasMore);
         setPage(1);
       })
-      .catch(err => toast.error(apiError(err, 'Could not load members')))
-      .finally(() => setLoading(false)),
+      .catch(err => {
+        if (!isStale()) toast.error(apiError(err, 'Could not load members'));
+      })
+      .finally(() => { if (!isStale()) setLoading(false); }),
   [query]);
 
   // Refetched whenever the filters change. The old list is dimmed rather than
   // blanked, so typing in the search box does not empty the page.
   useEffect(() => {
+    // A slow earlier response must not overwrite a newer one: typing in the
+    // search box leaves the previous request in flight, and landing it after
+    // this one would put stale rows under the current filters.
+    let cancelled = false;
     setRefetching(true);
-    void load().finally(() => setRefetching(false));
+    void load(() => cancelled).finally(() => { if (!cancelled) setRefetching(false); });
+    return () => { cancelled = true; };
   }, [load]);
 
   /** Appends the next page rather than replacing what is on screen. */
   const loadMore = () => {
     const next = page + 1;
+    // The filters this page was asked for. If they change while it is in
+    // flight the rows belong to a list that is no longer on screen, and
+    // appending them would mix two different result sets.
+    const asked = query;
     setLoadingMore(true);
     api.get<PaginatedMembers>(`/members${query}&page=${next}`)
       .then(r => {
+        if (asked !== queryRef.current) return;
         setMembers(prev => [...prev, ...r.data.data]);
         setHasMore(r.data.hasMore);
         setPage(next);

@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChart3, ArrowLeft, TrendingUp, Package, ShoppingCart } from 'lucide-react';
 import {
   Page, PageHeader, Card, StatTile, PageLoader, EmptyState, BarChart, SegmentedControl,
   secondaryButton,
 } from '../components/ui';
-import api, { apiError } from '../api/client';
+import { useFetch } from '../hooks/useFetch';
 import { toCsv, downloadCsv } from '../utils/csv';
 import type { SalesReport } from '../types';
 import toast from 'react-hot-toast';
@@ -21,17 +21,11 @@ const RANGES = [
 ] as const;
 
 export default function SupplementSales() {
-  const [report, setReport] = useState<SalesReport | null>(null);
   const [months, setMonths] = useState<string>('6');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    api.get<SalesReport>(`/supplements/sales/report?months=${months}`)
-      .then(r => setReport(r.data))
-      .catch(err => toast.error(apiError(err, 'Could not load the sales report')))
-      .finally(() => setLoading(false));
-  }, [months]);
+  const { data: report, loading } = useFetch<SalesReport>(
+    `/supplements/sales/report?months=${months}`,
+    'Could not load the sales report',
+  );
 
   const handleExport = () => {
     if (!report || report.recent.length === 0) { toast.error('Nothing to export'); return; }

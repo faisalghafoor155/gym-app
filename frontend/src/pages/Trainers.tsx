@@ -68,7 +68,7 @@ export default function Trainers() {
   const [deactivatingTrainer, setDeactivatingTrainer] = useState<Trainer | null>(null);
   const [gymDefaultPtFee, setGymDefaultPtFee] = useState<number | null>(null);
 
-  const loadData = async () => {
+  const loadData = async (isStale: () => boolean = () => false) => {
     try {
       const [tRes, mRes, settingsRes] = await Promise.all([
         api.get<Trainer[]>('/trainers'),
@@ -77,27 +77,34 @@ export default function Trainers() {
         // what it will actually charge rather than leaving staff to guess.
         api.get<GymSettings>('/gym-settings'),
       ]);
+      if (isStale()) return;
       setTrainers(tRes.data.filter(t => t.isActive));
       setMembers(mRes.data.data);
       setGymDefaultPtFee(settingsRes.data.defaultPtFee);
 
       if (activeTab === 'bookings') {
         const sRes = await api.get<PtSession[]>('/pt-sessions');
+        if (isStale()) return;
         setSessions(sRes.data);
       } else if (activeTab === 'commissions') {
         const rRes = await api.get<TrainerCommissionReport[]>('/pt-sessions/commissions');
+        if (isStale()) return;
         setReport(rRes.data);
       }
     } catch (err) {
-      toast.error(apiError(err, 'Failed to fetch data'));
+      if (!isStale()) toast.error(apiError(err, 'Failed to fetch data'));
     } finally {
-      setLoading(false);
+      if (!isStale()) setLoading(false);
     }
   };
 
   useEffect(() => {
+    // Switching tabs mid-load must not let the old tab's rows land under the
+    // new one — the sessions and commissions calls are issued per tab.
+    let cancelled = false;
     setLoading(true);
-    void loadData();
+    void loadData(() => cancelled);
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 

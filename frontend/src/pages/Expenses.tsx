@@ -90,7 +90,7 @@ export default function Expenses() {
     return p.toString();
   };
 
-  const load = async () => {
+  const load = async (isStale: () => boolean = () => false) => {
     setBusy(true);
     try {
       const profitParams = new URLSearchParams();
@@ -104,18 +104,26 @@ export default function Expenses() {
         // each other would be worse than none.
         api.get<ProfitReport>(`/expenses/profit?${profitParams.toString()}`),
       ]);
+      if (isStale()) return;
       setList(listRes.data);
       setProfit(profitRes.data);
     } catch (err) {
-      toast.error(apiError(err, 'Could not load expenses'));
+      if (!isStale()) toast.error(apiError(err, 'Could not load expenses'));
     } finally {
-      setLoading(false);
-      setBusy(false);
+      if (!isStale()) {
+        setLoading(false);
+        setBusy(false);
+      }
     }
   };
 
   useEffect(() => {
-    void load();
+    // A slow earlier response must not overwrite a newer one — the search box
+    // and the date filters both refetch, and landing an old pair of responses
+    // afterwards would show a table and tiles for filters no longer set.
+    let cancelled = false;
+    void load(() => cancelled);
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, category, from, to, page]);
 
