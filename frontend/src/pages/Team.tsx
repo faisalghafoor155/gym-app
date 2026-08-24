@@ -606,11 +606,11 @@ export default function Team() {
               <select required value={staffForm.staffPermission}
                 onChange={e => setStaffForm(f => ({ ...f, staffPermission: e.target.value as StaffPermission }))}
                 className={inputClass}>
-                <option value="receptionist">Receptionist (Check-in & Attendance)</option>
-                <option value="members_manager">Members Manager (Manage Members & Memberships)</option>
-                <option value="accountant">Accountant (Manage Payments & Reports)</option>
-                <option value="inventory_manager">Inventory Manager (Manage Supplements & Stock)</option>
-                <option value="manager">Manager (Full Access)</option>
+                <option value="receptionist">Attendance (Receptionist)</option>
+                <option value="accountant">Account (Accountant)</option>
+                <option value="manager">Full Access (Manager)</option>
+                <option value="members_manager">Members Manager (Members Manager)</option>
+                <option value="inventory_manager">Inventory Manager (Inventory Manager)</option>
               </select>
               <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5 leading-relaxed">
                 {getPermissionDescription(staffForm.staffPermission)}
@@ -738,11 +738,11 @@ export default function Team() {
                 onChange={e => setSelectedPermission(e.target.value as StaffPermission)}
                 className={inputClass}
               >
-                <option value="receptionist">Receptionist (Check-in & Attendance)</option>
-                <option value="members_manager">Members Manager (Manage Members & Memberships)</option>
-                <option value="accountant">Accountant (Manage Payments & Reports)</option>
-                <option value="inventory_manager">Inventory Manager (Manage Supplements & Stock)</option>
-                <option value="manager">Manager (Full Access)</option>
+                <option value="receptionist">Attendance (Receptionist)</option>
+                <option value="accountant">Account (Accountant)</option>
+                <option value="manager">Full Access (Manager)</option>
+                <option value="members_manager">Members Manager (Members Manager)</option>
+                <option value="inventory_manager">Inventory Manager (Inventory Manager)</option>
               </select>
               <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
                 {getPermissionDescription(selectedPermission)}

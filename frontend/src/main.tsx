@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast'
 import './index.css'
 import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary.tsx'
+import UpdatePrompt from './components/UpdatePrompt.tsx'
 import { ThemeProvider, useTheme } from './context/ThemeContext.tsx'
 
 /**
@@ -41,6 +42,12 @@ createRoot(document.getElementById('root')!).render(
         <App />
       </ErrorBoundary>
       <ThemedToaster />
+      {/*
+        Outside the boundary and beside the toaster it renders into: it is the
+        service worker's registration point as well as the update prompt, and
+        a crash in App is the one moment a stale bundle most needs replacing.
+      */}
+      <UpdatePrompt />
     </ThemeProvider>
   </StrictMode>,
 )

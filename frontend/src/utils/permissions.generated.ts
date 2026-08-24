@@ -32,7 +32,7 @@ export interface PermissionRequirements {
 
 export const STAFF_PERMISSIONS: Record<StaffPermission, PermissionRequirements> = {
   accountant: {
-    canCheckIn: false,
+    canCheckIn: true,
     canManageClasses: false,
     canManageExpenses: true,
     canManageMembers: false,
@@ -45,7 +45,7 @@ export const STAFF_PERMISSIONS: Record<StaffPermission, PermissionRequirements> 
     canModifyStaff: false,
     canRecordPayments: true,
     canSellSupplements: false,
-    canViewAttendance: false,
+    canViewAttendance: true,
     canViewPayments: true,
     canViewReports: true,
   },
@@ -124,17 +124,17 @@ export const STAFF_PERMISSIONS: Record<StaffPermission, PermissionRequirements> 
 };
 
 export const PERMISSION_LABELS: Record<StaffPermission, string> = {
-  accountant: "Accountant",
+  accountant: "Account",
   inventory_manager: "Inventory Manager",
-  manager: "Manager",
+  manager: "Full Access",
   members_manager: "Members Manager",
-  receptionist: "Receptionist",
+  receptionist: "Attendance",
 };
 
 export const PERMISSION_DESCRIPTIONS: Record<StaffPermission, string> = {
-  accountant: "Can manage and view payments, expenses, and reports",
+  accountant: "Can check attendance, record payments (add fees), manage expenses, and view reports",
   inventory_manager: "Can manage supplements, inventory, and sell items",
   manager: "Full access to all features including staff management",
   members_manager: "Can manage members, memberships, and view payments",
-  receptionist: "Can check in members and view attendance",
+  receptionist: "Can check in members, view attendance, and view classes/schedules",
 };

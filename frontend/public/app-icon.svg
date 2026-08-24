@@ -1,0 +1,22 @@
+<!--
+  The installed-app mark.
+
+  Deliberately not `favicon.svg`: that file is a stack of blurred, filtered
+  ellipses, which a launcher shrinks to 48px of mud and which most SVG
+  rasterisers render differently from the browser. An app icon is looked at
+  small and often, so this is drawn flat instead — the same dumbbell the
+  sidebar and the mobile top bar already use, on the brand purple.
+
+  The glyph is kept inside the middle 60% so the same artwork survives being
+  used as a maskable icon, where Android may crop to a circle.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#863bff"/>
+  <g stroke="#ffffff" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M166 256h180"/>
+    <path d="M140 202v108"/>
+    <path d="M372 202v108"/>
+    <path d="M108 224v64"/>
+    <path d="M404 224v64"/>
+  </g>
+</svg>

@@ -9,6 +9,9 @@ import {
 import api, { apiError } from '../api/client';
 import toast from 'react-hot-toast';
 import type { Trainer, PtSession, TrainerCommissionReport, Member, GymSettings } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { hasPermission } from '../utils/permissions';
+
 
 interface TrainerForm {
   name: string;
@@ -45,14 +48,20 @@ const emptyPtForm = (): PtSessionForm => ({
   paymentStatus: 'unpaid',
 });
 
-type TabType = 'trainers' | 'bookings' | 'commissions';
+type TabType = 'trainers' | 'bookings' | 'commissions' | 'payouts';
 
 export default function Trainers() {
+  const { user } = useAuth();
+  const canViewPayouts = hasPermission(user?.role || null, user?.staffPermission, 'canViewPayments');
+  const canManagePayouts = hasPermission(user?.role || null, user?.staffPermission, 'canManagePayments');
+
   const [activeTab, setActiveTab] = useState<TabType>('trainers');
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [sessions, setSessions] = useState<PtSession[]>([]);
   const [report, setReport] = useState<TrainerCommissionReport[]>([]);
+  const [payouts, setPayouts] = useState<any[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -90,6 +99,10 @@ export default function Trainers() {
         const rRes = await api.get<TrainerCommissionReport[]>('/pt-sessions/commissions');
         if (isStale()) return;
         setReport(rRes.data);
+      } else if (activeTab === 'payouts' && canViewPayouts) {
+        const pRes = await api.get<any[]>('/payouts');
+        if (isStale()) return;
+        setPayouts(pRes.data);
       }
     } catch (err) {
       if (!isStale()) toast.error(apiError(err, 'Failed to fetch data'));
@@ -187,6 +200,19 @@ export default function Trainers() {
     }
   };
 
+  const payTrainer = async (trainerId: string) => {
+    setSaving(true);
+    try {
+      await api.post(`/payouts/${trainerId}/pay`);
+      toast.success('Trainer payout marked as paid');
+      await loadData();
+    } catch (err) {
+      toast.error(apiError(err, 'Failed to process trainer payout'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) return <PageLoader />;
 
   return (
@@ -224,11 +250,12 @@ export default function Trainers() {
       <Card className="p-4 mb-6">
         <SegmentedControl
           value={activeTab}
-          onChange={setActiveTab}
+          onChange={v => setActiveTab(v as TabType)}
           options={[
             { value: 'trainers', label: 'Trainers Roster' },
             { value: 'bookings', label: 'PT Bookings & Logs' },
             { value: 'commissions', label: 'Trainer Commissions' },
+            ...(canViewPayouts ? [{ value: 'payouts', label: 'Payouts Tracker' }] : []),
           ]}
         />
       </Card>
@@ -466,6 +493,78 @@ export default function Trainers() {
                         </tr>
                       );
                     })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        )
+      )}
+
+      {/* TAB 4: Payouts Tracker */}
+      {activeTab === 'payouts' && (
+        payouts.length === 0 ? (
+          <EmptyState
+            icon={IndianRupee}
+            title="No payouts found"
+            hint="Create trainers and complete sessions to track payouts."
+          />
+        ) : (
+          <div className="space-y-6">
+            <Card className="overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left text-gray-500 dark:text-slate-400">
+                  <thead className="text-xs uppercase bg-gray-50 dark:bg-slate-800/50 text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800">
+                    <tr>
+                      <th className="px-6 py-4 font-bold">Trainer</th>
+                      <th className="px-6 py-4 font-bold">Rate</th>
+                      <th className="px-6 py-4 font-bold">Total Sessions</th>
+                      <th className="px-6 py-4 font-bold">Total Earned</th>
+                      <th className="px-6 py-4 font-bold text-green-600">Paid</th>
+                      <th className="px-6 py-4 font-bold text-yellow-600">Unpaid</th>
+                      <th className="px-6 py-4 font-bold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-slate-800/60">
+                    {payouts.map(p => (
+                      <tr key={p.trainerId} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/20">
+                        <td className="px-6 py-4 font-semibold text-gray-900 dark:text-slate-200">
+                          {p.trainerName}
+                        </td>
+                        <td className="px-6 py-4">
+                          {p.commissionPercentage}%
+                        </td>
+                        <td className="px-6 py-4 font-medium">
+                          {p.totalSessionsCount} sessions
+                        </td>
+                        <td className="px-6 py-4 font-semibold text-gray-900 dark:text-slate-200">
+                          Rs. {p.totalEarned.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 text-green-700 dark:text-green-400 font-bold">
+                          Rs. {p.paidCommission.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 text-yellow-700 dark:text-yellow-400 font-bold">
+                          Rs. {p.unpaidCommission.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {p.unpaidCommission > 0 ? (
+                            canManagePayouts ? (
+                              <button
+                                onClick={() => void payTrainer(p.trainerId)}
+                                disabled={saving}
+                                className="px-3 py-1.5 rounded-md text-xs font-semibold bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-800 disabled:opacity-50"
+                              >
+                                Clear Unpaid
+                              </button>
+                            ) : (
+                              <span className="text-xs text-yellow-600 font-semibold">Unpaid</span>
+                            )
+                          ) : (
+                            <span className="text-xs text-gray-400 font-semibold">Fully Paid</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

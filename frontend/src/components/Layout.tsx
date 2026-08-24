@@ -3,6 +3,8 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
 import ThemeToggle from './ThemeToggle';
+import OfflineBanner from './OfflineBanner';
+import InstallBanner from './InstallBanner';
 import { hasPermission, type PermissionRequirements } from '../utils/permissions';
 import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
@@ -19,6 +21,7 @@ interface NavItem {
 
 const staffNavItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/members', label: 'Members', icon: Users },
   { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
   // Two different kinds of "plan": what a member buys, and what they train
@@ -83,6 +86,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const navItemPermissions: Record<string, keyof PermissionRequirements> = {
     '/members': 'canManageMembers',
     '/attendance': 'canViewAttendance',
+    '/analytics': 'canViewReports',
     '/membership-plans': 'canManageMemberships',
     '/plans': 'canManagePlans',
     '/supplements': 'canManageSupplements',
@@ -213,6 +217,14 @@ export default function Layout({ children }: { children: ReactNode }) {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Above the mobile top bar and the content both: it applies to the
+            whole app, not to whatever page happens to be open. */}
+        <OfflineBanner />
+
+        {/* Only ever rendered inside the app, so it cannot appear over the
+            login or invite-acceptance screens — those do not use Layout. */}
+        <InstallBanner />
+
         {/* Mobile top bar */}
         <header className="lg:hidden flex items-center gap-3 bg-white border-b border-gray-100 dark:bg-slate-900 dark:border-slate-800 px-4 py-3 shrink-0">
           <button

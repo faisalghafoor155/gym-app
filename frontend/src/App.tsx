@@ -24,6 +24,7 @@ import Trainers from './pages/Trainers';
 import Classes from './pages/Classes';
 import MyPortal from './pages/MyPortal';
 import Security from './pages/Security';
+import Analytics from './pages/Analytics';
 import { Spinner } from './components/ui';
 
 /** The whole-app boot state, before the session is known. */
@@ -126,6 +127,7 @@ function AppRoutes() {
                 <Route path="/security" element={<Security />} />
                  <Route path="/dashboard" element={<StaffRoute><Dashboard /></StaffRoute>} />
                 <Route path="/attendance" element={<PermissionRoute action="canViewAttendance"><Attendance /></PermissionRoute>} />
+                <Route path="/analytics" element={<PermissionRoute action="canViewReports"><Analytics /></PermissionRoute>} />
                 <Route path="/plans" element={<PermissionRoute action="canManagePlans"><Plans /></PermissionRoute>} />
                 <Route path="/membership-plans" element={<PermissionRoute action="canManageMemberships"><MembershipPlans /></PermissionRoute>} />
                 <Route path="/supplements" element={<PermissionRoute action="canManageSupplements"><Supplements /></PermissionRoute>} />

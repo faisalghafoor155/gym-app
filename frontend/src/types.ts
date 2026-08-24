@@ -422,13 +422,43 @@ export interface MonthlyCollection {
   expectedTotal: number;
 }
 
+export interface WorkoutExercise {
+  name: string;
+  sets: number;
+  reps: string;
+  weight: string;
+}
+
+export interface DailyWorkout {
+  day: string;
+  exercises: WorkoutExercise[];
+}
+
+export interface DietItem {
+  name: string;
+  amount: string;
+  calories: number;
+}
+
+export interface DietMeal {
+  name: string;
+  items: DietItem[];
+}
+
 export interface Plan {
   id: string;
   gymId: string;
   name: string;
   description: string | null;
+  workoutData?: {
+    days: DailyWorkout[];
+  };
+  dietData?: {
+    meals: DietMeal[];
+  };
   createdAt: string;
 }
+
 
 export interface Supplement {
   id: string;

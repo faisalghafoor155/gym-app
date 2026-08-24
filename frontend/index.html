@@ -5,6 +5,16 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GymPro</title>
+
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!--
+      Two theme-colors, because installed standalone the browser paints the
+      title bar with this rather than with anything the app renders. One value
+      would leave a dark-mode user with a white strip above a black app.
+    -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#863bff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#020617" />
     <!--
       Applied before the first paint, and before React mounts.
 
