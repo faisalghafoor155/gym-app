@@ -9,7 +9,7 @@ import {
   SegmentedControl, inputClass, secondaryButton, focusRing,
 } from '../components/ui';
 import { useDebounced } from '../hooks/useDebounced';
-import { toCsv, downloadCsv } from '../utils/csv';
+import { downloadFromServer } from '../utils/csv';
 import api, { apiError } from '../api/client';
 import type {
   MonthlyCollection, MonthlyCollectionRow, UnpaidRow, CollectionView,
@@ -119,48 +119,27 @@ export default function MonthlyCollection() {
    * sheet is something people re-total themselves — and a folded row cannot be
    * checked against the receipts it came from.
    *
-   * Exports what is on screen, which is the current page. Said so on the
-   * button, since a file quietly holding 50 of 200 members would be worse than
-   * no file at all.
+   * Built by the server from the whole month, not by this page from the fifty
+   * rows it happens to hold. A file quietly covering 50 of 200 members is
+   * worse than no file: nothing in it says it is short, so it gets reconciled
+   * against a bank statement and the difference is blamed on the books.
    */
-  const handleExport = () => {
-    if (!report) return;
+  const [exporting, setExporting] = useState(false);
 
-    // The unpaid list is a different sheet with different columns — a debt has
-    // no date, method or receipt, and padding it into the payments shape would
-    // produce a column of blanks that reads as missing data.
-    if (view === 'unpaid') {
-      if (report.unpaid.length === 0) return;
-      downloadCsv(
-        `unpaid-${report.month}.csv`,
-        toCsv(
-          ['Member No', 'Name', 'Phone', 'Plan', 'Expires', 'Expected', 'Paid', 'Shortfall'],
-          report.unpaid.map(r => [
-            r.memberNo, r.name, r.phone ?? '', r.membership.planName,
-            new Date(r.membership.expiryDate).toLocaleDateString('en-PK'),
-            r.expected, r.paid, r.shortfall,
-          ]),
-        ),
-      );
-      return;
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      // The same query the list was built from, so the file matches what is on
+      // screen — the same month, the same search, the same side of the ledger.
+      const q = new URLSearchParams({ month, view });
+      if (debouncedSearch.trim()) q.set('search', debouncedSearch.trim());
+      if (!includeDue) q.set('includeDue', 'false');
+      await downloadFromServer(`/api/payments/monthly/export?${q}`);
+    } catch (err) {
+      toast.error(apiError(err, 'Could not export the month'));
+    } finally {
+      setExporting(false);
     }
-
-    if (report.data.length === 0) return;
-    const rows = report.data.flatMap(r =>
-      r.payments.map(p => [
-        r.memberNo, r.name, r.phone ?? '',
-        new Date(p.paymentDate).toLocaleDateString('en-PK'),
-        p.amount, p.status, p.method, p.type,
-        p.recordedBy?.name ?? '', p.notes ?? '',
-      ]),
-    );
-    downloadCsv(
-      `collection-${report.month}.csv`,
-      toCsv(
-        ['Member No', 'Name', 'Phone', 'Date', 'Amount', 'Status', 'Method', 'Type', 'Recorded By', 'Notes'],
-        rows,
-      ),
-    );
   };
 
   // The month picker must not offer a future month: there is nothing to report
@@ -177,13 +156,15 @@ export default function MonthlyCollection() {
         subtitle="Every member's fee record for the month you choose"
         action={
           <button
-            onClick={handleExport}
-            disabled={!report || (view === 'unpaid' ? report.unpaid : report.data).length === 0}
+            onClick={() => void handleExport()}
+            disabled={exporting || !report || report.total === 0}
             className={secondaryButton}
-            title="Exports the members shown on this page"
+            title="Exports the whole month, not just this page"
           >
             <Download size={16} />
-            <span className="hidden sm:inline">Export page</span>
+            <span className="hidden sm:inline">
+              {exporting ? 'Exporting…' : 'Export month'}
+            </span>
           </button>
         }
       />

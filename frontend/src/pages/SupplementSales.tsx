@@ -6,7 +6,7 @@ import {
   secondaryButton,
 } from '../components/ui';
 import { useFetch } from '../hooks/useFetch';
-import { toCsv, downloadCsv } from '../utils/csv';
+import { downloadFromServer } from '../utils/csv';
 import type { SalesReport } from '../types';
 import toast from 'react-hot-toast';
 
@@ -27,17 +27,24 @@ export default function SupplementSales() {
     'Could not load the sales report',
   );
 
-  const handleExport = () => {
-    if (!report || report.recent.length === 0) { toast.error('Nothing to export'); return; }
-    const csv = toCsv(
-      ['Date', 'Supplement', 'Buyer', 'Quantity', 'Unit Price', 'Total', 'Notes'],
-      report.recent.map(s => [
-        new Date(s.soldAt).toLocaleDateString(),
-        s.supplementName, s.buyer, s.quantity, s.unitPrice, s.total, s.notes ?? '',
-      ]),
-    );
-    downloadCsv(`supplement-sales-${new Date().toISOString().split('T')[0]}.csv`, csv);
-    toast.success(`Exported ${report.recent.length} sales`);
+  const [exporting, setExporting] = useState(false);
+
+  /**
+   * Built by the server from every sale in the window.
+   *
+   * The report on screen shows the fifty most recent, which is a list a person
+   * can read. A file built from those fifty would look complete and not be,
+   * and nothing in it would say which sales were left out.
+   */
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await downloadFromServer(`/api/supplements/sales/export?months=${months}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not export sales');
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading && !report) return <PageLoader />;
@@ -67,8 +74,14 @@ export default function SupplementSales() {
               <ArrowLeft size={16} />
               <span className="hidden sm:inline">Supplements</span>
             </Link>
-            <button onClick={handleExport} className={secondaryButton}>
-              <span className="hidden sm:inline">Export CSV</span><span className="sm:hidden">CSV</span>
+            <button
+              onClick={() => void handleExport()}
+              disabled={exporting || !report || report.totalUnits === 0}
+              className={secondaryButton}
+              title="Exports every sale in the window, not just the recent ones shown"
+            >
+              <span className="hidden sm:inline">{exporting ? 'Exporting…' : 'Export CSV'}</span>
+              <span className="sm:hidden">CSV</span>
             </button>
           </div>
         }
