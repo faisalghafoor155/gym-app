@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, CalendarPlus, QrCode, Fingerprint } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, CalendarPlus, QrCode, Fingerprint, PauseCircle, PlayCircle, XCircle } from 'lucide-react';
 import Badge from '../components/Badge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FingerprintEnrollModal from '../components/FingerprintEnrollModal';
@@ -67,6 +67,18 @@ const canRenew = (m: Member): boolean => {
   return status === 'expiring' || status === 'expired';
 };
 
+/**
+ * Pausing is offered on anything still running, and only resuming is offered
+ * once it is paused — the same either/or the API enforces, mirrored here so
+ * the button is absent rather than failing on click.
+ */
+const canSuspend = (m: Member): boolean => {
+  const status = m.currentMembership?.status;
+  return status === 'active' || status === 'expiring' || status === 'expired';
+};
+
+const canResume = (m: Member): boolean => m.currentMembership?.status === 'suspended';
+
 export default function Members() {
   const [members, setMembers] = useState<Member[]>([]);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
@@ -126,6 +138,9 @@ export default function Members() {
   const [deleting, setDeleting] = useState<Member | null>(null);
   /** The member being renewed. What is taken for it lives in the modal. */
   const [renewing, setRenewing] = useState<Member | null>(null);
+  const [statusChange, setStatusChange] =
+    useState<{ member: Member; verb: 'suspend' | 'resume' | 'cancel' } | null>(null);
+  const [statusBusy, setStatusBusy] = useState(false);
 
   const debouncedSearch = useDebounced(search);
 
@@ -256,6 +271,34 @@ export default function Members() {
       toast.error(apiError(err, 'Failed to delete'));
     } finally {
       setDeletingBusy(false);
+    }
+  };
+
+  /**
+   * Suspend, resume and cancel share one call: the three differ only in the
+   * verb and what to say afterwards, and keeping them together is what stops
+   * the confirm dialog and the request drifting apart.
+   */
+  const handleMembershipAction = async () => {
+    if (!statusChange) return;
+    const { member, verb } = statusChange;
+    const membershipId = member.currentMembership?.id;
+    if (!membershipId) return;
+
+    setStatusBusy(true);
+    try {
+      await api.post(`/members/${member.id}/memberships/${membershipId}/${verb}`);
+      toast.success(
+        verb === 'suspend' ? 'Membership suspended'
+          : verb === 'resume' ? 'Membership resumed'
+            : 'Membership cancelled',
+      );
+      setStatusChange(null);
+      await load();
+    } catch (err) {
+      toast.error(apiError(err, `Could not ${verb} membership`));
+    } finally {
+      setStatusBusy(false);
     }
   };
 
@@ -466,6 +509,27 @@ export default function Members() {
                       <CalendarPlus size={12} /> Renew
                     </button>
                   )}
+                  {canSuspend(m) && (
+                    <button onClick={() => setStatusChange({ member: m, verb: 'suspend' })}
+                      aria-label={`Suspend ${m.name}'s membership`} title="Pause this membership"
+                      className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-orange-100 dark:border-orange-500/20 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors ${focusRing}`}>
+                      <PauseCircle size={12} /> Suspend
+                    </button>
+                  )}
+                  {canResume(m) && (
+                    <button onClick={() => setStatusChange({ member: m, verb: 'resume' })}
+                      aria-label={`Resume ${m.name}'s membership`} title="Put this membership back into service"
+                      className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-green-100 dark:border-green-500/20 text-green-600 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors ${focusRing}`}>
+                      <PlayCircle size={12} /> Resume
+                    </button>
+                  )}
+                  {(canSuspend(m) || canResume(m)) && (
+                    <button onClick={() => setStatusChange({ member: m, verb: 'cancel' })}
+                      aria-label={`Cancel ${m.name}'s membership`} title="Call this membership off for good"
+                      className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}>
+                      <XCircle size={12} /> Cancel
+                    </button>
+                  )}
                   <button onClick={() => setDeleting(m)} aria-label={`Delete ${m.name}`}
                     className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-red-100 dark:border-red-500/20 text-red-500 hover:bg-red-50 transition-colors ${focusRing}`}>
                     <Trash2 size={12} />
@@ -519,6 +583,29 @@ export default function Members() {
           settings={settings}
           onClose={() => setRenewing(null)}
           onRenewed={() => { setRenewing(null); void load(); }}
+        />
+      )}
+
+      {/* Suspending, resuming and calling a membership off. The wording spells
+          out the consequence each time, because suspending does not stop the
+          clock and cancelling cannot be undone. */}
+      {statusChange && (
+        <ConfirmDialog
+          title={
+            statusChange.verb === 'suspend' ? 'Suspend membership'
+              : statusChange.verb === 'resume' ? 'Resume membership'
+                : 'Cancel membership'
+          }
+          message={
+            statusChange.verb === 'suspend'
+              ? `Suspend ${statusChange.member.name}'s membership? The expiry date keeps running while it is paused, so the days still count down. You can resume it at any time.`
+              : statusChange.verb === 'resume'
+                ? `Put ${statusChange.member.name}'s membership back into service? If it ran out while paused it will show as expired, ready to renew.`
+                : `Cancel ${statusChange.member.name}'s membership for good? It stays in their history and any payments already taken are kept, but it cannot be resumed or renewed afterwards.`
+          }
+          busy={statusBusy}
+          onConfirm={() => void handleMembershipAction()}
+          onCancel={() => setStatusChange(null)}
         />
       )}
 
