@@ -4,6 +4,7 @@ import {
   Page, PageHeader, Card, PageLoader, inputClass, focusRing, SegmentedControl,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
+import CheckinResultModal, { type CheckinDisplay } from '../components/attendance/CheckinResultModal';
 import type {
   Member, AttendanceRecord, CheckinResult, Paginated,
   FingerprintStatus, FingerprintIdentifyResult,
@@ -47,6 +48,14 @@ export default function Attendance() {
   // QR Scanner state
   const [scannerActive, setScannerActive] = useState(false);
   const [lastScanned, setLastScanned] = useState<{ name: string; photo?: string | null; status: string } | null>(null);
+  /**
+   * The panel that goes up in front of the desk after a check-in.
+   *
+   * Set from every route in — the fingerprint reader, the QR camera and the
+   * search list — because the thing it is there to say, that a membership has
+   * run out, does not depend on how the member was identified.
+   */
+  const [checkinResult, setCheckinResult] = useState<CheckinDisplay | null>(null);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const cooldownRef = useRef(false);
 
@@ -166,21 +175,15 @@ export default function Attendance() {
         status: data.alreadyCheckedIn ? 'already' : msStatus,
       });
 
-      if (data.alreadyCheckedIn) {
-        toast(`${memberName} was already checked in today`, { icon: 'ℹ️' });
-      } else {
-        toast.success(`${memberName} checked in!`);
-      }
-
-      const ms = data.membership;
-      if (!ms) {
-        toast(`${memberName} has no membership`, { icon: '⚠️', duration: 6000 });
-      } else if (ms.status === 'expired') {
-        toast(
-          `${memberName}'s membership expired ${Math.abs(ms.daysLeft)} day${Math.abs(ms.daysLeft) === 1 ? '' : 's'} ago`,
-          { icon: '⚠️', duration: 6000 },
-        );
-      }
+      // The panel says all of this at a size the desk can read across a
+      // counter, so the toasts that used to carry it would only repeat it.
+      setCheckinResult({
+        name: memberName,
+        memberNo: data.member?.memberNo ?? member?.memberNo,
+        photo,
+        membership: data.membership,
+        alreadyCheckedIn: data.alreadyCheckedIn,
+      });
 
       await loadToday();
     } catch (err) {
@@ -689,6 +692,16 @@ export default function Attendance() {
         )}
       </Card>
       </div>
+
+      {/* Goes up over everything after a check-in, however the member was
+          identified. It clears itself, so a queue is not held up by a panel
+          waiting to be dismissed. */}
+      {checkinResult && (
+        <CheckinResultModal
+          result={checkinResult}
+          onClose={() => setCheckinResult(null)}
+        />
+      )}
     </Page>
   );
 }
