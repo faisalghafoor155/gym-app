@@ -120,6 +120,14 @@ export default function Members() {
     const g = params.get('gender');
     return isGenderFilter(g) ? g : '';
   });
+  /**
+   * Whose members to show. '' is everyone; 'none' is the members nobody has
+   * been given, which is a question in its own right — it is the list you work
+   * through when handing them out.
+   */
+  const [filterTrainer, setFilterTrainer] = useState<string>(
+    () => params.get('trainerId') ?? '',
+  );
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -155,9 +163,10 @@ export default function Members() {
     if (debouncedSearch.trim()) q.set('search', debouncedSearch.trim());
     if (filterStatus !== 'all') q.set('status', filterStatus);
     if (filterGender) q.set('gender', filterGender);
+    if (filterTrainer) q.set('trainerId', filterTrainer);
     q.set('limit', String(PAGE_SIZE));
     return `?${q.toString()}`;
-  }, [debouncedSearch, filterStatus, filterGender]);
+  }, [debouncedSearch, filterStatus, filterGender, filterTrainer]);
 
   // Read by in-flight requests to tell whether the filters they were issued
   // under are still the ones on screen. A ref rather than the value itself:
@@ -361,6 +370,27 @@ export default function Members() {
             <option value="female">Female</option>
             <option value="other">Other</option>
           </select>
+          {/* Whose members to show. Only worth offering once the gym has a
+              trainer to filter by, so an empty roster does not carry a
+              dropdown with nothing in it.
+
+              "Not assigned" is deliberately its own option rather than a blank:
+              the members nobody has been given are exactly who a gym is looking
+              for when handing them out. */}
+          {trainers.length > 0 && (
+            <select
+              value={filterTrainer}
+              onChange={e => setFilterTrainer(e.target.value)}
+              aria-label="Filter members by trainer"
+              className={`${inputClass} sm:w-auto`}
+            >
+              <option value="">All trainers</option>
+              <option value="none">Not assigned</option>
+              {trainers.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          )}
           <div className="relative flex-1 min-w-50 sm:max-w-xs">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
             <input

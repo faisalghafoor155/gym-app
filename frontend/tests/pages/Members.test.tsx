@@ -166,6 +166,101 @@ describe('Members — the status tabs', () => {
   });
 });
 
+describe('Members — the trainer filter', () => {
+  /** The page only offers the filter once the gym has a trainer to filter by. */
+  const withTrainers = (members?: ReturnType<typeof membersPage>) => {
+    auth.current = ownerAuth;
+    api.current = mockApi({
+      '/membership-plans': [],
+      '/trainers': [
+        { id: 't-1', name: 'Coach Alpha' },
+        { id: 't-2', name: 'Coach Beta' },
+      ],
+      '/members': members ?? membersPage([aMember({ name: 'Ali Khan' })]),
+    });
+    return api.current;
+  };
+
+  it('stays hidden for a gym with no trainers', async () => {
+    setup();
+    renderPage(<Members />);
+    await loaded();
+
+    // A dropdown with nothing in it is worse than no dropdown.
+    expect(screen.queryByLabelText(/filter members by trainer/i)).toBeNull();
+  });
+
+  it('offers each trainer once they exist', async () => {
+    withTrainers();
+    renderPage(<Members />);
+    await loaded();
+
+    const select = await screen.findByLabelText(/filter members by trainer/i);
+    expect(within(select).getByRole('option', { name: 'Coach Alpha' })).toBeDefined();
+    expect(within(select).getByRole('option', { name: 'Not assigned' })).toBeDefined();
+  });
+
+  it('asks the server for the chosen trainer', async () => {
+    const stub = withTrainers();
+    renderPage(<Members />);
+    await loaded();
+
+    await userEvent.selectOptions(
+      await screen.findByLabelText(/filter members by trainer/i),
+      't-2',
+    );
+
+    await waitFor(() => {
+      expect(stub.callsTo('/members?').some(u => u.includes('trainerId=t-2'))).toBe(true);
+    });
+  });
+
+  it('asks for the unassigned as a filter of its own', async () => {
+    const stub = withTrainers();
+    renderPage(<Members />);
+    await loaded();
+
+    await userEvent.selectOptions(
+      await screen.findByLabelText(/filter members by trainer/i),
+      'none',
+    );
+
+    await waitFor(() => {
+      expect(stub.callsTo('/members?').some(u => u.includes('trainerId=none'))).toBe(true);
+    });
+  });
+
+  it('sends no trainer at all on "All trainers"', async () => {
+    const stub = withTrainers();
+    renderPage(<Members />);
+
+    await waitFor(() => {
+      const first = stub.callsTo('/members?')[0];
+      expect(first).toBeDefined();
+      expect(first).not.toContain('trainerId=');
+    });
+  });
+
+  it('keeps the search while narrowing to a trainer', async () => {
+    const stub = withTrainers();
+    renderPage(<Members />);
+    await loaded();
+
+    await userEvent.type(screen.getByPlaceholderText(/search/i), 'ali');
+    await userEvent.selectOptions(
+      await screen.findByLabelText(/filter members by trainer/i),
+      't-1',
+    );
+
+    await waitFor(() => {
+      // Picking a trainer must narrow the search rather than replace it.
+      expect(stub.callsTo('/members?').some(
+        u => u.includes('trainerId=t-1') && u.includes('search=ali'),
+      )).toBe(true);
+    });
+  });
+});
+
 describe('Members — paging', () => {
   it('offers more, and says how many are left', async () => {
     setup({
