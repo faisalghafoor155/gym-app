@@ -405,7 +405,10 @@ export default function Trainers() {
                               ? 'bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400'
                               : 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/20 dark:text-yellow-400'
                           }`}>
-                            {s.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                            {/* Whose money this is, said out loud: the trainer's
+                                commission is tracked separately on the Payouts
+                                page, and "Paid" alone read as either. */}
+                            {s.paymentStatus === 'paid' ? 'Member paid' : 'Member unpaid'}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
@@ -430,7 +433,7 @@ export default function Trainers() {
                               onClick={() => updateSessionPayment(s.id, 'paid')}
                               className="px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:hover:bg-indigo-950/50 dark:text-indigo-400"
                             >
-                              Mark Paid
+                              Member paid
                             </button>
                           )}
                         </td>
