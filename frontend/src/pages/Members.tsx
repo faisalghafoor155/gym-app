@@ -101,6 +101,8 @@ export default function Members() {
    *  What is typed about them is the modal's business. */
   const [editing, setEditing] = useState<Member | null>(null);
   const [trainers, setTrainers] = useState<Trainer[]>([]);
+  /** Who can still be given a member, as opposed to who can be filtered by. */
+  const activeTrainers = useMemo(() => trainers.filter(t => t.isActive), [trainers]);
   /** The gym's own settings: the default PT rate, and the accounts members are
    *  told to send money to. */
   const [settings, setSettings] = useState<GymSettings | null>(null);
@@ -386,8 +388,13 @@ export default function Members() {
             >
               <option value="">All trainers</option>
               <option value="none">Not assigned</option>
+              {/* Departed trainers stay on the list — their members still
+                  need finding, and are exactly who a gym reassigns first —
+                  but are marked, so the name is not read as a live choice. */}
               {trainers.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+                <option key={t.id} value={t.id}>
+                  {t.isActive ? t.name : `${t.name} (left)`}
+                </option>
               ))}
             </select>
           )}
@@ -584,7 +591,11 @@ export default function Members() {
         <MemberFormModal
           member={editing}
           plans={plans}
-          trainers={trainers}
+          // Only trainers still at the gym can be given a member — the server
+          // refuses the rest — so offering them here would be offering a
+          // choice that fails on save. The filter above keeps the full list,
+          // because a departed trainer's members still have to be findable.
+          trainers={activeTrainers}
           settings={settings}
           onClose={() => setShowModal(false)}
           onSaved={created => {

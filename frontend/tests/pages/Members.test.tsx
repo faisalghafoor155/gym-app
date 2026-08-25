@@ -173,8 +173,8 @@ describe('Members — the trainer filter', () => {
     api.current = mockApi({
       '/membership-plans': [],
       '/trainers': [
-        { id: 't-1', name: 'Coach Alpha' },
-        { id: 't-2', name: 'Coach Beta' },
+        { id: 't-1', name: 'Coach Alpha', isActive: true },
+        { id: 't-2', name: 'Coach Beta', isActive: true },
       ],
       '/members': members ?? membersPage([aMember({ name: 'Ali Khan' })]),
     });
@@ -198,6 +198,26 @@ describe('Members — the trainer filter', () => {
     const select = await screen.findByLabelText(/filter members by trainer/i);
     expect(within(select).getByRole('option', { name: 'Coach Alpha' })).toBeDefined();
     expect(within(select).getByRole('option', { name: 'Not assigned' })).toBeDefined();
+  });
+
+  it('marks a trainer who has left, but still offers them', async () => {
+    auth.current = ownerAuth;
+    api.current = mockApi({
+      '/membership-plans': [],
+      '/trainers': [
+        { id: 't-1', name: 'Coach Alpha', isActive: true },
+        { id: 't-2', name: 'Coach Gone', isActive: false },
+      ],
+      '/members': membersPage([aMember({ name: 'Ali Khan' })]),
+    });
+    renderPage(<Members />);
+    await loaded();
+
+    const select = await screen.findByLabelText(/filter members by trainer/i);
+    // Their members still need finding — they are exactly who a gym reassigns
+    // first — but the name must not read as a live choice.
+    expect(within(select).getByRole('option', { name: 'Coach Gone (left)' })).toBeDefined();
+    expect(within(select).getByRole('option', { name: 'Coach Alpha' })).toBeDefined();
   });
 
   it('asks the server for the chosen trainer', async () => {
