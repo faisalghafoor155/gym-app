@@ -297,6 +297,60 @@ counter with cash in hand is exactly who the gym wants inside.
   a mail failure is logged rather than thrown — so the response never leaks
   which accounts are real.
 - **Nothing a member sends can grant them anything.** See Online payments below.
+- **Member photos are private.** The S3 bucket must not be public — see below.
+
+## Member photos
+
+A photograph of a person is personal data, and it is treated as such: the
+bucket is private and no durable link to a photo exists anywhere.
+
+- The row stores **`photoKey`** and never a URL. A URL that is worth storing is
+  one that works without a signature, which is the thing being avoided.
+- Every response mints a **signed URL valid for 5 minutes**
+  (`SIGNED_URL_TTL_SECONDS` in `services/s3.ts`), served in the `photo` field
+  the clients already render.
+- `photoKey` is **stripped before the response**. It is the one input a URL is
+  built from, so a client holding it holds the ingredient for an unsigned link.
+- With no S3 configured, photos fall back to the legacy inline base64 `photo`
+  column and everything still works — that is what the test suite exercises.
+
+This replaced an earlier design that stored
+`https://<bucket>.s3.<region>.amazonaws.com/photos/<id>/<uuid>.jpg` on the row
+and uploaded with `CacheControl: public`. That link needed no login, never
+expired, and could not be revoked; the uuid in the path was obscurity, not
+access control, and such URLs escape through browser history, referrer headers
+and any cache that touches the image. The `photoUrl` column was dropped rather
+than emptied, so it cannot quietly come back.
+
+### Securing the bucket
+
+**The code change is only half of it.** An already-public bucket stays readable
+until AWS is told otherwise:
+
+```sh
+aws s3api put-public-access-block --bucket "$S3_BUCKET_NAME" \
+  --public-access-block-configuration \
+  BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+
+# Remove any bucket policy that granted public read
+aws s3api delete-bucket-policy --bucket "$S3_BUCKET_NAME"
+```
+
+Then confirm an object is *not* reachable without a signature:
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' \
+  "https://$S3_BUCKET_NAME.s3.$AWS_REGION.amazonaws.com/photos/<some-key>"
+# expect 403
+```
+
+The IAM user the app runs as needs only `s3:PutObject`, `s3:GetObject` and
+`s3:DeleteObject` on `arn:aws:s3:::<bucket>/photos/*` — signing is local
+computation and needs no extra permission.
+
+Photos uploaded while the bucket was public should be treated as already
+disclosed: rotate them by re-uploading, since the old objects may sit in caches
+and browser history regardless of what the bucket policy says now.
 
 ## Online payments
 

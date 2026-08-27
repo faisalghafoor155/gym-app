@@ -87,6 +87,17 @@ services:
       # Read by services/google.ts to verify sign-in tokens. Without it the
       # Google button is present but every attempt is rejected.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      # Optional. Where member photos go. With none of these set, photos fall
+      # back to a base64 column on the member's row and the app works
+      # unchanged — S3 is what stops a 2MB image riding along on every query.
+      #
+      # The bucket must be PRIVATE. Nothing here ever produces an unsigned URL;
+      # a public bucket would undo that on its own. See the Member photos
+      # section of DOCS.md for the one-time lockdown.
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
       # Where JazzCash/Easypaisa send their callbacks, so it must be the
       # public URL of the API as their servers see it — not the container's
       # address and not localhost, or a payment is never confirmed and the
