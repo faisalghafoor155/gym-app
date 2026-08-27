@@ -3,12 +3,14 @@ import { Plus, Pencil, Trash2, Award, IndianRupee, BookOpen, Clock } from 'lucid
 import Badge from '../components/Badge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
-  Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl,
+  Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl, DataRow,
   FieldLabel, inputClass, primaryButton, secondaryButton,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import toast from 'react-hot-toast';
-import type { Trainer, PtSession, TrainerCommissionReport, Member, GymSettings } from '../types';
+import type {
+  Trainer, PtSession, TrainerCommissionReport, TrainerPayout, Member, GymSettings,
+} from '../types';
 import { useAuth } from '../context/AuthContext';
 import { hasPermission } from '../utils/permissions';
 
@@ -59,7 +61,7 @@ export default function Trainers() {
   const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [sessions, setSessions] = useState<PtSession[]>([]);
   const [report, setReport] = useState<TrainerCommissionReport[]>([]);
-  const [payouts, setPayouts] = useState<any[]>([]);
+  const [payouts, setPayouts] = useState<TrainerPayout[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
 
 
@@ -75,6 +77,11 @@ export default function Trainers() {
   const [ptForm, setPtForm] = useState<PtSessionForm>(emptyPtForm());
 
   const [deactivatingTrainer, setDeactivatingTrainer] = useState<Trainer | null>(null);
+  /** The payout row awaiting confirmation — clearing it moves money and cannot
+   *  be undone from this screen, so it never fires straight off the click. */
+  const [payingOut, setPayingOut] = useState<TrainerPayout | null>(null);
+  /** A session awaiting cancel confirmation; the button sits beside "Complete". */
+  const [cancellingSession, setCancellingSession] = useState<PtSession | null>(null);
   const [gymDefaultPtFee, setGymDefaultPtFee] = useState<number | null>(null);
 
   const loadData = async (isStale: () => boolean = () => false) => {
@@ -100,7 +107,7 @@ export default function Trainers() {
         if (isStale()) return;
         setReport(rRes.data);
       } else if (activeTab === 'payouts' && canViewPayouts) {
-        const pRes = await api.get<any[]>('/payouts');
+        const pRes = await api.get<TrainerPayout[]>('/payouts');
         if (isStale()) return;
         setPayouts(pRes.data);
       }
@@ -200,11 +207,13 @@ export default function Trainers() {
     }
   };
 
-  const payTrainer = async (trainerId: string) => {
+  const payTrainer = async () => {
+    if (!payingOut) return;
     setSaving(true);
     try {
-      await api.post(`/payouts/${trainerId}/pay`);
+      await api.post(`/payouts/${payingOut.trainerId}/pay`);
       toast.success('Trainer payout marked as paid');
+      setPayingOut(null);
       await loadData();
     } catch (err) {
       toast.error(apiError(err, 'Failed to process trainer payout'));
@@ -359,7 +368,7 @@ export default function Trainers() {
           />
         ) : (
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm text-left text-gray-500 dark:text-slate-400">
                 <thead className="text-xs uppercase bg-gray-50 dark:bg-slate-800/50 text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800">
                   <tr>
@@ -421,7 +430,7 @@ export default function Trainers() {
                                 Complete
                               </button>
                               <button
-                                onClick={() => updateSessionStatus(s.id, 'cancelled')}
+                                onClick={() => setCancellingSession(s)}
                                 className="px-2.5 py-1 rounded-md text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/30 dark:hover:bg-red-950/50 dark:text-red-400"
                               >
                                 Cancel
@@ -443,6 +452,70 @@ export default function Trainers() {
                 </tbody>
               </table>
             </div>
+
+            {/* Eight columns as a stacked card. The actions go full-width at the
+                bottom rather than in a scrolled-off right-hand cell. */}
+            <div className="md:hidden divide-y divide-gray-100 dark:divide-slate-800">
+              {sessions.map(s => {
+                const sessionDate = new Date(s.sessionDate);
+                return (
+                  <div key={s.id} className="p-4 space-y-2.5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 dark:text-slate-200 truncate">
+                          {s.member.name}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
+                          with {s.trainer.name}
+                        </p>
+                      </div>
+                      <Badge status={s.status} />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
+                      <Clock size={12} className="text-gray-400" />
+                      {sessionDate.toLocaleDateString()}{' '}
+                      {sessionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <div className="space-y-1.5">
+                      <DataRow label="Price" value={`Rs. ${s.priceCharged.toLocaleString()}`} />
+                      <DataRow label="Trainer commission" value={`Rs. ${s.trainerCommission.toLocaleString()}`} />
+                      <DataRow
+                        label="Payment"
+                        value={s.paymentStatus === 'paid' ? 'Member paid' : 'Member unpaid'}
+                      />
+                    </div>
+                    {(s.status === 'scheduled' || s.paymentStatus === 'unpaid') && (
+                      <div className="flex flex-wrap gap-2 pt-0.5">
+                        {s.status === 'scheduled' && (
+                          <>
+                            <button
+                              onClick={() => updateSessionStatus(s.id, 'completed')}
+                              className="flex-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-950/30 dark:hover:bg-green-950/50 dark:text-green-400"
+                            >
+                              Complete
+                            </button>
+                            <button
+                              onClick={() => setCancellingSession(s)}
+                              className="flex-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/30 dark:hover:bg-red-950/50 dark:text-red-400"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        )}
+                        {s.paymentStatus === 'unpaid' && (
+                          <button
+                            onClick={() => updateSessionPayment(s.id, 'paid')}
+                            className="flex-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:hover:bg-indigo-950/50 dark:text-indigo-400"
+                          >
+                            Member paid
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </Card>
         )
       )}
@@ -458,7 +531,7 @@ export default function Trainers() {
         ) : (
           <div className="space-y-6">
             <Card className="overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm text-left text-gray-500 dark:text-slate-400">
                   <thead className="text-xs uppercase bg-gray-50 dark:bg-slate-800/50 text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800">
                     <tr>
@@ -499,6 +572,29 @@ export default function Trainers() {
                   </tbody>
                 </table>
               </div>
+
+              <div className="md:hidden divide-y divide-gray-100 dark:divide-slate-800">
+                {report.map(r => (
+                  <div key={r.trainerId} className="p-4 space-y-2.5">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="font-semibold text-gray-900 dark:text-slate-200 truncate">
+                        {r.trainerName}
+                      </p>
+                      <span className="text-xs text-gray-400 dark:text-slate-500 shrink-0">
+                        {r.commissionPercentage}% · {r.totalSessions} sessions
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <DataRow label="Gross revenue" value={`Rs. ${r.totalRevenue.toLocaleString()}`} />
+                      <DataRow label="Trainer share" value={`Rs. ${r.totalCommission.toLocaleString()}`} />
+                      <DataRow
+                        label="Gym net share"
+                        value={`Rs. ${(r.totalRevenue - r.totalCommission).toLocaleString()}`}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </Card>
           </div>
         )
@@ -515,7 +611,7 @@ export default function Trainers() {
         ) : (
           <div className="space-y-6">
             <Card className="overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm text-left text-gray-500 dark:text-slate-400">
                   <thead className="text-xs uppercase bg-gray-50 dark:bg-slate-800/50 text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800">
                     <tr>
@@ -553,7 +649,7 @@ export default function Trainers() {
                           {p.unpaidCommission > 0 ? (
                             canManagePayouts ? (
                               <button
-                                onClick={() => void payTrainer(p.trainerId)}
+                                onClick={() => setPayingOut(p)}
                                 disabled={saving}
                                 className="px-3 py-1.5 rounded-md text-xs font-semibold bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-800 disabled:opacity-50"
                               >
@@ -570,6 +666,42 @@ export default function Trainers() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Seven columns do not survive a phone. The same figures as
+                  stacked rows, with the amount owed kept prominent because it
+                  is the number the button acts on. */}
+              <div className="md:hidden divide-y divide-gray-100 dark:divide-slate-800">
+                {payouts.map(p => (
+                  <div key={p.trainerId} className="p-4 space-y-2.5">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="font-semibold text-gray-900 dark:text-slate-200 truncate">
+                        {p.trainerName}
+                      </p>
+                      <span className="text-xs text-gray-400 dark:text-slate-500 shrink-0">
+                        {p.commissionPercentage}% · {p.totalSessionsCount} sessions
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      <DataRow label="Total earned" value={`Rs. ${p.totalEarned.toLocaleString()}`} />
+                      <DataRow label="Paid" value={`Rs. ${p.paidCommission.toLocaleString()}`} />
+                      <DataRow label="Unpaid" value={`Rs. ${p.unpaidCommission.toLocaleString()}`} />
+                    </div>
+                    {p.unpaidCommission > 0 ? (
+                      canManagePayouts && (
+                        <button
+                          onClick={() => setPayingOut(p)}
+                          disabled={saving}
+                          className="w-full px-3 py-2 rounded-lg text-xs font-semibold bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-800 disabled:opacity-50"
+                        >
+                          Clear Unpaid
+                        </button>
+                      )
+                    ) : (
+                      <p className="text-xs text-gray-400 font-semibold">Fully Paid</p>
+                    )}
+                  </div>
+                ))}
               </div>
             </Card>
           </div>
@@ -781,6 +913,35 @@ export default function Trainers() {
           confirmLabel="Deactivate"
           onConfirm={handleDeactivate}
           onCancel={() => setDeactivatingTrainer(null)}
+          busy={saving}
+          tone="danger"
+        />
+      )}
+
+      {/* Clearing a payout moves money, so the amount and the name are both in
+          the question — this is the last point at which a misclick is free. */}
+      {!!payingOut && (
+        <ConfirmDialog
+          title="Clear unpaid commission"
+          message={`Mark Rs. ${payingOut.unpaidCommission.toLocaleString()} as paid to ${payingOut.trainerName}? This records the payout against every completed session they are still owed for, and cannot be undone from this page.`}
+          confirmLabel="Mark as paid"
+          onConfirm={() => void payTrainer()}
+          onCancel={() => setPayingOut(null)}
+          busy={saving}
+          tone="primary"
+        />
+      )}
+
+      {!!cancellingSession && (
+        <ConfirmDialog
+          title="Cancel PT session"
+          message={`Cancel ${cancellingSession.member.name}'s session with ${cancellingSession.trainer.name} on ${new Date(cancellingSession.sessionDate).toLocaleDateString()}? The trainer earns no commission for a cancelled session.`}
+          confirmLabel="Cancel session"
+          onConfirm={() => {
+            void updateSessionStatus(cancellingSession.id, 'cancelled');
+            setCancellingSession(null);
+          }}
+          onCancel={() => setCancellingSession(null)}
           busy={saving}
           tone="danger"
         />

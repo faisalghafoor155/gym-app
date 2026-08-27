@@ -77,6 +77,9 @@ export default function Classes() {
   const [bookingForm, setBookingForm] = useState<BookingForm>(emptyBookingForm());
 
   const [deactivatingSchedule, setDeactivatingSchedule] = useState<ClassSchedule | null>(null);
+  /** A booking awaiting cancel confirmation — the button sits beside "Attended",
+   *  and cancelling frees the slot to someone else. */
+  const [cancellingBooking, setCancellingBooking] = useState<ClassBooking | null>(null);
 
   const loadData = async (isStale: () => boolean = () => false) => {
     try {
@@ -388,7 +391,7 @@ export default function Classes() {
           />
         ) : (
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm text-left text-gray-500 dark:text-slate-400">
                 <thead className="text-xs uppercase bg-gray-50 dark:bg-slate-800/50 text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800">
                   <tr>
@@ -427,7 +430,7 @@ export default function Classes() {
                               Attended
                             </button>
                             <button
-                              onClick={() => updateBookingStatus(b.id, 'cancelled')}
+                              onClick={() => setCancellingBooking(b)}
                               className="px-2.5 py-1 rounded-md text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/30 dark:hover:bg-red-950/50 dark:text-red-400"
                             >
                               Cancel Booking
@@ -439,6 +442,46 @@ export default function Classes() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* The action buttons sat in the right-hand cell, which is exactly
+                what scrolls out of reach on a phone. Stacked, they stay put. */}
+            <div className="md:hidden divide-y divide-gray-100 dark:divide-slate-800">
+              {bookings.map(b => (
+                <div key={b.id} className="p-4 space-y-2.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-slate-200 truncate">
+                        {b.member.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
+                        {b.schedule.className}
+                      </p>
+                    </div>
+                    <Badge status={b.status} />
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
+                    <Clock size={12} className="text-gray-400" />
+                    {b.schedule.startTime} - {b.schedule.endTime} ({DAYS[b.schedule.dayOfWeek]})
+                  </p>
+                  {b.status === 'booked' && (
+                    <div className="flex gap-2 pt-0.5">
+                      <button
+                        onClick={() => updateBookingStatus(b.id, 'attended')}
+                        className="flex-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-950/30 dark:hover:bg-green-950/50 dark:text-green-400"
+                      >
+                        Attended
+                      </button>
+                      <button
+                        onClick={() => setCancellingBooking(b)}
+                        className="flex-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/30 dark:hover:bg-red-950/50 dark:text-red-400"
+                      >
+                        Cancel Booking
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </Card>
         )
@@ -675,6 +718,21 @@ export default function Classes() {
           confirmLabel="Delete"
           onConfirm={handleDeactivateSchedule}
           onCancel={() => setDeactivatingSchedule(null)}
+          busy={saving}
+          tone="danger"
+        />
+      )}
+
+      {!!cancellingBooking && (
+        <ConfirmDialog
+          title="Cancel booking"
+          message={`Cancel ${cancellingBooking.member.name}'s booking for ${cancellingBooking.schedule.className} at ${cancellingBooking.schedule.startTime}? The slot is freed for another member.`}
+          confirmLabel="Cancel booking"
+          onConfirm={() => {
+            void updateBookingStatus(cancellingBooking.id, 'cancelled');
+            setCancellingBooking(null);
+          }}
+          onCancel={() => setCancellingBooking(null)}
           busy={saving}
           tone="danger"
         />

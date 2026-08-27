@@ -40,6 +40,7 @@ import {
   secondaryButton,
 } from "../components/ui";
 import { useDebounced } from "../hooks/useDebounced";
+import { downloadFromServer } from "../utils/csv";
 import api, { apiError } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import type {
@@ -147,6 +148,7 @@ export default function Payments() {
   const [loading, setLoading] = useState(true);
   const [refetching, setRefetching] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const debouncedSearch = useDebounced(search);
 
@@ -409,40 +411,23 @@ export default function Payments() {
    * This fetches the complete filtered dataset, not just loaded rows.
    */
   const handleExport = async () => {
+    setExporting(true);
     try {
-      // Build query string with current filters
+      // The same filters the list is showing, so the file matches the screen —
+      // minus the paging, which is the whole point of exporting on the server.
       const params = new URLSearchParams();
       if (filter !== "all") params.append("status", filter);
       if (search) params.append("search", search);
       if (from) params.append("from", from);
       if (to) params.append("to", to);
 
-      // Fetch CSV from server
-      const response = await fetch(`/api/payments/export/csv?${params}`, {
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        toast.error(error.error || "Failed to export");
-        return;
-      }
-
-      // Download the CSV file
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `payments-${new Date().toISOString().split("T")[0]}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
+      await downloadFromServer(`/api/payments/export/csv?${params}`);
       toast.success(`Exported ${total} payment${total === 1 ? "" : "s"}`);
     } catch (err) {
       console.error("Export failed:", err);
-      toast.error("Failed to export CSV");
+      toast.error(err instanceof Error ? err.message : "Failed to export CSV");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -672,11 +657,15 @@ export default function Payments() {
           )}
 
           <button
-            onClick={handleExport}
+            onClick={() => void handleExport()}
+            disabled={exporting}
             className={`${secondaryButton} ml-auto`}
+            title="Exports every payment matching these filters, not just this page"
           >
             <Download size={14} />{" "}
-            <span className="hidden sm:inline">Export CSV</span>
+            <span className="hidden sm:inline">
+              {exporting ? "Exporting…" : "Export CSV"}
+            </span>
           </button>
         </div>
       </Card>

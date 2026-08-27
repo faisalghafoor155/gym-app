@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Search, CheckCircle2, Clock, Users, CalendarCheck, UserX, QrCode, ScanLine, X, Fingerprint, AlertCircle } from 'lucide-react';
 import {
-  Page, PageHeader, Card, PageLoader, inputClass, focusRing, SegmentedControl,
+  Page, PageHeader, Card, PageLoader, Spinner, inputClass, focusRing, SegmentedControl,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
+import { useDebounced } from '../hooks/useDebounced';
 import CheckinResultModal, { type CheckinDisplay } from '../components/attendance/CheckinResultModal';
 import type {
   Member, AttendanceRecord, CheckinResult, Paginated,
@@ -40,7 +41,10 @@ type TabType = 'search' | 'scanner' | 'fingerprint';
 export default function Attendance() {
   const [activeTab, setActiveTab] = useState<TabType>('search');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounced(search);
+  /** Results for the current search — never the whole roster. */
   const [members, setMembers] = useState<Member[]>([]);
+  const [searching, setSearching] = useState(false);
   const [todayList, setTodayList] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState<string | null>(null);
@@ -69,7 +73,6 @@ export default function Attendance() {
 
   useEffect(() => {
     Promise.all([
-      api.get<Paginated<Member>>('/members?all=true').then(r => setMembers(r.data.data)),
       loadToday(),
       // Whether there is a reader at all. Failing quietly is right: the tab
       // renders as "not set up", which is the same thing the endpoint would
@@ -83,12 +86,42 @@ export default function Attendance() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = search.trim().length > 0
-    ? members.filter(m =>
-        m.name.toLowerCase().includes(search.toLowerCase()) ||
-        (m.phone && m.phone.includes(search))
-      )
-    : [];
+  /**
+   * The desk searches the server, not a copy of the roster.
+   *
+   * This page used to fetch every member on mount and filter that array. It
+   * worked while a gym had two hundred members and quietly stopped being a
+   * search after that: the roster is paginated, so whoever was not on the first
+   * page could not be found here, and the front desk's answer was "you are not
+   * a member". The same `search` the Members page uses runs here instead, and
+   * the eight rows shown are eight rows asked for.
+   */
+  useEffect(() => {
+    if (debouncedSearch.trim().length === 0) {
+      setMembers([]);
+      setSearching(false);
+      return;
+    }
+
+    let cancelled = false;
+    setSearching(true);
+    const q = new URLSearchParams({ search: debouncedSearch.trim(), limit: '8' });
+
+    api.get<Paginated<Member>>(`/members?${q}`)
+      .then(r => { if (!cancelled) setMembers(r.data.data); })
+      .catch(err => {
+        if (cancelled) return;
+        setMembers([]);
+        toast.error(apiError(err, 'Could not search members'));
+      })
+      .finally(() => { if (!cancelled) setSearching(false); });
+
+    // A slower reply to an older query must not overwrite a newer one — the
+    // desk types fast, and the wrong member checked in is the failure here.
+    return () => { cancelled = true; };
+  }, [debouncedSearch]);
+
+  const filtered = members;
 
   const checkedInIds = new Set(todayList.map(r => r.memberId));
 
@@ -371,13 +404,20 @@ export default function Attendance() {
         {/* Search Results */}
         {search.trim().length > 0 && (
           <div className="mt-3 space-y-2">
-            {filtered.length === 0 ? (
+            {searching ? (
+              <div className="flex justify-center py-6">
+                <Spinner className="w-6 h-6" />
+              </div>
+            ) : filtered.length === 0 ? (
               <div className="text-center py-6 text-gray-400 dark:text-slate-500">
                 <UserX size={24} className="mx-auto mb-1" />
-                <p className="text-sm">No member found</p>
+                {/* Says what was searched for: at the desk this is usually a
+                    typo in a phone number, not a missing member. */}
+                <p className="text-sm">No member matches “{search.trim()}”</p>
+                <p className="text-xs mt-0.5">Check the spelling, or try their phone number.</p>
               </div>
             ) : (
-              filtered.slice(0, 8).map(m => {
+              filtered.map(m => {
                 const isIn = checkedInIds.has(m.id);
                 const isLoading = checking === m.id;
                 return (
@@ -660,6 +700,9 @@ export default function Attendance() {
           <div className="text-center py-10">
             <CalendarCheck size={36} className="text-gray-200 dark:text-slate-700 mx-auto mb-2" />
             <p className="text-gray-400 dark:text-slate-500 text-sm">No check-ins yet today</p>
+            <p className="text-gray-400 dark:text-slate-500 text-xs mt-0.5">
+              Members appear here as they arrive.
+            </p>
           </div>
         ) : (
           <div className="space-y-2">

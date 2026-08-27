@@ -1,29 +1,12 @@
 /**
- * Turns rows into a CSV file the browser downloads. Deliberately dependency
- * free — the sheets a gym exports are small, and a library for this is a
- * library to keep patched.
- */
-
-/** A field containing a comma, a quote or a newline has to be quoted, and an
- *  inner quote doubled — a note like `paid 2,500 "cash"` corrupts the file
- *  otherwise. */
-const escape = (value: unknown): string => {
-  if (value === null || value === undefined) return '';
-  const s = String(value);
-  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-};
-
-export function toCsv(headers: readonly string[], rows: readonly unknown[][]): string {
-  return [headers, ...rows].map(r => r.map(escape).join(',')).join('\r\n');
-}
-
-/**
- * Downloads a CSV the server built.
+ * Downloading a CSV the server built.
  *
- * Preferred over `toCsv`/`downloadCsv` for anything the page pages or caps: a
- * file assembled from what the page happens to hold covers only that, and
- * nothing in the file says so. The server reads the whole set instead, and
- * sends its own filename and BOM.
+ * There is deliberately no CSV *builder* here. A file assembled in the page
+ * covers only what the page happens to be holding — one page of a list, or the
+ * first fifty rows of a report — and nothing in the file says so, so it gets
+ * reconciled against a bank statement and the shortfall is blamed on the books.
+ * Every export therefore goes through an endpoint that reads the whole matching
+ * set; see `backend/src/services/csv.ts` for the writing half.
  *
  * Uses `fetch` rather than navigating to the URL so a refusal arrives as an
  * error to show rather than as a blank tab, and so the session cookie goes
@@ -45,20 +28,6 @@ export async function downloadFromServer(path: string): Promise<void> {
   link.download =
     /filename="([^"]+)"/.exec(res.headers.get('content-disposition') ?? '')?.[1]
     ?? 'export.csv';
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-export function downloadCsv(filename: string, csv: string): void {
-  // The BOM is what makes Excel read the file as UTF-8; without it a member
-  // name with an accent or Urdu character arrives mangled.
-  const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();

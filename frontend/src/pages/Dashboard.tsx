@@ -7,8 +7,8 @@ import {
 } from 'lucide-react';
 import Badge from '../components/Badge';
 import {
-  Page, Card, StatTile, PageLoader, EmptyState, BarChart, LineChart,
-  primaryButton, secondaryButton, focusRing,
+  Page, Card, StatTile, PageLoader, LoadFailed, EmptyState, BarChart, LineChart,
+  primaryButton, focusRing,
 } from '../components/ui';
 import { useFetch } from '../hooks/useFetch';
 import { useAuth } from '../context/AuthContext';
@@ -102,18 +102,10 @@ export default function Dashboard() {
   // stats.totalMembers.
   if (!stats) {
     return (
-      <div className="flex items-center justify-center h-full min-h-[50vh]">
-        <div className="text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle size={24} />
-          </div>
-          <p className="font-semibold text-gray-700 dark:text-slate-300">Could not load the dashboard</p>
-          <p className="text-sm text-gray-400 dark:text-slate-500 mt-1">The server did not answer. Check the connection and try again.</p>
-          <button onClick={() => window.location.reload()} className={`mt-5 ${secondaryButton}`}>
-            Try again
-          </button>
-        </div>
-      </div>
+      <LoadFailed
+        title="Could not load the dashboard"
+        hint="The server did not answer. Check the connection and try again."
+      />
     );
   }
 

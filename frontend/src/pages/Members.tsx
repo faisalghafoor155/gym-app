@@ -252,9 +252,12 @@ export default function Members() {
       })
       .catch(err => toast.error(apiError(err, 'Could not load membership plans')));
 
+    // Worth a toast, unlike the settings below: without this the trainer filter
+    // and the assign-trainer picker are simply absent, which reads as the gym
+    // having no trainers rather than as a failure to load them.
     void api.get<Trainer[]>('/trainers')
       .then(r => setTrainers(r.data))
-      .catch(err => console.error('Could not load trainers', err));
+      .catch(err => toast.error(apiError(err, 'Could not load trainers')));
 
     // The fee field's placeholder and the account line under the channel
     // picker. A failure is not worth a toast — the form still works, the hints

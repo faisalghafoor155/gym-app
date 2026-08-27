@@ -4,7 +4,7 @@ import { Plus, Shield, User, UserCog, Trash2, Crown, KeyRound } from 'lucide-rea
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
-  Page, PageHeader, Card, PageLoader, IconButton, FieldLabel,
+  Page, PageHeader, Card, PageLoader, EmptyState, IconButton, FieldLabel,
   inputClass, primaryButton, secondaryButton, focusRing,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
@@ -111,7 +111,8 @@ export default function Team() {
   const [manualLink, setManualLink] = useState<string | null>(null);
   // Both are destructive enough to confirm, and both name the person, so they
   // share one dialog rather than two near-identical ones.
-  const [confirming, setConfirming] = useState<{ user: GymUser; action: 'delete' | 'transfer' } | null>(null);
+  const [confirming, setConfirming] =
+    useState<{ user: GymUser; action: 'delete' | 'transfer' | 'revoke' } | null>(null);
   // The account whose role is being changed, and what to. Confirmed rather than
   // applied on click: promoting somebody to staff hands them the till.
   const [changingRole, setChangingRole] =
@@ -476,6 +477,15 @@ export default function Team() {
         </div>
       )}
 
+      {users.length === 0 ? (
+        <EmptyState
+          icon={UserCog}
+          title="No accounts yet"
+          hint={isOwner
+            ? 'Invite a staff member, or create a login for a member so they can see their own plan and fees.'
+            : 'Only the gym owner can add accounts.'}
+        />
+      ) : (
       <div className="space-y-3">
         {users.map(u => {
           const style = roleStyles[u.role];
@@ -513,11 +523,20 @@ export default function Team() {
                 </div>
 
                 {isOwner && !isMe && (
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  // Wraps rather than shrinking: five controls do not fit beside
+                  // a name on a phone, and `shrink-0` alone pushed the name to
+                  // nothing instead of moving the buttons to their own line.
+                  <div className="flex items-center justify-end gap-1.5 flex-wrap shrink-0">
                     {u.role !== 'owner' && (
                       <>
                         <button
-                          onClick={() => void toggleActive(u)}
+                          // Restoring access is harmless and stays one click;
+                          // revoking locks someone out mid-shift, so it asks.
+                          onClick={() =>
+                            u.isActive
+                              ? setConfirming({ user: u, action: 'revoke' })
+                              : void toggleActive(u)
+                          }
                           className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 ${focusRing}`}
                         >
                           {u.isActive ? 'Revoke' : 'Restore'}
@@ -572,6 +591,7 @@ export default function Team() {
           );
         })}
       </div>
+      )}
 
       {showStaff && (
         <Modal title="Add Staff Account" onClose={() => setShowStaff(false)}>
@@ -784,6 +804,18 @@ export default function Team() {
             confirmLabel="Remove"
             busy={saving}
             onConfirm={() => void handleDelete(confirming.user)}
+            onCancel={() => setConfirming(null)}
+          />
+        ) : confirming.action === 'revoke' ? (
+          <ConfirmDialog
+            title="Revoke access"
+            message={`Revoke ${confirming.user.name}'s access? They are signed out immediately and cannot sign in again until you restore them. Nothing they have recorded is removed.`}
+            confirmLabel="Revoke"
+            busy={saving}
+            onConfirm={() => {
+              void toggleActive(confirming.user);
+              setConfirming(null);
+            }}
             onCancel={() => setConfirming(null)}
           />
         ) : (

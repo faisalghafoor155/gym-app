@@ -5,6 +5,7 @@
  * baseline the rest of the app now matches.
  */
 import type { ReactNode } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export type Tone = 'blue' | 'green' | 'red' | 'yellow' | 'gray' | 'purple';
@@ -300,6 +301,56 @@ export function EmptyState({ icon: Icon, title, hint, action }: {
       {hint && <p className="text-sm text-gray-400 dark:text-slate-500 mt-1 max-w-sm mx-auto">{hint}</p>}
       {action && <div className="mt-5 flex justify-center">{action}</div>}
     </Card>
+  );
+}
+
+/**
+ * A page that could not load at all.
+ *
+ * Distinct from `EmptyState`: nothing is wrong with the gym's data, the fetch
+ * failed. It always offers the way out, because a dead end with no button is
+ * indistinguishable to the user from the app being broken for good.
+ */
+export function LoadFailed({ title, hint, onRetry }: {
+  title: string;
+  hint?: string;
+  /** Defaults to a full reload, which is the honest retry for a page whose
+   *  whole state came from the one request that failed. */
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-center h-full min-h-[50vh] p-6">
+      <div className="text-center">
+        <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 flex items-center justify-center mx-auto mb-4">
+          <AlertTriangle size={24} />
+        </div>
+        <p className="font-semibold text-gray-700 dark:text-slate-300">{title}</p>
+        {hint && <p className="text-sm text-gray-400 dark:text-slate-500 mt-1">{hint}</p>}
+        <button
+          onClick={onRetry ?? (() => window.location.reload())}
+          className={`mt-5 ${secondaryButton}`}
+        >
+          Try again
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Nothing to show *inside* a card that already has its own heading and border.
+ *
+ * `EmptyState` is a card, so using it for a panel within a card nests one
+ * surface in another. This is the same idea at panel scale: one muted line,
+ * optionally with something to do about it. The icon is deliberately absent —
+ * the panel heading above it already carries one.
+ */
+export function InlineEmpty({ message, action }: { message: string; action?: ReactNode }) {
+  return (
+    <div className="py-6 text-center">
+      <p className="text-sm text-gray-400 dark:text-slate-500">{message}</p>
+      {action && <div className="mt-3 flex justify-center">{action}</div>}
+    </div>
   );
 }
 

@@ -201,8 +201,9 @@ export default function Supplements() {
         gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
         osc.start();
         osc.stop(audioCtx.currentTime + 0.35);
-      } catch (err) {
-        // audio context not allowed
+      } catch {
+        // The browser blocks audio until the page has been interacted with.
+        // The sale is already recorded; the chime is a nicety.
       }
 
       toast.success('POS Cart checked out successfully!');

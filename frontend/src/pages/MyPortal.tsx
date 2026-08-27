@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import {
-  CalendarCheck, CreditCard, Dumbbell, Utensils, AlertTriangle, Clock, ShieldCheck, Sparkles,
+  CalendarCheck, CreditCard, Dumbbell, Utensils, Clock, ShieldCheck, Sparkles,
 } from 'lucide-react';
 import Badge from '../components/Badge';
-import { Page, Card, PageLoader, primaryButton, secondaryButton } from '../components/ui';
+import {
+  Page, Card, PageLoader, LoadFailed, InlineEmpty, primaryButton, secondaryButton,
+} from '../components/ui';
 import api, { apiError } from '../api/client';
 import type { MyProfile, MembershipPlan, PaymentProviderOption, CheckoutStarted } from '../types';
 import toast from 'react-hot-toast';
@@ -128,15 +130,10 @@ export default function MyPortal() {
 
   if (!data) {
     return (
-      <div className="flex items-center justify-center h-full min-h-[50vh] p-6">
-        <div className="text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 flex items-center justify-center mx-auto mb-4">
-            <AlertTriangle size={24} />
-          </div>
-          <p className="font-semibold text-gray-700 dark:text-slate-300">Could not load your details</p>
-          <p className="text-sm text-gray-400 dark:text-slate-500 mt-1">Please try again in a moment.</p>
-        </div>
-      </div>
+      <LoadFailed
+        title="Could not load your details"
+        hint="The server did not answer. Check the connection and try again."
+      />
     );
   }
 
@@ -222,7 +219,7 @@ export default function MyPortal() {
           Renew or Upgrade Membership
         </h2>
         {plans.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-slate-500 py-4 text-center">No plans available at this time.</p>
+          <InlineEmpty message="No plans are on sale right now. Ask at the front desk to renew." />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {plans.map(p => (
@@ -263,7 +260,7 @@ export default function MyPortal() {
               </p>
             </>
           ) : (
-            <p className="text-sm text-gray-400 dark:text-slate-500 py-4 text-center">No workout plan assigned yet</p>
+            <InlineEmpty message="No workout plan assigned yet. Your trainer sets this up for you." />
           )}
         </Card>
 
@@ -279,7 +276,7 @@ export default function MyPortal() {
               </p>
             </>
           ) : (
-            <p className="text-sm text-gray-400 dark:text-slate-500 py-4 text-center">No diet plan assigned yet</p>
+            <InlineEmpty message="No diet plan assigned yet. Your trainer sets this up for you." />
           )}
         </Card>
       </div>
@@ -293,7 +290,7 @@ export default function MyPortal() {
           </span>
         </h2>
         {attendance.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-slate-500 py-6 text-center">No check-ins recorded yet</p>
+          <InlineEmpty message="No check-ins recorded yet. Your visits appear here once you scan in." />
         ) : (
           <ul className="space-y-2">
             {attendance.slice(0, 10).map(a => (
@@ -317,7 +314,7 @@ export default function MyPortal() {
           <CreditCard size={16} className="text-blue-600" /> Payment History
         </h2>
         {payments.length === 0 ? (
-          <p className="text-sm text-gray-400 dark:text-slate-500 py-6 text-center">No payments recorded yet</p>
+          <InlineEmpty message="No payments recorded yet." />
         ) : (
           <ul className="space-y-2">
             {payments.map(p => (

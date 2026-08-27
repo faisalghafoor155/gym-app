@@ -665,6 +665,18 @@ export interface TrainerCommissionReport {
   totalCommission: number;
 }
 
+/** A trainer's commission position, as `GET /payouts` reports it: what they
+ *  have earned across completed sessions, and how much of that is still owed. */
+export interface TrainerPayout {
+  trainerId: string;
+  trainerName: string;
+  commissionPercentage: number;
+  totalSessionsCount: number;
+  totalEarned: number;
+  unpaidCommission: number;
+  paidCommission: number;
+}
+
 export interface Class {
   id: string;
   name: string;
