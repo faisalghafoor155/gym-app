@@ -108,6 +108,53 @@ is restarted at the end so it reconnects.
 Anything recorded *after* the dump was taken is lost — members added, fees
 taken, attendance marked. Check the timestamp in the filename before restoring.
 
+## HTTPS
+
+The default stack serves plain http on `APP_PORT`, which is right for local
+work and wrong for anything a member can reach: the session cookie is only
+marked `Secure` when the app is actually behind TLS, and until then a single
+downgraded request exposes it.
+
+Going live is an overlay, not an edit — `docker-compose.https.yml` sits on top
+of the base file so local runs keep working:
+
+```sh
+# 1. Point the domain's A record at this machine, and open 80 and 443.
+#    Certbot proves control over port 80, so it must be reachable first.
+
+# 2. Put the domain in .env
+echo "DOMAIN=gym.example.com" >> .env
+
+# 3. Issue the certificate once. Port 80 must be free while this runs.
+docker compose -f docker-compose.yml -f docker-compose.https.yml \
+  run --rm --service-ports certbot certonly \
+  --standalone -d "$DOMAIN" --agree-tos -m you@example.com --no-eff-email
+
+# 4. Bring the stack up on TLS
+docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+```
+
+After this the app answers on `https://$DOMAIN`, plain http 301-redirects to
+it, and the `certbot` container renews twice a day without being asked.
+
+Check it worked — the cookie must come back with `Secure`:
+
+```sh
+curl -sI https://$DOMAIN | grep -i strict-transport
+curl -si https://$DOMAIN/api/auth/login -X POST \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"you@example.com","password":"..."}' | grep -i set-cookie
+```
+
+Two deliberate choices worth knowing:
+
+- **`preload` is not set on HSTS.** Getting onto the browser preload list is
+  easy and getting off takes months, during which the domain and every
+  subdomain is https-only for everyone. Add it once you are sure.
+- **Certbot only renews here; it does not issue.** First issuance is the manual
+  step above, because a container that tries to issue on every boot will burn
+  through Let's Encrypt's rate limits while DNS is still propagating.
+
 ## Configuration
 
 All settings come from `.env` in this folder (see `.env.example`):
@@ -118,7 +165,8 @@ All settings come from `.env` in this folder (see `.env.example`):
 | `POSTGRES_PASSWORD` | database password |
 | `POSTGRES_DB`       | database name |
 | `JWT_SECRET`        | backend token signing secret (min 32 chars — the server refuses to boot otherwise) |
-| `APP_PORT`          | host port for the app (default `8080`) |
+| `APP_PORT`          | host port for the app (default `8080`). Not used by the HTTPS overlay, which binds 80 and 443 |
+| `DOMAIN`            | required only for HTTPS — the domain the certificate is issued for |
 | `CORS_ORIGIN`       | optional; comma-separated allowed origins. Leave empty — the app is same-origin behind nginx |
 | `BACKUP_INTERVAL_SECONDS` | how often to dump (default `86400`, a day) |
 | `BACKUP_KEEP_DAYS`  | how many days of dumps to keep (default `14`) |

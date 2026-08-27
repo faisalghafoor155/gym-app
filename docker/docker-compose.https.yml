@@ -1,0 +1,71 @@
+# TLS overlay. Applied on top of docker-compose.yml, never instead of it:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+#
+# Kept separate so the plain-http stack stays runnable for local work. Nothing
+# in here changes the app — only how it is exposed and which nginx config is
+# served.
+#
+# Requires DOMAIN in .env, and a certificate already issued for it. See the
+# HTTPS section of README.md for the one-time issuance.
+
+services:
+  backend:
+    environment:
+      # This is what makes the session cookie Secure. Without it the cookie is
+      # sent over a TLS connection but not *marked* as https-only, so a single
+      # downgraded request would leak the session.
+      HTTPS: "true"
+      APP_URL: https://${DOMAIN}
+      # Password-reset and invite links are built from APP_URL, so they follow.
+      FRONTEND_BASE_URL: https://${DOMAIN}
+      # Payment gateways call this back; it must be the public https URL, or
+      # the callback is refused as insecure and a renewal never confirms.
+      APP_BASE_URL: https://${DOMAIN}
+
+  frontend:
+    # `!override` because compose *appends* to a list from the base file rather
+    # than replacing it. Without it the base APP_PORT mapping survives and the
+    # app stays reachable on 8080 over plain http — the exact hole the redirect
+    # is there to close.
+    ports: !override
+      # 80 stays open for the redirect and for ACME renewals — not for the app.
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      # `templates` rather than `conf.d`: the nginx image substitutes ${DOMAIN}
+      # in anything under this directory at startup and writes the result into
+      # conf.d. Mounting straight into conf.d would serve the file literally,
+      # and nginx would look for a certificate in a directory called
+      # "${DOMAIN}".
+      - ./nginx.https.conf:/etc/nginx/templates/default.conf.template:ro
+      - certbot-conf:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+
+  # Renewal only. Issuing the first certificate is a one-off command documented
+  # in the README — a container that tries to issue on every boot will trip
+  # Let's Encrypt's rate limits while you are still getting DNS right.
+  #
+  # Certbot wakes twice a day, as recommended: renewal happens inside the last
+  # 30 days of validity, and checking often means a failed attempt has many
+  # more chances before anything actually expires.
+  certbot:
+    image: certbot/certbot:latest
+    restart: unless-stopped
+    volumes:
+      - certbot-conf:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+      while :; do
+        certbot renew --webroot -w /var/www/certbot --quiet;
+        sleep 12h & wait $${!};
+      done"
+
+volumes:
+  # Named, not bind-mounted: private keys should not sit in the source tree
+  # where a stray `git add -f` or a backup script can pick them up.
+  certbot-conf:
+  certbot-www:
