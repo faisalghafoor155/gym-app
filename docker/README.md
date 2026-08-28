@@ -46,12 +46,34 @@ openssl rand -base64 48
 docker compose up -d --build     # rebuild + start after source changes
 docker compose logs -f backend   # follow backend logs
 docker compose ps                # health status
-docker compose down              # stop, keep the database
-docker compose down -v           # stop and DELETE the database volume
+docker compose restart backend   # restart one service
+docker compose down              # stop everything, keep the database
 ```
 
 Source changes are **not** hot-reloaded — this is a production build. Re-run
 `docker compose up -d --build` to pick them up.
+
+Migrations need no command of their own: the entrypoint runs
+`prisma migrate deploy` on every start, so `up -d --build` applies any new ones.
+
+### Throwing the database away
+
+There is one command that destroys data, and it is deliberately not in the list
+above:
+
+```sh
+docker compose down -v     # deletes the database volume — every member, payment
+                           # and fingerprint in it, with no undo
+```
+
+`-v` removes the named volumes, which is where Postgres keeps everything. It is
+one character away from the `down` you run every day, and there is no
+confirmation prompt.
+
+Use it only to reset a development database on purpose. Never on a machine a
+gym is using — a deployment or an upgrade never needs it. If the database is
+broken, [restore from a backup](#backups-and-restore) instead; that is what they
+are for.
 
 ## How the build works
 
