@@ -93,6 +93,8 @@ Backend variables (`backend/.env`, or the `docker/.env` equivalents):
 | `DATABASE_URL` | yes | Postgres connection string |
 | `JWT_SECRET` | yes | 32+ characters — `openssl rand -base64 48`. Changing it signs everyone out |
 | `APP_URL` | yes | How the app is reached in a browser. Invite and reset links are built from it, so a wrong value produces links that go nowhere |
+| `BIOMETRIC_KEY` | yes | 32 bytes base64 — `openssl rand -base64 32`. Encrypts stored fingerprint templates; the server refuses to boot without it, reader attached or not. Losing it means re-enrolling every member |
+| `AWS_*` / `S3_BUCKET_NAME` | in production, for photos | All four together. Without them a photo upload is refused in production (see [Member photos](#member-photos)); everything else works |
 | `PORT` | no | Defaults to 5000 |
 | `HTTPS` | no | `true` once behind TLS, so the session cookie is marked `Secure` |
 | `CORS_ORIGIN` | no | Comma-separated origins. Leave unset when frontend and API share an origin |
@@ -313,8 +315,17 @@ bucket is private and no durable link to a photo exists anywhere.
   the clients already render.
 - `photoKey` is **stripped before the response**. It is the one input a URL is
   built from, so a client holding it holds the ingredient for an unsigned link.
-- With no S3 configured, photos fall back to the legacy inline base64 `photo`
-  column and everything still works — that is what the test suite exercises.
+- With no S3 configured, the behaviour depends on `NODE_ENV`:
+  - **Outside production**, the photo falls back to the legacy inline base64
+    `photo` column, so local work needs no AWS credentials.
+  - **In production**, the upload is refused with a 503 naming the missing
+    variables. The fallback writes up to 2MB of base64 onto a row that every
+    member list, search and backup then carries, and a deploy that forgets one
+    AWS variable would start doing it silently — a migration to undo, rather
+    than a config change. Everything else about the member still works; only
+    the photo is refused.
+  - Rows written under the old fallback keep rendering either way. This is
+    about what gets **written**, not what can be read.
 
 This replaced an earlier design that stored
 `https://<bucket>.s3.<region>.amazonaws.com/photos/<id>/<uuid>.jpg` on the row
