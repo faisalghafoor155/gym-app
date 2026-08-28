@@ -165,9 +165,12 @@ All settings come from `.env` in this folder (see `.env.example`):
 | `POSTGRES_PASSWORD` | database password |
 | `POSTGRES_DB`       | database name |
 | `JWT_SECRET`        | backend token signing secret (min 32 chars — the server refuses to boot otherwise) |
+| `BIOMETRIC_KEY`     | encrypts stored fingerprint templates (32 bytes base64 — the server refuses to boot otherwise). See the warning below |
 | `APP_PORT`          | host port for the app (default `8080`). Not used by the HTTPS overlay, which binds 80 and 443 |
 | `DOMAIN`            | required only for HTTPS — the domain the certificate is issued for |
 | `CORS_ORIGIN`       | optional; comma-separated allowed origins. Leave empty — the app is same-origin behind nginx |
+| `FINGERPRINT_RETENTION_CRON` | when expired fingerprints are deleted (default `0 3 * * *`) |
+| `FINGERPRINT_RETENTION_GRACE_DAYS` | days after a member lapses before their fingerprint is deleted (default `90`, on top of the 60 to lapse) |
 | `BACKUP_INTERVAL_SECONDS` | how often to dump (default `86400`, a day) |
 | `BACKUP_KEEP_DAYS`  | how many days of dumps to keep (default `14`) |
 | `BACKUP_DIR`        | where dumps are written on the host (default `./backups`) |
@@ -175,6 +178,49 @@ All settings come from `.env` in this folder (see `.env.example`):
 `DATABASE_URL` is assembled from the Postgres values in `docker-compose.yml` —
 do not set it by hand. The backend's own `backend/.env` is excluded from the
 image and is not used by the containers.
+
+### `BIOMETRIC_KEY`
+
+Fingerprint templates are encrypted with this before they reach the database, so
+the dumps in `./backups` carry ciphertext rather than members' biometrics. Two
+consequences, both worth acting on before going live:
+
+- **Keep a copy of the key somewhere other than `.env` on this host** — a
+  password manager, a secret manager. It is not in the database, so a database
+  backup will not bring it back, and without it every enrolled member has to be
+  enrolled again in person.
+- **Do not store it with the dumps.** A key sitting beside the backup it
+  protects means anyone who takes the backup takes the templates too, which is
+  the situation the encryption exists to prevent.
+
+Rotating: put the new key first and keep the old one, so rows written under
+either still decrypt — `BIOMETRIC_KEY="2:<new>,1:<old>"`. See
+`backend/src/services/fingerprint/README.md`.
+
+### Fingerprint retention
+
+A daily job deletes the fingerprints of members who have stopped coming — no
+active membership for 60 days (the point the app already calls lapsed) plus
+`FINGERPRINT_RETENTION_GRACE_DAYS`, about five months at the defaults. Only the
+template goes; the member, their attendance and their payments stay. Somebody
+who returns enrols again at the desk.
+
+It cannot be turned off through configuration on purpose. A gym that wants to
+keep biometrics indefinitely has to stop scheduled work altogether with
+`RUN_JOBS=false`, which also stops expiry reminders.
+
+To see what it would delete without waiting for the schedule:
+
+```sh
+docker compose exec backend npm run retention:fingerprints
+docker compose exec backend npm run retention:fingerprints -- --delete
+```
+
+The first only lists; deleting takes the flag, because it cannot be undone.
+
+Note that old dumps in `./backups` still contain whatever was enrolled when they
+were taken — encrypted, but not deleted by this job. Backup retention
+(`BACKUP_KEEP_DAYS`) is what bounds that.
 
 ## Notes
 

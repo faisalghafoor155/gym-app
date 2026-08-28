@@ -30,6 +30,17 @@ COPY --from=src package.json package-lock.json ./
 COPY --from=src prisma.config.ts ./
 COPY --from=src prisma ./prisma
 
+# Operator scripts run in the container with `docker compose exec backend`.
+# They are TypeScript run through tsx rather than compiled into dist, so the
+# source and the tsconfig have to come along. node_modules is copied whole from
+# the build stage — it is never pruned — so tsx is already there.
+#
+# src/ as well, because the scripts import from it. Small, and it is the same
+# code dist/ was compiled from rather than a second copy that could drift.
+COPY --from=src tsconfig.json ./
+COPY --from=src scripts ./scripts
+COPY --from=src src ./src
+
 COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 # node:alpine ships a `node` user (uid 1000)

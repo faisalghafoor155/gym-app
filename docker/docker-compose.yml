@@ -128,7 +128,12 @@ services:
       # When the daily expiry reminder runs, in this container's timezone —
       # which is UTC unless TZ is set, so 9am here is not 9am in Karachi.
       REMINDER_CRON: ${REMINDER_CRON:-0 9 * * *}
-      # Set TZ so the schedule above means what it says locally, and so log
+      # When fingerprints past their retention window are deleted, and how long
+      # after a member lapses that window closes. See the retention note in
+      # README.md — the defaults are about five months of silence.
+      FINGERPRINT_RETENTION_CRON: ${FINGERPRINT_RETENTION_CRON:-0 3 * * *}
+      FINGERPRINT_RETENTION_GRACE_DAYS: ${FINGERPRINT_RETENTION_GRACE_DAYS:-90}
+      # Set TZ so the schedules above mean what they say locally, and so log
       # timestamps match the clock on the wall.
       TZ: ${TZ:-UTC}
       # false stops this container running scheduled work. Only worth setting

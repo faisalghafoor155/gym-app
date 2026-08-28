@@ -121,6 +121,8 @@ npm run test:watch
 npm run db:migrate  # prisma migrate dev
 npm run db:generate
 npm run db:seed
+npm run retention:fingerprints              # preview expired fingerprints
+npm run retention:fingerprints -- --delete  # and delete them
 
 # frontend
 npm run dev
