@@ -1,26 +1,57 @@
 import type { Response } from 'express';
 import prisma from '../db.js';
 import { audit } from '../services/audit.js';
+import {
+  claimPlace, planErrorResponse, PlanLimitError,
+} from '../services/subscription.js';
 import type { AuthedRequest } from '../types.js';
-import type { CreateTrainerBody, UpdateTrainerBody, IdParam } from '../schemas.js';
+import type {
+  CreateTrainerBody, UpdateTrainerBody, TrainerQuery, IdParam,
+} from '../schemas.js';
 
 /**
- * Returns all trainers inside this gym.
+ * The gym's trainers, a page at a time.
+ *
+ * `all=true` is the escape hatch the pickers use — the members page, the
+ * classes page and the PT form each render a trainer dropdown, and one that
+ * stopped at the first page would silently make later trainers unassignable.
  */
 export const getAll = async (
-  req: AuthedRequest,
+  req: AuthedRequest<Record<string, string>, unknown, unknown, TrainerQuery>,
   res: Response,
 ): Promise<void> => {
+  const { search, includeInactive, page, limit, all } = req.query;
   try {
-    const trainers = await prisma.trainer.findMany({
-      where: { gymId: req.gymId },
-      include: {
-        _count: {
-          select: { members: { where: { status: 'active' } } },
+    const where = {
+      gymId: req.gymId,
+      // Retired trainers are kept because sessions they took still have to
+      // resolve, but they are off the default list rather than mixed in with
+      // the people currently on the floor.
+      ...(includeInactive ? {} : { isActive: true }),
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' as const } },
+          { phone: { contains: search, mode: 'insensitive' as const } },
+          { specialization: { contains: search, mode: 'insensitive' as const } },
+        ],
+      }),
+    };
+
+    const [trainers, total] = await Promise.all([
+      prisma.trainer.findMany({
+        where,
+        include: {
+          _count: {
+            select: { members: { where: { status: 'active' } } },
+          },
         },
-      },
-      orderBy: { name: 'asc' },
-    });
+        orderBy: { name: 'asc' },
+        // The dropdowns on the members, classes and PT pages all ask for
+        // everything: a trainer missing from a picker cannot be assigned.
+        ...(all ? {} : { skip: (page - 1) * limit, take: limit }),
+      }),
+      prisma.trainer.count({ where }),
+    ]);
 
     const result = trainers.map(t => ({
       id: t.id,
@@ -37,7 +68,13 @@ export const getAll = async (
       activeMembersCount: t._count.members,
     }));
 
-    res.json(result);
+    res.json({
+      data: result,
+      total,
+      page: all ? 1 : page,
+      limit: all ? result.length : limit,
+      hasMore: all ? false : page * limit < total,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -53,15 +90,24 @@ export const create = async (
 ): Promise<void> => {
   const { name, phone, specialization, commissionPercentage, ptFee } = req.body;
   try {
-    const trainer = await prisma.trainer.create({
-      data: {
-        gymId: req.gymId,
-        name,
-        phone,
-        specialization,
-        commissionPercentage,
-        ptFee: ptFee ?? null,
-      },
+    const trainer = await prisma.$transaction(async tx => {
+      // Active trainers only, so a gym at its ceiling frees a place by
+      // retiring somebody who has left rather than by paying — `remove` here
+      // deactivates rather than deletes, which is what makes that possible.
+      await claimPlace(tx, req.gymId, 'trainers', t =>
+        t.trainer.count({ where: { gymId: req.gymId, isActive: true } }),
+      );
+
+      return tx.trainer.create({
+        data: {
+          gymId: req.gymId,
+          name,
+          phone,
+          specialization,
+          commissionPercentage,
+          ptFee: ptFee ?? null,
+        },
+      });
     });
 
     await audit(req, {
@@ -85,6 +131,14 @@ export const create = async (
       activeMembersCount: 0,
     });
   } catch (err) {
+    if (err instanceof PlanLimitError) {
+      const { status, body } = planErrorResponse(err);
+      res.status(status).json({
+        ...body,
+        error: `${body.error as string} Deactivate a trainer who has left to free a place.`,
+      });
+      return;
+    }
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }

@@ -6,9 +6,12 @@ import { setSessionCookie } from '../services/session.js';
 import { audit, diff } from '../services/audit.js';
 import type { AuthedRequest } from '../types.js';
 import { issueInvite } from '../services/invite.js';
+import {
+  claimPlace, planErrorResponse, planFor, planLimitFor, PlanLimitError,
+} from '../services/subscription.js';
 import type {
   CreateStaffBody, UpdateUserBody, CreateMemberLoginBody,
-  TransferOwnershipBody, IdParam,
+  TransferOwnershipBody, UserQuery, IdParam,
 } from '../schemas.js';
 
 const publicFields = {
@@ -20,19 +23,34 @@ const publicFields = {
 /**
  * How many staff accounts one gym may have.
  *
- * Counts deactivated accounts too. A revoked account still holds its email
- * address — the unique constraint means nobody else can be invited on it — and
- * can be restored in one click, so it is a seat that is taken. Freeing it is
- * what deleting the account is for, and the error says so.
+ * Decided by the gym's subscription tier rather than by a constant here, which
+ * is what it used to be: every gym got six, whatever it was paying. The number
+ * now lives in `services/subscription.ts` alongside the other limits.
+ *
+ * Deactivated accounts still count. A revoked account holds its email address
+ * — the unique constraint means nobody else can be invited on it — and can be
+ * restored in one click, so it is a seat that is taken. Freeing it is what
+ * deleting the account is for, and the error says so.
  *
  * The owner is not counted: they are the gym, not one of its helpers.
  */
-export const STAFF_SEATS = 6;
+const countStaff = (tx: Prisma.TransactionClient, gymId: string): Promise<number> =>
+  tx.user.count({ where: { gymId, role: 'staff' } });
 
 /** Staff seats used and left, for the client to render before it asks. */
 const seatUsage = async (gymId: string) => {
-  const used = await prisma.user.count({ where: { gymId, role: 'staff' } });
-  return { limit: STAFF_SEATS, used, remaining: Math.max(0, STAFF_SEATS - used) };
+  const [plan, used] = await Promise.all([
+    planFor(gymId),
+    prisma.user.count({ where: { gymId, role: 'staff' } }),
+  ]);
+  const limit = planLimitFor(plan, 'staff');
+  return {
+    limit,
+    used,
+    // Null rather than a number when the tier is uncapped: "unlimited minus
+    // four" is not a figure, and the client renders the two cases differently.
+    remaining: limit === null ? null : Math.max(0, limit - used),
+  };
 };
 
 const gymName = async (gymId: string): Promise<string> => {
@@ -59,29 +77,53 @@ const inviteInfo = (invite: { link: string; emailed: boolean } | null) => {
 };
 
 /** Everyone who can sign in to this gym, and how many staff seats are left. */
-export const getAll = async (req: AuthedRequest, res: Response): Promise<void> => {
+export const getAll = async (
+  req: AuthedRequest<Record<string, string>, unknown, unknown, UserQuery>,
+  res: Response,
+): Promise<void> => {
+  const { search, role, page, limit } = req.query;
   try {
-    const [users, seats] = await Promise.all([
+    const where = {
+      gymId: req.gymId,
+      ...(role && { role }),
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' as const } },
+          { email: { contains: search, mode: 'insensitive' as const } },
+        ],
+      }),
+    };
+
+    const [users, total, seats] = await Promise.all([
       prisma.user.findMany({
-        where: { gymId: req.gymId },
+        where,
         select: { ...publicFields, member: { select: { id: true, name: true } } },
         orderBy: [{ role: 'asc' }, { createdAt: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
       }),
+      prisma.user.count({ where }),
       seatUsage(req.gymId),
     ]);
     // Seats travel with the list so the page can say "2 left" before the owner
     // fills in a form that would be refused. The server still refuses it —
-    // this is the courtesy, not the rule.
-    res.json({ users, seats });
+    // this is the courtesy, not the rule. Counted over the gym rather than the
+    // page or the filter: a seat is used whether or not the search found it.
+    res.json({
+      users,
+      seats,
+      total,
+      page,
+      limit,
+      hasMore: page * limit < total,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 };
 
-/** Raised when the gym has no staff seat left, so the transaction rolls back
- *  rather than creating a seventh account. */
-class SeatsFullError extends Error {}
+
 
 /**
  * Takes the gym's seat lock, then refuses if it is full.
@@ -100,11 +142,8 @@ class SeatsFullError extends Error {}
  * Contention is per-gym and held for one insert, so this costs nothing in
  * practice — two owners at different gyms never wait on each other.
  */
-const claimStaffSeat = async (tx: Prisma.TransactionClient, gymId: string): Promise<void> => {
-  await tx.$queryRaw`SELECT id FROM "Gym" WHERE id = ${gymId} FOR UPDATE`;
-  const used = await tx.user.count({ where: { gymId, role: 'staff' } });
-  if (used >= STAFF_SEATS) throw new SeatsFullError();
-};
+const claimStaffSeat = (tx: Prisma.TransactionClient, gymId: string): Promise<void> =>
+  claimPlace(tx, gymId, 'staff', t => countStaff(t, gymId));
 
 /** Owner-only: add a helper/employee who can run the gym day to day. */
 export const createStaff = async (
@@ -162,9 +201,14 @@ export const createStaff = async (
       seats: await seatUsage(req.gymId),
     });
   } catch (err) {
-    if (err instanceof SeatsFullError) {
-      res.status(409).json({
-        error: `This gym can have ${STAFF_SEATS} staff accounts, and all ${STAFF_SEATS} are in use. Remove one to free a seat — revoked accounts still hold theirs.`,
+    if (err instanceof PlanLimitError) {
+      // "Remove one to free a seat" is the part the generic message cannot
+      // know: a revoked account still holds its seat, which is the one thing
+      // about this limit that surprises people.
+      const { status, body } = planErrorResponse(err);
+      res.status(status).json({
+        ...body,
+        error: `${body.error as string} Remove one to free a seat — revoked accounts still hold theirs.`,
       });
       return;
     }
@@ -325,9 +369,14 @@ export const update = async (
 
     res.json(user);
   } catch (err) {
-    if (err instanceof SeatsFullError) {
-      res.status(409).json({
-        error: `This gym can have ${STAFF_SEATS} staff accounts, and all ${STAFF_SEATS} are in use. Remove one to free a seat — revoked accounts still hold theirs.`,
+    if (err instanceof PlanLimitError) {
+      // "Remove one to free a seat" is the part the generic message cannot
+      // know: a revoked account still holds its seat, which is the one thing
+      // about this limit that surprises people.
+      const { status, body } = planErrorResponse(err);
+      res.status(status).json({
+        ...body,
+        error: `${body.error as string} Remove one to free a seat — revoked accounts still hold theirs.`,
       });
       return;
     }

@@ -40,6 +40,10 @@ const FingerprintEnrollModal = (await import('../../src/components/FingerprintEn
 
 const aStatus = (over: Partial<FingerprintStatus> = {}): FingerprintStatus => ({
   configured: true,
+  // Licensed by default: a gym without the feature never reaches this modal,
+  // so every case here is about the reader rather than the plan.
+  licensed: true,
+  plan: 'pro',
   online: true,
   label: 'ZKTeco SLK20R',
   format: 'zkteco-v10',

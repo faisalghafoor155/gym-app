@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SubscriptionProvider, useSubscription } from './context/SubscriptionContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -25,6 +26,7 @@ import Classes from './pages/Classes';
 import MyPortal from './pages/MyPortal';
 import Security from './pages/Security';
 import Analytics from './pages/Analytics';
+import Subscription from './pages/Subscription';
 import { Spinner } from './components/ui';
 
 /** The whole-app boot state, before the session is known. */
@@ -52,6 +54,7 @@ function StaffRoute({ children }: { children: ReactNode }) {
 }
 
 import { hasPermission, type PermissionRequirements } from './utils/permissions';
+import type { PlanFeatures } from './utils/entitlements';
 
 function PermissionRoute({ children, action }: { children: ReactNode; action: keyof PermissionRequirements }) {
   const { isAuth, isStaff, isOwner, user, loading } = useAuth();
@@ -62,6 +65,28 @@ function PermissionRoute({ children, action }: { children: ReactNode; action: ke
   const allowed = isOwner || (user?.staffPermission && hasPermission(user.role, user.staffPermission, action));
   if (!allowed) return <Navigate to="/dashboard" replace />;
   
+  return <>{children}</>;
+}
+
+/**
+ * A page whose feature the gym's plan may not include.
+ *
+ * Sent to the dashboard rather than shown an upgrade screen, which matches
+ * what `PermissionRoute` does with a page somebody may not see: the sidebar
+ * already hides the link, so arriving here means a typed URL or a stale tab,
+ * and neither is worth a sales page. The API refuses it regardless.
+ *
+ * Waits for the plan to load before deciding. Without that, a refresh on
+ * `/analytics` would bounce a paying gym to the dashboard while the fetch was
+ * still in flight.
+ */
+function FeatureRoute({ children, feature }: { children: ReactNode; feature: keyof PlanFeatures }) {
+  const { isAuth, isStaff, loading } = useAuth();
+  const { has, loading: planLoading } = useSubscription();
+  if (loading || planLoading) return <BootSpinner />;
+  if (!isAuth) return <Navigate to="/login" replace />;
+  if (!isStaff) return <Navigate to="/my" replace />;
+  if (!has(feature)) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -127,7 +152,9 @@ function AppRoutes() {
                 <Route path="/security" element={<Security />} />
                  <Route path="/dashboard" element={<StaffRoute><Dashboard /></StaffRoute>} />
                 <Route path="/attendance" element={<PermissionRoute action="canViewAttendance"><Attendance /></PermissionRoute>} />
-                <Route path="/analytics" element={<PermissionRoute action="canViewReports"><Analytics /></PermissionRoute>} />
+                {/* Both gates: whether this person may see reports, and
+                    whether the gym's plan includes them. */}
+                <Route path="/analytics" element={<PermissionRoute action="canViewReports"><FeatureRoute feature="analytics"><Analytics /></FeatureRoute></PermissionRoute>} />
                 <Route path="/plans" element={<PermissionRoute action="canManagePlans"><Plans /></PermissionRoute>} />
                 <Route path="/membership-plans" element={<PermissionRoute action="canManageMemberships"><MembershipPlans /></PermissionRoute>} />
                 <Route path="/supplements" element={<PermissionRoute action="canManageSupplements"><Supplements /></PermissionRoute>} />
@@ -149,6 +176,8 @@ function AppRoutes() {
                     the books too, and the API gates it the same way. */}
                 <Route path="/expenses" element={<PermissionRoute action="canManageExpenses"><Expenses /></PermissionRoute>} />
                 <Route path="/team" element={<OwnerRoute><Team /></OwnerRoute>} />
+                {/* Owner-only: what the gym pays for is a billing matter. */}
+                <Route path="/subscription" element={<OwnerRoute><Subscription /></OwnerRoute>} />
                 <Route path="/trainers" element={<PermissionRoute action="canManageTrainers"><Trainers /></PermissionRoute>} />
                 <Route path="/classes" element={<PermissionRoute action="canManageClasses"><Classes /></PermissionRoute>} />
                 <Route path="*" element={<HomeRedirect />} />
@@ -166,7 +195,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        {/* Inside the auth provider: the endpoint is behind `auth`, and there
+            is no gym to have a plan until somebody is signed in. */}
+        <SubscriptionProvider>
+          <AppRoutes />
+        </SubscriptionProvider>
       </AuthProvider>
     </BrowserRouter>
   );

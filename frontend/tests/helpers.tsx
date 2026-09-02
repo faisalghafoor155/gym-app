@@ -164,6 +164,24 @@ export const membersPage = (
   ...over,
 });
 
+/**
+ * The plain `{ data, total, page, limit, hasMore }` envelope every paged list
+ * answers with.
+ *
+ * The lists that feed pickers — trainers, classes, membership plans — are
+ * fetched with `all=true`, which returns this same shape with everything in
+ * it. A test stubbing one says what rows it wants and lets this fill in the
+ * bookkeeping around them.
+ */
+export const listPage = <T,>(data: T[], over: Record<string, unknown> = {}) => ({
+  data,
+  total: data.length,
+  page: 1,
+  limit: data.length,
+  hasMore: false,
+  ...over,
+});
+
 /** A `/payments` response. `collected` and `outstanding` default to the sum of
  *  the rows, which is the *un*interesting case — the tests that care about the
  *  totals covering more than the page pass them explicitly. */

@@ -10,7 +10,7 @@ import {
 import api, { apiError } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
 import { useDialog } from '../hooks/useDialog';
-import type { MembershipPlan } from '../types';
+import type { MembershipPlan, Paginated } from '../types';
 import toast from 'react-hot-toast';
 
 interface PlanForm {
@@ -46,13 +46,15 @@ export default function MembershipPlans() {
   const modalRef = useDialog(showModal, () => setShowModal(false));
 
   // Always fetch everything; the toggle is a display choice, so flipping it
-  // does not cost a round trip.
-  const { data, loading, reload: load } = useFetch<MembershipPlan[]>(
-    '/membership-plans?includeInactive=true',
+  // does not cost a round trip. `all=true` keeps that true now the endpoint is
+  // paged — a gym's price list is a handful of rows, and the retired ones the
+  // toggle reveals have to already be here for it to reveal them.
+  const { data, loading, reload: load } = useFetch<Paginated<MembershipPlan>>(
+    '/membership-plans?includeInactive=true&all=true',
     'Could not load membership plans',
   );
   // Null only before the first load lands, which the spinner covers.
-  const plans = data ?? [];
+  const plans = data?.data ?? [];
 
   const set = (k: keyof PlanForm) => (v: string) => setForm(f => ({ ...f, [k]: v }));
 

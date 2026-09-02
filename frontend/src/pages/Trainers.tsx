@@ -10,6 +10,7 @@ import api, { apiError } from '../api/client';
 import toast from 'react-hot-toast';
 import type {
   Trainer, PtSession, TrainerCommissionReport, TrainerPayout, Member, GymSettings,
+  Paginated,
 } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { hasPermission } from '../utils/permissions';
@@ -87,29 +88,32 @@ export default function Trainers() {
   const loadData = async (isStale: () => boolean = () => false) => {
     try {
       const [tRes, mRes, settingsRes] = await Promise.all([
-        api.get<Trainer[]>('/trainers'),
-        api.get<{ data: Member[] }>('/members?all=true'),
+        // This page assigns trainers and lists them, so it wants every one —
+        // the API defaults to the active ones, which is what it showed before.
+        api.get<Paginated<Trainer>>('/trainers?all=true'),
+        api.get<Paginated<Member>>('/members?all=true'),
         // Shown as the placeholder on a blank fee field, so "leave blank" says
         // what it will actually charge rather than leaving staff to guess.
         api.get<GymSettings>('/gym-settings'),
       ]);
       if (isStale()) return;
-      setTrainers(tRes.data.filter(t => t.isActive));
+      setTrainers(tRes.data.data);
       setMembers(mRes.data.data);
       setGymDefaultPtFee(settingsRes.data.defaultPtFee);
 
       if (activeTab === 'bookings') {
-        const sRes = await api.get<PtSession[]>('/pt-sessions');
+        // The session log is paged; this tab shows the most recent page.
+        const sRes = await api.get<Paginated<PtSession>>('/pt-sessions');
         if (isStale()) return;
-        setSessions(sRes.data);
+        setSessions(sRes.data.data);
       } else if (activeTab === 'commissions') {
         const rRes = await api.get<TrainerCommissionReport[]>('/pt-sessions/commissions');
         if (isStale()) return;
         setReport(rRes.data);
       } else if (activeTab === 'payouts' && canViewPayouts) {
-        const pRes = await api.get<TrainerPayout[]>('/payouts');
+        const pRes = await api.get<Paginated<TrainerPayout>>('/payouts?all=true');
         if (isStale()) return;
-        setPayouts(pRes.data);
+        setPayouts(pRes.data.data);
       }
     } catch (err) {
       if (!isStale()) toast.error(apiError(err, 'Failed to fetch data'));

@@ -569,9 +569,25 @@ export default function Attendance() {
             Fingerprint Check-In
           </h2>
 
-          {/* No reader wired up. Not an error state — most gyms will see this
-              until they buy one — so it explains rather than warns. */}
-          {!fpStatus?.configured ? (
+          {/* Three ways this tab can be unavailable, and they need different
+              answers: the plan does not include it, no reader is wired up, or
+              one is but is not responding. The first is checked first — a gym
+              that cannot use the feature should not be told to go and buy
+              hardware for it. */}
+          {fpStatus && !fpStatus.licensed ? (
+            <div className="text-center py-12">
+              <div className="w-20 h-20 rounded-2xl bg-blue-50 dark:bg-blue-500/15 flex items-center justify-center mx-auto mb-5">
+                <Fingerprint size={36} className="text-blue-500" />
+              </div>
+              <p className="text-gray-900 dark:text-slate-100 font-semibold mb-2">
+                Fingerprint check-in is not on your plan
+              </p>
+              <p className="text-sm text-gray-400 dark:text-slate-500 max-w-sm mx-auto">
+                Members can still be checked in by QR code or by name. Talk to
+                us about upgrading to add fingerprint check-in.
+              </p>
+            </div>
+          ) : !fpStatus?.configured ? (
             <div className="text-center py-12">
               <div className="w-20 h-20 rounded-2xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-5">
                 <Fingerprint size={36} className="text-gray-400 dark:text-slate-500" />

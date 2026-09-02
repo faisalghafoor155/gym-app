@@ -3,7 +3,8 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import {
-  aMember, aMembership, mockApi, membersPage, ownerAuth, staffAuth, renderPage, type AuthState,
+  aMember, aMembership, mockApi, membersPage, listPage, ownerAuth, staffAuth,
+  renderPage, type AuthState,
 } from '../helpers';
 
 /**
@@ -53,7 +54,7 @@ const setup = (over: {
 } = {}) => {
   auth.current = over.auth ?? ownerAuth;
   api.current = mockApi({
-    '/membership-plans': [],
+    '/membership-plans': listPage([]),
     '/members': over.members ?? membersPage([aMember({ name: 'Ali Khan' })]),
   });
   return api.current;
@@ -171,11 +172,11 @@ describe('Members — the trainer filter', () => {
   const withTrainers = (members?: ReturnType<typeof membersPage>) => {
     auth.current = ownerAuth;
     api.current = mockApi({
-      '/membership-plans': [],
-      '/trainers': [
+      '/membership-plans': listPage([]),
+      '/trainers': listPage([
         { id: 't-1', name: 'Coach Alpha', isActive: true },
         { id: 't-2', name: 'Coach Beta', isActive: true },
-      ],
+      ]),
       '/members': members ?? membersPage([aMember({ name: 'Ali Khan' })]),
     });
     return api.current;
@@ -203,11 +204,11 @@ describe('Members — the trainer filter', () => {
   it('marks a trainer who has left, but still offers them', async () => {
     auth.current = ownerAuth;
     api.current = mockApi({
-      '/membership-plans': [],
-      '/trainers': [
+      '/membership-plans': listPage([]),
+      '/trainers': listPage([
         { id: 't-1', name: 'Coach Alpha', isActive: true },
         { id: 't-2', name: 'Coach Gone', isActive: false },
-      ],
+      ]),
       '/members': membersPage([aMember({ name: 'Ali Khan' })]),
     });
     renderPage(<Members />);
@@ -333,7 +334,7 @@ describe('Members — empty states', () => {
     // Nothing matches from here on.
     stub.get.mockImplementation((url: string) => {
       stub.calls.push(url);
-      if (url.includes('/membership-plans')) return Promise.resolve({ data: [] });
+      if (url.includes('/membership-plans')) return Promise.resolve({ data: listPage([]) });
       return Promise.resolve({ data: membersPage([]) });
     });
 
@@ -453,7 +454,7 @@ describe('Members — renewing', () => {
 
   it('opens against the membership being replaced', async () => {
     api.current = mockApi({
-      '/membership-plans': [{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }],
+      '/membership-plans': listPage([{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }]),
       '/members': membersPage([expiringMember()]),
     });
     auth.current = ownerAuth;
@@ -472,7 +473,7 @@ describe('Members — renewing', () => {
 
   it('prefills the fee from the plan and sends what was actually typed', async () => {
     api.current = mockApi({
-      '/membership-plans': [{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }],
+      '/membership-plans': listPage([{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }]),
       '/members': membersPage([expiringMember()]),
     });
     auth.current = ownerAuth;
@@ -497,7 +498,7 @@ describe('Members — renewing', () => {
 
   it('sends no wallet for a renewal switched back to cash', async () => {
     api.current = mockApi({
-      '/membership-plans': [{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }],
+      '/membership-plans': listPage([{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }]),
       '/members': membersPage([expiringMember()]),
     });
     auth.current = ownerAuth;
@@ -537,7 +538,7 @@ describe('Members — the check-in code', () => {
   const openQr = async () => {
     auth.current = ownerAuth;
     api.current = mockApi({
-      '/membership-plans': [],
+      '/membership-plans': listPage([]),
       '/members': membersPage([member()]),
     });
     const user = userEvent.setup();
@@ -602,8 +603,8 @@ describe('Members — the member form', () => {
   const withPlans = (members = membersPage([aMember({ name: 'Ali Khan' })])) => {
     auth.current = ownerAuth;
     api.current = mockApi({
-      '/membership-plans': [{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }],
-      '/trainers': [],
+      '/membership-plans': listPage([{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }]),
+      '/trainers': listPage([]),
       '/gym-settings': { defaultPtFee: null },
       '/fingerprint/status': { configured: false },
       '/members/check-duplicate': { duplicate: false },
@@ -711,9 +712,9 @@ describe('Members — the member form', () => {
     stub.get.mockImplementation((url: string) => {
       stub.calls.push(url);
       if (url.includes('/fingerprint/status')) return Promise.resolve({ data: { configured: true } });
-      if (url.includes('/membership-plans')) return Promise.resolve({ data: [] });
+      if (url.includes('/membership-plans')) return Promise.resolve({ data: listPage([]) });
       if (url.includes('/check-duplicate')) return Promise.resolve({ data: { duplicate: false } });
-      if (url.includes('/trainers')) return Promise.resolve({ data: [] });
+      if (url.includes('/trainers')) return Promise.resolve({ data: listPage([]) });
       if (url.includes('/gym-settings')) return Promise.resolve({ data: { defaultPtFee: null } });
       return Promise.resolve({ data: membersPage([aMember({ name: 'Ali Khan' })]) });
     });
