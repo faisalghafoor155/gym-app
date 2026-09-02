@@ -100,11 +100,19 @@ still be able to credit money the member already sent), deleting a fingerprint
 `GET /fingerprint/status` (which reports `licensed` so the page can tell "not
 on your plan" from "no reader plugged in").
 
-Existing gyms were moved to `pro` by the migration rather than left on the
+Existing gyms were moved to `basic` by the migration rather than left on the
 column's old `"free"` default. That column was written at signup and never
-read, so its value was not a decision anybody made — treating it as one would
-have capped gyms that had been running without limits, and they would have
-found out at the front desk.
+read, so every row said `free` by accident rather than by choice; honouring it
+would have capped gyms that had been running without limits at 50 members, and
+they would have found out at the front desk.
+
+`basic` is the tier that matches what the app already did — its six staff seats
+are the figure that used to be hardcoded for every gym. What it does not cover
+is size: a gym already past 300 active members or six staff keeps everything it
+has, since the limits cap additions rather than existing rows, but cannot add
+the next one until somebody moves it up. **Run `npm run plan` before deploying
+this** — it lists every gym against its ceiling, and moving one up is a single
+command.
 
 ## Running it
 
