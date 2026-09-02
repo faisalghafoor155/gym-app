@@ -3,6 +3,10 @@
  * are typed as string here even though the backend models them as Date.
  */
 
+import type {
+  Entitlements, PlanFeatures, PlanLimits,
+} from './utils/entitlements.generated';
+
 /** What the API stores. `expiring` is not here — it is a function of today's
  *  date, so the server derives it on read rather than storing it. */
 export type MembershipStatus =
@@ -27,6 +31,9 @@ export type Role = 'owner' | 'staff' | 'member';
 
 export type StaffPermission = 'manager' | 'members_manager' | 'accountant' | 'receptionist' | 'inventory_manager';
 
+/** The gym's subscription tier. Mirrors the `GymPlan` enum in the schema. */
+export type GymPlan = 'free' | 'basic' | 'pro';
+
 export interface Gym {
   id: string;
   name: string;
@@ -49,6 +56,49 @@ export interface StaffSeats {
   limit: number;
   used: number;
   remaining: number;
+}
+
+/**
+ * How one limit stands: what is allowed, what is used, what is left.
+ *
+ * `limit` and `remaining` are null when the tier is uncapped — "unlimited
+ * minus four" is not a number, and the UI renders that case as a count rather
+ * than a bar.
+ */
+export interface LimitStatus {
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+}
+
+/** What `GET /subscription` answers with. */
+export interface SubscriptionStatus {
+  plan: GymPlan;
+  planLabel: string;
+  features: PlanFeatures;
+  limits: Record<keyof PlanLimits, LimitStatus>;
+  /** Every tier, so an upgrade prompt can name what the next one holds
+   *  without the client keeping its own copy of the pricing table. */
+  plans: ({ plan: GymPlan; label: string } & Entitlements)[];
+}
+
+/**
+ * The body a refused request carries when a plan is the reason.
+ *
+ * Two shapes, told apart by `reason` — and by the status, which is the part a
+ * generic handler sees first: `409` for a limit, which the gym can clear from
+ * inside the app, and `402` for a feature, which it can only buy.
+ */
+export interface PlanRefusal {
+  error: string;
+  reason: 'plan_limit' | 'plan_feature';
+  plan: GymPlan;
+  upgradeTo: GymPlan | null;
+  /** Set when `reason` is `plan_limit`. */
+  of?: keyof PlanLimits;
+  limit?: number;
+  /** Set when `reason` is `plan_feature`. */
+  feature?: keyof PlanFeatures;
 }
 
 /**
@@ -289,6 +339,16 @@ export interface CheckinResult extends AttendanceRecord {
 export interface FingerprintStatus {
   /** A reader is wired up in the backend's device registry. */
   configured: boolean;
+  /**
+   * The gym's plan includes biometrics at all.
+   *
+   * Separate from `configured` because they are separate problems with
+   * separate fixes — one needs an upgrade, the other needs hardware plugged in
+   * — and collapsing them would have the page tell a paying gym to buy
+   * something it already has.
+   */
+  licensed: boolean;
+  plan: GymPlan;
   /** It is configured *and* responding right now. */
   online: boolean;
   label: string;

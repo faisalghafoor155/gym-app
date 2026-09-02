@@ -6,10 +6,12 @@ import ThemeToggle from './ThemeToggle';
 import OfflineBanner from './OfflineBanner';
 import InstallBanner from './InstallBanner';
 import { hasPermission, type PermissionRequirements } from '../utils/permissions';
+import { useSubscription } from '../context/SubscriptionContext';
+import type { PlanFeatures } from '../utils/entitlements';
 import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   Dumbbell, LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
-  BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText,
+  BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText, Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -58,6 +60,9 @@ const ownerNavItems: NavItem[] = [
   // Last in the owner's half: it is what you open when you want to know who
   // did something, which is rarely and after the fact.
   { to: '/audit-log', label: 'Audit Log', icon: ScrollText },
+  // What the gym is paying for and how close it is to each ceiling. Owner's,
+  // because changing it is a billing conversation.
+  { to: '/subscription', label: 'Plan & Usage', icon: Sparkles },
 ];
 
 const memberNavItems: NavItem[] = [
@@ -69,6 +74,7 @@ const securityNavItem: NavItem = { to: '/security', label: 'Security', icon: Shi
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { gym, user, logout, isStaff, isOwner } = useAuth();
+  const { has } = useSubscription();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -96,10 +102,24 @@ export default function Layout({ children }: { children: ReactNode }) {
     '/classes': 'canManageClasses',
   };
 
+  /**
+   * Nav entries whose page needs a feature the plan may not include.
+   *
+   * Hidden rather than shown-and-refused: a link that leads to "upgrade to see
+   * this" teaches people to distrust the sidebar. The route itself still
+   * checks, and the API refuses regardless — this is the courtesy half.
+   */
+  const navItemFeatures: Record<string, keyof PlanFeatures> = {
+    '/analytics': 'analytics',
+  };
+
   const navItems = [
     ...(isStaff
       ? [
           ...staffNavItems.filter(item => {
+            const reqFeature = navItemFeatures[item.to];
+            if (reqFeature && !has(reqFeature)) return false;
+
             const reqPerm = navItemPermissions[item.to];
             if (!reqPerm) return true; // dashboard is always allowed
             return isOwner || (user?.staffPermission && hasPermission(user.role, user.staffPermission, reqPerm));

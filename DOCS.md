@@ -5,6 +5,7 @@ plans, and supplement stock — with owner / staff / member accounts.
 
 - [Stack](#stack)
 - [Roles and access](#roles-and-access)
+- [Plans and limits](#plans-and-limits)
 - [Running it](#running-it)
 - [Configuration](#configuration)
 - [Scripts](#scripts)
@@ -44,6 +45,66 @@ Public signup creates a **new gym**, and that account becomes its owner.
 Members never sign themselves up — the owner creates a member record, then
 issues a login for it, which sends an invite the recipient activates by
 choosing their own password. The owner never knows that password.
+
+## Plans and limits
+
+Each gym is on one of three tiers, stored as `Gym.plan`:
+
+| | **free** | **basic** | **pro** |
+|---|---|---|---|
+| Active members | 50 | 300 | unlimited |
+| Staff accounts | 2 | 6 | 15 |
+| Trainers | 2 | 10 | unlimited |
+| Classes | 3 | 20 | unlimited |
+| WhatsApp reminders | — | ✅ | ✅ |
+| Reports & analytics | — | ✅ | ✅ |
+| Fingerprint check-in | — | — | ✅ |
+| Online payments | — | — | ✅ |
+
+`backend/src/services/subscription.ts` is the source of truth for that table.
+The tiers are an enum in the schema — a gym is on exactly one of three and a
+fourth value must not be storable — but what a tier is *worth* is a pricing
+decision, so it lives in the service and changes without a migration. The
+client's copy is generated from it into
+`frontend/src/utils/entitlements.generated.ts`, exactly like the permission
+table, and `tests/services/subscription.test.ts` fails if the two drift.
+
+**Nothing in the app takes money for a plan.** Billing is arranged out of band
+and an operator moves the gym with `npm run plan <gymId> <tier>`, which refuses
+a downgrade that would leave the gym over a ceiling unless given `--force`.
+There is no `PUT /subscription`, so an owner cannot upgrade themselves.
+
+**Limits are counted over what is live, not over history**: active members,
+active trainers, staff accounts (including revoked ones, which still hold their
+email address), and classes. That is what makes a limit escapable without
+deleting anything — retire a lapsed member and the place is free. Each is
+claimed inside a transaction behind `SELECT ... FOR UPDATE` on the gym row, so
+two receptionists adding the 50th and 51st member at the same moment cannot
+both get through.
+
+**A refusal names what would fix it**, and the status says which kind it is:
+
+| Status | Meaning | What the gym can do |
+|---|---|---|
+| `409` + `reason: "plan_limit"` | A ceiling is reached | Free a place, *or* upgrade |
+| `402` + `reason: "plan_feature"` | The tier excludes the feature | Only upgrade |
+
+Both bodies carry `upgradeTo` — the cheapest tier that would help, or `null`
+when none would, because a prompt naming a tier that would not help is worse
+than one naming none.
+
+Three things are deliberately **not** gated, and each would be a trap if it
+were: a payment gateway's callback (a gym that downgrades mid-payment must
+still be able to credit money the member already sent), deleting a fingerprint
+(disposal of a biometric must never sit behind a paywall), and
+`GET /fingerprint/status` (which reports `licensed` so the page can tell "not
+on your plan" from "no reader plugged in").
+
+Existing gyms were moved to `pro` by the migration rather than left on the
+column's old `"free"` default. That column was written at signup and never
+read, so its value was not a decision anybody made — treating it as one would
+have capped gyms that had been running without limits, and they would have
+found out at the front desk.
 
 ## Running it
 
@@ -125,6 +186,10 @@ npm run db:generate
 npm run db:seed
 npm run retention:fingerprints              # preview expired fingerprints
 npm run retention:fingerprints -- --delete  # and delete them
+npm run gen:permissions   # regenerate the client's permission + plan tables
+npm run plan              # list gyms and their subscription tiers
+npm run plan <gymId>      # one gym's usage against its tier
+npm run plan <gymId> pro  # move it to another tier
 
 # frontend
 npm run dev
@@ -304,6 +369,7 @@ counter with cash in hand is exactly who the gym wants inside.
 | GET | `/membership-plans`, POST, PUT/DELETE `/:id` | staff |
 | GET | `/dashboard` | staff |
 | GET | `/audit-logs` | owner |
+| GET | `/subscription` | staff — the gym's tier, its usage, and every tier's limits |
 | GET | `/health` | public |
 
 ## How the data fits together
@@ -837,4 +903,10 @@ produced, neither of which the tests reach while coverage is this thin.
 - **The payments CSV exports what has been loaded**, not every match, now that
   the list is paged. The toast says so ("Exported 50 of 213"), and pressing Show
   more first widens it. A server-side export would be the honest fix.
+- **Nothing collects money for a subscription.** The tiers are enforced and an
+  operator can move a gym between them, but the payment itself is arranged out
+  of band — there is no invoice, no renewal date, and no record in the app that
+  a gym has paid. A gym that stops paying keeps its tier until somebody notices
+  and runs the script. Wiring this to the existing gateway registry is the
+  natural next step; nothing above assumes it has not been.
 - `HTTPS=false` suits localhost, but must be flipped for any real deployment.
