@@ -8,7 +8,9 @@ import {
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import toast from 'react-hot-toast';
-import type { Class, ClassSchedule, ClassBooking, Member, Trainer } from '../types';
+import type {
+  Class, ClassSchedule, ClassBooking, Member, Trainer, Paginated,
+} from '../types';
 
 interface ClassForm {
   name: string;
@@ -84,13 +86,16 @@ export default function Classes() {
   const loadData = async (isStale: () => boolean = () => false) => {
     try {
       const [cRes, tRes, mRes] = await Promise.all([
-        api.get<Class[]>('/classes'),
-        api.get<Trainer[]>('/trainers'),
-        api.get<{ data: Member[] }>('/members?all=true'),
+        // All three feed pickers on this page — the schedule form picks a class
+        // and a trainer, the booking form picks a member — so each asks for the
+        // complete list rather than a page of it.
+        api.get<Paginated<Class>>('/classes?all=true'),
+        api.get<Paginated<Trainer>>('/trainers?all=true'),
+        api.get<Paginated<Member>>('/members?all=true'),
       ]);
       if (isStale()) return;
-      setClasses(cRes.data.filter(c => c.isActive));
-      setTrainers(tRes.data.filter(t => t.isActive));
+      setClasses(cRes.data.data.filter(c => c.isActive));
+      setTrainers(tRes.data.data);
       setMembers(mRes.data.data);
 
       const sRes = await api.get<ClassSchedule[]>(`/classes/schedules?date=${targetDate}`);
@@ -98,9 +103,13 @@ export default function Classes() {
       setSchedules(sRes.data);
 
       if (activeTab === 'bookings') {
-        const bRes = await api.get<ClassBooking[]>(`/class-bookings?date=${targetDate}`);
+        // One day's bookings, which is already a narrow slice — the page cap
+        // is a backstop rather than something a gym reaches in a day.
+        const bRes = await api.get<Paginated<ClassBooking>>(
+          `/class-bookings?date=${targetDate}&limit=100`,
+        );
         if (isStale()) return;
-        setBookings(bRes.data);
+        setBookings(bRes.data.data);
       }
     } catch (err) {
       if (!isStale()) toast.error(apiError(err, 'Failed to fetch data'));

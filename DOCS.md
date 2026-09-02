@@ -218,6 +218,47 @@ They are summed with `groupBy` in the database, because summing a page in the
 client can only ever total the page — and they narrow with the staff scoping, so
 a staff member's total covers their own takings and not the gym's.
 
+### Paged lists
+
+Every list that grows without bound answers with the same envelope:
+
+```json
+{ "data": [ … ], "total": 213, "page": 1, "limit": 25, "hasMore": true }
+```
+
+`page` and `limit` are query parameters; `limit` is capped (100 on most lists,
+200 on the monthly collection) so a caller cannot ask for the whole table
+through it. `total` and any counts alongside it cover **everything matching the
+filters**, never the page — a tab or a chip labelled with what happened to be
+loaded would climb as the user pressed Show more.
+
+The lists that answer this way: `/members`, `/payments`, `/audit-logs`,
+`/expenses`, `/supplements`, `/trainers`, `/classes`, `/class-bookings`,
+`/pt-sessions`, `/membership-plans`, `/members/:id/memberships`, `/payouts` and
+`/users`. The last is the one exception to the shape: its rows stay under
+`users` rather than `data`, because the seat count travels beside them.
+
+**Filtering happens on the server.** A page that filtered what it had been
+handed could only ever search the rows that happened to be loaded, so
+`/supplements` takes `search` and `category`, `/trainers` takes `search` and
+`includeInactive`, and so on.
+
+**`all=true`** opts out of paging and returns everything, for the lists that
+feed a picker rather than a table — `/trainers`, `/classes`,
+`/membership-plans`, `/supplements`, `/members` and `/payouts`. A dropdown that
+stopped at the page size would make later rows unselectable, which reads as data
+having gone missing. It is deliberately explicit rather than the default: the
+expensive shape should be the one you choose, not the one you get by forgetting.
+
+Two lists deliberately do **not** default the way their neighbours do:
+
+- **`/payouts` covers trainers who have left.** Leaving does not forfeit
+  commission already earned, and hiding them would quietly write off money the
+  gym still owes. `activeOnly=true` narrows it; the trainers list defaults the
+  other way, because that one answers "who is on the floor".
+- **The fingerprint matcher reads every enrolled template**, because 1:N
+  identification has to compare against each candidate. See *Known gaps*.
+
 ### Attendance — `/api/attendance`
 
 | Method | Path | Access |
@@ -788,10 +829,11 @@ produced, neither of which the tests reach while coverage is this thin.
   their logic lives — filtering, paging, and the totals. The other nine pages
   have nothing, and no test anywhere covers creating or editing a record. The
   build step still carries that weight.
-- **`GET /supplements` is unbounded.** Left that way deliberately: a gym stocks
-  tens of products, not thousands, and the category counts on the page are
-  computed from the whole list. It is the one list where paging would cost more
-  than it saves — revisit it if a gym ever carries hundreds of lines.
+- **The fingerprint matcher reads every enrolled template.** Not a paging
+  oversight: 1:N identification has to compare the probe against each candidate,
+  so a page of them would simply fail to recognise members further down the
+  list. It is bounded by the gym's enrolled members rather than by its history,
+  which is the reason it can stay that way.
 - **The payments CSV exports what has been loaded**, not every match, now that
   the list is paged. The toast says so ("Exported 50 of 213"), and pressing Show
   more first widens it. A server-side export would be the honest fix.

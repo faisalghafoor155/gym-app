@@ -2,6 +2,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, FlaskConical, Package, ShoppingCart, PackagePlus, BarChart3,
+  Search,
 } from 'lucide-react';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
@@ -12,7 +13,10 @@ import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
 import { useFetch } from '../hooks/useFetch';
-import type { Supplement, SupplementCategory, Member, Paginated } from '../types';
+import { useDebounced } from '../hooks/useDebounced';
+import type {
+  Supplement, SupplementCategory, Member, Paginated, PaginatedSupplements,
+} from '../types';
 import toast from 'react-hot-toast';
 
 interface CategoryInfo {
@@ -31,6 +35,9 @@ const CATEGORIES: CategoryInfo[] = [
   { value: 'fatburner', label: 'Fat Burner', icon: '🏃', color: 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 border-blue-200 dark:border-blue-500/20' },
   { value: 'other', label: 'Other', icon: '💊', color: 'bg-gray-50 dark:bg-slate-800/60 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-800' },
 ];
+
+/** How many products a page carries. Matches the members page. */
+const PAGE_SIZE = 25;
 
 const getCatInfo = (cat: string): CategoryInfo =>
   CATEGORIES.find(c => c.value === cat) ?? CATEGORIES[CATEGORIES.length - 1]!;
@@ -56,6 +63,10 @@ export default function Supplements() {
   const [form, setForm] = useState<SupplementForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [filterCat, setFilterCat] = useState<'all' | SupplementCategory>('all');
+  const [searchInput, setSearchInput] = useState('');
+  // Pages beyond the first, appended to what `useFetch` holds for page one.
+  const [extra, setExtra] = useState<Supplement[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [deleting, setDeleting] = useState<Supplement | null>(null);
   const modalRef = useDialog(showModal, () => setShowModal(false));
 
@@ -82,12 +93,46 @@ export default function Supplements() {
   const [restockForm, setRestockForm] = useState({ quantity: '', notes: '' });
   const restockRef = useDialog(!!restocking, () => setRestocking(null));
 
-  const { data, loading, reload: load } = useFetch<Supplement[]>(
-    '/supplements',
+  // Debounced so a search does not fire a request per keystroke, the same way
+  // the members page searches.
+  const search = useDebounced(searchInput, 300);
+
+  // Filtering happens on the server now that the list is paged: filtering a
+  // page in the browser could only ever search the products that happened to
+  // be loaded, and the shelf outgrows one page.
+  const query = `/supplements?limit=${PAGE_SIZE}` +
+    (filterCat === 'all' ? '' : `&category=${filterCat}`) +
+    (search ? `&search=${encodeURIComponent(search)}` : '');
+
+  const { data, loading, reload: load } = useFetch<PaginatedSupplements>(
+    query,
     'Could not load supplements',
   );
+
   // Null only before the first load lands, which the spinner covers.
-  const supplements = data ?? [];
+  const supplements = extra.length ? [...(data?.data ?? []), ...extra] : data?.data ?? [];
+  const counts = data?.counts;
+  const total = data?.total ?? 0;
+  const hasMore = supplements.length < total;
+
+  // Later pages are dropped whenever the query changes: they were fetched
+  // under filters that no longer select them, and keeping them would leave
+  // rows on screen that the current filter excludes.
+  useEffect(() => { setExtra([]); }, [query]);
+
+  /** Appends the next page rather than replacing what is on screen. */
+  const showMore = async () => {
+    const next = Math.floor(supplements.length / PAGE_SIZE) + 1;
+    setLoadingMore(true);
+    try {
+      const r = await api.get<PaginatedSupplements>(`${query}&page=${next}`);
+      setExtra(prev => [...prev, ...r.data.data]);
+    } catch (err) {
+      toast.error(apiError(err, 'Could not load more'));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   useEffect(() => {
     // For the "sold to" picker. A failure here is not worth a toast — the
@@ -261,9 +306,9 @@ export default function Supplements() {
     }
   };
 
-  const filtered = filterCat === 'all'
-    ? supplements
-    : supplements.filter(s => s.category === filterCat);
+  // The server already applied the category and the search, so what arrives is
+  // the list to render.
+  const filtered = supplements;
 
   if (loading) return <PageLoader />;
 
@@ -301,29 +346,42 @@ export default function Supplements() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
-        <StatTile icon={Package} tone="blue" label="Total Products" value={supplements.length} />
+        {/* Over the whole shelf, not the page: a tile counted from what
+            happened to be loaded would climb as you pressed Show more. */}
+        <StatTile icon={Package} tone="blue" label="Total Products" value={counts?.all ?? 0} />
         <StatTile
-          icon={ShoppingCart} tone="green" label="Total Stock"
-          value={supplements.reduce((s, x) => s + (x.stock || 0), 0)}
+          icon={ShoppingCart} tone="green" label="Showing"
+          value={`${supplements.length} of ${total}`}
         />
         <StatTile
           icon={FlaskConical} tone="red" label="Out of Stock"
-          value={supplements.filter(s => (s.stock || 0) === 0).length}
+          value={counts?.outOfStock ?? 0}
         />
       </div>
 
       {/* Category filter */}
       <Card className="p-3 sm:p-4 mb-5">
+        <div className="relative mb-3">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+          <input
+            type="search"
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            placeholder="Search product or description…"
+            aria-label="Search supplements"
+            className={`${inputClass} pl-9`}
+          />
+        </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => setFilterCat('all')}
             aria-pressed={filterCat === 'all'}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${focusRing} ${
               filterCat === 'all' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/60'
             }`}>
-            All ({supplements.length})
+            All ({counts?.all ?? 0})
           </button>
           {CATEGORIES.map(cat => {
-            const count = supplements.filter(s => s.category === cat.value).length;
+            const count = counts?.byCategory[cat.value] ?? 0;
             if (count === 0 && filterCat !== cat.value) return null;
             return (
               <button key={cat.value} onClick={() => setFilterCat(cat.value)}
@@ -340,7 +398,7 @@ export default function Supplements() {
 
       {/* Grid */}
       {filtered.length === 0 ? (
-        filterCat === 'all' ? (
+        filterCat === 'all' && !search ? (
           <EmptyState
             icon={FlaskConical}
             title="No supplements yet"
@@ -354,10 +412,13 @@ export default function Supplements() {
         ) : (
           <EmptyState
             icon={FlaskConical}
-            title="Nothing in this category"
-            hint="Pick a different category, or add a product here."
+            title="Nothing matches"
+            hint="Try a different category, or clear the search."
             action={
-              <button onClick={() => setFilterCat('all')} className={secondaryButton}>
+              <button
+                onClick={() => { setFilterCat('all'); setSearchInput(''); }}
+                className={secondaryButton}
+              >
                 Show all
               </button>
             }
@@ -453,6 +514,14 @@ export default function Supplements() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {hasMore && (
+        <div className="flex justify-center mt-5">
+          <button onClick={showMore} disabled={loadingMore} className={secondaryButton}>
+            {loadingMore ? 'Loading…' : `Show more · ${total - supplements.length} left`}
+          </button>
         </div>
       )}
 

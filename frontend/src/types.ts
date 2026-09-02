@@ -51,10 +51,20 @@ export interface StaffSeats {
   remaining: number;
 }
 
-/** The accounts list, with the seat count the page needs to render alongside. */
+/**
+ * The accounts list, with the seat count the page needs to render alongside.
+ *
+ * Paged like every other list, but the rows stay under `users` rather than
+ * moving to `data`: the seat count travels with them, so this was never the
+ * bare envelope `Paginated` describes.
+ */
 export interface TeamResponse {
   users: GymUser[];
   seats: StaffSeats;
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
 }
 
 /**
@@ -206,6 +216,24 @@ export interface Paginated<T> {
   page: number;
   limit: number;
   hasMore: boolean;
+}
+
+/**
+ * The stock list's counts, over the whole shelf rather than the page.
+ *
+ * The category chips and the out-of-stock tile both used to be derived in the
+ * browser from a list that was every product. Now that it is a page, a chip
+ * counted from what happened to be loaded would climb as you pressed Show
+ * more — so the server counts them.
+ */
+export interface SupplementCounts {
+  all: number;
+  outOfStock: number;
+  byCategory: Partial<Record<SupplementCategory, number>>;
+}
+
+export interface PaginatedSupplements extends Paginated<Supplement> {
+  counts: SupplementCounts;
 }
 
 /** The members page's tab counts, over the whole roster rather than a page. */

@@ -14,7 +14,10 @@ import {
 import api, { apiError } from '../api/client';
 import { useDebounced } from '../hooks/useDebounced';
 import { useFingerprintReader } from '../hooks/useFingerprintReader';
-import type { GymSettings, Member, MembershipPlan, MemberCounts, PaginatedMembers, Trainer } from '../types';
+import type {
+  GymSettings, Member, MembershipPlan, MemberCounts, PaginatedMembers, Trainer,
+  Paginated,
+} from '../types';
 import toast from 'react-hot-toast';
 
 /** The filters worth offering. The stored statuses a member never sees
@@ -233,9 +236,9 @@ export default function Members() {
   useEffect(() => {
     // The gym's own price list, so the plan picker offers what this gym
     // actually sells rather than three hardcoded durations.
-    void api.get<MembershipPlan[]>('/membership-plans')
+    void api.get<Paginated<MembershipPlan>>('/membership-plans?all=true')
       .then(r => {
-        setPlans(r.data);
+        setPlans(r.data.data);
         // The dashboard's "Add Member" shortcut arrives as ?new=1. Opening
         // after the plans land is what lets the form preselect one — both
         // updates land in the same render, so the modal mounts with the list
@@ -255,8 +258,8 @@ export default function Members() {
     // Worth a toast, unlike the settings below: without this the trainer filter
     // and the assign-trainer picker are simply absent, which reads as the gym
     // having no trainers rather than as a failure to load them.
-    void api.get<Trainer[]>('/trainers')
-      .then(r => setTrainers(r.data))
+    void api.get<Paginated<Trainer>>('/trainers?all=true')
+      .then(r => setTrainers(r.data.data))
       .catch(err => toast.error(apiError(err, 'Could not load trainers')));
 
     // The fee field's placeholder and the account line under the channel
