@@ -28,6 +28,14 @@ export default mergeConfig(viteConfig, defineConfig({
     // Threads share the parent's resolution and are unaffected.
     pool: 'threads',
 
+    // The default 5s is measured from when a test starts, which on the first
+    // test of a cold run includes compiling the component and its imports.
+    // That is comfortably under 5s warm and occasionally over it cold, so the
+    // first test in a file would pass locally and flake in CI. Raised rather
+    // than worked around per test: a slow first compile is a property of the
+    // runner, not of any one assertion.
+    testTimeout: 15_000,
+
     // Vite's dev proxy is irrelevant here — every test stubs the API layer
     // rather than reaching a server — but leaving it merged in is harmless and
     // keeps the two configs from drifting.

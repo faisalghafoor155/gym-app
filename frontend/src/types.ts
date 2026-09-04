@@ -170,6 +170,47 @@ export interface MyProfile {
   dueTotal: number;
 }
 
+/** One session on the member's own timetable, with their place in it. */
+export interface MyScheduleSlot {
+  id: string;
+  className: string;
+  classDescription: string | null;
+  trainerName: string | null;
+  startTime: string;
+  endTime: string;
+  dayOfWeek: number;
+  capacity: number;
+  bookingsCount: number;
+  remainingCapacity: number;
+  /** Whether this member holds a place. The reason this endpoint exists
+   *  rather than the member reusing the staff timetable. */
+  booked: boolean;
+}
+
+/** A booking as the member's own list shows it. */
+export interface MyBooking {
+  id: string;
+  bookingDate: string;
+  status: 'booked' | 'attended' | 'cancelled';
+  scheduleId: string;
+  className: string;
+  trainerName: string | null;
+  startTime: string;
+  endTime: string;
+  dayOfWeek: number;
+}
+
+/** Something the member bought over the counter. */
+export interface MyPurchase {
+  id: string;
+  supplementName: string;
+  category: SupplementCategory;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  soldAt: string;
+}
+
 export interface MembershipPlan {
   id: string;
   gymId: string;
