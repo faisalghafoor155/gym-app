@@ -332,6 +332,62 @@ Two lists deliberately do **not** default the way their neighbours do:
 - **The fingerprint matcher reads every enrolled template**, because 1:N
   identification has to compare against each candidate. See *Known gaps*.
 
+### The member portal — `/api/me`
+
+Everything a signed-in member can see and do about themselves: their profile,
+membership history, payments, supplement purchases, class bookings, and the
+timetable they can book from.
+
+**Every endpoint is scoped by the session, never by an id in the URL.** That is
+the whole security argument for this router — there is nothing to tamper with,
+so "may this member see this?" is a question none of them has to answer. An
+account with no member record (staff, owner) gets a `404` saying so, which is
+truer than a `403`: they are not forbidden, they are not a member.
+
+`POST /me/bookings` has **no `memberId` field** in its schema, unlike the staff
+`POST /class-bookings` it mirrors. The member comes off the session, and the
+strongest version of that guarantee is the one where somebody else's id never
+arrives in the first place.
+
+Booking needs an **active membership**, unlike check-in, which lets anybody
+through. The two are different acts: waving somebody in costs the gym nothing
+and is the moment to sell them a renewal, while holding a place in a class
+takes it from a paying member. A lapsed member is answered with `403` and
+`reason: "membership_inactive"`, so the portal can offer a renewal rather than
+merely refusing.
+
+Cancelling is a member's to do — a no-show holds a place nobody can use — but
+an `attended` booking cannot be cancelled: attendance is a record of what
+happened, and the place is long gone either way.
+
+`GET /me/schedule` exists rather than the member reusing `/classes/schedules`
+because the two answer different questions. The staff one says how full a class
+is; a member also needs to know whether they are in it, and must not be handed
+everybody else's bookings to work that out from. Only the count of other people
+travels, never their ids.
+
+The concurrency lives in `services/classBooking.ts`, shared with the staff
+route rather than reimplemented. Capacity is counted and written under
+`Serializable`, and a lost race is retried before it is ever reported as a full
+class. A second copy of that would have been a second chance to get the
+isolation level wrong, and the failure would be a class quietly running over
+capacity rather than an error anybody sees.
+
+Both booking paths write an audit row, under different actions —
+`classBooking.create` for the desk and `classBooking.selfCreate` for the portal
+— so the trail can tell who actually took the place.
+
+`PUT /me` takes the four contact fields a member owns: phone, email, address
+and emergency contact. The portal's Profile tab offers three of them and shows
+the **email read-only**, though the endpoint would accept it — it is the
+address an invite and a password reset go to, so a member repointing it is a
+member moving their own login. That is a front-desk act, with a front-desk
+record of it. Name, photo and membership are not writable here at all.
+
+Blank is sent as `null` rather than omitted, which is how "clear this field"
+is told apart from "leave it alone". The response is the whole profile, so the
+page updates from what it saved rather than refetching it.
+
 ### Attendance — `/api/attendance`
 
 | Method | Path | Access |
@@ -373,7 +429,10 @@ counter with cash in hand is exactly who the gym wants inside.
 | POST | `/users/member-login` | owner |
 | POST | `/users/transfer-ownership` | owner |
 | PUT / DELETE | `/users/:id` | owner |
-| GET | `/me` | signed-in — own record only |
+| GET / PUT | `/me` | signed-in — own record only |
+| GET | `/me/memberships`, `/me/purchases`, `/me/bookings` | signed-in — own record only |
+| GET | `/me/schedule` | signed-in — the timetable, with the member's own place in it |
+| POST / DELETE | `/me/bookings`, `/me/bookings/:id` | signed-in — book or give up a place |
 | GET | `/membership-plans`, POST, PUT/DELETE `/:id` | staff |
 | GET | `/dashboard` | staff |
 | GET | `/audit-logs` | owner |
@@ -859,8 +918,11 @@ Threads share the parent's resolution and are unaffected.
 Google sign-in, the invite and password-reset flows end to end (token
 generation is tested; clicking the emailed link is not), plan assignment,
 supplement restocking and the sales report, and audit-log contents. On the
-frontend, nine of the eleven pages, and every create-or-edit flow — the tests
-there cover reading and filtering, not writing.
+frontend, most pages have no test of their own. The write flows that are
+covered are the member portal's — booking a class and saving the profile form
+— and the staff-side writes that cannot be undone by pressing the button
+again, which are tested for the payload they send and for the confirm gate in
+front of them. Creating and editing from the staff side is not covered.
 
 The mail transport is not covered either — every test that involves mail stubs
 `sendMail`. What a message says and who it goes to is tested; whether Resend or
@@ -900,17 +962,22 @@ produced, neither of which the tests reach while coverage is this thin.
 ## Known gaps
 
 - **Frontend coverage is uneven.** `Members` and `Payments` are tested where
-  their logic lives — filtering, paging, and the totals. The other nine pages
-  have nothing, and no test anywhere covers creating or editing a record. The
-  build step still carries that weight.
+  their logic lives — filtering, paging, and the totals — and the portal's two
+  writes are covered: class booking, including that it asks before giving a
+  place up, and the profile form, including that it will not send an unchanged
+  save and will not lose what was typed when one is refused. On the staff side
+  the **irreversible** writes are tested — removing an account, revoking it,
+  changing a role, transferring the gym, deleting a member or a supplement or a
+  timetable slot, and suspending or cancelling a membership — each asserted on
+  the payload it sends and on the confirm standing in front of it. What is
+  *not* covered there is creating and editing: a bad create is visible and
+  fixable, which is why it went second. The build step still carries that
+  weight.
 - **The fingerprint matcher reads every enrolled template.** Not a paging
   oversight: 1:N identification has to compare the probe against each candidate,
   so a page of them would simply fail to recognise members further down the
   list. It is bounded by the gym's enrolled members rather than by its history,
   which is the reason it can stay that way.
-- **The payments CSV exports what has been loaded**, not every match, now that
-  the list is paged. The toast says so ("Exported 50 of 213"), and pressing Show
-  more first widens it. A server-side export would be the honest fix.
 - **Nothing collects money for a subscription.** The tiers are enforced and an
   operator can move a gym between them, but the payment itself is arranged out
   of band — there is no invoice, no renewal date, and no record in the app that
