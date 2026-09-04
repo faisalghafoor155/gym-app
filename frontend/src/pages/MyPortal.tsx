@@ -4,8 +4,13 @@ import {
 } from 'lucide-react';
 import Badge from '../components/Badge';
 import {
-  Page, Card, PageLoader, LoadFailed, InlineEmpty, primaryButton, secondaryButton,
+  Page, Card, PageLoader, LoadFailed, InlineEmpty, SegmentedControl,
+  primaryButton, secondaryButton,
 } from '../components/ui';
+import MyClasses from '../components/portal/MyClasses';
+import MyCheckInCode from '../components/portal/MyCheckInCode';
+import { MyMemberships, MyPayments, MyPurchases } from '../components/portal/MyHistory';
+import MyProfileForm from '../components/portal/MyProfileForm';
 import api, { apiError } from '../api/client';
 import type { MyProfile, MembershipPlan, PaymentProviderOption, CheckoutStarted } from '../types';
 import toast from 'react-hot-toast';
@@ -32,7 +37,26 @@ const postToProvider = (url: string, fields: Record<string, string>): void => {
   form.submit();
 };
 
+/**
+ * The portal's sections.
+ *
+ * Tabs rather than one long scroll, which is what this was: adding classes,
+ * history and a check-in code to a page that already stacked six cards would
+ * have buried the two things a member opens it for — when their membership
+ * ends, and the code to get in.
+ */
+type PortalTab = 'overview' | 'classes' | 'checkin' | 'history' | 'profile';
+
+const TABS: readonly { value: PortalTab; label: string }[] = [
+  { value: 'overview', label: 'Overview' },
+  { value: 'classes', label: 'Classes' },
+  { value: 'checkin', label: 'Check-in' },
+  { value: 'history', label: 'History' },
+  { value: 'profile', label: 'Profile' },
+];
+
 export default function MyPortal() {
+  const [tab, setTab] = useState<PortalTab>('overview');
   const [data, setData] = useState<MyProfile | null>(null);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -145,6 +169,48 @@ export default function MyPortal() {
 
   return (
     <Page>
+      <div className="space-y-5">
+
+      <SegmentedControl value={tab} onChange={setTab} options={TABS} />
+
+      {tab === 'classes' && (
+        // Reloads the profile after a booking: nothing on the overview
+        // depends on it today, but a stale membership card behind a
+        // "renew to book" refusal would be exactly the wrong thing to show.
+        <MyClasses onChange={() => void loadData()} />
+      )}
+
+      {tab === 'checkin' && (
+        <MyCheckInCode
+          memberId={member.id}
+          memberNo={member.memberNo}
+          name={member.name}
+        />
+      )}
+
+      {tab === 'history' && (
+        <div className="space-y-5">
+          <MyMemberships />
+          <MyPayments
+            payments={payments}
+            member={{
+              name: member.name,
+              phone: member.phone,
+              memberNo: member.memberNo,
+            }}
+          />
+          <MyPurchases />
+        </div>
+      )}
+
+      {tab === 'profile' && (
+        // Updated from the PUT's own response rather than by reloading: the
+        // server hands back the whole profile it just saved, so a refetch
+        // would only ask for what is already in hand.
+        <MyProfileForm member={member} onSaved={setData} />
+      )}
+
+      {tab === 'overview' && (
       <div className="space-y-5">
       
       {/* Membership status card */}
@@ -308,29 +374,8 @@ export default function MyPortal() {
         )}
       </Card>
 
-      {/* Payments */}
-      <Card className="p-5">
-        <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-          <CreditCard size={16} className="text-blue-600" /> Payment History
-        </h2>
-        {payments.length === 0 ? (
-          <InlineEmpty message="No payments recorded yet." />
-        ) : (
-          <ul className="space-y-2">
-            {payments.map(p => (
-              <li key={p.id} className="flex items-center justify-between gap-3 py-2 border-b border-gray-50 dark:border-slate-800 last:border-0">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-slate-100">Rs. {p.amount.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">
-                    {new Date(p.paymentDate).toLocaleDateString()} · {p.method}
-                  </p>
-                </div>
-                <Badge status={p.status} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      </div>
+      )}
       </div>
 
       {/* ONLINE CHECKOUT DIALOG MODAL */}
