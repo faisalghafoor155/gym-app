@@ -544,15 +544,22 @@ export default function Supplements() {
 
             <form onSubmit={e => void handleSave(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
               <div>
-                <FieldLabel required>Name</FieldLabel>
-                <input required value={form.name} onChange={set('name')}
+                <FieldLabel htmlFor="supplements-name" required>Name</FieldLabel>
+                <input id="supplements-name" required value={form.name} onChange={set('name')}
                   placeholder="e.g. Whey Protein Gold Standard"
                   className={inputClass} />
               </div>
 
               <div>
-                <FieldLabel required>Category</FieldLabel>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {/* A group of buttons, not one control, so the label names the
+                    group rather than pointing at a field. `htmlFor` has nothing
+                    to point at here. */}
+                <FieldLabel id="supplement-category-label" required>Category</FieldLabel>
+                <div
+                  role="group"
+                  aria-labelledby="supplement-category-label"
+                  className="grid grid-cols-3 sm:grid-cols-4 gap-2"
+                >
                   {CATEGORIES.map(cat => (
                     <button key={cat.value} type="button"
                       onClick={() => setForm(f => ({ ...f, category: cat.value }))}
@@ -570,22 +577,22 @@ export default function Supplements() {
               </div>
 
               <div>
-                <FieldLabel>Description</FieldLabel>
-                <textarea rows={2} value={form.description} onChange={set('description')}
+                <FieldLabel htmlFor="supplements-description">Description</FieldLabel>
+                <textarea id="supplements-description" rows={2} value={form.description} onChange={set('description')}
                   placeholder="Brief description of this supplement..."
                   className={`${inputClass} resize-none`} />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <FieldLabel>Dosage</FieldLabel>
-                  <input value={form.dosage} onChange={set('dosage')}
+                  <FieldLabel htmlFor="supplements-dosage">Dosage</FieldLabel>
+                  <input id="supplements-dosage" value={form.dosage} onChange={set('dosage')}
                     placeholder="e.g. 1 scoop (30g)"
                     className={inputClass} />
                 </div>
                 <div>
-                  <FieldLabel>Timing</FieldLabel>
-                  <input value={form.timing} onChange={set('timing')}
+                  <FieldLabel htmlFor="supplements-timing">Timing</FieldLabel>
+                  <input id="supplements-timing" value={form.timing} onChange={set('timing')}
                     placeholder="e.g. Post-workout"
                     className={inputClass} />
                 </div>
@@ -593,14 +600,14 @@ export default function Supplements() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <FieldLabel>Price (Rs.)</FieldLabel>
-                  <input type="number" min="0" value={form.price} onChange={set('price')}
+                  <FieldLabel htmlFor="supplements-price-rs">Price (Rs.)</FieldLabel>
+                  <input id="supplements-price-rs" type="number" min="0" value={form.price} onChange={set('price')}
                     placeholder="3500"
                     className={inputClass} />
                 </div>
                 <div>
-                  <FieldLabel>Stock (units)</FieldLabel>
-                  <input type="number" min="0" value={form.stock} onChange={set('stock')}
+                  <FieldLabel htmlFor="supplements-stock-units">Stock (units)</FieldLabel>
+                  <input id="supplements-stock-units" type="number" min="0" value={form.stock} onChange={set('stock')}
                     placeholder="10"
                     className={inputClass} />
                 </div>
@@ -643,8 +650,9 @@ export default function Supplements() {
 
             <form onSubmit={e => void handleRestock(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
               <div>
-                <FieldLabel required>Units received</FieldLabel>
+                <FieldLabel htmlFor="restock-quantity" required>Units received</FieldLabel>
                 <input
+                  id="restock-quantity"
                   type="number" min={1} step={1} required
                   value={restockForm.quantity}
                   onChange={e => setRestockForm(f => ({ ...f, quantity: e.target.value }))}
@@ -654,8 +662,9 @@ export default function Supplements() {
               </div>
 
               <div>
-                <FieldLabel>Note</FieldLabel>
+                <FieldLabel htmlFor="restock-note">Note</FieldLabel>
                 <input
+                  id="restock-note"
                   type="text" maxLength={500}
                   value={restockForm.notes}
                   onChange={e => setRestockForm(f => ({ ...f, notes: e.target.value }))}
@@ -789,8 +798,8 @@ export default function Supplements() {
                 </div>
 
                 <div>
-                  <FieldLabel>Associate Member (Optional)</FieldLabel>
-                  <select
+                  <FieldLabel htmlFor="supplements-associate-member-optional">Associate Member (Optional)</FieldLabel>
+                  <select id="supplements-associate-member-optional"
                     value={cartMemberId}
                     onChange={e => setCartMemberId(e.target.value)}
                     className={inputClass}
@@ -806,8 +815,8 @@ export default function Supplements() {
 
                 {cartMemberId && (
                   <div>
-                    <FieldLabel>Payment Method</FieldLabel>
-                    <select
+                    <FieldLabel htmlFor="supplements-payment-method">Payment Method</FieldLabel>
+                    <select id="supplements-payment-method"
                       value={cartPaymentMethod}
                       onChange={e => setCartPaymentMethod(e.target.value as 'cash' | 'card')}
                       className={inputClass}
@@ -819,8 +828,8 @@ export default function Supplements() {
                 )}
 
                 <div>
-                  <FieldLabel>Sales Notes / Comments</FieldLabel>
-                  <input
+                  <FieldLabel htmlFor="supplements-sales-notes-comments">Sales Notes / Comments</FieldLabel>
+                  <input id="supplements-sales-notes-comments"
                     placeholder="Add discount details, invoice remarks..."
                     value={cartNotes}
                     onChange={e => setCartNotes(e.target.value)}

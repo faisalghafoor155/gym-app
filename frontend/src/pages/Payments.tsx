@@ -906,7 +906,11 @@ export default function Payments() {
         >
           <form onSubmit={(e) => void handleSave(e)} className="space-y-4">
             <div>
-              <FieldLabel required>Member</FieldLabel>
+              {/* Points at the picker, which only the add form renders. When
+                  editing there is no control to name — the member is shown as
+                  text — and a label pointing at nothing is inert rather than
+                  wrong. */}
+              <FieldLabel htmlFor="payments-member" required>Member</FieldLabel>
               {editing ? (
                 // Reassigning a payment is a delete and a re-entry, so the trail
                 // shows both. Shown read-only rather than hidden.
@@ -915,6 +919,7 @@ export default function Payments() {
                 </p>
               ) : (
                 <select
+                  id="payments-member"
                   required
                   value={form.memberId}
                   // Changing the member invalidates any membership already
@@ -945,8 +950,8 @@ export default function Payments() {
             </div>
 
             <div>
-              <FieldLabel>For</FieldLabel>
-              <select
+              <FieldLabel htmlFor="payments-for">For</FieldLabel>
+              <select id="payments-for"
                 value={form.type}
                 onChange={set("type")}
                 className={inputClass}
@@ -964,9 +969,10 @@ export default function Payments() {
                 before that. */}
             {form.type === "membership" && formMember && (
               <div>
-                <FieldLabel>Membership</FieldLabel>
+                <FieldLabel htmlFor="payments-membership">Membership</FieldLabel>
                 {formMember.currentMembership ? (
                   <select
+                    id="payments-membership"
                     value={form.membershipId}
                     onChange={set("membershipId")}
                     className={inputClass}
@@ -1000,8 +1006,8 @@ export default function Payments() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <FieldLabel required>Amount (Rs.)</FieldLabel>
-                <input
+                <FieldLabel htmlFor="payments-amount-rs" required>Amount (Rs.)</FieldLabel>
+                <input id="payments-amount-rs"
                   type="number"
                   required
                   min="1"
@@ -1013,8 +1019,8 @@ export default function Payments() {
                 />
               </div>
               <div>
-                <FieldLabel required>Date</FieldLabel>
-                <input
+                <FieldLabel htmlFor="payments-date" required>Date</FieldLabel>
+                <input id="payments-date"
                   type="date"
                   required
                   max={today()}
@@ -1027,8 +1033,8 @@ export default function Payments() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <FieldLabel>Method</FieldLabel>
-                <select
+                <FieldLabel htmlFor="payments-method">Method</FieldLabel>
+                <select id="payments-method"
                   value={form.method}
                   onChange={(e) => {
                     const method = e.target.value as PaymentMethod;
@@ -1048,8 +1054,8 @@ export default function Payments() {
                 </select>
               </div>
               <div>
-                <FieldLabel>Status</FieldLabel>
-                <select
+                <FieldLabel htmlFor="payments-status">Status</FieldLabel>
+                <select id="payments-status"
                   value={form.status}
                   onChange={set("status")}
                   className={inputClass}
@@ -1068,8 +1074,8 @@ export default function Payments() {
               // can read is a channel picked wrong.
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <FieldLabel>Received in</FieldLabel>
-                  <select
+                  <FieldLabel htmlFor="payments-received-in">Received in</FieldLabel>
+                  <select id="payments-received-in"
                     value={form.channel}
                     onChange={set("channel")}
                     className={inputClass}
@@ -1088,8 +1094,8 @@ export default function Payments() {
                   )}
                 </div>
                 <div>
-                  <FieldLabel>Transaction ID</FieldLabel>
-                  <input
+                  <FieldLabel htmlFor="payments-transaction-id">Transaction ID</FieldLabel>
+                  <input id="payments-transaction-id"
                     type="text"
                     maxLength={100}
                     value={form.reference}
@@ -1102,8 +1108,8 @@ export default function Payments() {
             )}
 
             <div>
-              <FieldLabel>Notes</FieldLabel>
-              <input
+              <FieldLabel htmlFor="payments-notes">Notes</FieldLabel>
+              <input id="payments-notes"
                 type="text"
                 maxLength={500}
                 value={form.notes}

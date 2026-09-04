@@ -45,8 +45,13 @@ function PasswordMethod({ method, onMethod, password, onPassword }: {
 }) {
   return (
     <div className="space-y-3">
-      <FieldLabel required>How should they get in?</FieldLabel>
-      <div className="grid grid-cols-2 gap-2">
+      {/* Names the pair of choices below rather than a single field. */}
+      <FieldLabel id="access-mode-label" required>How should they get in?</FieldLabel>
+      <div
+        role="group"
+        aria-labelledby="access-mode-label"
+        className="grid grid-cols-2 gap-2"
+      >
         {([
           { value: 'invite', title: 'Email an invite', hint: 'They pick their own password' },
           { value: 'password', title: 'Set a password', hint: 'You share it with them' },
@@ -70,8 +75,8 @@ function PasswordMethod({ method, onMethod, password, onPassword }: {
 
       {method === 'password' ? (
         <div>
-          <FieldLabel required>Temporary password</FieldLabel>
-          <input
+          <FieldLabel htmlFor="team-temporary-password" required>Temporary password</FieldLabel>
+          <input id="team-temporary-password"
             type="password" required minLength={8} value={password}
             onChange={e => onPassword(e.target.value)}
             placeholder="Min 8 characters"
@@ -608,22 +613,22 @@ export default function Team() {
               </p>
             )}
             <div>
-              <FieldLabel required>Name</FieldLabel>
-              <input required value={staffForm.name}
+              <FieldLabel htmlFor="team-name" required>Name</FieldLabel>
+              <input id="team-name" required value={staffForm.name}
                 onChange={e => setStaffForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="Helper's full name"
                 className={inputClass} />
             </div>
             <div>
-              <FieldLabel required>Email</FieldLabel>
-              <input type="email" required value={staffForm.email}
+              <FieldLabel htmlFor="team-email" required>Email</FieldLabel>
+              <input id="team-email" type="email" required value={staffForm.email}
                 onChange={e => setStaffForm(f => ({ ...f, email: e.target.value }))}
                 placeholder="helper@gym.com"
                 className={inputClass} />
             </div>
             <div>
-              <FieldLabel required>Permission Level</FieldLabel>
-              <select required value={staffForm.staffPermission}
+              <FieldLabel htmlFor="team-permission-level" required>Permission Level</FieldLabel>
+              <select id="team-permission-level" required value={staffForm.staffPermission}
                 onChange={e => setStaffForm(f => ({ ...f, staffPermission: e.target.value as StaffPermission }))}
                 className={inputClass}>
                 <option value="receptionist">Attendance (Receptionist)</option>
@@ -669,8 +674,8 @@ export default function Team() {
             ) : (
               <>
                 <div>
-                  <FieldLabel required>Member</FieldLabel>
-                  <select required value={loginForm.memberId}
+                  <FieldLabel htmlFor="team-member" required>Member</FieldLabel>
+                  <select id="team-member" required value={loginForm.memberId}
                     onChange={e => setLoginForm(f => ({ ...f, memberId: e.target.value }))}
                     className={inputClass}>
                     <option value="">Select member...</option>
@@ -680,8 +685,8 @@ export default function Team() {
                   </select>
                 </div>
                 <div>
-                  <FieldLabel required>Email</FieldLabel>
-                  <input type="email" required value={loginForm.email}
+                  <FieldLabel htmlFor="team-email-2" required>Email</FieldLabel>
+                  <input id="team-email-2" type="email" required value={loginForm.email}
                     onChange={e => setLoginForm(f => ({ ...f, email: e.target.value }))}
                     placeholder="member@example.com"
                     className={inputClass} />
@@ -751,8 +756,8 @@ export default function Team() {
             void handleUpdatePermissions();
           }} className="space-y-4">
             <div>
-              <FieldLabel required>Permission Level</FieldLabel>
-              <select
+              <FieldLabel htmlFor="team-permission-level-2" required>Permission Level</FieldLabel>
+              <select id="team-permission-level-2"
                 required
                 value={selectedPermission}
                 onChange={e => setSelectedPermission(e.target.value as StaffPermission)}

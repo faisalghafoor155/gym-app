@@ -639,8 +639,13 @@ export default function MemberFormModal({
                 {form.feeAmount.trim() !== '' && Number(form.feeAmount) > 0 && (
                   <>
                     <div>
-                      <FieldLabel>Paid by</FieldLabel>
-                      <div className="grid grid-cols-2 gap-2">
+                      {/* A pair of buttons, so the label names the group. */}
+                      <FieldLabel id="member-fee-method-label">Paid by</FieldLabel>
+                      <div
+                        role="group"
+                        aria-labelledby="member-fee-method-label"
+                        className="grid grid-cols-2 gap-2"
+                      >
                         {(['cash', 'online'] as PaymentMethod[]).map(m => (
                           <button key={m} type="button"
                             onClick={() => {

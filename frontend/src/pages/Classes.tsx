@@ -503,8 +503,8 @@ export default function Classes() {
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-4">Create Class Program</h3>
             <form onSubmit={handleClassSave} className="space-y-4">
               <div>
-                <FieldLabel>Class Name</FieldLabel>
-                <input
+                <FieldLabel htmlFor="classes-class-name">Class Name</FieldLabel>
+                <input id="classes-class-name"
                   required
                   value={classForm.name}
                   onChange={e => setClassForm(prev => ({ ...prev, name: e.target.value }))}
@@ -514,8 +514,8 @@ export default function Classes() {
               </div>
 
               <div>
-                <FieldLabel>Description</FieldLabel>
-                <textarea
+                <FieldLabel htmlFor="classes-description">Description</FieldLabel>
+                <textarea id="classes-description"
                   value={classForm.description}
                   onChange={e => setClassForm(prev => ({ ...prev, description: e.target.value }))}
                   placeholder="Describe focus, target skills, level requirements..."
@@ -552,8 +552,8 @@ export default function Classes() {
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-4">Add Weekly Schedule Slot</h3>
             <form onSubmit={handleScheduleSave} className="space-y-4">
               <div>
-                <FieldLabel>Select Class Program</FieldLabel>
-                <select
+                <FieldLabel htmlFor="classes-select-class-program">Select Class Program</FieldLabel>
+                <select id="classes-select-class-program"
                   required
                   value={scheduleForm.classId}
                   onChange={e => setScheduleForm(prev => ({ ...prev, classId: e.target.value }))}
@@ -567,8 +567,8 @@ export default function Classes() {
               </div>
 
               <div>
-                <FieldLabel>Instructor (Trainer)</FieldLabel>
-                <select
+                <FieldLabel htmlFor="classes-instructor-trainer">Instructor (Trainer)</FieldLabel>
+                <select id="classes-instructor-trainer"
                   value={scheduleForm.trainerId}
                   onChange={e => setScheduleForm(prev => ({ ...prev, trainerId: e.target.value }))}
                   className={inputClass}
@@ -581,8 +581,8 @@ export default function Classes() {
               </div>
 
               <div>
-                <FieldLabel>Day of the Week</FieldLabel>
-                <select
+                <FieldLabel htmlFor="classes-day-of-the-week">Day of the Week</FieldLabel>
+                <select id="classes-day-of-the-week"
                   value={scheduleForm.dayOfWeek}
                   onChange={e => setScheduleForm(prev => ({ ...prev, dayOfWeek: Number(e.target.value) }))}
                   className={inputClass}
@@ -595,8 +595,8 @@ export default function Classes() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <FieldLabel>Start Time</FieldLabel>
-                  <input
+                  <FieldLabel htmlFor="classes-start-time">Start Time</FieldLabel>
+                  <input id="classes-start-time"
                     required
                     type="time"
                     value={scheduleForm.startTime}
@@ -605,8 +605,8 @@ export default function Classes() {
                   />
                 </div>
                 <div>
-                  <FieldLabel>End Time</FieldLabel>
-                  <input
+                  <FieldLabel htmlFor="classes-end-time">End Time</FieldLabel>
+                  <input id="classes-end-time"
                     required
                     type="time"
                     value={scheduleForm.endTime}
@@ -617,8 +617,8 @@ export default function Classes() {
               </div>
 
               <div>
-                <FieldLabel>Booking Capacity (Seats)</FieldLabel>
-                <input
+                <FieldLabel htmlFor="classes-booking-capacity-seats">Booking Capacity (Seats)</FieldLabel>
+                <input id="classes-booking-capacity-seats"
                   required
                   type="number"
                   min="1"
@@ -656,8 +656,8 @@ export default function Classes() {
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-4">Book Group Class Slot</h3>
             <form onSubmit={handleBookingSave} className="space-y-4">
               <div>
-                <FieldLabel>Select Member</FieldLabel>
-                <select
+                <FieldLabel htmlFor="classes-select-member">Select Member</FieldLabel>
+                <select id="classes-select-member"
                   required
                   value={bookingForm.memberId}
                   onChange={e => setBookingForm(prev => ({ ...prev, memberId: e.target.value }))}
@@ -671,8 +671,8 @@ export default function Classes() {
               </div>
 
               <div>
-                <FieldLabel>Select Schedule Slot</FieldLabel>
-                <select
+                <FieldLabel htmlFor="classes-select-schedule-slot">Select Schedule Slot</FieldLabel>
+                <select id="classes-select-schedule-slot"
                   required
                   value={bookingForm.scheduleId}
                   onChange={e => setBookingForm(prev => ({ ...prev, scheduleId: e.target.value }))}
@@ -688,8 +688,8 @@ export default function Classes() {
               </div>
 
               <div>
-                <FieldLabel>Booking Target Date</FieldLabel>
-                <input
+                <FieldLabel htmlFor="classes-booking-target-date">Booking Target Date</FieldLabel>
+                <input id="classes-booking-target-date"
                   required
                   type="date"
                   value={bookingForm.bookingDate}

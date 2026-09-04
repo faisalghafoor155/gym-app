@@ -302,13 +302,13 @@ export default function Plans() {
         <Modal title={`Create ${tab === 'workout' ? 'Workout' : 'Diet'} Plan`} onClose={() => setShowCreate(false)}>
           <form onSubmit={e => void handleCreate(e)} className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
             <div>
-              <FieldLabel required>Plan Name</FieldLabel>
-              <input required value={name} onChange={e => setName(e.target.value)}
+              <FieldLabel htmlFor="plans-plan-name" required>Plan Name</FieldLabel>
+              <input id="plans-plan-name" required value={name} onChange={e => setName(e.target.value)}
                 className={inputClass} placeholder="e.g. Beginner Weight Loss" />
             </div>
             <div>
-              <FieldLabel>Description</FieldLabel>
-              <input value={description}
+              <FieldLabel htmlFor="plans-description">Description</FieldLabel>
+              <input id="plans-description" value={description}
                 onChange={e => setDescription(e.target.value)}
                 className={inputClass}
                 placeholder="e.g. 3-day split, High Protein diet..." />
@@ -447,8 +447,8 @@ export default function Plans() {
         <Modal title="Assign Plan to Member" onClose={() => setShowAssign(false)}>
           <form onSubmit={e => void handleAssign(e)} className="space-y-4">
             <div>
-              <FieldLabel required>Member</FieldLabel>
-              <select required value={assignForm.memberId}
+              <FieldLabel htmlFor="plans-member" required>Member</FieldLabel>
+              <select id="plans-member" required value={assignForm.memberId}
                 onChange={e => setAssignForm(f => ({ ...f, memberId: e.target.value }))}
                 className={inputClass}>
                 <option value="">Select member...</option>
@@ -465,8 +465,8 @@ export default function Plans() {
               )}
             </div>
             <div>
-              <FieldLabel>Workout Plan</FieldLabel>
-              <select value={assignForm.workoutPlanId}
+              <FieldLabel htmlFor="plans-workout-plan">Workout Plan</FieldLabel>
+              <select id="plans-workout-plan" value={assignForm.workoutPlanId}
                 onChange={e => setAssignForm(f => ({ ...f, workoutPlanId: e.target.value }))}
                 className={inputClass}>
                 <option value="">None</option>
@@ -474,8 +474,8 @@ export default function Plans() {
               </select>
             </div>
             <div>
-              <FieldLabel>Diet Plan</FieldLabel>
-              <select value={assignForm.dietPlanId}
+              <FieldLabel htmlFor="plans-diet-plan">Diet Plan</FieldLabel>
+              <select id="plans-diet-plan" value={assignForm.dietPlanId}
                 onChange={e => setAssignForm(f => ({ ...f, dietPlanId: e.target.value }))}
                 className={inputClass}>
                 <option value="">None</option>
