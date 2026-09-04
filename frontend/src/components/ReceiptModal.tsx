@@ -1,6 +1,7 @@
 import { Printer, X } from 'lucide-react';
 import type { Payment } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { channelLabel } from '../utils/paymentChannels';
 
 interface ReceiptModalProps {
   payment: Payment;
@@ -21,7 +22,7 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
   }[payment.type] || 'Gym Payment';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/75 print:p-0 print:bg-transparent">
+    <div className="receipt-print-root fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/75 print:p-0 print:bg-transparent">
       {/* Modal Card container */}
       <div className="relative bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden print:border-0 print:shadow-none print:w-full print:max-w-none print:bg-white">
         
@@ -46,6 +47,19 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
             <h2 className="text-xl font-bold text-gray-900 dark:text-white print:text-black leading-tight">
               {gym?.name || 'GymPro'}
             </h2>
+            {/* Address before the owner's name: on a receipt the first thing
+                somebody looks for is where it came from, and `whitespace-pre-line`
+                keeps the line breaks the owner typed. */}
+            {gym?.address && (
+              <p className="text-xs text-gray-500 dark:text-slate-400 print:text-gray-700 mt-1 whitespace-pre-line">
+                {gym.address}
+              </p>
+            )}
+            {gym?.phone && (
+              <p className="text-xs text-gray-500 dark:text-slate-400 print:text-gray-700">
+                Tel: {gym.phone}
+              </p>
+            )}
             <p className="text-xs text-gray-400 dark:text-slate-500 print:text-gray-600 mt-1">
               Owner: {gym?.ownerName || 'Gym Management'}
             </p>
@@ -109,8 +123,20 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
             </div>
             <div className="flex justify-between text-xs mt-2">
               <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">Method:</span>
-              <span className="font-semibold uppercase">{payment.method}</span>
+              <span className="font-semibold uppercase">
+                {/* The channel is the useful half when there is one: "ONLINE"
+                    tells a member nothing they did not already know, whereas
+                    "Easypaisa" is what they will look for on their own
+                    statement if they ever query this. */}
+                {payment.channel ? channelLabel(payment.channel) : payment.method}
+              </span>
             </div>
+            {payment.reference && (
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">Reference:</span>
+                <span className="font-mono break-all text-right max-w-[60%]">{payment.reference}</span>
+              </div>
+            )}
             <div className="flex justify-between text-xs">
               <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">Status:</span>
               <span className={`font-semibold uppercase ${payment.status === 'paid' ? 'text-green-600' : 'text-red-500'}`}>
@@ -153,23 +179,33 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
 
       </div>
 
-      {/* Global CSS overrides for clean print preview */}
+      {/*
+        Print rules.
+
+        The previous version of this hid `body > #root`, which is the element
+        the receipt itself lives inside — there is no portal here, so the modal
+        is a descendant of #root like everything else. It hid the receipt along
+        with the page, and printing produced a blank sheet.
+
+        `visibility` rather than `display` is what fixes it: hiding everything
+        and then revealing this subtree works regardless of where in the tree
+        the receipt sits, because visibility is inherited and can be turned
+        back on by a descendant. `display: none` on an ancestor cannot be
+        undone by a child, which is exactly why the old rules could not work.
+
+        The receipt is then lifted out of the page flow so it prints at the top
+        of the sheet rather than wherever the modal happened to be scrolled to.
+      */}
       <style>{`
         @media print {
-          /* Hide everything in root except our modal */
-          body > #root, 
-          body > div:not(.fixed), 
-          .print\\:hidden,
-          header,
-          aside,
-          nav,
-          button,
-          .fixed > div:not(.relative) {
-            display: none !important;
-          }
-          
-          /* Position printable container at the top left */
-          .fixed {
+          @page { margin: 12mm; }
+
+          body * { visibility: hidden !important; }
+
+          .receipt-print-root,
+          .receipt-print-root * { visibility: visible !important; }
+
+          .receipt-print-root {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
@@ -179,14 +215,23 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
             padding: 0 !important;
             margin: 0 !important;
             overflow: visible !important;
+            display: block !important;
           }
 
-          .fixed > div {
+          .receipt-print-root > div {
             border: 0 !important;
             box-shadow: none !important;
+            border-radius: 0 !important;
             max-width: 100% !important;
+            width: 100% !important;
             margin: 0 !important;
-            padding: 0 !important;
+          }
+
+          /* Keeps the printed colours as designed rather than letting the
+             browser drop backgrounds to save ink. */
+          .receipt-print-root {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}</style>

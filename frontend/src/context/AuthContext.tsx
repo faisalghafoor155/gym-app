@@ -14,6 +14,8 @@ interface AuthValue {
   loading: boolean;
   login: (user: SessionUser, gym: Gym) => void;
   logout: () => void;
+  /** Refreshes the cached gym after an owner edits its details. */
+  updateGym: (gym: Gym) => void;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -63,6 +65,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   };
 
+  /**
+   * Replaces the cached gym after its details are edited.
+   *
+   * Without this, renaming the gym or setting its address leaves the old
+   * values on screen — and on every receipt printed — until the next sign-in,
+   * because the session's copy is only refreshed by `/auth/me` on load.
+   */
+  const updateGym: AuthValue['updateGym'] = (gymData) => {
+    localStorage.setItem('gym', JSON.stringify(gymData));
+    setGym(gymData);
+  };
+
   const logout = () => {
     // The cookie is httpOnly, so the server has to clear it — and the same
     // call is what revokes the session server-side, so a token captured
@@ -83,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isStaff: role === 'owner' || role === 'staff',
       isOwner: role === 'owner',
       loading,
-      login, logout,
+      login, logout, updateGym,
     }}>
       {children}
     </AuthContext.Provider>

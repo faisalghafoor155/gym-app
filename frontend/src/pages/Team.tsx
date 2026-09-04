@@ -97,7 +97,7 @@ function PasswordMethod({ method, onMethod, password, onPassword }: {
 }
 
 export default function Team() {
-  const { user: me, isOwner } = useAuth();
+  const { user: me, isOwner, gym, updateGym } = useAuth();
   const [params, setParams] = useSearchParams();
   const [users, setUsers] = useState<GymUser[]>([]);
   const [seats, setSeats] = useState<StaffSeats | null>(null);
@@ -124,6 +124,15 @@ export default function Team() {
     useState<{ user: GymUser; to: Exclude<Role, 'owner'> } | null>(null);
   
   const [editingPermissions, setEditingPermissions] = useState<GymUser | null>(null);
+
+  /**
+   * The gym's own identity, as it appears on every receipt a member keeps.
+   *
+   * Editable here for the first time: these were written once at signup and
+   * never again, so a typo in the name printed on every receipt could only be
+   * fixed in the database.
+   */
+  const [profile, setProfile] = useState({ name: '', ownerName: '', phone: '', address: '' });
 
   // Gym-wide pricing. Held as a string so an emptied field does not become 0
   // while the owner is mid-edit.
@@ -171,6 +180,12 @@ export default function Team() {
       // Issuing a login means picking any member, so this one needs them all.
       api.get<Paginated<Member>>('/members?all=true').then(r => setMembers(r.data.data)),
       api.get<GymSettings>('/gym-settings').then(r => {
+        setProfile({
+          name: r.data.name,
+          ownerName: r.data.ownerName,
+          phone: r.data.phone ?? '',
+          address: r.data.address ?? '',
+        });
         setPtFeeInput(String(r.data.defaultPtFee));
         setAccounts({
           easypaisa: r.data.easypaisaAccount ?? '',
@@ -188,7 +203,12 @@ export default function Team() {
     e.preventDefault();
     setSavingSettings(true);
     try {
-      await api.put('/gym-settings', {
+      const { data } = await api.put<GymSettings>('/gym-settings', {
+        name: profile.name.trim(),
+        ownerName: profile.ownerName.trim(),
+        // Blank clears these, and the receipt simply omits the line.
+        phone: profile.phone.trim(),
+        address: profile.address.trim(),
         defaultPtFee: Number(ptFeeInput),
         // Blank clears the channel's published details — the channel is still
         // offered at the counter, just without an account line to read out.
@@ -196,6 +216,17 @@ export default function Team() {
         jazzcashAccount: accounts.jazzcash.trim(),
         bankAccount: accounts.bank.trim(),
       });
+      // The header and every receipt read the gym off the session, so without
+      // this a rename would not show until the owner signed in again.
+      if (gym) {
+        updateGym({
+          ...gym,
+          name: data.name,
+          ownerName: data.ownerName,
+          phone: data.phone,
+          address: data.address,
+        });
+      }
       toast.success('Settings updated');
     } catch (err) {
       toast.error(apiError(err, 'Could not update settings'));
@@ -382,10 +413,69 @@ export default function Team() {
         <Card className="p-5 mb-5">
           <h3 className="font-semibold text-gray-900 dark:text-slate-100 mb-1">Gym settings</h3>
           <p className="text-xs text-gray-500 dark:text-slate-400 mb-4">
-            Pricing, and the accounts members send money to.
+            What members see on a receipt, pricing, and the accounts they send money to.
           </p>
           <form onSubmit={handleSettingsSave} className="space-y-4">
-            <div className="max-w-xs">
+            <div>
+              <p className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                Gym details
+              </p>
+              <p className="text-xs text-gray-400 dark:text-slate-500 mb-3">
+                Printed at the top of every receipt a member keeps.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <FieldLabel htmlFor="gym-name">Gym name</FieldLabel>
+                  <input
+                    id="gym-name"
+                    required
+                    maxLength={100}
+                    value={profile.name}
+                    onChange={e => setProfile(p => ({ ...p, name: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="gym-owner">Owner name</FieldLabel>
+                  <input
+                    id="gym-owner"
+                    required
+                    maxLength={100}
+                    value={profile.ownerName}
+                    onChange={e => setProfile(p => ({ ...p, ownerName: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="gym-phone">Phone</FieldLabel>
+                  <input
+                    id="gym-phone"
+                    maxLength={30}
+                    placeholder="0300-1234567"
+                    value={profile.phone}
+                    onChange={e => setProfile(p => ({ ...p, phone: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="gym-address">Address</FieldLabel>
+                  <textarea
+                    id="gym-address"
+                    rows={2}
+                    maxLength={300}
+                    placeholder="Shop 4, Al-Rehman Plaza, Peshawar Road, Rawalpindi"
+                    value={profile.address}
+                    onChange={e => setProfile(p => ({ ...p, address: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-gray-400 dark:text-slate-500">
+                Leave the phone or address blank and the receipt simply leaves that line out.
+              </p>
+            </div>
+
+            <div className="max-w-xs border-t border-gray-100 dark:border-slate-800 pt-4">
               <label className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
                 Default trainer assignment fee (Rs.)
               </label>

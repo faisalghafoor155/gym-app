@@ -38,6 +38,9 @@ export interface Gym {
   id: string;
   name: string;
   ownerName: string;
+  /** Printed on receipts. Null until the owner sets it. */
+  phone: string | null;
+  address: string | null;
 }
 
 export interface SessionUser {
@@ -763,6 +766,8 @@ export interface GymSettings {
   name: string;
   ownerName: string;
   phone: string | null;
+  /** Free text, printed on receipts as the owner wrote it. */
+  address: string | null;
   defaultPtFee: number;
   /** Where members are told to send money, per channel. Free text — a wallet
    *  is a phone number, a bank is a name plus an IBAN. Null when the gym has
