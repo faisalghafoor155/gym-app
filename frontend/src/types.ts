@@ -51,6 +51,15 @@ export interface SessionUser {
   /** Set only when the account belongs to a gym member. */
   memberId: string | null;
   staffPermission?: StaffPermission | null;
+  /**
+   * Whether the address has been confirmed from a link sent to it.
+   *
+   * Nothing is withheld when it is false — it drives a banner offering to send
+   * the link again, and that is all. What it catches is a typo: the address is
+   * where a password reset goes, and a wrong one is a lockout waiting for the
+   * day it is needed.
+   */
+  emailVerified?: boolean;
 }
 
 /** How many staff accounts the gym may have, and how many are spoken for.

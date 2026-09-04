@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
 import ThemeToggle from './ThemeToggle';
 import OfflineBanner from './OfflineBanner';
+import VerifyEmailBanner from './VerifyEmailBanner';
 import InstallBanner from './InstallBanner';
 import { hasPermission, type PermissionRequirements } from '../utils/permissions';
 import { useSubscription } from '../context/SubscriptionContext';
@@ -240,6 +241,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         {/* Above the mobile top bar and the content both: it applies to the
             whole app, not to whatever page happens to be open. */}
         <OfflineBanner />
+        <VerifyEmailBanner />
 
         {/* Only ever rendered inside the app, so it cannot appear over the
             login or invite-acceptance screens — those do not use Layout. */}

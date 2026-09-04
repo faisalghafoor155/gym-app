@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import api from '../api/client';
 import type { Gym, SessionUser, Role } from '../types';
 
@@ -16,6 +16,8 @@ interface AuthValue {
   logout: () => void;
   /** Refreshes the cached gym after an owner edits its details. */
   updateGym: (gym: Gym) => void;
+  /** Re-reads the session from the server, after something it caches changes. */
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -40,22 +42,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Only the server can tell whether the cookie is still valid, so every load
   // re-checks. This is also what keeps a revoked account from appearing signed
   // in from a stale cache.
-  useEffect(() => {
-    api.get<{ user: SessionUser; gym: Gym }>('/auth/me')
-      .then(r => {
-        setUser(r.data.user);
-        setGym(r.data.gym);
-        localStorage.setItem('user', JSON.stringify(r.data.user));
-        localStorage.setItem('gym', JSON.stringify(r.data.gym));
-      })
-      .catch(() => {
-        setUser(null);
-        setGym(null);
-        localStorage.removeItem('user');
-        localStorage.removeItem('gym');
-      })
-      .finally(() => setLoading(false));
+  //
+  // Shared with `refreshSession` rather than written twice: both want exactly
+  // this, and two copies would be two places for the cache to fall out of step
+  // with what the server said.
+  const loadSession = useCallback(async (): Promise<void> => {
+    try {
+      const r = await api.get<{ user: SessionUser; gym: Gym }>('/auth/me');
+      setUser(r.data.user);
+      setGym(r.data.gym);
+      localStorage.setItem('user', JSON.stringify(r.data.user));
+      localStorage.setItem('gym', JSON.stringify(r.data.gym));
+    } catch {
+      setUser(null);
+      setGym(null);
+      localStorage.removeItem('user');
+      localStorage.removeItem('gym');
+    }
   }, []);
+
+  useEffect(() => {
+    void loadSession().finally(() => setLoading(false));
+  }, [loadSession]);
 
   const login: AuthValue['login'] = (userData, gymData) => {
     localStorage.setItem('user', JSON.stringify(userData));
@@ -98,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isOwner: role === 'owner',
       loading,
       login, logout, updateGym,
+      refreshSession: loadSession,
     }}>
       {children}
     </AuthContext.Provider>
