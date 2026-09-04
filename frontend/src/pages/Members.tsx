@@ -650,6 +650,19 @@ export default function Members() {
                 ? `Put ${statusChange.member.name}'s membership back into service? If it ran out while paused it will show as expired, ready to renew.`
                 : `Cancel ${statusChange.member.name}'s membership for good? It stays in their history and any payments already taken are kept, but it cannot be resumed or renewed afterwards.`
           }
+          // Named for the act, rather than left on the component's "Delete"
+          // default: a dialog headed "Cancel membership" whose button said
+          // "Delete" invited the reader to hunt for the difference between the
+          // two, and "Cancel" beside "Cancel" is worse still — one abandons
+          // the dialog and the other ends the membership.
+          confirmLabel={
+            statusChange.verb === 'suspend' ? 'Suspend membership'
+              : statusChange.verb === 'resume' ? 'Resume membership'
+                : 'Cancel membership'
+          }
+          // Resuming gives a membership back; only the other two take
+          // something away.
+          tone={statusChange.verb === 'resume' ? 'primary' : 'danger'}
           busy={statusBusy}
           onConfirm={() => void handleMembershipAction()}
           onCancel={() => setStatusChange(null)}

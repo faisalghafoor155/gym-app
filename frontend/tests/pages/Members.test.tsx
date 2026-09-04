@@ -760,3 +760,164 @@ describe('Members — the member form', () => {
     await waitFor(() => expect(stub.callsTo('/fingerprint/status').length).toBe(1));
   });
 });
+
+/**
+ * The writes that cannot be undone by pressing the button again.
+ *
+ * Deleting takes a member's memberships, attendance and payments with them,
+ * and cancelling a membership cannot be resumed or renewed afterwards. Both
+ * are asserted the same way: nothing leaves the page on the first click, and
+ * what leaves on the second names the right member.
+ *
+ * Suspend, resume and cancel share one handler, differing only in the verb in
+ * the URL. That is the thing worth pinning — a page that sent `suspend` where
+ * the dialog said `cancel` would look right and be wrong, and the member would
+ * find out when they came back to a membership nobody could resume.
+ */
+describe('Members — the irreversible writes', () => {
+  /** Two rows, so a page acting on the wrong one cannot pass by having only
+   *  one to act on. */
+  const roster = (over: Partial<Parameters<typeof aMember>[0]> = {}) =>
+    membersPage([
+      aMember({
+        id: 'mem-ali',
+        name: 'Ali Khan',
+        currentMembership: aMembership({ id: 'ms-ali', status: 'active' }),
+        ...over,
+      }),
+      aMember({
+        id: 'mem-zainab',
+        name: 'Zainab Malik',
+        currentMembership: aMembership({ id: 'ms-zainab', status: 'active' }),
+      }),
+    ]);
+
+  /**
+   * Presses the confirm in the open dialog, by the words on the button.
+   *
+   * Each of these dialogs names its own act — "Suspend membership", "Cancel
+   * membership" — rather than falling back to a generic label, so the button
+   * is what a test can go by and what a reader acts on. Scoped to the dialog
+   * because the confirm echoes the row button that opened it.
+   */
+  const confirmIn = (label: RegExp) =>
+    userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: label }));
+
+  it('asks before deleting, then deletes the member it was aimed at', async () => {
+    const stub = setup({ members: roster() });
+    renderPage(<Members />);
+    await loaded();
+
+    await userEvent.click(screen.getByRole('button', { name: /delete ali khan/i }));
+    expect(stub.delete).not.toHaveBeenCalled();
+
+    await confirmIn(/^delete$/i);
+
+    await waitFor(() => expect(stub.delete).toHaveBeenCalledTimes(1));
+    expect(stub.delete).toHaveBeenCalledWith('/members/mem-ali');
+  });
+
+  it('deletes nothing when the dialog is dismissed', async () => {
+    const stub = setup({ members: roster() });
+    renderPage(<Members />);
+    await loaded();
+
+    await userEvent.click(screen.getByRole('button', { name: /delete zainab malik/i }));
+    await userEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: /^cancel$/i }),
+    );
+
+    expect(stub.delete).not.toHaveBeenCalled();
+  });
+
+  it('suspends against the membership, not against the member', async () => {
+    const stub = setup({ members: roster() });
+    renderPage(<Members />);
+    await loaded();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /suspend ali khan's membership/i }),
+    );
+    expect(stub.post).not.toHaveBeenCalled();
+
+    await confirmIn(/^suspend membership$/i);
+
+    await waitFor(() => expect(stub.post).toHaveBeenCalledTimes(1));
+    // Both ids are in the path, and they are different ids. A page that reused
+    // the member id for both would suspend nothing and report success.
+    expect(stub.post).toHaveBeenCalledWith('/members/mem-ali/memberships/ms-ali/suspend');
+  });
+
+  it('cancels with the verb the dialog promised', async () => {
+    const stub = setup({ members: roster() });
+    renderPage(<Members />);
+    await loaded();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /cancel ali khan's membership/i }),
+    );
+    await confirmIn(/^cancel membership$/i);
+
+    await waitFor(() => expect(stub.post).toHaveBeenCalledTimes(1));
+    expect(stub.post).toHaveBeenCalledWith('/members/mem-ali/memberships/ms-ali/cancel');
+  });
+
+  it('resumes a suspended membership', async () => {
+    const stub = setup({
+      members: membersPage([
+        aMember({
+          id: 'mem-ali',
+          name: 'Ali Khan',
+          currentMembership: aMembership({ id: 'ms-ali', status: 'suspended' }),
+        }),
+      ]),
+    });
+    renderPage(<Members />);
+    await loaded();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /resume ali khan's membership/i }),
+    );
+    await confirmIn(/^resume membership$/i);
+
+    await waitFor(() => expect(stub.post).toHaveBeenCalledTimes(1));
+    expect(stub.post).toHaveBeenCalledWith('/members/mem-ali/memberships/ms-ali/resume');
+  });
+
+  it('names the act on the button, and never twice over', async () => {
+    setup({ members: roster() });
+    renderPage(<Members />);
+    await loaded();
+
+    await userEvent.click(
+      screen.getByRole('button', { name: /cancel ali khan's membership/i }),
+    );
+
+    const dialog = screen.getByRole('dialog');
+    // The two buttons must not both read "Cancel": one abandons the dialog and
+    // the other ends the membership, and a reader deciding between them at the
+    // desk has only these words to go on.
+    expect(within(dialog).getByRole('button', { name: /^cancel membership$/i }))
+      .toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: /^cancel$/i }))
+      .toBeInTheDocument();
+    // And nothing here is called "Delete" — that is a different act on a
+    // different dialog, against the member rather than their membership.
+    expect(within(dialog).queryByRole('button', { name: /^delete$/i })).toBeNull();
+  });
+
+  it('offers no membership action to a member who has never been sold one', async () => {
+    setup({
+      members: membersPage([
+        aMember({ id: 'mem-new', name: 'Ali Khan', currentMembership: null }),
+      ]),
+    });
+    renderPage(<Members />);
+    await loaded();
+
+    // There is no membership id to put in the path, so the page must not offer
+    // the act at all rather than send a request it cannot address.
+    expect(screen.queryByRole('button', { name: /suspend ali khan/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /cancel ali khan/i })).toBeNull();
+  });
+});
