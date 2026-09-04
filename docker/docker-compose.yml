@@ -39,6 +39,27 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
       BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
       BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      # Encrypts each dump before it is written. A dump is a plaintext copy of
+      # every member's name, phone, address and payment history, and it gets
+      # carried off this machine — to a laptop, a USB stick, an object store.
+      # Unset means plaintext, and the container says so on every start.
+      #
+      # NOT the same key as BIOMETRIC_KEY, and not stored next to the backups:
+      # a key beside the thing it encrypts protects nobody.
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+      # Offsite copy. Any S3-compatible store — AWS, Backblaze B2, Cloudflare
+      # R2, Wasabi, MinIO. Without this the dumps only exist on the same disk
+      # as the database they protect, which is not a backup.
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-us-east-1}
+      # Only for non-AWS providers; AWS is derived from bucket and region.
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-}
+      # A dedicated, write-only key. These credentials sit on the same machine
+      # as the database, so one that can also delete would let anyone who takes
+      # the machine take the backups too.
+      BACKUP_S3_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
+      BACKUP_S3_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
     volumes:
       - ./backup.sh:/usr/local/bin/backup.sh:ro
       - ${BACKUP_DIR:-./backups}:/backups
@@ -139,6 +160,18 @@ services:
       # false stops this container running scheduled work. Only worth setting
       # if you run more than one backend.
       RUN_JOBS: ${RUN_JOBS:-true}
+      # Error reporting. Without it every failure is a line in
+      # `docker compose logs` that nobody is reading at the moment it happens,
+      # and the container can be recycled before anyone looks. Structured
+      # request logs are written either way; this is what makes an error
+      # *arrive*. See the Monitoring section of README.md.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      # Lets a stack trace name the deploy it came from.
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+      # Performance tracing, billed per transaction and off by default. The
+      # value here is errors; sample this only if latency becomes a question.
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
     depends_on:
       db:
         condition: service_healthy
