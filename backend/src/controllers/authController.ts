@@ -13,8 +13,11 @@ import { verifyGoogleToken } from '../services/google.js';
 import { DEFAULT_PLANS } from '../services/membership.js';
 import { sendMail, passwordResetMail } from '../services/mail.js';
 import {
+  issueEmailVerification, consumeEmailVerification,
+} from '../services/emailVerification.js';
+import {
   signTwoFactorChallenge, verifyTwoFactorChallenge,
-  verifyTOTPCode, consumeBackupCode,
+  verifyTOTPCode, consumeBackupCode, readTwoFactorSecret,
 } from '../services/twoFactor.js';
 
 /** A reset link is short-lived; an old inbox should not be a way in. */
@@ -27,7 +30,11 @@ const RESET_TTL_MS = 60 * 60 * 1000;
 const startSession = (res: Response, user: {
   id: string; name: string; email: string; role: string; memberId: string | null;
   tokenVersion: number; staffPermission?: string | null;
-  gym: { id: string; name: string; ownerName: string };
+  emailVerifiedAt?: Date | null;
+  gym: {
+    id: string; name: string; ownerName: string;
+    phone: string | null; address: string | null;
+  };
 }) => {
   setSessionCookie(res, user.id, user.tokenVersion);
   return {
@@ -35,14 +42,64 @@ const startSession = (res: Response, user: {
       id: user.id, name: user.name, email: user.email,
       role: user.role, memberId: user.memberId,
       staffPermission: user.staffPermission,
+      emailVerified: (user.emailVerifiedAt ?? null) !== null,
     },
-    gym: { id: user.gym.id, name: user.gym.name, ownerName: user.gym.ownerName },
+    gym: {
+      id: user.gym.id,
+      name: user.gym.name,
+      ownerName: user.gym.ownerName,
+      phone: user.gym.phone,
+      address: user.gym.address,
+    },
   };
 };
 
+/**
+ * The gym as every signed-in client sees it.
+ *
+ * `phone` and `address` are here rather than fetched when needed because the
+ * receipt needs them and a member cannot ask for them any other way:
+ * `/gym-settings` is staff-only, so a member printing their own receipt would
+ * get a 403. They are on the session for the same reason the name already
+ * was — it is what the app prints on the gym's behalf, and it is not secret.
+ */
 const sessionInclude = {
-  gym: { select: { id: true, name: true, ownerName: true } },
+  gym: {
+    select: {
+      id: true,
+      name: true,
+      ownerName: true,
+      phone: true,
+      address: true,
+      suspendedAt: true,
+      suspendedReason: true,
+    },
+  },
 } as const;
+
+/**
+ * Refuses a sign-in when the gym itself is suspended.
+ *
+ * `requireAuth` blocks every other route, but the sign-in paths run before it
+ * and would otherwise hand out a perfectly valid cookie that fails on the very
+ * next request — which reads as a broken app rather than a suspended one. The
+ * refusal has to happen where the session is created.
+ *
+ * Returns true when it has answered, so each caller can stop.
+ */
+const refusedForSuspension = (
+  res: Response,
+  gym: { suspendedAt: Date | null; suspendedReason: string | null },
+): boolean => {
+  if (!gym.suspendedAt) return false;
+  res.status(403).json({
+    error:
+      gym.suspendedReason ??
+      "This gym's access has been suspended. Please contact support.",
+    reason: 'gym_suspended',
+  });
+  return true;
+};
 
 /**
  * The answer when the first factor passed but the account has a second one.
@@ -87,7 +144,84 @@ export const register = async (
       });
     });
 
+    // After the transaction, and not awaited into it: a mail transport being
+    // slow or down must not roll back a gym that has already been created.
+    // The address is unproven either way — this only starts the check.
+    void issueEmailVerification(user.id, {
+      email: user.email,
+      name: ownerName,
+      gymName,
+    }).catch((err: unknown) => {
+      console.error('[verify-email] could not issue verification', err);
+    });
+
     res.status(201).json(startSession(res, user));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+/**
+ * Confirms an address from the link that was mailed to it.
+ *
+ * Public: somebody clicking a link in their inbox may well not be signed in,
+ * and requiring a session would make the common case fail. The token is the
+ * credential, which is why it is single-use, short-lived and stored only as a
+ * hash.
+ */
+export const verifyEmail = async (
+  req: Request<unknown, unknown, { token: string }>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const ok = await consumeEmailVerification(req.body.token);
+    if (!ok) {
+      res.status(400).json({ error: 'This link is invalid or has expired' });
+      return;
+    }
+    res.json({ verified: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+/** Sends the link again, for the address on the signed-in account. */
+export const resendEmailVerification = async (
+  req: AuthedRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        emailVerifiedAt: true,
+        gym: { select: { name: true } },
+      },
+    });
+    if (!user) {
+      res.status(404).json({ error: 'Account not found' });
+      return;
+    }
+    if (user.emailVerifiedAt) {
+      res.status(400).json({ error: 'This address is already confirmed' });
+      return;
+    }
+
+    const { emailed } = await issueEmailVerification(user.id, {
+      email: user.email,
+      name: user.name,
+      gymName: user.gym.name,
+    });
+
+    // `emailed` is reported rather than assumed, so a deployment with no mail
+    // transport says so instead of leaving somebody waiting for a message that
+    // was only ever written to the container log.
+    res.json({ emailed });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -112,6 +246,9 @@ export const login = async (
       res.status(403).json({ error: 'This account has been deactivated' });
       return;
     }
+    // Checked before the second factor is even offered: making somebody find
+    // their authenticator app to reach a refusal helps nobody.
+    if (refusedForSuspension(res, user.gym)) return;
     if (user.twoFactorEnabled) {
       res.json(startTwoFactorChallenge(user));
       return;
@@ -164,11 +301,16 @@ export const verifyTwoFactorLogin = async (
 
     const passed = code.includes('-')
       ? await consumeBackupCode(user.id, code)
-      : verifyTOTPCode(user.twoFactorSecret, code);
+      : verifyTOTPCode(readTwoFactorSecret(user.twoFactorSecret, user.id), code);
     if (!passed) {
       res.status(401).json({ error: 'Invalid code' });
       return;
     }
+
+    // Checked again rather than trusted from the first step: the challenge is
+    // valid for ten minutes, which is long enough for a gym to be suspended in
+    // between, and this is the call that actually issues the cookie.
+    if (refusedForSuspension(res, user.gym)) return;
 
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     res.json(startSession(res, user));
@@ -205,6 +347,8 @@ export const googleAuth = async (
       res.status(403).json({ error: 'This account has been deactivated' });
       return;
     }
+    // Suspension applies to every way in, or it applies to none of them.
+    if (refusedForSuspension(res, user.gym)) return;
     // 2FA applies here too — Google verifying the password side does not
     // prove possession of the authenticator, and skipping it would make the
     // second factor optional for anyone who links a Google account.
@@ -365,9 +509,16 @@ export const acceptInvite = async (
         inviteTokenHash: null,
         inviteTokenAt: null,
         lastLoginAt: new Date(),
+        // Following a link sent to that address proves exactly what the
+        // verification mail proves, so asking again would be theatre.
+        emailVerifiedAt: new Date(),
       },
       include: sessionInclude,
     });
+
+    // The invite was issued before the gym was suspended, and accepting it
+    // would otherwise mint a session that fails on the next request.
+    if (refusedForSuspension(res, user.gym)) return;
 
     res.json(startSession(res, user));
   } catch (err) {
@@ -473,8 +624,20 @@ export const me = async (req: AuthedRequest, res: Response): Promise<void> => {
         id: user.id, name: user.name, email: user.email,
         role: user.role, memberId: user.memberId,
         staffPermission: user.staffPermission,
+        // Drives the banner offering to send the link again. A boolean rather
+        // than the timestamp: when it happened is nobody's business on screen.
+        emailVerified: user.emailVerifiedAt !== null,
       },
-      gym: user.gym,
+      // Field by field rather than `user.gym`, which would also hand out
+      // `suspendedAt` and `suspendedReason` — internal state that a signed-in
+      // client has no use for. A suspended gym never reaches this line anyway.
+      gym: {
+        id: user.gym.id,
+        name: user.gym.name,
+        ownerName: user.gym.ownerName,
+        phone: user.gym.phone,
+        address: user.gym.address,
+      },
     });
   } catch (err) {
     console.error(err);

@@ -38,6 +38,9 @@ export interface Gym {
   id: string;
   name: string;
   ownerName: string;
+  /** Printed on receipts. Null until the owner sets it. */
+  phone: string | null;
+  address: string | null;
 }
 
 export interface SessionUser {
@@ -48,6 +51,15 @@ export interface SessionUser {
   /** Set only when the account belongs to a gym member. */
   memberId: string | null;
   staffPermission?: StaffPermission | null;
+  /**
+   * Whether the address has been confirmed from a link sent to it.
+   *
+   * Nothing is withheld when it is false — it drives a banner offering to send
+   * the link again, and that is all. What it catches is a typo: the address is
+   * where a password reset goes, and a wrong one is a lockout waiting for the
+   * day it is needed.
+   */
+  emailVerified?: boolean;
 }
 
 /** How many staff accounts the gym may have, and how many are spoken for.
@@ -80,6 +92,56 @@ export interface SubscriptionStatus {
   /** Every tier, so an upgrade prompt can name what the next one holds
    *  without the client keeping its own copy of the pricing table. */
   plans: ({ plan: GymPlan; label: string } & Entitlements)[];
+}
+
+/** One period billed to the gym, and what became of it. */
+export interface SubscriptionInvoice {
+  id: string;
+  plan: GymPlan;
+  planLabel: string;
+  amount: number;
+  status: 'open' | 'paid' | 'void';
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  issuedAt: string;
+  paidAt: string | null;
+  provider: string | null;
+  note: string | null;
+}
+
+/**
+ * What `GET /billing` answers with — the gym's own subscription, as opposed to
+ * `SubscriptionStatus`, which is what its plan entitles it to.
+ *
+ * `billing` is null for a gym that has never been billed, which the page reads
+ * as "on the free plan" rather than as an error.
+ */
+export interface BillingStatus {
+  plan: GymPlan;
+  planLabel: string;
+  amount: number;
+  periodDays: number;
+  graceDays: number;
+  paidThrough: string | null;
+  active: boolean;
+  /** When access stops if the open invoice goes unpaid. */
+  suspendsOn: string | null;
+  overdueSince: string | null;
+  openInvoice: {
+    id: string;
+    amount: number;
+    dueDate: string;
+    periodStart: string;
+    periodEnd: string;
+  } | null;
+  invoices: SubscriptionInvoice[];
+}
+
+export interface BillingResponse {
+  billing: BillingStatus | null;
+  plans: { plan: GymPlan; label: string; amount: number; periodDays: number }[];
+  providers: { provider: string; label: string; redirects: boolean }[];
 }
 
 /**
@@ -168,6 +230,47 @@ export interface MyProfile {
   attendance: { id: string; checkedInAt: string }[];
   payments: Omit<Payment, 'member'>[];
   dueTotal: number;
+}
+
+/** One session on the member's own timetable, with their place in it. */
+export interface MyScheduleSlot {
+  id: string;
+  className: string;
+  classDescription: string | null;
+  trainerName: string | null;
+  startTime: string;
+  endTime: string;
+  dayOfWeek: number;
+  capacity: number;
+  bookingsCount: number;
+  remainingCapacity: number;
+  /** Whether this member holds a place. The reason this endpoint exists
+   *  rather than the member reusing the staff timetable. */
+  booked: boolean;
+}
+
+/** A booking as the member's own list shows it. */
+export interface MyBooking {
+  id: string;
+  bookingDate: string;
+  status: 'booked' | 'attended' | 'cancelled';
+  scheduleId: string;
+  className: string;
+  trainerName: string | null;
+  startTime: string;
+  endTime: string;
+  dayOfWeek: number;
+}
+
+/** Something the member bought over the counter. */
+export interface MyPurchase {
+  id: string;
+  supplementName: string;
+  category: SupplementCategory;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  soldAt: string;
 }
 
 export interface MembershipPlan {
@@ -722,6 +825,8 @@ export interface GymSettings {
   name: string;
   ownerName: string;
   phone: string | null;
+  /** Free text, printed on receipts as the owner wrote it. */
+  address: string | null;
   defaultPtFee: number;
   /** Where members are told to send money, per channel. Free text — a wallet
    *  is a phone number, a bank is a name plus an IBAN. Null when the gym has

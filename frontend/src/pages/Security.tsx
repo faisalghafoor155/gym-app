@@ -32,6 +32,8 @@ export default function Security() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmDisable, setConfirmDisable] = useState(false);
+  /** Turning the second factor off costs the first one. */
+  const [disablePassword, setDisablePassword] = useState('');
 
   const load = () => {
     api.get<TwoFactorStatus>('/auth/two-factor/status')
@@ -75,11 +77,16 @@ export default function Security() {
   const disable = async () => {
     setBusy(true);
     try {
-      await api.delete('/auth/two-factor');
+      // The password travels in the body, so `delete` needs the config form —
+      // axios has no (url, body) overload for it.
+      await api.delete('/auth/two-factor', { data: { password: disablePassword } });
       toast.success('Two-factor authentication disabled');
       setConfirmDisable(false);
+      setDisablePassword('');
       load();
     } catch (err) {
+      // The field is kept, not cleared: a mistyped password should cost one
+      // character, not the whole entry.
       toast.error(apiError(err, 'Could not disable 2FA'));
     } finally {
       setBusy(false);
@@ -206,19 +213,56 @@ export default function Security() {
       )}
 
       {confirmDisable && (
-        <Modal title="Disable two-factor authentication?" onClose={() => setConfirmDisable(false)}>
-          <p className="text-sm text-gray-600 dark:text-slate-300">
-            Signing in will need only the password again. Turn this off only if you are
-            switching authenticator apps — you can set it up again right after.
-          </p>
-          <div className="flex gap-2 justify-end mt-5">
-            <button onClick={() => setConfirmDisable(false)} className={secondaryButton}>
-              Keep it on
-            </button>
-            <button onClick={disable} disabled={busy} className={dangerButton}>
-              {busy ? 'Disabling...' : 'Disable 2FA'}
-            </button>
-          </div>
+        <Modal
+          title="Disable two-factor authentication?"
+          onClose={() => { setConfirmDisable(false); setDisablePassword(''); }}
+        >
+          <form
+            onSubmit={e => { e.preventDefault(); void disable(); }}
+          >
+            <p className="text-sm text-gray-600 dark:text-slate-300">
+              Signing in will need only the password again. Turn this off only if you are
+              switching authenticator apps — you can set it up again right after.
+            </p>
+            <div className="mt-4">
+              <label
+                htmlFor="disable-2fa-password"
+                className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1"
+              >
+                Confirm your password
+              </label>
+              <input
+                id="disable-2fa-password"
+                type="password"
+                required
+                autoFocus
+                autoComplete="current-password"
+                value={disablePassword}
+                onChange={e => setDisablePassword(e.target.value)}
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+                Asked for because a stolen session should not be able to remove the
+                protection that stops it being used.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end mt-5">
+              <button
+                type="button"
+                onClick={() => { setConfirmDisable(false); setDisablePassword(''); }}
+                className={secondaryButton}
+              >
+                Keep it on
+              </button>
+              <button
+                type="submit"
+                disabled={busy || !disablePassword}
+                className={dangerButton}
+              >
+                {busy ? 'Disabling...' : 'Disable 2FA'}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
     </Page>

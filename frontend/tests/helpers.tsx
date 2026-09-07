@@ -4,8 +4,9 @@ import { render, type RenderOptions } from '@testing-library/react';
 import { vi } from 'vitest';
 
 import type {
-  AuditLog, Member, Membership, Payment, PaginatedMembers, PaginatedPayments,
-  MemberCounts, PaymentSummary,
+  AuditLog, Class, ClassBooking, ClassSchedule, GymUser, Member, Membership,
+  Payment, PaginatedMembers, PaginatedPayments, MemberCounts, PaymentSummary,
+  Supplement, Trainer,
 } from '../src/types';
 
 /**
@@ -26,14 +27,21 @@ export interface AuthState {
   isAuth: boolean;
   loading: boolean;
   role: 'owner' | 'staff' | 'member' | null;
+  /** The signed-in account. Pages that list accounts compare against this to
+   *  find the row that is *you* — the one whose destructive controls are
+   *  hidden, because handing your own access away is not an action the page
+   *  offers. */
+  user?: { id: string; name?: string } | null;
 }
 
 export const ownerAuth: AuthState = {
   isOwner: true, isStaff: true, isAuth: true, loading: false, role: 'owner',
+  user: { id: 'me', name: 'The Owner' },
 };
 
 export const staffAuth: AuthState = {
   isOwner: false, isStaff: true, isAuth: true, loading: false, role: 'staff',
+  user: { id: 'me', name: 'A Staff Member' },
 };
 
 /** Renders inside the providers every page assumes, on a real (in-memory)
@@ -196,6 +204,95 @@ export const paymentsPage = (
   hasMore: false,
   collected: data.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0),
   outstanding: data.filter(p => p.status === 'due').reduce((s, p) => s + p.amount, 0),
+  ...over,
+});
+
+/**
+ * A staff or member login, as the Team page lists them.
+ *
+ * Defaults to an active staff account, because that is the row every
+ * destructive action on that page is aimed at — revoking, demoting, removing
+ * and handing the gym over all start from somebody who currently has access.
+ */
+export const aGymUser = (over: Partial<GymUser> = {}): GymUser => ({
+  id: `user-${++seq}`,
+  name: 'Sana Iqbal',
+  email: `sana${seq}@example.com`,
+  role: 'staff',
+  isActive: true,
+  memberId: null,
+  lastLoginAt: null,
+  createdAt: new Date('2024-01-01').toISOString(),
+  member: null,
+  staffPermission: null,
+  ...over,
+});
+
+export const aTrainer = (over: Partial<Trainer> = {}): Trainer => ({
+  id: `trainer-${++seq}`,
+  name: 'Coach Bilal',
+  phone: null,
+  specialization: null,
+  commissionPercentage: 10,
+  ptFee: null,
+  isActive: true,
+  createdAt: new Date('2024-01-01').toISOString(),
+  activeMembersCount: 0,
+  ...over,
+});
+
+export const aClass = (over: Partial<Class> = {}): Class => ({
+  id: `class-${++seq}`,
+  name: 'Yoga',
+  description: null,
+  isActive: true,
+  createdAt: new Date('2024-01-01').toISOString(),
+  ...over,
+});
+
+export const aSchedule = (over: Partial<ClassSchedule> = {}): ClassSchedule => ({
+  id: `schedule-${++seq}`,
+  classId: 'class-1',
+  className: 'Yoga',
+  classDescription: null,
+  trainer: null,
+  dayOfWeek: 1,
+  startTime: '09:00',
+  endTime: '10:00',
+  capacity: 10,
+  bookingsCount: 0,
+  remainingCapacity: 10,
+  ...over,
+});
+
+export const aClassBooking = (over: Partial<ClassBooking> = {}): ClassBooking => ({
+  id: `booking-${++seq}`,
+  bookingDate: new Date('2024-06-03').toISOString(),
+  status: 'booked',
+  createdAt: new Date('2024-06-01').toISOString(),
+  member: { id: 'mem-1', name: 'Ali Khan', memberNo: 'MEM-00001' },
+  schedule: {
+    id: 'schedule-1',
+    className: 'Yoga',
+    trainerName: null,
+    startTime: '09:00',
+    endTime: '10:00',
+    dayOfWeek: 1,
+  },
+  ...over,
+});
+
+export const aSupplement = (over: Partial<Supplement> = {}): Supplement => ({
+  id: `supp-${++seq}`,
+  gymId: 'gym-1',
+  name: 'Whey Protein',
+  category: 'protein',
+  description: null,
+  dosage: null,
+  timing: null,
+  price: 5000,
+  stock: 12,
+  createdAt: new Date('2024-01-01').toISOString(),
   ...over,
 });
 

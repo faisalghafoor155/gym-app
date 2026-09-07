@@ -148,8 +148,9 @@ export default function RenewModal({ member, plans, settings, onClose, onRenewed
           </div>
 
           <div>
-            <FieldLabel required>Plan</FieldLabel>
+            <FieldLabel htmlFor="renew-plan" required>Plan</FieldLabel>
             <select
+              id="renew-plan"
               value={form.planId}
               onChange={e => {
                 const planId = e.target.value;
@@ -177,8 +178,9 @@ export default function RenewModal({ member, plans, settings, onClose, onRenewed
           </div>
 
           <div>
-            <FieldLabel required>Fee collected (Rs.)</FieldLabel>
+            <FieldLabel htmlFor="renew-amount" required>Fee collected (Rs.)</FieldLabel>
             <input
+              id="renew-amount"
               type="number" min={1} step={1} required
               value={form.amount}
               onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
@@ -190,8 +192,13 @@ export default function RenewModal({ member, plans, settings, onClose, onRenewed
           </div>
 
           <div>
-            <FieldLabel required>Paid by</FieldLabel>
-            <div className="grid grid-cols-2 gap-2">
+            {/* Two buttons rather than a field, so the label names the pair. */}
+            <FieldLabel id="renew-method-label" required>Paid by</FieldLabel>
+            <div
+              role="group"
+              aria-labelledby="renew-method-label"
+              className="grid grid-cols-2 gap-2"
+            >
               {(['cash', 'online'] as PaymentMethod[]).map(m => (
                 <button key={m} type="button"
                   onClick={() => setForm(f => ({
@@ -214,8 +221,9 @@ export default function RenewModal({ member, plans, settings, onClose, onRenewed
           {form.method === 'online' && (
             <>
               <div>
-                <FieldLabel>Received in</FieldLabel>
+                <FieldLabel htmlFor="renew-channel">Received in</FieldLabel>
                 <select
+                  id="renew-channel"
                   value={form.channel}
                   onChange={e => setForm(f => ({ ...f, channel: e.target.value as PaymentChannel | '' }))}
                   className={inputClass}
@@ -235,8 +243,9 @@ export default function RenewModal({ member, plans, settings, onClose, onRenewed
                 )}
               </div>
               <div>
-                <FieldLabel>Transaction ID <span className="font-normal text-gray-400">(optional)</span></FieldLabel>
+                <FieldLabel htmlFor="renew-reference">Transaction ID <span className="font-normal text-gray-400">(optional)</span></FieldLabel>
                 <input
+                  id="renew-reference"
                   type="text" maxLength={100}
                   value={form.reference}
                   onChange={e => setForm(f => ({ ...f, reference: e.target.value }))}

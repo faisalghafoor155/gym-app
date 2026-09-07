@@ -1,33 +1,54 @@
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SubscriptionProvider, useSubscription } from './context/SubscriptionContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import AcceptInvite from './pages/AcceptInvite';
-import Dashboard from './pages/Dashboard';
-import Members from './pages/Members';
-import Attendance from './pages/Attendance';
-import Payments from './pages/Payments';
-import MonthlyCollection from './pages/MonthlyCollection';
-import AuditLog from './pages/AuditLog';
-import Expenses from './pages/Expenses';
-import Plans from './pages/Plans';
-import MembershipPlans from './pages/MembershipPlans';
-import Supplements from './pages/Supplements';
-import SupplementSales from './pages/SupplementSales';
-import Team from './pages/Team';
-import Trainers from './pages/Trainers';
-import Classes from './pages/Classes';
-import MyPortal from './pages/MyPortal';
-import Security from './pages/Security';
-import Analytics from './pages/Analytics';
-import Subscription from './pages/Subscription';
-import { Spinner } from './components/ui';
+import { PageLoader, Spinner } from './components/ui';
+
+/**
+ * Every page is loaded on demand rather than imported up front.
+ *
+ * Eagerly, the whole app was one 1.06MB chunk: a member opening `/my` paid for
+ * Analytics, the audit log, the QR scanner and every staff page they will
+ * never see. Split, each route fetches its own chunk the first time it is
+ * shown, and the libraries only one page uses — the QR scanner on Attendance,
+ * the QR writer behind the member modals — go with it rather than into the
+ * bundle everybody downloads.
+ *
+ * It also makes updates cheaper. The service worker precaches the build and
+ * `autoUpdate` refetches whatever changed, so a single bundle meant every
+ * deploy re-downloaded all of it. Now a change to one page invalidates one
+ * chunk.
+ *
+ * The signed-out pages are split too. They are the first thing anyone loads,
+ * and having the whole app sit behind the login screen is what made the first
+ * paint expensive to begin with.
+ */
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const AcceptInvite = lazy(() => import('./pages/AcceptInvite'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Members = lazy(() => import('./pages/Members'));
+const Attendance = lazy(() => import('./pages/Attendance'));
+const Payments = lazy(() => import('./pages/Payments'));
+const MonthlyCollection = lazy(() => import('./pages/MonthlyCollection'));
+const AuditLog = lazy(() => import('./pages/AuditLog'));
+const Expenses = lazy(() => import('./pages/Expenses'));
+const Plans = lazy(() => import('./pages/Plans'));
+const MembershipPlans = lazy(() => import('./pages/MembershipPlans'));
+const Supplements = lazy(() => import('./pages/Supplements'));
+const SupplementSales = lazy(() => import('./pages/SupplementSales'));
+const Team = lazy(() => import('./pages/Team'));
+const Trainers = lazy(() => import('./pages/Trainers'));
+const Classes = lazy(() => import('./pages/Classes'));
+const MyPortal = lazy(() => import('./pages/MyPortal'));
+const Security = lazy(() => import('./pages/Security'));
+const Analytics = lazy(() => import('./pages/Analytics'));
+const Subscription = lazy(() => import('./pages/Subscription'));
 
 /** The whole-app boot state, before the session is known. */
 function BootSpinner() {
@@ -123,11 +144,18 @@ function HomeRedirect() {
 function AppRoutes() {
   const { isAuth } = useAuth();
   return (
+    // The signed-out pages render without the chrome, so there is nothing to
+    // keep on screen while one loads — BootSpinner is the same thing the app
+    // already shows before the session is known.
+    <Suspense fallback={<BootSpinner />}>
     <Routes>
       <Route path="/login" element={isAuth ? <HomeRedirect /> : <Login />} />
       <Route path="/register" element={isAuth ? <HomeRedirect /> : <Register />} />
       <Route path="/forgot-password" element={isAuth ? <HomeRedirect /> : <ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      {/* Public: the link is opened from an inbox, often on a device that is
+          not signed in. The token is the credential. */}
+      <Route path="/verify-email" element={<VerifyEmail />} />
       {/* Public: the invitee has no session yet, and is signed in on accept. */}
       <Route path="/accept-invite" element={<AcceptInvite />} />
       <Route path="/" element={<HomeRedirect />} />
@@ -146,6 +174,15 @@ function AppRoutes() {
                 changes, and every link looks broken once any page is.
               */}
               <PageErrorBoundary>
+              {/*
+                Inside the boundary and inside the chrome, so a page still
+                being fetched shows a loader in the content area with the
+                sidebar and nav already usable — not a blank window. Nested
+                under PageErrorBoundary rather than over it, so a chunk that
+                fails to load (a stale tab after a deploy) surfaces as the
+                page error the boundary already handles.
+              */}
+              <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/my" element={<MyPortal />} />
                 {/* Every role — the second factor guards an account, not a job. */}
@@ -182,12 +219,14 @@ function AppRoutes() {
                 <Route path="/classes" element={<PermissionRoute action="canManageClasses"><Classes /></PermissionRoute>} />
                 <Route path="*" element={<HomeRedirect />} />
               </Routes>
+              </Suspense>
               </PageErrorBoundary>
             </Layout>
           </ProtectedRoute>
         }
       />
     </Routes>
+    </Suspense>
   );
 }
 

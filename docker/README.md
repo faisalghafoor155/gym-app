@@ -98,6 +98,51 @@ ls -lh backups/                  # what has been taken
 docker compose logs backup       # whether it is still running
 ```
 
+### Two settings that turn dumps into backups
+
+Neither is on by default, and the container says so on every start. Both
+matter before a real gym's data is in here.
+
+**Encrypt them.** A dump is a plaintext copy of every member's name, phone,
+address and payment history, and unlike the database it gets carried onto
+laptops and USB sticks. Generate a passphrase and put it in `.env`:
+
+```sh
+openssl rand -base64 32          # -> BACKUP_ENCRYPTION_KEY
+```
+
+Dumps are then written as `.sql.gz.enc` (AES-256, PBKDF2). `restore.sh`
+decrypts them automatically using the same key — there is no separate step.
+Keep the key in a password manager, **not on this machine**: a key stored
+beside the thing it encrypts protects nobody.
+
+> Lose this key and the backups cannot be restored, by you or by anyone.
+
+**Copy them off the machine.** A backup on the same disk as the database
+survives a bad migration, not a dead disk — and ransomware encrypts both in one
+pass. Any S3-compatible store works; Backblaze B2 and Cloudflare R2 are the
+cheap ones.
+
+```sh
+BACKUP_S3_BUCKET=gym-backups
+BACKUP_S3_REGION=us-east-1
+BACKUP_S3_ENDPOINT=              # leave empty for AWS
+BACKUP_S3_ACCESS_KEY_ID=
+BACKUP_S3_SECRET_ACCESS_KEY=
+```
+
+Use a key that can **PUT but not DELETE**. These credentials sit on the same
+machine as the database, so one that could also delete would let whoever takes
+the machine take the backups too. Set retention with a bucket lifecycle rule —
+this container never prunes the offsite copies, deliberately.
+
+An upload failure does not fail the run: the local dump is already written, and
+the next cycle retries. Check it is working with:
+
+```sh
+docker compose logs backup | grep uploaded
+```
+
 ### Restoring
 
 `restore.sh` is the other half. **Rehearse it before you ever need it** — a
@@ -177,6 +222,42 @@ Two deliberate choices worth knowing:
   step above, because a container that tries to issue on every boot will burn
   through Let's Encrypt's rate limits while DNS is still propagating.
 
+## Monitoring
+
+Every request is logged to stdout as a single JSON line carrying a request id,
+the method, the path, the status and how long it took. The id also goes back to
+the browser as `X-Request-Id`, which is what connects "it broke at about four
+o'clock" to the line that explains why.
+
+```sh
+docker compose logs backend | grep '"level":"error"'
+docker compose logs backend | grep '<request-id from the user>'
+```
+
+The query string is deliberately never logged — it carries password-reset
+tokens, and a log is something that gets shipped, kept and pasted into support
+threads.
+
+That is enough to *investigate* a failure and useless for *hearing about* one:
+nobody is tailing logs at the moment a member's payment 500s, and the container
+can be recycled before anyone looks. `SENTRY_DSN` is what makes an error
+arrive, with a stack trace and the request that caused it:
+
+```sh
+# Create a project at https://sentry.io (choose Node.js), then in .env:
+SENTRY_DSN=https://abc123@o0.ingest.sentry.io/0
+SENTRY_ENVIRONMENT=production
+```
+
+The free tier covers 5,000 errors a month, far more than one gym produces.
+Without a DSN the SDK is never started and the structured logs carry on alone —
+a gym running this on a single machine needs an account with nobody.
+
+**Member data is not sent.** No request bodies, no cookies, no headers — only
+the signed-in account id and the gym id, which is enough to tell one broken gym
+from all of them. Crashes are reported and flushed before the process exits, so
+the error that explains a restart is not lost with the container.
+
 ## Configuration
 
 All settings come from `.env` in this folder (see `.env.example`):
@@ -196,6 +277,16 @@ All settings come from `.env` in this folder (see `.env.example`):
 | `BACKUP_INTERVAL_SECONDS` | how often to dump (default `86400`, a day) |
 | `BACKUP_KEEP_DAYS`  | how many days of dumps to keep (default `14`) |
 | `BACKUP_DIR`        | where dumps are written on the host (default `./backups`) |
+| `BACKUP_ENCRYPTION_KEY` | encrypts each dump (AES-256). Unset means plaintext copies of your whole member list. Keep it off this machine |
+| `BACKUP_S3_BUCKET`  | offsite copy target. Unset means the dumps only exist on this disk |
+| `BACKUP_S3_REGION`  | region for signing (default `us-east-1`) |
+| `BACKUP_S3_ENDPOINT` | only for non-AWS providers (B2, R2, MinIO) |
+| `BACKUP_S3_PREFIX`  | optional key prefix inside the bucket |
+| `BACKUP_S3_ACCESS_KEY_ID` / `BACKUP_S3_SECRET_ACCESS_KEY` | credentials for the above. Use a PUT-only key |
+| `SENTRY_DSN`        | error reporting. Unset means failures are only ever a line in `docker compose logs` |
+| `SENTRY_ENVIRONMENT` | which deployment an error came from (default `production`) |
+| `SENTRY_RELEASE`    | optional; names the deploy in a stack trace — a git sha works |
+| `SENTRY_TRACES_SAMPLE_RATE` | performance tracing, billed per transaction (default `0`, off) |
 
 `DATABASE_URL` is assembled from the Postgres values in `docker-compose.yml` —
 do not set it by hand. The backend's own `backend/.env` is excluded from the

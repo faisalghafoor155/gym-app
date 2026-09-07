@@ -438,8 +438,9 @@ export default function Expenses() {
         >
           <form onSubmit={handleSave} className="space-y-4">
             <div>
-              <FieldLabel>Category</FieldLabel>
+              <FieldLabel htmlFor="expenses-category">Category</FieldLabel>
               <input
+                id="expenses-category"
                 required
                 list="expense-categories"
                 value={form.category}
@@ -457,8 +458,8 @@ export default function Expenses() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <FieldLabel>Amount (Rs.)</FieldLabel>
-                <input
+                <FieldLabel htmlFor="expenses-amount-rs">Amount (Rs.)</FieldLabel>
+                <input id="expenses-amount-rs"
                   required
                   type="number"
                   min="0.01"
@@ -469,8 +470,8 @@ export default function Expenses() {
                 />
               </div>
               <div>
-                <FieldLabel>Date spent</FieldLabel>
-                <input
+                <FieldLabel htmlFor="expenses-date-spent">Date spent</FieldLabel>
+                <input id="expenses-date-spent"
                   required
                   type="date"
                   value={form.spentOn}
@@ -481,8 +482,8 @@ export default function Expenses() {
             </div>
 
             <div>
-              <FieldLabel>Paid to (optional)</FieldLabel>
-              <input
+              <FieldLabel htmlFor="expenses-paid-to-optional">Paid to (optional)</FieldLabel>
+              <input id="expenses-paid-to-optional"
                 value={form.vendor}
                 onChange={e => setForm(p => ({ ...p, vendor: e.target.value }))}
                 className={inputClass}
@@ -491,8 +492,8 @@ export default function Expenses() {
             </div>
 
             <div>
-              <FieldLabel>Notes (optional)</FieldLabel>
-              <textarea
+              <FieldLabel htmlFor="expenses-notes-optional">Notes (optional)</FieldLabel>
+              <textarea id="expenses-notes-optional"
                 rows={2}
                 value={form.notes}
                 onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}

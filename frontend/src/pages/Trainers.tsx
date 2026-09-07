@@ -721,8 +721,8 @@ export default function Trainers() {
             </h3>
             <form onSubmit={handleTrainerSave} className="space-y-4">
               <div>
-                <FieldLabel>Full Name</FieldLabel>
-                <input
+                <FieldLabel htmlFor="trainers-full-name">Full Name</FieldLabel>
+                <input id="trainers-full-name"
                   required
                   value={trainerForm.name}
                   onChange={e => setTrainerForm(prev => ({ ...prev, name: e.target.value }))}
@@ -732,8 +732,8 @@ export default function Trainers() {
               </div>
 
               <div>
-                <FieldLabel>Phone Number</FieldLabel>
-                <input
+                <FieldLabel htmlFor="trainers-phone-number">Phone Number</FieldLabel>
+                <input id="trainers-phone-number"
                   value={trainerForm.phone}
                   onChange={e => setTrainerForm(prev => ({ ...prev, phone: e.target.value }))}
                   placeholder="e.g. 03001234567"
@@ -742,8 +742,8 @@ export default function Trainers() {
               </div>
 
               <div>
-                <FieldLabel>Specialization / Skills</FieldLabel>
-                <input
+                <FieldLabel htmlFor="trainers-specialization-skills">Specialization / Skills</FieldLabel>
+                <input id="trainers-specialization-skills"
                   value={trainerForm.specialization}
                   onChange={e => setTrainerForm(prev => ({ ...prev, specialization: e.target.value }))}
                   placeholder="e.g. Bodybuilding, Yoga, Strength Training"
@@ -752,8 +752,8 @@ export default function Trainers() {
               </div>
 
               <div>
-                <FieldLabel>Trainer Commission Percentage (%)</FieldLabel>
-                <input
+                <FieldLabel htmlFor="trainers-trainer-commission-percentage">Trainer Commission Percentage (%)</FieldLabel>
+                <input id="trainers-trainer-commission-percentage"
                   required
                   type="number"
                   min="0"
@@ -766,8 +766,8 @@ export default function Trainers() {
               </div>
 
               <div>
-                <FieldLabel>Assignment Fee (Rs.)</FieldLabel>
-                <input
+                <FieldLabel htmlFor="trainers-assignment-fee-rs">Assignment Fee (Rs.)</FieldLabel>
+                <input id="trainers-assignment-fee-rs"
                   type="number"
                   min="0"
                   step="0.01"
@@ -810,8 +810,8 @@ export default function Trainers() {
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-4">Book Personal Training Session</h3>
             <form onSubmit={handlePtSave} className="space-y-4">
               <div>
-                <FieldLabel>Select Member</FieldLabel>
-                <select
+                <FieldLabel htmlFor="trainers-select-member">Select Member</FieldLabel>
+                <select id="trainers-select-member"
                   required
                   value={ptForm.memberId}
                   onChange={e => setPtForm(prev => ({ ...prev, memberId: e.target.value }))}
@@ -825,8 +825,8 @@ export default function Trainers() {
               </div>
 
               <div>
-                <FieldLabel>Select Trainer</FieldLabel>
-                <select
+                <FieldLabel htmlFor="trainers-select-trainer">Select Trainer</FieldLabel>
+                <select id="trainers-select-trainer"
                   required
                   value={ptForm.trainerId}
                   onChange={e => setPtForm(prev => ({ ...prev, trainerId: e.target.value }))}
@@ -840,8 +840,8 @@ export default function Trainers() {
               </div>
 
               <div>
-                <FieldLabel>Session Date & Time</FieldLabel>
-                <input
+                <FieldLabel htmlFor="trainers-session-date-time">Session Date & Time</FieldLabel>
+                <input id="trainers-session-date-time"
                   required
                   type="datetime-local"
                   value={ptForm.sessionDate}
@@ -851,8 +851,8 @@ export default function Trainers() {
               </div>
 
               <div>
-                <FieldLabel>Price Charged (Rs.)</FieldLabel>
-                <input
+                <FieldLabel htmlFor="trainers-price-charged-rs">Price Charged (Rs.)</FieldLabel>
+                <input id="trainers-price-charged-rs"
                   required
                   type="number"
                   min="0"
@@ -864,8 +864,8 @@ export default function Trainers() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <FieldLabel>Initial Status</FieldLabel>
-                  <select
+                  <FieldLabel htmlFor="trainers-initial-status">Initial Status</FieldLabel>
+                  <select id="trainers-initial-status"
                     value={ptForm.status}
                     onChange={e => setPtForm(prev => ({ ...prev, status: e.target.value as any }))}
                     className={inputClass}
@@ -876,8 +876,8 @@ export default function Trainers() {
                   </select>
                 </div>
                 <div>
-                  <FieldLabel>Payment</FieldLabel>
-                  <select
+                  <FieldLabel htmlFor="trainers-payment">Payment</FieldLabel>
+                  <select id="trainers-payment"
                     value={ptForm.paymentStatus}
                     onChange={e => setPtForm(prev => ({ ...prev, paymentStatus: e.target.value as any }))}
                     className={inputClass}

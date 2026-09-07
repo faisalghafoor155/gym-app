@@ -366,9 +366,23 @@ export function Refetching({ busy, children }: { busy: boolean; children: ReactN
 
 /* --------------------------------------------------------------- controls */
 
-export function FieldLabel({ children, required }: { children: ReactNode; required?: boolean }) {
+export function FieldLabel({ children, required, htmlFor, id }: {
+  children: ReactNode;
+  required?: boolean;
+  /** Ties the label to its control, so a screen reader announces the two
+   *  together and clicking the text focuses the field. */
+  htmlFor?: string;
+  /** For a label that heads a *group* of controls — a row of choice buttons,
+   *  say — where there is no single field to point `htmlFor` at. The group
+   *  carries `aria-labelledby` back to this id instead. */
+  id?: string;
+}) {
   return (
-    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">
+    <label
+      htmlFor={htmlFor}
+      id={id}
+      className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5"
+    >
       {children}{required && <span className="text-red-500 dark:text-red-400"> *</span>}
     </label>
   );

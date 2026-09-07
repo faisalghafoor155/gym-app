@@ -193,6 +193,11 @@ export const acceptInviteSchema = z.object({
   password,
 });
 
+/** Confirming an address from the link mailed to it. */
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1, "is required"),
+});
+
 /**
  * Roles the owner may assign to somebody else.
  *
@@ -465,6 +470,29 @@ export const updateMyProfileSchema = z.object({
     .nullish(),
   address: optionalText(500).optional(),
   emergencyContact: optionalText(100).optional(),
+});
+
+/**
+ * A member booking themselves into a class from the portal.
+ *
+ * Deliberately no `memberId`, unlike the staff schema this mirrors. The member
+ * is taken off the session, so there is no field for a caller to put somebody
+ * else's id in — the strongest version of that guarantee is the one where the
+ * value never arrives.
+ */
+export const bookMyClassSchema = z.object({
+  scheduleId: uuid,
+  bookingDate: date,
+});
+
+/** One page of the member's own history — bookings, receipts, purchases. */
+export const myHistoryQuerySchema = z.object({
+  ...pageParams(),
+});
+
+/** The timetable a member is offered, for one day. */
+export const myScheduleQuerySchema = z.object({
+  date: date.or(blankToUndefined).optional(),
 });
 
 export const importMembersSchema = z.object({
@@ -1191,6 +1219,25 @@ export const profitQuerySchema = z
 
 /** Gym-wide settings the owner can change. */
 export const updateGymSettingsSchema = z.object({
+  /**
+   * The gym's own identity, as it appears on every receipt a member keeps.
+   *
+   * Optional so a save that only changes a fee does not have to resend them,
+   * but not nullable: these are the two fields a receipt cannot do without,
+   * and blanking the gym's name would leave members holding paper from
+   * nobody. `name` refuses an empty string for the same reason.
+   */
+  name: name.optional(),
+  ownerName: name.optional(),
+  /** Printed under the gym's name. Blank clears it and the line is omitted. */
+  phone: optionalText(30).optional(),
+  /**
+   * One free-text block, not street/city/postcode. A receipt reproduces an
+   * address the way its owner writes it, and the addresses this is for do not
+   * decompose the way a form expects — 300 characters is room for the three or
+   * four lines somebody would actually print.
+   */
+  address: optionalText(300).optional(),
   /** What a trainer assignment costs when the trainer sets no price of their
    *  own. Zero is valid and means the gym charges nothing for it. */
   defaultPtFee: money,
@@ -1249,6 +1296,34 @@ export const providerParams = z.object({
   provider: z.enum(['jazzcash', 'easypaisa', 'manual']),
 });
 
+/**
+ * Starting a subscription checkout — a gym paying us, not a member paying it.
+ *
+ * No amount, for the same reason `checkoutSchema` has none: the price is read
+ * from the invoice, which was written from the gym's own agreed rate. A body
+ * that could name its own figure is a body that can buy a year of Pro for one
+ * rupee.
+ *
+ * No invoice id either. A subscription has exactly one open invoice at a time
+ * — `issueInvoiceIfDue` refuses to write a second — so there is nothing to
+ * choose between, and accepting an id would only be one more thing to check
+ * belongs to this gym.
+ */
+export const subscriptionCheckoutSchema = z.object({
+  provider: z.enum(['jazzcash', 'easypaisa', 'manual']),
+});
+
+/**
+ * Asking to move onto a paid tier.
+ *
+ * `free` is absent deliberately: it is not something a gym buys, and a
+ * downgrade is not a checkout — it would have to reconcile a term already paid
+ * for, which is an operator's decision rather than a self-serve one.
+ */
+export const subscribeSchema = z.object({
+  plan: z.enum(['basic', 'pro']),
+});
+
 // --- inferred request-body types ---------------------------------------
 
 export type RegisterBody = z.infer<typeof registerSchema>;
@@ -1266,6 +1341,9 @@ export type UserQuery = z.infer<typeof userQuerySchema>;
 export type CreateMemberBody = z.infer<typeof createMemberSchema>;
 export type UpdateMemberBody = z.infer<typeof updateMemberSchema>;
 export type MemberQuery = z.infer<typeof memberQuerySchema>;
+export type BookMyClassBody = z.infer<typeof bookMyClassSchema>;
+export type MyHistoryQuery = z.infer<typeof myHistoryQuerySchema>;
+export type MyScheduleQuery = z.infer<typeof myScheduleQuerySchema>;
 export type MemberDuplicateQuery = z.infer<typeof memberDuplicateQuerySchema>;
 export type MemberStatusFilter = (typeof MEMBER_STATUS_FILTERS)[number];
 export type CreateMembershipPlanBody = z.infer<
@@ -1326,7 +1404,10 @@ export type ExpenseQuery = z.infer<typeof expenseQuerySchema>;
 export type ProfitQuery = z.infer<typeof profitQuerySchema>;
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 export type UpdateGymSettingsBody = z.infer<typeof updateGymSettingsSchema>;
+export type VerifyEmailBody = z.infer<typeof verifyEmailSchema>;
 export type CheckoutBody = z.infer<typeof checkoutSchema>;
+export type SubscriptionCheckoutBody = z.infer<typeof subscriptionCheckoutSchema>;
+export type SubscribeBody = z.infer<typeof subscribeSchema>;
 export type ProviderParams = z.infer<typeof providerParams>;
 export type ConfirmManualParams = z.infer<typeof idParam>;
 
