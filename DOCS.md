@@ -791,10 +791,44 @@ it can still see, a front desk that cannot add the next one, and nothing on
 screen saying why. Suspension destroys nothing and resuming puts the gym back
 exactly where it was.
 
-The daily sweep (`BILLING_CRON`, four in the morning) issues what is due, then
-suspends anything past its due date **plus that subscription's grace period**.
-Grace is per gym rather than global: an account somebody is already chasing
-should not be cut off at the same hour as one that has simply vanished.
+The daily sweep (`BILLING_CRON`, four in the morning) runs three passes in
+order: issue what is due, **chase what is unpaid**, then suspend anything past
+its due date **plus that subscription's grace period**. Grace is per gym rather
+than global: an account somebody is already chasing should not be cut off at
+the same hour as one that has simply vanished.
+
+The order is the point. Chasing sits in the middle so an owner is warned —
+repeatedly, and with the date access stops — before the last pass stops them.
+
+### Nobody is suspended without being told
+
+`BILLING_NOTICE_DAYS` is the schedule, in days before the due date, and
+defaults to `7,1,0,-3`: a week out, the day before, the day itself, and once
+more three days after it lapses. That last one sits inside the seven-day grace
+on purpose — far enough from suspension that acting on it still works.
+
+Every notice says the same three things — what is owed, by when, and that
+**nothing is deleted** — because an owner reading the fourth after ignoring
+three needs the facts rather than a louder adjective. Only the deadline and the
+sharpness change.
+
+Each notice is claimed by writing `lastNoticeDaysBefore` onto the invoice
+*before* the send, exactly as `expiryReminders` claims a `ReminderLog` row
+first: two instances racing must produce one email, and the loser must find out
+before the owner has two copies. A send that then fails gives the claim back so
+tomorrow tries again — unless no transport is configured, where keeping it
+stops the same notice printing to the log for ever.
+
+The schedule only ever counts down, so the most urgent threshold reached is the
+notice due, and a smaller recorded number is always the later one. That is what
+lets a single column track where the chasing has got to rather than a row per
+notice. A gym already suspended is not chased: it has been told the strongest
+way there is, and an email warning of a suspension would arrive after the fact.
+
+A gym with **no active owner account** — revoked, or never replaced after a
+transfer — has nobody to write to. It is counted as `no owner email` in the
+run's log line rather than passed over silently, because it is about to be
+suspended with nobody warned and that belongs in the log before it happens.
 
 Paying lifts that suspension inside the same transaction that settles the
 invoice — leaving it stopped until somebody noticed would reproduce the exact
@@ -1130,12 +1164,11 @@ produced, neither of which the tests reach while coverage is this thin.
   so a page of them would simply fail to recognise members further down the
   list. It is bounded by the gym's enrolled members rather than by its history,
   which is the reason it can stay that way.
-- **Subscription billing has no dunning and no proration.** Invoices are
-  issued, paid and enforced (see [Subscription billing](#subscription-billing)),
-  but nothing *emails* a gym that one is due — an owner finds out by opening the
-  app, or by being suspended. The expiry-reminder job is the obvious place to
-  hang that off. Changing tier mid-term is likewise refused rather than
-  prorated: it would have to reconcile a period already paid for, which is a
-  decision worth making deliberately rather than with a formula, so it stays an
-  operator's job.
+- **Subscription billing has no proration.** Changing tier mid-term is refused
+  rather than prorated: it would have to reconcile a period already paid for,
+  which is a decision worth making deliberately rather than with a formula, so
+  it stays an operator's job. Dunning notices go by **email only** — there is no
+  WhatsApp equivalent, though members already get one for their memberships. The
+  gym's own number is not collected for this purpose, which is the reason
+  rather than an oversight.
 - `HTTPS=false` suits localhost, but must be flipped for any real deployment.
