@@ -358,18 +358,22 @@ export default function MemberFormModal({
 
           {/* Name */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Full Name *</label>
+            <label htmlFor="member-name" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Full Name *</label>
             <input
+              id="member-name"
               required
               value={form.name}
               onChange={e => setChecked('name')(e.target.value)}
               onBlur={() => void checkDuplicate(form)}
               placeholder="Ahmed Khan"
               aria-invalid={duplicate?.field === 'name'}
+              // Points at the warning below, so a screen reader reads why the
+              // field is marked invalid rather than only that it is.
+              aria-describedby={duplicate?.field === 'name' ? 'member-name-error' : undefined}
               className={inputClass}
             />
             {duplicate?.field === 'name' && (
-              <p role="alert" className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">
+              <p id="member-name-error" role="alert" className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">
                 {duplicate.message}
               </p>
             )}
@@ -377,17 +381,19 @@ export default function MemberFormModal({
 
           {/* Phone */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Phone</label>
+            <label htmlFor="member-phone" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Phone</label>
             <input
+              id="member-phone"
               value={form.phone}
               onChange={e => setChecked('phone')(e.target.value)}
               onBlur={() => void checkDuplicate(form)}
               placeholder="03001234567"
               aria-invalid={duplicate?.field === 'phone'}
+              aria-describedby={duplicate?.field === 'phone' ? 'member-phone-error' : undefined}
               className={inputClass}
             />
             {duplicate?.field === 'phone' && (
-              <p role="alert" className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">
+              <p id="member-phone-error" role="alert" className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">
                 {duplicate.message}
               </p>
             )}
@@ -428,8 +434,9 @@ export default function MemberFormModal({
 
           {/* Personal Trainer Selection */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Personal Trainer (PT)</label>
+            <label htmlFor="member-trainer" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Personal Trainer (PT)</label>
             <select
+              id="member-trainer"
               value={form.trainerId}
               onChange={e => set('trainerId')(e.target.value)}
               className={inputClass}

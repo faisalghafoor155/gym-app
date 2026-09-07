@@ -1115,9 +1115,15 @@ produced, neither of which the tests reach while coverage is this thin.
   the **irreversible** writes are tested — removing an account, revoking it,
   changing a role, transferring the gym, deleting a member or a supplement or a
   timetable slot, and suspending or cancelling a membership — each asserted on
-  the payload it sends and on the confirm standing in front of it. What is
-  *not* covered there is creating and editing: a bad create is visible and
-  fixable, which is why it went second. The build step still carries that
+  the payload it sends and on the confirm standing in front of it. Registering
+  and editing a member is covered too, in `MemberFormModal.test.tsx`, and on
+  the same principle: what is asserted is the shape of the request rather than
+  the fields, because every rule there is a distinction the server would
+  otherwise get wrong — a blank fee is no payment rather than a payment of
+  nothing, a blank trainer fee is the usual rate rather than free, and a
+  profile edit never carries a plan. What is still thin is the pages'
+  own create-and-edit paths outside that modal; a bad create is visible and
+  fixable, which is why it goes last. The build step still carries that
   weight.
 - **The fingerprint matcher reads every enrolled template.** Not a paging
   oversight: 1:N identification has to compare the probe against each candidate,
