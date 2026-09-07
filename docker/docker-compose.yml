@@ -146,6 +146,38 @@ services:
       EASYPAISA_STORE_ID: ${EASYPAISA_STORE_ID:-}
       EASYPAISA_HASH_KEY: ${EASYPAISA_HASH_KEY:-}
       EASYPAISA_POST_URL: ${EASYPAISA_POST_URL:-}
+      # The same two providers again, against the *platform's* own merchant
+      # accounts — this is what gyms pay us with, where everything above is
+      # what a gym's members pay it with. Separate credentials on purpose: one
+      # set would let a gym settle its own subscription invoice against its own
+      # account, which is not a payment.
+      #
+      # With none of these set, billing still runs — invoices are issued and
+      # overdue gyms are suspended — but no gym can pay from inside the app and
+      # every invoice has to be settled by hand with `npm run billing`. The
+      # backend says so once at boot.
+      PLATFORM_JAZZCASH_MERCHANT_ID: ${PLATFORM_JAZZCASH_MERCHANT_ID:-}
+      PLATFORM_JAZZCASH_PASSWORD: ${PLATFORM_JAZZCASH_PASSWORD:-}
+      PLATFORM_JAZZCASH_INTEGRITY_SALT: ${PLATFORM_JAZZCASH_INTEGRITY_SALT:-}
+      PLATFORM_JAZZCASH_POST_URL: ${PLATFORM_JAZZCASH_POST_URL:-}
+      PLATFORM_EASYPAISA_STORE_ID: ${PLATFORM_EASYPAISA_STORE_ID:-}
+      PLATFORM_EASYPAISA_HASH_KEY: ${PLATFORM_EASYPAISA_HASH_KEY:-}
+      PLATFORM_EASYPAISA_POST_URL: ${PLATFORM_EASYPAISA_POST_URL:-}
+      # What each tier costs per period, in rupees. Left unset the code's own
+      # defaults apply. Changing these re-prices new subscriptions only — a gym
+      # already being billed keeps the rate captured on its own row.
+      PLAN_PRICE_BASIC: ${PLAN_PRICE_BASIC:-}
+      PLAN_PRICE_PRO: ${PLAN_PRICE_PRO:-}
+      # How long a paid period runs, how long after the due date a gym keeps
+      # working before it is suspended, and how far ahead of a term ending the
+      # next invoice goes out. All in days.
+      BILLING_PERIOD_DAYS: ${BILLING_PERIOD_DAYS:-}
+      BILLING_GRACE_DAYS: ${BILLING_GRACE_DAYS:-}
+      BILLING_ISSUE_AHEAD_DAYS: ${BILLING_ISSUE_AHEAD_DAYS:-}
+      # When the daily billing sweep runs. Four in the morning by default, kept
+      # clear of the other jobs so a suspension is not logged in the same
+      # minute as a batch of member emails.
+      BILLING_CRON: ${BILLING_CRON:-0 4 * * *}
       # When the daily expiry reminder runs, in this container's timezone —
       # which is UTC unless TZ is set, so 9am here is not 9am in Karachi.
       REMINDER_CRON: ${REMINDER_CRON:-0 9 * * *}
