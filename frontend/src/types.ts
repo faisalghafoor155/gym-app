@@ -94,6 +94,56 @@ export interface SubscriptionStatus {
   plans: ({ plan: GymPlan; label: string } & Entitlements)[];
 }
 
+/** One period billed to the gym, and what became of it. */
+export interface SubscriptionInvoice {
+  id: string;
+  plan: GymPlan;
+  planLabel: string;
+  amount: number;
+  status: 'open' | 'paid' | 'void';
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  issuedAt: string;
+  paidAt: string | null;
+  provider: string | null;
+  note: string | null;
+}
+
+/**
+ * What `GET /billing` answers with — the gym's own subscription, as opposed to
+ * `SubscriptionStatus`, which is what its plan entitles it to.
+ *
+ * `billing` is null for a gym that has never been billed, which the page reads
+ * as "on the free plan" rather than as an error.
+ */
+export interface BillingStatus {
+  plan: GymPlan;
+  planLabel: string;
+  amount: number;
+  periodDays: number;
+  graceDays: number;
+  paidThrough: string | null;
+  active: boolean;
+  /** When access stops if the open invoice goes unpaid. */
+  suspendsOn: string | null;
+  overdueSince: string | null;
+  openInvoice: {
+    id: string;
+    amount: number;
+    dueDate: string;
+    periodStart: string;
+    periodEnd: string;
+  } | null;
+  invoices: SubscriptionInvoice[];
+}
+
+export interface BillingResponse {
+  billing: BillingStatus | null;
+  plans: { plan: GymPlan; label: string; amount: number; periodDays: number }[];
+  providers: { provider: string; label: string; redirects: boolean }[];
+}
+
 /**
  * The body a refused request carries when a plan is the reason.
  *

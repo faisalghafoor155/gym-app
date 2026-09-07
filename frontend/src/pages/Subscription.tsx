@@ -1,5 +1,7 @@
 import { Check, CreditCard, Minus, Sparkles } from 'lucide-react';
 import { Card, Page, PageHeader, PageLoader, LoadFailed } from '../components/ui';
+import BillingPanel from '../components/subscription/BillingPanel';
+import { useAuth } from '../context/AuthContext';
 import { useSubscription } from '../context/SubscriptionContext';
 import {
   FEATURE_LABELS,
@@ -88,6 +90,7 @@ function LimitBar({ label, status }: { label: string; status: LimitStatus }) {
 
 export default function Subscription() {
   const { status, loading, reload } = useSubscription();
+  const { isOwner } = useAuth();
 
   if (loading) return <PageLoader />;
   if (!status) {
@@ -111,6 +114,12 @@ export default function Subscription() {
         title="Plan & usage"
         subtitle="What this gym is on, and how much of it is in use"
       />
+
+      {/* Above the usage bars deliberately. An owner who came here because they
+          were warned about an invoice should not have to scroll past four
+          progress bars to find the thing they came to pay. Owner-only, like the
+          route behind it — a receptionist has no reason to see an invoice. */}
+      {isOwner && <BillingPanel />}
 
       <Card className="p-5 mb-5">
         <div className="flex items-center gap-3 mb-5">
@@ -226,12 +235,13 @@ export default function Subscription() {
         })}
       </div>
 
-      {/* There is no upgrade button, because nothing in the app takes the
-          money: a plan moves when a gym pays out of band and an operator runs
-          the script. Saying so beats a button that opens nothing. */}
+      {/* Changing tier mid-term is still arranged by hand: it has to reconcile
+          a period already paid for, which is a decision worth making
+          deliberately rather than with a formula. Starting a subscription is
+          self-serve; moving between them is not. */}
       <p className="mt-5 text-xs text-gray-500 dark:text-slate-400 text-center">
-        To change plan, get in touch — plans are moved by hand once payment is
-        arranged.
+        To move between plans, get in touch — a change mid-term is arranged by
+        hand so the period you have already paid for is not lost.
       </p>
     </Page>
   );

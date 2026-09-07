@@ -14,6 +14,7 @@ plans, and supplement stock — with owner / staff / member accounts.
 - [Security notes](#security-notes)
 - [Email](#email)
 - [Scheduled work](#scheduled-work)
+- [Subscription billing](#subscription-billing)
 - [Backups](#backups)
 - [Google sign-in](#google-sign-in)
 - [Tests](#tests)
@@ -69,10 +70,14 @@ client's copy is generated from it into
 `frontend/src/utils/entitlements.generated.ts`, exactly like the permission
 table, and `tests/services/subscription.test.ts` fails if the two drift.
 
-**Nothing in the app takes money for a plan.** Billing is arranged out of band
-and an operator moves the gym with `npm run plan <gymId> <tier>`, which refuses
-a downgrade that would leave the gym over a ceiling unless given `--force`.
-There is no `PUT /subscription`, so an owner cannot upgrade themselves.
+**The app bills for a plan** — see [Subscription billing](#subscription-billing)
+for how a gym pays and what happens when it does not. An operator can still
+move a gym by hand with `npm run plan <gymId> <tier>`, which refuses a
+downgrade that would leave the gym over a ceiling unless given `--force`.
+
+There is still no `PUT /subscription`. An owner asks to subscribe and is
+issued an invoice; the tier moves when that invoice is **paid**, never when it
+is requested.
 
 **Limits are counted over what is live, not over history**: active members,
 active trainers, staff accounts (including revoked ones, which still hold their
@@ -198,6 +203,11 @@ npm run gen:permissions   # regenerate the client's permission + plan tables
 npm run plan              # list gyms and their subscription tiers
 npm run plan <gymId>      # one gym's usage against its tier
 npm run plan <gymId> pro  # move it to another tier
+npm run gym               # suspend or resume a gym
+npm run billing           # every gym's subscription and what it owes
+npm run billing <gymId> start basic     # begin billing it
+npm run billing <invoiceId> paid        # settle an invoice paid out of band
+npm run billing run                     # run the daily billing sweep now
 
 # frontend
 npm run dev
@@ -678,10 +688,21 @@ there. Resend refuses a `From` on an unverified domain.
 
 ## Scheduled work
 
-One job, run daily inside the backend process by `node-cron`: an email to each
-member whose membership expires **that day**. `REMINDER_CRON` decides when, and
-defaults to nine in the morning — early enough to act on, late enough that
-somebody is awake to read the log.
+Three jobs run daily inside the backend process by `node-cron`, each on its own
+expression because "when do members hear from us", "when do we delete
+biometrics" and "when do we bill" are unrelated decisions:
+
+| Job | Default | Variable |
+|---|---|---|
+| Expiry reminders | 9am | `REMINDER_CRON` |
+| Fingerprint retention | 3am | `FINGERPRINT_RETENTION_CRON` |
+| Subscription billing | 4am | `BILLING_CRON` |
+
+The first is an email to each member whose membership expires **that day**.
+Nine in the morning is early enough to act on and late enough that somebody is
+awake to read the log. The other two are described under
+[Member photos](#member-photos) and
+[Subscription billing](#subscription-billing).
 
 Deliberately narrow. It does not chase members who lapsed months ago, and sends
 no second reminder a week later. Each of those is a decision about how often a
@@ -718,6 +739,131 @@ ask for.
 otherwise, so the default `0 9 * * *` fires at 9am *UTC* — two in the afternoon
 in Karachi. Set `TZ` in `docker/.env` to the gym's own zone and the schedule
 means what it looks like.
+
+## Subscription billing
+
+What a **gym pays us**, as opposed to everything above, which is what a gym's
+members pay it. The two never share a code path: different parties, different
+merchant accounts, and a settlement that touches a gym's tier rather than a
+membership.
+
+| | |
+|---|---|
+| `GET /api/billing` | Owner — the term, the open invoice, and the last 12 |
+| `POST /api/billing/subscribe` | Owner — ask for a tier; issues an invoice |
+| `POST /api/billing/checkout` | Owner — start paying the open invoice |
+| `POST /api/billing/callback/:provider` | **Public** — the provider settles it |
+| `GET`/`POST` `/api/billing/return/:provider` | **Public** — where the browser lands |
+
+**Asking is not paying.** `subscribe` writes a billing row and issues an
+invoice; it does not move the gym. The tier is applied in `settleInvoice`, and
+only there — an owner who could set their own `plan` would be an owner with Pro
+for free. This is the same rule the member checkout follows, for the same
+reason.
+
+**The amount never comes from the request.** There is no amount field in either
+checkout body, which is a stronger guarantee than validating one: the price is
+read from the invoice, which was written from the rate captured on the gym's
+own subscription row. A callback reporting a smaller figure is refused rather
+than part-credited — a period is owed whole or not at all.
+
+### The money is ours, not the gym's
+
+The gateways live in `services/gateways/platform.ts`, a separate registry from
+the gym-facing one, reading `PLATFORM_`-prefixed credentials. The protocol is
+identical, so these are the *same* implementations behind a prefix rather than
+copies — a copy would be a second place to get JazzCash's paisa conversion or
+its Pakistan-time stamps wrong.
+
+Sharing one registry would have meant a gym that wires up JazzCash for its
+members gaining the ability to settle its own invoices against its own merchant
+account, which is not a payment at all.
+
+With nothing configured, billing still runs: invoices are issued and overdue
+gyms are suspended, but a gym cannot pay from inside the app and an operator
+settles each invoice by hand. The backend says so once at boot.
+
+### Not paying gets you suspended, never downgraded
+
+A gym that stops paying is **stopped with an explanation**, and keeps
+everything. A silent downgrade would drop a gym below its own roster — members
+it can still see, a front desk that cannot add the next one, and nothing on
+screen saying why. Suspension destroys nothing and resuming puts the gym back
+exactly where it was.
+
+The daily sweep (`BILLING_CRON`, four in the morning) issues what is due, then
+suspends anything past its due date **plus that subscription's grace period**.
+Grace is per gym rather than global: an account somebody is already chasing
+should not be cut off at the same hour as one that has simply vanished.
+
+Paying lifts that suspension inside the same transaction that settles the
+invoice — leaving it stopped until somebody noticed would reproduce the exact
+complaint this feature exists to remove. The lift is **conditioned on the
+reason**, so paying an invoice can never unlock a gym suspended for anything
+else.
+
+### A suspended gym can still reach its billing page
+
+The one exception to the suspension gate in `middleware/auth.ts`, and it has to
+be there. The commonest reason a gym is suspended is an unpaid invoice, so a
+gym that cannot reach the page it pays from could never lift its own
+suspension — it would have to phone somebody to be let back in to pay.
+
+The exemption is narrow: `/api/billing` only, and the routes under it are
+already owner-only. A suspended gym still cannot see a member, take a payment
+at the desk, or mark anybody present. It can settle what it owes and nothing
+else, which is asserted both ways in
+`tests/routes/billing.integration.test.ts`.
+
+The provider callbacks sit **before** `auth` entirely, like the member ones —
+a provider posts server-to-server and carries no cookie. Behind `auth` a
+suspended gym's payment would be rejected by the very gate it was paying to
+lift.
+
+### Running it twice is harmless
+
+The sweep may run twice — a retried container, two backend instances — and
+double-billing is money that was not owed. Two things prevent it: an `open`
+invoice already awaiting payment means there is nothing to issue, and a period
+always starts at `paidThrough`, so a second invoice would have to cover a
+period the first already claimed.
+
+Settlement is guarded the same way the member one is. The claim is a
+conditional `updateMany` on `status: 'open'`, so of two callbacks racing — the
+provider retrying alongside the browser return — the second updates zero rows
+and rolls back rather than extending the term twice.
+
+Renewal **adds to the end of the term**, taken from the invoice rather than
+computed from today, so paying late does not shorten a period and paying early
+does not lengthen one.
+
+### Prices
+
+`PLAN_PRICES` in `services/billing.ts`, overridable per deployment with
+`PLAN_PRICE_BASIC` and `PLAN_PRICE_PRO`. What a gym is *actually* charged is
+copied onto its subscription row when billing starts, so editing the table
+re-prices new subscriptions and never silently re-prices a gym already on the
+books.
+
+`free` is never invoiced. A zero-rupee invoice is one no gateway can settle —
+providers decline zero-amount transactions — carrying a due date that would
+eventually suspend a gym that never owed anything.
+
+### The operator's side
+
+```sh
+npm run billing                          # every gym and where it stands
+npm run billing <gymId>                  # one gym's invoices in full
+npm run billing <gymId> start basic      # begin billing, issue the first invoice
+npm run billing <invoiceId> paid         # money arrived out of band
+npm run billing <invoiceId> void "why"   # stop asking for it
+npm run billing run                      # run the daily sweep now
+```
+
+`paid` settles an invoice with no signature behind it, which is right for a
+bank transfer somebody has confirmed and wrong for anything else. It leaves
+`provider` null — the honest difference between "the gateway told us" and
+"somebody says so".
 
 ## Backups
 
@@ -978,10 +1124,12 @@ produced, neither of which the tests reach while coverage is this thin.
   so a page of them would simply fail to recognise members further down the
   list. It is bounded by the gym's enrolled members rather than by its history,
   which is the reason it can stay that way.
-- **Nothing collects money for a subscription.** The tiers are enforced and an
-  operator can move a gym between them, but the payment itself is arranged out
-  of band — there is no invoice, no renewal date, and no record in the app that
-  a gym has paid. A gym that stops paying keeps its tier until somebody notices
-  and runs the script. Wiring this to the existing gateway registry is the
-  natural next step; nothing above assumes it has not been.
+- **Subscription billing has no dunning and no proration.** Invoices are
+  issued, paid and enforced (see [Subscription billing](#subscription-billing)),
+  but nothing *emails* a gym that one is due — an owner finds out by opening the
+  app, or by being suspended. The expiry-reminder job is the obvious place to
+  hang that off. Changing tier mid-term is likewise refused rather than
+  prorated: it would have to reconcile a period already paid for, which is a
+  decision worth making deliberately rather than with a formula, so it stays an
+  operator's job.
 - `HTTPS=false` suits localhost, but must be flipped for any real deployment.
