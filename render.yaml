@@ -12,10 +12,20 @@ services:
     plan: free
     # Both workspaces build here: the frontend bundle is emitted to
     # frontend/dist, which the backend then serves via SERVE_STATIC_DIR.
+    # --include=dev is load-bearing: NODE_ENV is production below, and npm
+    # honours that during install by skipping devDependencies. tsc, vite,
+    # tailwind and prisma all live there, so without it the build dies on
+    # `tsc: not found` before it compiles a line.
+    #
+    # The frontend's dependencies are then deleted as soon as its bundle
+    # exists. Nothing needs Vite's toolchain and the backend's installed at
+    # once, which matters on a 512MB instance, and the frontend half is dead
+    # weight at runtime either way — only dist/ is served.
     buildCommand: >-
-      npm --prefix frontend ci &&
+      npm --prefix frontend ci --include=dev &&
       npm --prefix frontend run build &&
-      npm --prefix backend ci &&
+      rm -rf frontend/node_modules &&
+      npm --prefix backend ci --include=dev &&
       npm --prefix backend run db:generate &&
       npm --prefix backend run build
     # Migrations run on every deploy, before the server accepts traffic. This is
@@ -24,6 +34,11 @@ services:
     startCommand: npm --prefix backend start
     healthCheckPath: /api/health
     envVars:
+      # Pinned rather than left to Render's default, which moves. Vite needs
+      # >=22.12 and the Docker images already build on 22, so this keeps the
+      # hosted build on the same major as every other way of building this app.
+      - key: NODE_VERSION
+        value: "22"
       - key: NODE_ENV
         value: production
       - key: SERVE_STATIC_DIR
