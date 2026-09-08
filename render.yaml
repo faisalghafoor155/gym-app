@@ -28,6 +28,12 @@ services:
         value: production
       - key: SERVE_STATIC_DIR
         value: ./frontend/dist
+      # Render terminates TLS at its own proxy and forwards one hop. Left at the
+      # default of 0, Express reads every request as coming from that proxy: the
+      # login rate limiter would then count all gyms as a single IP, so ten bad
+      # passwords from one person would lock out everybody.
+      - key: TRUST_PROXY_HOPS
+        value: "1"
       - key: DATABASE_URL
         fromDatabase:
           name: gym-app-db
@@ -40,9 +46,13 @@ services:
       # 32 bytes, base64 — the format parseKey() expects for a bare key.
       - key: BIOMETRIC_KEY
         sync: false
-      # The origin used in emailed links (password resets, invites). Set to this
-      # service's own URL once Render has assigned it.
+      # Both are this service's own URL, known only once Render assigns it.
+      # APP_URL is the origin used in emailed links (password resets, invites);
+      # APP_BASE_URL is where a payment gateway sends its callbacks, and matters
+      # only once one is configured.
       - key: APP_URL
+        sync: false
+      - key: APP_BASE_URL
         sync: false
 
 databases:
