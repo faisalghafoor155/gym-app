@@ -1,8 +1,13 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
+// Same-origin by default: locally Vite proxies /api, and in the Docker image
+// nginx does. Split deployments (frontend and backend on separate hosts, as on
+// Render) set VITE_API_URL at build time to the backend's origin instead.
+const API_BASE_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? '/api';
+
 // withCredentials makes the browser send the httpOnly session cookie. The
 // token is never readable from JS, so nothing is attached by hand here.
-const api = axios.create({ baseURL: '/api', withCredentials: true });
+const api = axios.create({ baseURL: API_BASE_URL, withCredentials: true });
 
 /** What a caller sees when a write is refused for being offline. */
 export const OFFLINE_WRITE_MESSAGE = "You're offline. Try again when you reconnect.";
