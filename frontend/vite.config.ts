@@ -49,6 +49,10 @@ export default defineConfig({
     }),
   ],
   server: {
+    // Demo tunnels only. Vite rejects unknown Host headers by default, which is
+    // what stops a stranger's domain from pointing at this dev server; keeping
+    // the list to the one tunnel domain preserves that for everything else.
+    allowedHosts: ['.trycloudflare.com'],
     proxy: {
       '/api': 'http://localhost:5000',
     },

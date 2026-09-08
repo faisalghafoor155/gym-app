@@ -1,0 +1,52 @@
+# Render blueprint: one web service and one database.
+#
+# Deliberately a single service rather than a static site plus an API. The
+# session cookie is sameSite 'lax', so a frontend served from a different host
+# than the API would never have it sent and every request would arrive logged
+# out. Serving the built bundle from the same Express process keeps the browser
+# on one origin, which also means no CORS_ORIGIN and no absolute API URL.
+services:
+  - type: web
+    name: gym-app
+    runtime: node
+    plan: free
+    # Both workspaces build here: the frontend bundle is emitted to
+    # frontend/dist, which the backend then serves via SERVE_STATIC_DIR.
+    buildCommand: >-
+      npm --prefix frontend ci &&
+      npm --prefix frontend run build &&
+      npm --prefix backend ci &&
+      npm --prefix backend run db:generate &&
+      npm --prefix backend run build
+    # Migrations run on every deploy, before the server accepts traffic. This is
+    # what docker-entrypoint.sh does for the compose setup.
+    preDeployCommand: npm --prefix backend exec prisma migrate deploy
+    startCommand: npm --prefix backend start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SERVE_STATIC_DIR
+        value: ./frontend/dist
+      - key: DATABASE_URL
+        fromDatabase:
+          name: gym-app-db
+          property: connectionString
+      # Generated once by Render and then held. Losing JWT_SECRET logs everyone
+      # out; losing BIOMETRIC_KEY makes stored fingerprints undecryptable, so
+      # neither should be regenerated casually.
+      - key: JWT_SECRET
+        generateValue: true
+      # 32 bytes, base64 — the format parseKey() expects for a bare key.
+      - key: BIOMETRIC_KEY
+        sync: false
+      # The origin used in emailed links (password resets, invites). Set to this
+      # service's own URL once Render has assigned it.
+      - key: APP_URL
+        sync: false
+
+databases:
+  - name: gym-app-db
+    plan: free
+    databaseName: gymapp
+    user: gymapp
