@@ -19,7 +19,12 @@ export type Tone = 'blue' | 'green' | 'red' | 'yellow' | 'gray' | 'purple';
  */
 const toneTile: Record<Tone, string> = {
   blue: 'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400',
-  green: 'bg-green-50 text-green-600 dark:bg-green-500/15 dark:text-green-400',
+  // Lime, not the `green-*` scale it is named for. Every stat row in the app
+  // puts a `green` tile beside a `blue` one, and `blue` is now the emerald
+  // accent — left as green the two tiles were the same colour, so a row of
+  // five stats read as three. Lime is the nearest hue that still says
+  // "positive" while staying visibly apart from the accent.
+  green: 'bg-lime-50 text-lime-600 dark:bg-lime-500/15 dark:text-lime-400',
   red: 'bg-red-50 text-red-600 dark:bg-red-500/15 dark:text-red-400',
   yellow: 'bg-yellow-50 text-yellow-600 dark:bg-yellow-500/15 dark:text-yellow-400',
   gray: 'bg-gray-100 text-gray-500 dark:bg-slate-700/60 dark:text-slate-300',
@@ -33,27 +38,48 @@ export const focusRing =
   `focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
    focus:ring-offset-white dark:focus:ring-offset-slate-900`;
 
+/**
+ * The focus ring above is the accessibility floor — always there, always the
+ * same. This adds the *aesthetic* half for text fields specifically: a tinted
+ * halo that widens the accent instead of only outlining it, which is what makes
+ * a focused field read as active rather than merely selected.
+ */
 export const inputClass =
   `w-full px-3 py-2.5 border border-gray-300 rounded-xl text-sm bg-white
-   placeholder:text-gray-400 ${focusRing} focus:border-blue-500 transition-colors
+   placeholder:text-gray-400 ${focusRing} focus:border-blue-500
+   focus:ring-blue-500/20 focus:ring-4 focus:ring-offset-0
+   shadow-xs transition-[color,background-color,border-color,box-shadow] duration-150
+   hover:border-gray-400 dark:hover:border-slate-600
    dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100
    dark:placeholder:text-slate-500 dark:focus:border-blue-500`;
 
+/**
+ * `active:` rather than a hover-only change: on a phone — where this app spends
+ * most of its life, on a counter — hover never fires, so the press state is the
+ * only feedback a tap ever gets. Disabled drops the lift too, or a dead button
+ * still animates under the finger and reads as having worked.
+ */
 export const primaryButton =
   `inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5
    rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-60
-   disabled:cursor-not-allowed transition-colors shadow-sm ${focusRing}`;
+   disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100
+   transition-all duration-150 shadow-sm shadow-blue-600/20
+   hover:shadow-md hover:shadow-blue-600/25 active:scale-[0.98] ${focusRing}`;
 
 export const secondaryButton =
   `inline-flex items-center justify-center gap-2 bg-white text-gray-700 px-4 py-2.5
    rounded-xl text-sm font-semibold border border-gray-300 hover:bg-gray-50
-   disabled:opacity-60 transition-colors ${focusRing}
-   dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700`;
+   hover:border-gray-400 disabled:opacity-60 disabled:active:scale-100
+   transition-all duration-150 shadow-xs active:scale-[0.98] ${focusRing}
+   dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700
+   dark:hover:border-slate-600`;
 
 export const dangerButton =
   `inline-flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2.5
    rounded-xl text-sm font-semibold hover:bg-red-700 disabled:opacity-60
-   transition-colors shadow-sm ${focusRing}`;
+   disabled:shadow-none disabled:active:scale-100
+   transition-all duration-150 shadow-sm shadow-red-600/20
+   hover:shadow-md hover:shadow-red-600/25 active:scale-[0.98] ${focusRing}`;
 
 /* ------------------------------------------------------------------ page */
 
@@ -86,10 +112,19 @@ export function Page({ children }: { children: ReactNode }) {
 
 /* ------------------------------------------------------------- surfaces */
 
-export function Card({ className = '', children }: { className?: string; children: ReactNode }) {
+export function Card({ className = '', hover = false, children }: {
+  className?: string;
+  /** Lifts on hover. For cards that are themselves the click target — a plan
+   *  tile, a member row — never for a static panel, where a card that reacts
+   *  to the pointer promises something to click that is not there. */
+  hover?: boolean;
+  children: ReactNode;
+}) {
   return (
-    <div className={`bg-white rounded-2xl border border-gray-200
-      dark:bg-slate-900 dark:border-slate-800 transition-colors ${className}`}>
+    <div className={`bg-white rounded-2xl border border-gray-200 shadow-card
+      dark:bg-slate-900 dark:border-slate-800 transition-all ${
+        hover ? 'hover:shadow-lifted hover:-translate-y-0.5 hover:border-gray-300 dark:hover:border-slate-700' : ''
+      } ${className}`}>
       {children}
     </div>
   );
@@ -393,7 +428,7 @@ export function IconButton({ icon: Icon, label, onClick, tone = 'blue', disabled
 }) {
   const hover: Record<Tone, string> = {
     blue: 'hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-500/15',
-    green: 'hover:text-green-600 hover:bg-green-50 dark:hover:text-green-400 dark:hover:bg-green-500/15',
+    green: 'hover:text-lime-600 hover:bg-lime-50 dark:hover:text-lime-400 dark:hover:bg-lime-500/15',
     red: 'hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-500/15',
     yellow: 'hover:text-yellow-600 hover:bg-yellow-50 dark:hover:text-yellow-400 dark:hover:bg-yellow-500/15',
     gray: 'hover:text-gray-700 hover:bg-gray-100 dark:hover:text-slate-200 dark:hover:bg-slate-700',

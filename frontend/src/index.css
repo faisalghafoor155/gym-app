@@ -11,6 +11,66 @@
  */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/**
+ * The brand ramp.
+ *
+ * The app's accent is emerald rather than blue: this is a gym's software, and
+ * green is the colour the domain already speaks — progress, a session done, a
+ * membership still good. Blue read as generic dashboard chrome.
+ *
+ * It is applied by *redefining* `--color-blue-*` rather than by renaming every
+ * class. Nearly three hundred `blue-*` utilities and a `Tone` union built on
+ * the name are spread across forty files; rewriting them all to `brand-*` would
+ * be a large diff whose only effect is the one this block already has. The
+ * names stay as the slot the accent lives in, and this is the single place that
+ * decides what fills it — swapping the palette again is an edit to these
+ * numbers and nothing else.
+ *
+ * `--color-indigo-*` follows one step deeper into teal, because the two are
+ * only ever used together in the logo gradients; left as real indigo it would
+ * now clash with the emerald it sits beside.
+ */
+@theme {
+  --color-blue-50: oklch(0.979 0.021 166.113);
+  --color-blue-100: oklch(0.95 0.052 163.051);
+  --color-blue-200: oklch(0.905 0.093 164.15);
+  --color-blue-300: oklch(0.845 0.143 164.978);
+  --color-blue-400: oklch(0.765 0.177 163.223);
+  --color-blue-500: oklch(0.696 0.17 162.48);
+  --color-blue-600: oklch(0.596 0.145 163.225);
+  --color-blue-700: oklch(0.508 0.118 165.612);
+  --color-blue-800: oklch(0.432 0.095 166.913);
+  --color-blue-900: oklch(0.378 0.077 168.94);
+  --color-blue-950: oklch(0.262 0.051 172.552);
+
+  --color-indigo-50: oklch(0.984 0.014 180.72);
+  --color-indigo-100: oklch(0.953 0.051 180.801);
+  --color-indigo-200: oklch(0.91 0.096 180.426);
+  --color-indigo-300: oklch(0.855 0.138 181.071);
+  --color-indigo-400: oklch(0.777 0.152 181.912);
+  --color-indigo-500: oklch(0.704 0.14 182.503);
+  --color-indigo-600: oklch(0.6 0.118 184.704);
+  --color-indigo-700: oklch(0.511 0.096 186.391);
+  --color-indigo-800: oklch(0.437 0.078 188.216);
+  --color-indigo-900: oklch(0.386 0.063 188.416);
+  --color-indigo-950: oklch(0.277 0.046 192.524);
+
+  /**
+   * Card elevation, as two tokens rather than a Tailwind shadow scale.
+   *
+   * `shadow-sm` is tuned for a white page; over the near-black dark surface it
+   * is invisible, so cards there lose the edge that separates them from the
+   * background. The card border is what actually does the separating in dark
+   * mode, and these carry the depth in light.
+   *
+   * The lifted step is *not* named `--shadow-card-hover`: Tailwind reads the
+   * trailing `-hover` off the utility before it looks the token up, so
+   * `hover:shadow-card-hover` silently resolves to nothing at all.
+   */
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 3px oklch(0 0 0 / 0.06);
+  --shadow-lifted: 0 2px 4px oklch(0 0 0 / 0.05), 0 8px 16px -4px oklch(0 0 0 / 0.09);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -18,7 +78,7 @@
 body {
   margin: 0;
   font-family: 'Segoe UI', system-ui, sans-serif;
-  background: #f8fafc;
+  background: #f6f8f7;
   color: #1e293b;
   /* The one transition that is worth animating globally: without it the whole
      page snaps between themes, which reads as a flash rather than a change. */
@@ -26,7 +86,7 @@ body {
 }
 
 html.dark body {
-  background: #0b1120;
+  background: #060d0e;
   color: #e2e8f0;
 }
 
@@ -42,4 +102,40 @@ html.dark body {
  */
 html.dark {
   color-scheme: dark;
+}
+
+/**
+ * The scrollbar is part of the surface.
+ *
+ * Left alone it stays light-grey in dark mode on Chromium, drawing a bright
+ * strip down the side of every long list. `color-scheme` fixes the page
+ * scrollbar but not the ones inside overflow containers, which is most of them
+ * here — the sidebar nav and every scrolling panel.
+ */
+@media (pointer: fine) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: theme(--color-gray-300) transparent;
+  }
+
+  .dark * {
+    scrollbar-color: theme(--color-slate-700) transparent;
+  }
+}
+
+/**
+ * Honour a request for less motion.
+ *
+ * The hover lifts and theme fade below are decoration; for a user who has asked
+ * the OS to stop animating, they are the exact thing that was asked about.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

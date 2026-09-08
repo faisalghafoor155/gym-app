@@ -136,7 +136,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Gym Info */}
       <div className="p-5 border-b border-gray-100 dark:border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-md shadow-blue-600/25 ring-1 ring-white/20">
             <Dumbbell className="text-white" size={18} />
           </div>
           <div className="min-w-0">
@@ -167,21 +167,37 @@ export default function Layout({ children }: { children: ReactNode }) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
         {navItems.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              `group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 isActive
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-600/25'
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-800/80 dark:hover:text-slate-100'
               }`
             }
           >
-            <Icon size={17} />
-            {label}
+            {({ isActive }) => (
+              <>
+                {/* A short rail on the left edge of the active row. The filled
+                    pill alone says which page you are on; against a long nav
+                    the rail is what you find without reading, because it is
+                    the only mark that breaks the column's left margin. */}
+                <span
+                  aria-hidden="true"
+                  className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full bg-white/80
+                    transition-all ${isActive ? 'h-5 opacity-100' : 'h-0 opacity-0'}`}
+                />
+                <Icon
+                  size={17}
+                  className={`shrink-0 transition-transform ${isActive ? '' : 'group-hover:scale-110'}`}
+                />
+                {label}
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -193,7 +209,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         )}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-500/15 dark:hover:text-red-400 w-full transition-colors"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-500/15 dark:hover:text-red-400 w-full transition-all active:scale-[0.98]"
         >
           <LogOut size={17} />
           Logout
@@ -206,7 +222,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     <div className="flex h-dvh bg-gray-50 dark:bg-slate-950">
 
       {/* Desktop sidebar — always present from lg up */}
-      <aside className="hidden lg:flex w-64 bg-white border-r border-gray-100 dark:bg-slate-900 dark:border-slate-800 flex-col shadow-sm shrink-0">
+      <aside className="hidden lg:flex w-64 bg-white/80 backdrop-blur-xl border-r border-gray-200/80 dark:bg-slate-900/80 dark:border-slate-800 flex-col shadow-sm shrink-0">
         {sidebar}
       </aside>
 
@@ -248,7 +264,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         <InstallBanner />
 
         {/* Mobile top bar */}
-        <header className="lg:hidden flex items-center gap-3 bg-white border-b border-gray-100 dark:bg-slate-900 dark:border-slate-800 px-4 py-3 shrink-0">
+        <header className="lg:hidden flex items-center gap-3 bg-white/90 backdrop-blur-xl border-b border-gray-200/80 dark:bg-slate-900/90 dark:border-slate-800 px-4 py-3 shrink-0">
           <button
             onClick={() => setDrawerOpen(true)}
             aria-label="Open navigation menu"
@@ -257,7 +273,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             <Menu size={22} />
           </button>
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-blue-600/25">
               <Dumbbell className="text-white" size={15} />
             </div>
             <p className="font-bold text-gray-900 dark:text-slate-100 text-sm truncate">{gym?.name || 'GymPro'}</p>

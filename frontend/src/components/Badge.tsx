@@ -20,7 +20,11 @@ const styles: Record<string, string> = {
   paid: 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300',
   due: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300',
   cash: 'bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300',
-  online: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+  // Violet rather than the accent. `online` sits in the same tables as `paid`
+  // and `active`, and the accent is now a green — a blue-named badge would have
+  // rendered as a third green and read as another success state rather than as
+  // the payment method it is.
+  online: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',
 };
 
 export default function Badge({ status }: { status: string }) {
