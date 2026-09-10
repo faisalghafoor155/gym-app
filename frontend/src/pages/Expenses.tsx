@@ -269,6 +269,7 @@ export default function Expenses() {
           <select
             value={category}
             onChange={e => setCategory(e.target.value)}
+            aria-label="Filter by category"
             className={inputClass}
           >
             <option value="">All categories</option>

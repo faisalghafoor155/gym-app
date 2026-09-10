@@ -10,7 +10,8 @@ import {
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import type { GymUser, GymSettings, Member, Paginated, Role, StaffSeats, TeamResponse, StaffPermission } from '../types';
-import { getPermissionLabel, getPermissionDescription } from '../utils/permissions';
+import { getPermissionLabel } from '../utils/permissions';
+import PermissionPicker from '../components/team/PermissionPicker';
 import toast from 'react-hot-toast';
 
 /** How a new account gets its password: emailed invite, or one the owner
@@ -716,21 +717,11 @@ export default function Team() {
                 placeholder="helper@gym.com"
                 className={inputClass} />
             </div>
-            <div>
-              <FieldLabel htmlFor="team-permission-level" required>Permission Level</FieldLabel>
-              <select id="team-permission-level" required value={staffForm.staffPermission}
-                onChange={e => setStaffForm(f => ({ ...f, staffPermission: e.target.value as StaffPermission }))}
-                className={inputClass}>
-                <option value="receptionist">Attendance (Receptionist)</option>
-                <option value="accountant">Account (Accountant)</option>
-                <option value="manager">Full Access (Manager)</option>
-                <option value="members_manager">Members Manager (Members Manager)</option>
-                <option value="inventory_manager">Inventory Manager (Inventory Manager)</option>
-              </select>
-              <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5 leading-relaxed">
-                {getPermissionDescription(staffForm.staffPermission)}
-              </p>
-            </div>
+            <PermissionPicker
+              id="team-permission-level"
+              value={staffForm.staffPermission}
+              onChange={p => setStaffForm(f => ({ ...f, staffPermission: p }))}
+            />
             <PasswordMethod
               method={staffMethod}
               onMethod={setStaffMethod}
@@ -845,24 +836,11 @@ export default function Team() {
             e.preventDefault();
             void handleUpdatePermissions();
           }} className="space-y-4">
-            <div>
-              <FieldLabel htmlFor="team-permission-level-2" required>Permission Level</FieldLabel>
-              <select id="team-permission-level-2"
-                required
-                value={selectedPermission}
-                onChange={e => setSelectedPermission(e.target.value as StaffPermission)}
-                className={inputClass}
-              >
-                <option value="receptionist">Attendance (Receptionist)</option>
-                <option value="accountant">Account (Accountant)</option>
-                <option value="manager">Full Access (Manager)</option>
-                <option value="members_manager">Members Manager (Members Manager)</option>
-                <option value="inventory_manager">Inventory Manager (Inventory Manager)</option>
-              </select>
-              <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
-                {getPermissionDescription(selectedPermission)}
-              </p>
-            </div>
+            <PermissionPicker
+              id="team-permission-level-2"
+              value={selectedPermission}
+              onChange={setSelectedPermission}
+            />
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setEditingPermissions(null)}
                 className={`flex-1 ${secondaryButton}`}>
