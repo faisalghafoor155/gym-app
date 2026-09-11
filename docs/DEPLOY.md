@@ -4,6 +4,11 @@ This is the one-time setup that turns the working stack into something a gym
 can actually be handed. It replaces three temporary arrangements that all fail
 the same way — silently, some days later:
 
+> Just want a gym owner to try it, at no cost, without your laptop running?
+> [DEPLOY_FREE.md](DEPLOY_FREE.md) puts it on Render and Neon in about 40
+> minutes. Come back here when they say yes — that setup has no backups and no
+> SLA, so it is a demo rather than somewhere a gym keeps its records.
+
 | Temporary now | Fails when | Permanent here |
 |---|---|---|
 | Cloudflare quick tunnel | the tunnel restarts and the hostname dies | a domain you own, on a VPS |

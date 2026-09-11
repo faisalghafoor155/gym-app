@@ -1,10 +1,15 @@
-# Render blueprint: one web service and one database.
+# Render blueprint: one web service. The database lives on Neon, not here.
 #
 # Deliberately a single service rather than a static site plus an API. The
 # session cookie is sameSite 'lax', so a frontend served from a different host
 # than the API would never have it sent and every request would arrive logged
 # out. Serving the built bundle from the same Express process keeps the browser
 # on one origin, which also means no CORS_ORIGIN and no absolute API URL.
+#
+# No `databases:` block on purpose. Render's free Postgres is DELETED 30 days
+# after it is created — a gym would lose every member, payment and attendance
+# row on a date nobody wrote down. DATABASE_URL points at Neon instead, whose
+# free tier does not expire. See docs/DEPLOY_FREE.md.
 services:
   - type: web
     name: gym-app
@@ -21,16 +26,20 @@ services:
     # exists. Nothing needs Vite's toolchain and the backend's installed at
     # once, which matters on a 512MB instance, and the frontend half is dead
     # weight at runtime either way — only dist/ is served.
+    #
+    # Migrations run at the end of the build rather than in a preDeployCommand,
+    # which is a paid-plan feature: on free, a blueprint that declares one is
+    # rejected. The tradeoff is that the old instance is still serving while
+    # these apply, so an additive migration is safe and a destructive one is
+    # not — drop a column in two deploys, never one.
     buildCommand: >-
       npm --prefix frontend ci --include=dev &&
       npm --prefix frontend run build &&
       rm -rf frontend/node_modules &&
       npm --prefix backend ci --include=dev &&
       npm --prefix backend run db:generate &&
-      npm --prefix backend run build
-    # Migrations run on every deploy, before the server accepts traffic. This is
-    # what docker-entrypoint.sh does for the compose setup.
-    preDeployCommand: npm --prefix backend exec prisma migrate deploy
+      npm --prefix backend run build &&
+      npm --prefix backend exec prisma migrate deploy
     startCommand: npm --prefix backend start
     healthCheckPath: /api/health
     envVars:
@@ -43,22 +52,31 @@ services:
         value: production
       - key: SERVE_STATIC_DIR
         value: ./frontend/dist
+      # Render terminates TLS at its own proxy, so the app never sees https on
+      # the socket and would leave the session cookie unmarked. This is what
+      # marks it Secure; it does not provide TLS, Render already did that.
+      - key: HTTPS
+        value: "true"
       # Render terminates TLS at its own proxy and forwards one hop. Left at the
       # default of 0, Express reads every request as coming from that proxy: the
       # login rate limiter would then count all gyms as a single IP, so ten bad
       # passwords from one person would lock out everybody.
       - key: TRUST_PROXY_HOPS
         value: "1"
+      # Neon's POOLED connection string, with ?sslmode=require. Set by hand —
+      # it belongs to an account Render does not know about. The pooled host
+      # (the one containing `-pooler`) matters: a free instance that sleeps and
+      # wakes reconnects often, and the direct host runs out of connections.
       - key: DATABASE_URL
-        fromDatabase:
-          name: gym-app-db
-          property: connectionString
+        sync: false
       # Generated once by Render and then held. Losing JWT_SECRET logs everyone
       # out; losing BIOMETRIC_KEY makes stored fingerprints undecryptable, so
       # neither should be regenerated casually.
       - key: JWT_SECRET
         generateValue: true
       # 32 bytes, base64 — the format parseKey() expects for a bare key.
+      # The server REFUSES TO START without it, so this is not optional even
+      # for a demo with no fingerprint reader attached.
       - key: BIOMETRIC_KEY
         sync: false
       # Both are this service's own URL, known only once Render assigns it.
@@ -69,9 +87,3 @@ services:
         sync: false
       - key: APP_BASE_URL
         sync: false
-
-databases:
-  - name: gym-app-db
-    plan: free
-    databaseName: gymapp
-    user: gymapp
