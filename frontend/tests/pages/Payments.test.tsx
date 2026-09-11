@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import {
-  aPayment, aSummary, mockApi, membersPage, paymentsPage, ownerAuth, staffAuth, renderPage,
+  aMember, aMembership, aPayment, aSummary, mockApi, membersPage, paymentsPage, ownerAuth, staffAuth, renderPage,
   type AuthState,
 } from '../helpers';
 
@@ -206,5 +206,138 @@ describe('Payments — what staff may see', () => {
     await waitFor(() => {
       expect(stub.callsTo('/payments/summary').length).toBeGreaterThan(0);
     });
+  });
+});
+
+/**
+ * Recording, correcting and removing a payment.
+ *
+ * The gap the docs name: the totals and filters were covered, the page's own
+ * writes were not. What is asserted here is the payload rather than the form,
+ * because every rule in `handleSave` exists to stop the server being told
+ * something false about money — a wallet name left on a cash row, a membership
+ * still attached to a supplement sale, or an edit that quietly moves a payment
+ * to a different member.
+ */
+describe('Payments — recording one', () => {
+  /** Opens the modal on a page holding one member to pick. */
+  const openForm = async (
+    over: Parameters<typeof setup>[0] & { withMembership?: boolean } = {},
+  ) => {
+    const stub = setup(over);
+    const member = aMember({
+      id: 'm1',
+      name: 'Ali Khan',
+      currentMembership: over.withMembership
+        ? aMembership({ id: 'mem-9', planName: 'Monthly' })
+        : null,
+    });
+    api.current!.get = vi.fn((url: string) => {
+      api.current!.calls.push(url);
+      if (url.includes('/payments/summary')) return Promise.resolve({ data: aSummary() });
+      if (url.includes('/members')) {
+        return Promise.resolve({ data: membersPage([member]) });
+      }
+      return Promise.resolve({ data: over.payments ?? paymentsPage([]) });
+    });
+
+    renderPage(<Payments />);
+    await userEvent.click(await screen.findByRole('button', { name: /record payment/i }));
+    return stub;
+  };
+
+  it('sends a cash payment with the wallet fields explicitly null', async () => {
+    const stub = await openForm();
+
+    await userEvent.selectOptions(await screen.findByLabelText(/member/i), 'm1');
+    await userEvent.type(screen.getByLabelText(/amount/i), '2500');
+    await userEvent.click(screen.getByRole('button', { name: /^record$/i }));
+
+    await waitFor(() => expect(stub.post).toHaveBeenCalled());
+    const [url, body] = stub.post.mock.calls[0] as unknown as [string, Record<string, unknown>];
+    expect(url).toBe('/payments');
+    // Null rather than absent: the API distinguishes "no wallet" from "field
+    // not sent". Note the form's own onChange also clears these when the
+    // method is cash, so this pins the payload the server receives rather
+    // than the `method === 'cash'` guard in `handleSave`, which sits behind
+    // it as defence in depth.
+    expect(body).toMatchObject({
+      channel: null, reference: null, amount: '2500', memberId: 'm1',
+    });
+  });
+
+  it('drops a membership picked before the type was switched away from it', async () => {
+    // The member has a membership, so the link is offered and can be chosen.
+    const stub = await openForm({ withMembership: true });
+
+    await userEvent.selectOptions(await screen.findByLabelText(/member/i, { selector: '#payments-member' }), 'm1');
+    await userEvent.selectOptions(await screen.findByLabelText(/membership/i, { selector: '#payments-membership' }), 'mem-9');
+    // Switching the type unmounts that select but leaves `form.membershipId`
+    // set — this is the state the payload rule exists for, and the only one
+    // where sending the form as-is would attach a membership to a
+    // supplement sale.
+    await userEvent.selectOptions(screen.getByLabelText(/^for$/i), 'supplement');
+    await userEvent.type(screen.getByLabelText(/amount/i), '900');
+    await userEvent.click(screen.getByRole('button', { name: /^record$/i }));
+
+    await waitFor(() => expect(stub.post).toHaveBeenCalled());
+    const [, body] = stub.post.mock.calls[0] as unknown as [string, Record<string, unknown>];
+    expect(body.membershipId).toBeNull();
+  });
+});
+
+describe('Payments — correcting one', () => {
+  const openEdit = async (payment = aPayment({ id: 'pay-1', amount: 2500 })) => {
+    const stub = setup({ payments: paymentsPage([payment]) });
+    renderPage(<Payments />);
+    const [edit] = await screen.findAllByRole('button', { name: /edit/i });
+    await userEvent.click(edit!);
+    return stub;
+  };
+
+  it('never sends the member, which the API refuses to change', async () => {
+    const stub = await openEdit();
+
+    await userEvent.click(await screen.findByRole('button', { name: /save changes/i }));
+
+    await waitFor(() => expect(stub.put).toHaveBeenCalled());
+    const [url, body] = stub.put.mock.calls[0] as unknown as [string, Record<string, unknown>];
+    expect(url).toBe('/payments/pay-1');
+    // Moving money between members is a delete and a re-entry, not an edit.
+    expect(body).not.toHaveProperty('memberId');
+  });
+
+  it('clears the wallet when an online payment is switched to cash', async () => {
+    const stub = await openEdit(
+      aPayment({ id: 'pay-1', method: 'online', channel: 'easypaisa', reference: 'TX-9' }),
+    );
+
+    await userEvent.selectOptions(await screen.findByLabelText(/method/i), 'cash');
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+    await waitFor(() => expect(stub.put).toHaveBeenCalled());
+    const [, body] = stub.put.mock.calls[0] as unknown as [string, Record<string, unknown>];
+    // Omitting these would leave "easypaisa" on a row that is now cash.
+    expect(body).toMatchObject({ channel: null, reference: null });
+  });
+});
+
+describe('Payments — removing one', () => {
+  it('asks before deleting, and deletes the row it asked about', async () => {
+    const stub = setup({ payments: paymentsPage([aPayment({ id: 'pay-7' })]) });
+
+    renderPage(<Payments />);
+    const [remove] = await screen.findAllByRole('button', { name: /delete/i });
+    await userEvent.click(remove!);
+
+    // Nothing goes until the confirm is answered — deleting a payment is not
+    // undoable and the row is somebody's receipt.
+    expect(stub.delete).not.toHaveBeenCalled();
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: /^delete$|^delete payment$|confirm/i }),
+    );
+
+    await waitFor(() => expect(stub.delete).toHaveBeenCalledWith('/payments/pay-7'));
   });
 });

@@ -1155,10 +1155,24 @@ produced, neither of which the tests reach while coverage is this thin.
   the fields, because every rule there is a distinction the server would
   otherwise get wrong — a blank fee is no payment rather than a payment of
   nothing, a blank trainer fee is the usual rate rather than free, and a
-  profile edit never carries a plan. What is still thin is the pages'
-  own create-and-edit paths outside that modal; a bad create is visible and
-  fixable, which is why it goes last. The build step still carries that
-  weight.
+  profile edit never carries a plan. The pages' own create-and-edit paths are
+  now covered for the two things a gym cannot absorb being wrong — getting in,
+  and money. `Login` covers both factors, including that the challenge token
+  from the password step is what the code step spends and that a backup code
+  reaches the server with its dash intact; `Security` covers the 2FA handshake,
+  including that the backup codes travel back with the confirmation and that
+  disabling costs the password. On the money side `Payments`, `Expenses`,
+  `MembershipPlans` and `Trainers` cover create, edit and delete, asserted on
+  the payload — a blank assignment fee as null rather than zero, a blank
+  expense vendor as null rather than `''`, an amount as a number rather than
+  the string the input holds, and a membership dropped when the payment is no
+  longer for one.
+
+  What remains untested is the read-only half — `Dashboard`, `Analytics`,
+  `Subscription` and the member portal's own screens — plus `Attendance` and
+  the permission-gated sidebar. Those go last deliberately: a page that renders
+  the wrong number is visible to whoever is looking at it, where a payload that
+  is quietly wrong is not. The build step still carries that weight.
 - **The fingerprint matcher reads every enrolled template.** Not a paging
   oversight: 1:N identification has to compare the probe against each candidate,
   so a page of them would simply fail to recognise members further down the

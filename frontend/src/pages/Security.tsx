@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ShieldCheck, ShieldOff, KeyRound, Copy } from 'lucide-react';
+import { ShieldCheck, ShieldOff, KeyRound, Copy, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api, { apiError } from '../api/client';
 import Modal from '../components/Modal';
@@ -34,6 +34,12 @@ export default function Security() {
   const [confirmDisable, setConfirmDisable] = useState(false);
   /** Turning the second factor off costs the first one. */
   const [disablePassword, setDisablePassword] = useState('');
+  /** The regenerate flow: the password prompt, then the codes it returned.
+   *  Separate from `setup` because no QR is involved — the secret does not
+   *  change, so nobody has to re-scan anything. */
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
+  const [regeneratePassword, setRegeneratePassword] = useState('');
+  const [freshCodes, setFreshCodes] = useState<string[] | null>(null);
 
   const load = () => {
     api.get<TwoFactorStatus>('/auth/two-factor/status')
@@ -93,11 +99,36 @@ export default function Security() {
     }
   };
 
-  const copyCodes = () => {
-    if (!setup) return;
-    void navigator.clipboard.writeText(setup.backupCodes.join('\n'))
+  const copyCodes = (codes: string[]) => {
+    void navigator.clipboard.writeText(codes.join('\n'))
       .then(() => toast.success('Backup codes copied'))
       .catch(() => toast.error('Copy failed — select and copy them manually'));
+  };
+
+  /**
+   * Replaces the remaining codes with a fresh set.
+   *
+   * The old ones stop working immediately, so the new list is held in state
+   * and shown until dismissed — closing without saving them is the one way
+   * this leaves somebody worse off than before.
+   */
+  const regenerate = async () => {
+    setBusy(true);
+    try {
+      const { data } = await api.post<{ backupCodes: string[] }>(
+        '/auth/two-factor/backup-codes',
+        { password: regeneratePassword },
+      );
+      setFreshCodes(data.backupCodes);
+      setConfirmRegenerate(false);
+      setRegeneratePassword('');
+      load();
+    } catch (err) {
+      // The field survives a wrong password, same as disabling.
+      toast.error(apiError(err, 'Could not generate new backup codes'));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -124,16 +155,29 @@ export default function Security() {
                   : 'After your password, signing in will also ask for a code from an authenticator app.'}
               </p>
               {status.enabled && (
-                <p className="text-xs text-gray-400 dark:text-slate-500 mt-2 flex items-center gap-1.5">
+                // Amber below three: the count is the only warning before
+                // somebody runs out and finds the authenticator is the sole
+                // way in. Grey text nobody reads would not be a warning.
+                <p className={`text-xs mt-2 flex items-center gap-1.5 ${
+                  status.remainingBackupCodes <= 2
+                    ? 'text-amber-600 dark:text-amber-400 font-medium'
+                    : 'text-gray-400 dark:text-slate-500'
+                }`}>
                   <KeyRound size={12} />
                   {status.remainingBackupCodes} backup {status.remainingBackupCodes === 1 ? 'code' : 'codes'} left
+                  {status.remainingBackupCodes <= 2 && ' — generate a new set'}
                 </p>
               )}
-              <div className="mt-4">
+              <div className="mt-4 flex flex-wrap gap-2">
                 {status.enabled ? (
-                  <button onClick={() => setConfirmDisable(true)} className={dangerButton}>
-                    Disable 2FA
-                  </button>
+                  <>
+                    <button onClick={() => setConfirmRegenerate(true)} className={secondaryButton}>
+                      <RefreshCw size={14} /> New backup codes
+                    </button>
+                    <button onClick={() => setConfirmDisable(true)} className={dangerButton}>
+                      Disable 2FA
+                    </button>
+                  </>
                 ) : (
                   <button onClick={beginSetup} disabled={busy} className={primaryButton}>
                     Enable Two-Factor Authentication
@@ -166,7 +210,7 @@ export default function Security() {
                 <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
                   2. Save your backup codes
                 </p>
-                <button onClick={copyCodes} className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1">
+                <button onClick={() => copyCodes(setup.backupCodes)} className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1">
                   <Copy size={12} /> Copy
                 </button>
               </div>
@@ -208,6 +252,94 @@ export default function Security() {
                 </button>
               </div>
             </form>
+          </div>
+        </Modal>
+      )}
+
+      {confirmRegenerate && (
+        <Modal
+          title="Generate new backup codes?"
+          onClose={() => { setConfirmRegenerate(false); setRegeneratePassword(''); }}
+        >
+          <form onSubmit={e => { e.preventDefault(); void regenerate(); }}>
+            <p className="text-sm text-gray-600 dark:text-slate-300">
+              You will get eight fresh codes and the ones you have now will stop
+              working. Your authenticator app is unaffected — the secret does not
+              change, so there is nothing to re-scan.
+            </p>
+            <div className="mt-4">
+              <label
+                htmlFor="regenerate-2fa-password"
+                className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1"
+              >
+                Confirm your password
+              </label>
+              <input
+                id="regenerate-2fa-password"
+                type="password"
+                required
+                autoFocus
+                autoComplete="current-password"
+                value={regeneratePassword}
+                onChange={e => setRegeneratePassword(e.target.value)}
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+                Asked for because these codes bypass the second factor — a stolen
+                session must not be able to issue itself a set.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end mt-5">
+              <button
+                type="button"
+                onClick={() => { setConfirmRegenerate(false); setRegeneratePassword(''); }}
+                className={secondaryButton}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={busy || !regeneratePassword}
+                className={primaryButton}
+              >
+                {busy ? 'Generating...' : 'Generate new codes'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {freshCodes && (
+        // Not dismissable by accident: the old codes are already dead, so
+        // closing this without saving these is the one path that leaves the
+        // account worse off than before it was asked.
+        <Modal title="Your new backup codes" onClose={() => setFreshCodes(null)}>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                Save these now
+              </p>
+              <button
+                onClick={() => copyCodes(freshCodes)}
+                className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1"
+              >
+                <Copy size={12} /> Copy
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 bg-gray-50 dark:bg-slate-800/60 rounded-xl p-3">
+              {freshCodes.map(c => (
+                <code key={c} className="font-mono text-xs text-center text-gray-700 dark:text-slate-300 py-1">{c}</code>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 dark:text-slate-500">
+              Each works once, in place of the authenticator code. Your previous
+              codes no longer work, and these are shown only now.
+            </p>
+            <div className="flex justify-end">
+              <button onClick={() => setFreshCodes(null)} className={primaryButton}>
+                I have saved them
+              </button>
+            </div>
           </div>
         </Modal>
       )}

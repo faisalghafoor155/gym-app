@@ -64,3 +64,30 @@ export const getPermissionLabel = (permission: StaffPermission): string =>
 /** Describe what a permission level can do. */
 export const getPermissionDescription = (permission: StaffPermission): string =>
   PERMISSION_DESCRIPTIONS[permission];
+
+/**
+ * The permission levels in the order an owner should meet them: most access
+ * first, narrowing to the single-desk roles.
+ *
+ * Ordered here rather than taken from `STAFF_PERMISSIONS` in its own order,
+ * whose keys the generator sorts alphabetically to keep its diffs stable —
+ * right for a generated file, wrong for a menu, where it buried Manager
+ * between Inventory and Members.
+ *
+ * The rank map is what keeps this honest. `Record<StaffPermission, number>`
+ * must name every level, so adding one to the schema fails the build here
+ * until it is given a position deliberately. A bare ordered array could not do
+ * that: dropping an entry would still typecheck, and the level would vanish
+ * from every picker with nothing to say so.
+ */
+const PERMISSION_RANK: Record<StaffPermission, number> = {
+  manager: 0,
+  members_manager: 1,
+  accountant: 2,
+  receptionist: 3,
+  inventory_manager: 4,
+};
+
+export const PERMISSION_ORDER: readonly StaffPermission[] = (
+  Object.keys(PERMISSION_RANK) as StaffPermission[]
+).sort((a, b) => PERMISSION_RANK[a] - PERMISSION_RANK[b]);

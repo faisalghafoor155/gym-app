@@ -4,6 +4,14 @@ services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    # Published so the backend integration suite, which runs on the host, can
+    # reach this database — it provisions a throwaway gymapp_test beside the
+    # real one, and testing against the same postgres:17-alpine the app ships
+    # with beats testing against whatever version happens to be installed
+    # locally. Bound to 127.0.0.1 so it is not reachable off this machine, and
+    # on 5433 to leave any native Postgres on 5432 alone.
+    ports:
+      - "127.0.0.1:5433:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -90,9 +98,12 @@ services:
       # The browser talks to nginx, which proxies /api to this container, so
       # API calls are same-origin and no cross-origin allowlist is needed.
       CORS_ORIGIN: ${CORS_ORIGIN:-}
-      # One proxy (the nginx container) sits in front of the API, so per-IP
-      # rate limiting reads the real client IP instead of nginx's.
-      TRUST_PROXY_HOPS: 1
+      # How many proxies sit in front of the API, so per-IP rate limiting reads
+      # the real client IP instead of the proxy's. 1 is the nginx container
+      # alone; override to 2 in .env when a CDN or tunnel terminates TLS ahead
+      # of it, or every client is counted as one and a single attacker can
+      # exhaust the login budget for everybody.
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
       # This stack is served over plain http on localhost. A Secure session
       # cookie would be dropped by the browser there, so it is switched off
       # until the app sits behind TLS — set HTTPS=true once it does.
