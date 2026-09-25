@@ -38,7 +38,6 @@ const Payments = lazy(() => import('./pages/Payments'));
 const MonthlyCollection = lazy(() => import('./pages/MonthlyCollection'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
 const Expenses = lazy(() => import('./pages/Expenses'));
-const Plans = lazy(() => import('./pages/Plans'));
 const MembershipPlans = lazy(() => import('./pages/MembershipPlans'));
 const Supplements = lazy(() => import('./pages/Supplements'));
 const SupplementSales = lazy(() => import('./pages/SupplementSales'));
@@ -194,7 +193,7 @@ function AppRoutes() {
                 {/* Both gates: whether this person may see reports, and
                     whether the gym's plan includes them. */}
                 <Route path="/analytics" element={<PermissionRoute action="canViewReports"><FeatureRoute feature="analytics"><Analytics /></FeatureRoute></PermissionRoute>} />
-                <Route path="/plans" element={<PermissionRoute action="canManagePlans"><Plans /></PermissionRoute>} />
+                <Route path="/plans" element={<Navigate to="/calculator" replace />} />
                 <Route path="/membership-plans" element={<PermissionRoute action="canManageMemberships"><MembershipPlans /></PermissionRoute>} />
                 <Route path="/supplements" element={<PermissionRoute action="canManageSupplements"><Supplements /></PermissionRoute>} />
                 {/* A report of what the gym earns, rather than a till — so it

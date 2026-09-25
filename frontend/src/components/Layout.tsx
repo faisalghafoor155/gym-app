@@ -30,7 +30,6 @@ const staffNavItems: NavItem[] = [
   // Two different kinds of "plan": what a member buys, and what they train
   // to. Labelled apart so the sidebar does not read as a duplicate.
   { to: '/membership-plans', label: 'Membership Plans', icon: Tag },
-  { to: '/plans', label: 'Workout & Diet', icon: Dumbbell },
   { to: '/calculator', label: 'Fitness Calculator', icon: Calculator },
   { to: '/supplements', label: 'Supplements', icon: FlaskConical },
   // Taking a fee is counter work, so the page is staff's. What they see on it
@@ -97,7 +96,6 @@ export default function Layout({ children }: { children: ReactNode }) {
     '/attendance': 'canViewAttendance',
     '/analytics': 'canViewReports',
     '/membership-plans': 'canManageMemberships',
-    '/plans': 'canManagePlans',
     '/supplements': 'canManageSupplements',
     '/payments': 'canViewPayments',
     '/expenses': 'canManageExpenses',
