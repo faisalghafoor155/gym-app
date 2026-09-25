@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import {
   FieldLabel, inputClass, primaryButton, secondaryButton, focusRing,
 } from '../ui';
+import { Dumbbell, UserCheck, UserX } from 'lucide-react';
 import api, { apiError } from '../../api/client';
 import { useDialog } from '../../hooks/useDialog';
 import type { GymSettings, Member, MembershipPlan, PaymentChannel, PaymentMethod } from '../../types';
@@ -63,6 +64,18 @@ interface Props {
 export default function RenewModal({ member, plans, settings, onClose, onRenewed }: Props) {
   const ms = member.currentMembership;
 
+  const hasTrainer = Boolean(member.trainerId || member.trainer);
+  const trainerName = member.trainer?.name || 'Assigned Trainer';
+
+  const [includeTrainer, setIncludeTrainer] = useState<boolean>(hasTrainer);
+  // Default to 10,000 as requested, or trainer's custom fee if set, manually editable
+  const [ptFee, setPtFee] = useState<string>(() => {
+    if (member.trainer?.ptFee != null && Number(member.trainer.ptFee) > 0) {
+      return String(member.trainer.ptFee);
+    }
+    return '10000';
+  });
+
   const [form, setForm] = useState<RenewForm>(() => {
     const plan = plans.find(p => p.id === ms.planId);
     return {
@@ -81,20 +94,39 @@ export default function RenewModal({ member, plans, settings, onClose, onRenewed
 
   const picked = plans.find(p => p.id === form.planId);
 
+  const gymAmount = Number(form.amount) || 0;
+  const ptFeeNum = hasTrainer && includeTrainer ? Math.max(0, Number(ptFee) || 0) : 0;
+  const totalAmount = gymAmount + ptFeeNum;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (gymAmount <= 0) {
+      toast.error('Gym membership plan fee must be greater than zero');
+      return;
+    }
     setSaving(true);
     try {
       await api.post(`/members/${member.id}/memberships/${ms.id}/renew`, {
         ...(form.planId && { planId: form.planId }),
-        amount: Number(form.amount),
+        amount: gymAmount,
         method: form.method,
         ...(form.method === 'online' && {
           channel: form.channel || null,
           reference: form.reference.trim() || null,
         }),
+        ...(hasTrainer && {
+          includeTrainer,
+          ptFee: includeTrainer ? ptFeeNum : 0,
+        }),
       });
-      toast.success('Membership renewed');
+
+      if (hasTrainer && !includeTrainer) {
+        toast.success(`Membership renewed. Trainer (${trainerName}) removed from card.`);
+      } else if (hasTrainer && includeTrainer) {
+        toast.success(`Membership & Trainer renewed (Total: Rs. ${totalAmount.toLocaleString('en-PK')})`);
+      } else {
+        toast.success('Membership renewed');
+      }
       onRenewed();
     } catch (err) {
       // The modal stays open with its values, so a mistyped amount can be
@@ -256,6 +288,91 @@ export default function RenewModal({ member, plans, settings, onClose, onRenewed
             </>
           )}
 
+          {/* Trainer Section: Only shown if member has an assigned trainer */}
+          {hasTrainer && (
+            <div className="rounded-xl border border-purple-200 dark:border-purple-800/60 bg-purple-50/40 dark:bg-purple-950/20 p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 flex items-center justify-center font-bold">
+                    <Dumbbell size={16} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">
+                      Assigned Personal Trainer
+                    </span>
+                    <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
+                      {trainerName}
+                    </h3>
+                  </div>
+                </div>
+              </div>
+
+              {/* Toggle Choices */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIncludeTrainer(true)}
+                  className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2 ${
+                    includeTrainer
+                      ? 'border-purple-500 bg-white dark:bg-slate-800 shadow-xs ring-1 ring-purple-500'
+                      : 'border-gray-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/40 opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <UserCheck size={16} className={includeTrainer ? 'text-purple-600 mt-0.5' : 'text-gray-400 mt-0.5'} />
+                  <div>
+                    <p className="text-xs font-bold text-gray-900 dark:text-slate-100">Renew Trainer</p>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400">Keep trainer assigned</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIncludeTrainer(false)}
+                  className={`p-2.5 rounded-xl border text-left transition flex items-start gap-2 ${
+                    !includeTrainer
+                      ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/30 shadow-xs ring-1 ring-rose-500'
+                      : 'border-gray-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/40 opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <UserX size={16} className={!includeTrainer ? 'text-rose-600 mt-0.5' : 'text-gray-400 mt-0.5'} />
+                  <div>
+                    <p className="text-xs font-bold text-rose-700 dark:text-rose-300">Gym Fee Only</p>
+                    <p className="text-[10px] text-rose-600/80 dark:text-rose-400">Remove trainer</p>
+                  </div>
+                </button>
+              </div>
+
+              {/* If Renew Trainer is chosen: Editable Fee */}
+              {includeTrainer ? (
+                <div className="space-y-1.5 pt-2 border-t border-purple-100 dark:border-purple-900/40">
+                  <div className="flex items-center justify-between">
+                    <FieldLabel htmlFor="renew-pt-fee">Trainer Fee (Rs.)</FieldLabel>
+                    <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                      Default: Rs. 10,000 (Adjustable)
+                    </span>
+                  </div>
+                  <input
+                    id="renew-pt-fee"
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={ptFee}
+                    onChange={e => setPtFee(e.target.value)}
+                    placeholder="10000"
+                    className={inputClass}
+                  />
+                  <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                    Aap trainer ki fee manually kam ya ziada kar saktay hain.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-[11px] text-rose-700 dark:text-rose-300">
+                  ⚠️ Renewal submit hotay hi <strong>{trainerName}</strong> is member ke card/profile se auto-remove ho jayega.
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Says what the member is buying before they pay for it. Days
               still on the clock are carried, so renewing early costs them
               nothing. */}
@@ -273,13 +390,43 @@ export default function RenewModal({ member, plans, settings, onClose, onRenewed
             </div>
           )}
 
+          {/* Total Fee Summary Card */}
+          <div className="rounded-xl bg-gray-50 dark:bg-slate-800/70 border border-gray-200 dark:border-slate-800 p-3 space-y-1.5 text-xs">
+            <div className="flex items-center justify-between text-gray-600 dark:text-slate-300">
+              <span>Gym Plan ({picked?.name || ms.planName}):</span>
+              <span className="font-semibold text-gray-900 dark:text-slate-100">
+                Rs. {gymAmount.toLocaleString('en-PK')}
+              </span>
+            </div>
+            {hasTrainer && (
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600 dark:text-slate-300">Trainer Fee ({trainerName}):</span>
+                {includeTrainer ? (
+                  <span className="font-semibold text-purple-600 dark:text-purple-400">
+                    + Rs. {ptFeeNum.toLocaleString('en-PK')}
+                  </span>
+                ) : (
+                  <span className="font-semibold text-rose-500 dark:text-rose-400">
+                    Removed (Rs. 0)
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-slate-700 font-bold text-sm">
+              <span className="text-gray-900 dark:text-slate-100">Total Fee Collected:</span>
+              <span className="text-blue-600 dark:text-blue-400">
+                Rs. {totalAmount.toLocaleString('en-PK')}
+              </span>
+            </div>
+          </div>
+
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
               className={`flex-1 ${secondaryButton}`}>
               Cancel
             </button>
             <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
-              {saving ? 'Renewing...' : 'Renew'}
+              {saving ? 'Renewing...' : `Renew (Rs. ${totalAmount.toLocaleString('en-PK')})`}
             </button>
           </div>
         </form>

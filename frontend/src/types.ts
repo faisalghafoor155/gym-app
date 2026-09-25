@@ -324,7 +324,7 @@ export interface Member {
   /** Null for a member who has not been sold a membership yet. */
   currentMembership: Membership | null;
   trainerId?: string | null;
-  trainer?: { id: string; name: string } | null;
+  trainer?: { id: string; name: string; ptFee?: number | null } | null;
   /** The member's fingerprint enrolment, or null. Never carries the template
    *  itself — the roster only needs to know one exists. */
   fingerprint?: FingerprintEnrolment | null;
