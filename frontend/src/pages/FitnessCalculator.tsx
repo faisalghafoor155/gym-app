@@ -4,12 +4,14 @@ import {
   Scale, Sparkles, Copy, Check, Info, Award,
   Activity, Zap, Bot, Package, Clock, ShieldAlert,
   AlertCircle, Send, HelpCircle, CheckCircle2, ChevronRight,
-  Calendar, Layers, Dumbbell as WorkoutIcon
+  Calendar, Layers, Key, Trash2, Dumbbell as WorkoutIcon
 } from 'lucide-react';
 import {
   Page, PageHeader, Card, SegmentedControl, FieldLabel,
-  inputClass, secondaryButton,
+  inputClass, secondaryButton, Spinner,
 } from '../components/ui';
+import Modal from '../components/Modal';
+import api from '../api/client';
 import toast from 'react-hot-toast';
 
 type CalcTab = 'diet' | 'supplements_routine' | 'workout_split' | 'ai_advisor' | 'meal_plan';
@@ -155,6 +157,11 @@ export default function FitnessCalculator() {
 
   // AI Chat Q&A State
   const [userQuery, setUserQuery] = useState('');
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [copiedAnswerIdx, setCopiedAnswerIdx] = useState<number | null>(null);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [customApiKey, setCustomApiKey] = useState(() => localStorage.getItem('gym_gemini_api_key') || '');
+  const [tempApiKey, setTempApiKey] = useState(() => localStorage.getItem('gym_gemini_api_key') || '');
   const [aiAnswers, setAiAnswers] = useState<Array<{ question: string; answer: string; tag: string }>>([
     {
       question: 'Anabolic Mass ya Serious Mass k sath pet (belly fat) nikalne se kaise bachein?',
@@ -533,28 +540,88 @@ export default function FitnessCalculator() {
     },
   ];
 
-  const handleAskAi = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userQuery.trim()) return;
+  const QUICK_PROMPTS = [
+    { label: '📋 Full Pakistani Diet Plan', prompt: `Mere ${weightKg}kg wazan aur ${goal.replace('_', ' ')} target ke mutabiq subah se raat tak ka Mukammal Pakistani Desi Diet Plan banao.` },
+    { label: '🥩 Anabolic Mass Belly Fat Guide', prompt: 'Anabolic Mass ya Serious Mass k sath pet (belly fat) charhe bina lean muscle kaise banayein?' },
+    { label: '⚡ Creatine & Hydration Timing', prompt: 'Creatine Monohydrate 5g kis waqt lena chahiye aur kitna paani peena zaroori ha?' },
+    { label: '🔥 Pre-Workout Guidelines', prompt: 'Pre-workout (C4/Psychotic) lene ka sahi tareeqa aur precautions kia hain?' },
+    { label: '🏋️ 5-Day Workout Games Routine', prompt: '5-Day Hypertrophy split me daily kitni games aur kitne heavy sets lagane chahiye?' },
+  ];
 
-    const q = userQuery.toLowerCase();
-    let reply = `Aap ke ${weightKg}kg wazan aur ${goal.replace('_', ' ')} target ke mutabiq: `;
+  const handleAskAi = async (e?: React.FormEvent, customQuestion?: string) => {
+    if (e) e.preventDefault();
+    const query = customQuestion || userQuery;
+    if (!query.trim() || loadingAi) return;
 
-    if (q.includes('anabolic') || q.includes('serious mass') || q.includes('carnivor') || q.includes('gainer')) {
-      reply += `${gainer.name} lene ka behtareen tareeqa yeh ha ke pehle 1-2 hafte rozana sirf 1 scoop (half serving) lein. Is se aap ka pait kharab nahi hoga aur extra calories seedhi muscle build karengi. Rozana kam az kam 4 Liter paani zaroor piyen!`;
-    } else if (q.includes('preworkout') || q.includes('pre workout') || q.includes('c4') || q.includes('psychotic')) {
-      reply += 'Pre-workout hamesha gym se 20-30 minute pehle 250ml paani me lein. Khana khane ke foran baad na lein warna asar kam hoga. Hafte me 1-2 din bina pre-workout workout karein taake caffeine tolerance na barhay.';
-    } else if (q.includes('creatine') || q.includes('createne')) {
-      reply += 'Creatine Monohydrate rozana 5 gram paani ke sath len. Is se muscles me ATP energy barhti ha aur 3-4 hafte me strength aur muscle fullness me numayan farq parta ha. Loading phase zaroori nahi ha, 5g rozana kafi ha.';
-    } else if (q.includes('game') || q.includes('exercise') || q.includes('workout') || q.includes('sets')) {
-      reply += 'Mass gainer ke sath har roz 5 se 6 games (exercises) karein, har game ke 3-4 sets aur 8-10 reps heavy weight ke sath lagayein. Heavy compound exercises (Bench, Squat, Deadlift, Rows) zaroor karein taake calories muscles me utilize hon.';
-    } else {
-      reply += `Aap ke goal (${goal.replace('_', ' ')}) ke liye sab se zaroori ha ke aap rozana ${macros.targetCalories} calories aur ${macros.proteinGrams}g protein target discipline ke sath follow karein. Rozana ${macros.waterLiters} liter paani piyen aur 7-8 ghantay gehri neend len.`;
+    setLoadingAi(true);
+    try {
+      const res = await api.post<{ reply: string }>('/ai/chat', {
+        message: query.trim(),
+        context: {
+          gender,
+          weightKg: Number(weightKg) || 70,
+          heightCm: Number(heightCm) || 175,
+          age: Number(age) || 25,
+          activityLevel,
+          goal,
+          dietPreference,
+          selectedGainer,
+          takingCreatine,
+          takingPreworkout,
+          targetCalories: macros.targetCalories,
+          proteinGrams: macros.proteinGrams,
+          carbsGrams: macros.carbsGrams,
+          fatGrams: macros.fatGrams,
+          waterLiters: macros.waterLiters,
+        },
+        apiKey: customApiKey.trim() || undefined,
+      });
+
+      if (res.data?.reply) {
+        setAiAnswers(prev => [
+          {
+            question: query.trim(),
+            answer: res.data.reply,
+            tag: customQuestion ? 'Quick Coach' : 'AI Advice',
+          },
+          ...prev,
+        ]);
+        if (!customQuestion) setUserQuery('');
+        toast.success('AI Coach answered your question!');
+      }
+    } catch (err: unknown) {
+      const errorMsg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      toast.error(errorMsg || 'AI Coach se rabta nahi ho saka. Dobara koshish karein.');
+    } finally {
+      setLoadingAi(false);
     }
+  };
 
-    setAiAnswers(prev => [{ question: userQuery, answer: reply, tag: 'AI Coach' }, ...prev]);
-    setUserQuery('');
-    toast.success('AI Coach answered your question!');
+  const handleSaveApiKey = () => {
+    const trimmed = tempApiKey.trim();
+    setCustomApiKey(trimmed);
+    if (trimmed) {
+      localStorage.setItem('gym_gemini_api_key', trimmed);
+      toast.success('Gemini API Key browser me save ho gai ha!');
+    } else {
+      localStorage.removeItem('gym_gemini_api_key');
+      toast.success('Gym App Default AI Engine active ha.');
+    }
+    setShowApiKeyModal(false);
+  };
+
+  const handleCopyAnswer = (text: string, idx: number) => {
+    void navigator.clipboard.writeText(text);
+    setCopiedAnswerIdx(idx);
+    toast.success('AI advice copied to clipboard!');
+    setTimeout(() => setCopiedAnswerIdx(null), 2000);
+  };
+
+  const handleClearAiChat = () => {
+    if (window.confirm('Kia aap AI chat history clear karna chahtay hain?')) {
+      setAiAnswers([]);
+      toast.success('Chat history cleared');
+    }
   };
 
   const handleCopyDietSummary = () => {
@@ -1077,6 +1144,34 @@ Generated via Gym App Fitness & AI Calculator`;
               </Card>
             </div>
 
+            {/* Quick Action: Ask AI About This Stack */}
+            <div className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/40 gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                  <Bot size={22} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-purple-950 dark:text-purple-200">
+                    Want Live AI Protocol for {gainer.name} Stack?
+                  </h4>
+                  <p className="text-[11px] text-purple-700 dark:text-purple-300">
+                    AI Coach will analyze dosages, digestion safety, and belly-fat prevention specifically for your {weightKg}kg bodyweight.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setTab('ai_advisor');
+                  void handleAskAi(undefined, `Mujhe ${gainer.name} ${takingCreatine ? '+ Creatine 5g' : ''} ${takingPreworkout ? '+ Pre-workout' : ''} stack ke sath ${weightKg}kg wazan par pet charbi se bachne aur fast muscle gain ka protocol batayein.`);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition flex items-center gap-1.5 shrink-0 shadow-sm"
+              >
+                <Sparkles size={14} />
+                <span>Ask AI About This Stack</span>
+              </button>
+            </div>
+
             {/* Precise Timings & Diet Protocol when taking this stack */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Daily Timing Protocol */}
@@ -1363,13 +1458,18 @@ Generated via Gym App Fitness & AI Calculator`;
             <Card className="p-6 bg-gradient-to-r from-purple-950 via-slate-900 to-indigo-950 text-white border-purple-900/40">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center shrink-0 text-purple-300">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center shrink-0 text-purple-300 shadow-inner">
                     <Bot size={28} />
                   </div>
                   <div>
-                    <span className="text-xs text-purple-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                      <Sparkles size={14} /> AI Nutrition & Diet Advisor
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-purple-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                        <Sparkles size={14} /> AI Nutrition & Diet Advisor
+                      </span>
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
+                        ⚡ Live Engine
+                      </span>
+                    </div>
                     <h2 className="text-xl font-black mt-1">
                       Custom Plan For: {weightKg} kg Lifter ({goal.replace('_', ' ').toUpperCase()})
                     </h2>
@@ -1379,7 +1479,7 @@ Generated via Gym App Fitness & AI Calculator`;
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex flex-wrap items-center gap-3 shrink-0">
                   <div className="bg-white/10 px-3.5 py-2 rounded-xl text-center">
                     <span className="text-[10px] text-purple-300 uppercase block font-semibold">Target Calories</span>
                     <span className="text-base font-black text-white">{macros.targetCalories} kcal</span>
@@ -1388,6 +1488,18 @@ Generated via Gym App Fitness & AI Calculator`;
                     <span className="text-[10px] text-purple-300 uppercase block font-semibold">Required Protein</span>
                     <span className="text-base font-black text-rose-300">{macros.proteinGrams}g</span>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTempApiKey(customApiKey);
+                      setShowApiKeyModal(true);
+                    }}
+                    className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-purple-200 border border-white/10 transition text-xs flex items-center gap-1.5"
+                    title="Configure Gemini API Key"
+                  >
+                    <Key size={14} />
+                    <span className="hidden sm:inline">{customApiKey ? 'Custom Key Set' : 'AI Settings'}</span>
+                  </button>
                 </div>
               </div>
             </Card>
@@ -1483,51 +1595,112 @@ Generated via Gym App Fitness & AI Calculator`;
             </div>
 
             {/* Interactive Ask AI Section */}
-            <Card className="p-5 sm:p-6 space-y-4">
-              <div className="flex items-center gap-2">
-                <Bot size={20} className="text-purple-600 dark:text-purple-400" />
-                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">
-                  Ask AI Nutritionist Any Question
-                </h3>
-              </div>
-              <p className="text-xs text-gray-500 dark:text-slate-400">
-                Aap diet, mass gainer, pre-workout, creatine, fat loss ya exercises ke baray me koi bhi sawal pooch saktay hain:
-              </p>
+            <Card className="p-5 sm:p-6 space-y-4 border-purple-200 dark:border-purple-900/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-xl bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300">
+                    <Bot size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+                      GymPro AI Fitness & Nutrition Chatbot
+                      <span className="text-[10px] bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-bold px-2 py-0.5 rounded-full">
+                        Interactive
+                      </span>
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">
+                      Aap diet, mass gainer, pre-workout, creatine, fat loss ya exercises ke baray me koi bhi sawal pooch saktay hain:
+                    </p>
+                  </div>
+                </div>
 
-              <form onSubmit={handleAskAi} className="flex gap-2">
+                {aiAnswers.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearAiChat}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition text-xs flex items-center gap-1"
+                    title="Clear Chat History"
+                  >
+                    <Trash2 size={14} />
+                    <span className="hidden sm:inline text-[11px]">Clear</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Quick Prompt Chips */}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {QUICK_PROMPTS.map((p, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    disabled={loadingAi}
+                    onClick={() => void handleAskAi(undefined, p.prompt)}
+                    className="text-[11px] font-medium px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 hover:bg-purple-100 hover:border-purple-300 dark:hover:bg-purple-900/40 transition disabled:opacity-50 text-left"
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Chat Input Form */}
+              <form onSubmit={e => void handleAskAi(e)} className="flex gap-2">
                 <input
                   type="text"
                   value={userQuery}
                   onChange={e => setUserQuery(e.target.value)}
+                  disabled={loadingAi}
                   placeholder="e.g. Kia Anabolic Mass k sath pre-workout lena theek ha? Ya chest k kitne sets lagayein?"
                   className={inputClass}
                 />
                 <button
                   type="submit"
-                  disabled={!userQuery.trim()}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white transition flex items-center gap-1.5 shrink-0"
+                  disabled={!userQuery.trim() || loadingAi}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white transition flex items-center gap-1.5 shrink-0 shadow-md shadow-purple-600/30"
                 >
-                  <Send size={14} />
-                  <span>Ask AI</span>
+                  {loadingAi ? <Spinner className="w-4 h-4 text-white" /> : <Send size={14} />}
+                  <span>{loadingAi ? 'Thinking...' : 'Ask AI'}</span>
                 </button>
               </form>
+
+              {/* Loading Indicator */}
+              {loadingAi && (
+                <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50 flex items-center gap-3 animate-pulse">
+                  <Spinner className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                  <div className="text-xs text-purple-900 dark:text-purple-200">
+                    <strong className="block font-bold">GymPro AI is analyzing your stats & formulating recommendations...</strong>
+                    <span className="text-[11px] text-purple-700 dark:text-purple-300">
+                      Profile: {weightKg}kg | {goal.replace('_', ' ')} | {gainer.name}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* Answers Feed */}
               <div className="space-y-3 pt-2">
                 {aiAnswers.map((item, idx) => (
-                  <div key={idx} className="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/70 border border-gray-100 dark:border-slate-800 space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
-                        <HelpCircle size={14} className="text-purple-600 dark:text-purple-400" />
-                        {item.question}
-                      </span>
-                      <span className="text-[10px] font-semibold text-purple-600 bg-purple-50 dark:bg-purple-500/10 px-2 py-0.5 rounded-full">
-                        {item.tag}
-                      </span>
+                  <div key={idx} className="p-4 sm:p-5 rounded-xl bg-gray-50 dark:bg-slate-800/70 border border-gray-100 dark:border-slate-800 space-y-2.5 shadow-xs">
+                    <div className="flex items-start justify-between gap-3 text-xs">
+                      <div className="flex items-start gap-2 font-bold text-gray-900 dark:text-slate-100">
+                        <HelpCircle size={15} className="text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+                        <span>{item.question}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] font-semibold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-500/20 px-2 py-0.5 rounded-full">
+                          {item.tag}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyAnswer(item.answer, idx)}
+                          title="Copy advice"
+                          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 rounded transition"
+                        >
+                          {copiedAnswerIdx === idx ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-700 dark:text-slate-300 leading-relaxed pl-5 border-l-2 border-purple-500/40">
-                      {item.answer}
-                    </p>
+                    <div className="pl-3 sm:pl-5 border-l-2 border-purple-500/40">
+                      <FormattedAiResponse content={item.answer} />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1552,14 +1725,27 @@ Generated via Gym App Fitness & AI Calculator`;
                     Body weight {weightKg} kg {selectedGainer !== 'none' ? `+ ${gainer.name} (${gainerCalories} kcal)` : ''} ke hisaab se 4 meals me protein aur calories ko scientifically divide kiya gaya ha.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleCopyDietSummary}
-                  className="px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-2 shrink-0 shadow-md shadow-blue-600/30"
-                >
-                  {copiedPlan ? <Check size={16} /> : <Copy size={16} />}
-                  <span>{copiedPlan ? 'Copied to Clipboard' : 'Copy Full Plan'}</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTab('ai_advisor');
+                      void handleAskAi(undefined, `Mujhe ${weightKg}kg wazan aur ${goal.replace('_', ' ')} target ke liye full customized Pakistani Desi meal plan aur exact timing detail se samjhao.`);
+                    }}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition flex items-center gap-2 shrink-0 shadow-md shadow-purple-600/30"
+                  >
+                    <Sparkles size={16} />
+                    <span>Ask AI To Personalize Diet</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyDietSummary}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-2 shrink-0 shadow-md shadow-blue-600/30"
+                  >
+                    {copiedPlan ? <Check size={16} /> : <Copy size={16} />}
+                    <span>{copiedPlan ? 'Copied to Clipboard' : 'Copy Full Plan'}</span>
+                  </button>
+                </div>
               </div>
             </Card>
 
@@ -1633,6 +1819,141 @@ Generated via Gym App Fitness & AI Calculator`;
           </div>
         )}
       </div>
+
+      {/* Gemini API Key Configuration Modal */}
+      {showApiKeyModal && (
+        <Modal title="AI Engine & Gemini API Configuration" onClose={() => setShowApiKeyModal(false)}>
+          <div className="space-y-4 text-xs">
+            <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/40 text-purple-950 dark:text-purple-200">
+              <strong className="block font-bold mb-1">⚡ Automatic AI Active by Default</strong>
+              <p className="text-purple-800 dark:text-purple-300 leading-relaxed">
+                Gym App backend incorporates our comprehensive sports nutrition AI engine out of the box with zero setup needed!
+              </p>
+            </div>
+
+            <div>
+              <FieldLabel>Custom Google Gemini API Key (Optional)</FieldLabel>
+              <p className="text-[11px] text-gray-500 dark:text-slate-400 mb-2">
+                If you have a Google AI Studio key (`AIza...`), you can paste it here to run directly on Google Gemini Flash:
+              </p>
+              <input
+                type="password"
+                value={tempApiKey}
+                onChange={e => setTempApiKey(e.target.value)}
+                placeholder="AIzaSy..."
+                className={inputClass}
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => {
+                  setTempApiKey('');
+                  handleSaveApiKey();
+                }}
+                className="text-xs text-rose-600 hover:underline font-medium"
+              >
+                Clear Custom Key
+              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowApiKeyModal(false)}
+                  className={secondaryButton}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveApiKey}
+                  className="px-4 py-2 rounded-xl font-bold bg-purple-600 hover:bg-purple-700 text-white transition text-xs"
+                >
+                  Save Preference
+                </button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
     </Page>
   );
+}
+
+function FormattedAiResponse({ content }: { content: string }) {
+  const lines = content.split('\n');
+  return (
+    <div className="space-y-2 text-xs leading-relaxed text-gray-800 dark:text-slate-200">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={i} className="h-1" />;
+
+        // Header 3 or 2
+        if (trimmed.startsWith('### ') || trimmed.startsWith('## ')) {
+          const text = trimmed.replace(/^#{2,3}\s+/, '');
+          return (
+            <h4 key={i} className="text-sm font-bold text-purple-900 dark:text-purple-300 pt-2 pb-0.5 border-b border-purple-100 dark:border-purple-900/30 flex items-center gap-1.5">
+              <Sparkles size={14} className="text-purple-600 dark:text-purple-400 shrink-0" />
+              <span>{renderBold(text)}</span>
+            </h4>
+          );
+        }
+
+        // Horizontal divider
+        if (trimmed === '---' || trimmed === '***') {
+          return <hr key={i} className="border-gray-200 dark:border-slate-800 my-2" />;
+        }
+
+        // Bullet point
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          const text = trimmed.substring(2);
+          return (
+            <div key={i} className="flex items-start gap-2 pl-1.5">
+              <span className="text-purple-600 dark:text-purple-400 font-bold shrink-0 leading-5">•</span>
+              <span className="leading-5">{renderBold(text)}</span>
+            </div>
+          );
+        }
+
+        // Numbered list
+        const numMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
+        if (numMatch) {
+          return (
+            <div key={i} className="flex items-start gap-2 pl-1.5">
+              <span className="text-xs font-bold text-purple-700 dark:text-purple-400 shrink-0 leading-5">
+                {numMatch[1]}.
+              </span>
+              <span className="leading-5">{renderBold(numMatch[2])}</span>
+            </div>
+          );
+        }
+
+        // Callout tip or blockquote
+        if (trimmed.startsWith('💡') || trimmed.startsWith('⚠️') || trimmed.startsWith('>')) {
+          const text = trimmed.replace(/^>\s*/, '');
+          return (
+            <div key={i} className="p-2.5 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/50 text-purple-950 dark:text-purple-200 font-medium my-1">
+              {renderBold(text)}
+            </div>
+          );
+        }
+
+        return <p key={i} className="leading-5">{renderBold(trimmed)}</p>;
+      })}
+    </div>
+  );
+}
+
+function renderBold(text: string) {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={index} className="font-semibold text-gray-900 dark:text-white">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return part;
+  });
 }
