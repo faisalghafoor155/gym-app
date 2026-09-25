@@ -5,7 +5,7 @@ import {
 import { Dumbbell, UserCheck, UserX } from 'lucide-react';
 import api, { apiError } from '../../api/client';
 import { useDialog } from '../../hooks/useDialog';
-import type { GymSettings, Member, MembershipPlan, PaymentChannel, PaymentMethod } from '../../types';
+import type { GymSettings, Member, MembershipPlan, PaymentChannel, PaymentMethod, Trainer } from '../../types';
 import { CHANNELS, CHANNEL_LABELS, accountFor } from '../../utils/paymentChannels';
 import toast from 'react-hot-toast';
 
@@ -47,6 +47,7 @@ interface Props {
    *  `currentMembership` is non-null by the time this mounts. */
   member: Member & { currentMembership: NonNullable<Member['currentMembership']> };
   plans: MembershipPlan[];
+  trainers?: Trainer[];
   /** The gym's published accounts, for the line under the channel picker.
    *  Null while they are still loading, or if that call failed. */
   settings: GymSettings | null;
@@ -61,13 +62,17 @@ interface Props {
  * read a half-typed renewal, and keeping it here means the values are gone
  * when the modal closes rather than lingering to reappear on the next member.
  */
-export default function RenewModal({ member, plans, settings, onClose, onRenewed }: Props) {
+export default function RenewModal({ member, plans, trainers, settings, onClose, onRenewed }: Props) {
   const ms = member.currentMembership;
 
   const hasTrainer = Boolean(member.trainerId || member.trainer);
   const trainerName = member.trainer?.name || 'Assigned Trainer';
 
   const [includeTrainer, setIncludeTrainer] = useState<boolean>(hasTrainer);
+  const [selectedTrainerId, setSelectedTrainerId] = useState<string>(() => {
+    return member.trainerId || member.trainer?.id || '';
+  });
+
   // Default to 10,000 as requested, or trainer's custom fee if set, manually editable
   const [ptFee, setPtFee] = useState<string>(() => {
     if (member.trainer?.ptFee != null && Number(member.trainer.ptFee) > 0) {
@@ -94,8 +99,13 @@ export default function RenewModal({ member, plans, settings, onClose, onRenewed
 
   const picked = plans.find(p => p.id === form.planId);
 
+  const isAddingNewTrainer = !hasTrainer && includeTrainer && Boolean(selectedTrainerId);
+  const effectiveTrainerName = hasTrainer
+    ? trainerName
+    : trainers?.find(t => t.id === selectedTrainerId)?.name || 'Personal Trainer';
+
   const gymAmount = Number(form.amount) || 0;
-  const ptFeeNum = hasTrainer && includeTrainer ? Math.max(0, Number(ptFee) || 0) : 0;
+  const ptFeeNum = (hasTrainer ? includeTrainer : isAddingNewTrainer) ? Math.max(0, Number(ptFee) || 0) : 0;
   const totalAmount = gymAmount + ptFeeNum;
 
   const handleSubmit = async (e: FormEvent) => {
@@ -118,12 +128,19 @@ export default function RenewModal({ member, plans, settings, onClose, onRenewed
           includeTrainer,
           ptFee: includeTrainer ? ptFeeNum : 0,
         }),
+        ...(!hasTrainer && isAddingNewTrainer && {
+          includeTrainer: true,
+          trainerId: selectedTrainerId,
+          ptFee: ptFeeNum,
+        }),
       });
 
       if (hasTrainer && !includeTrainer) {
         toast.success(`Membership renewed. Trainer (${trainerName}) removed from card.`);
       } else if (hasTrainer && includeTrainer) {
         toast.success(`Membership & Trainer renewed (Total: Rs. ${totalAmount.toLocaleString('en-PK')})`);
+      } else if (isAddingNewTrainer) {
+        toast.success(`Membership renewed & Trainer (${effectiveTrainerName}) assigned (Total: Rs. ${totalAmount.toLocaleString('en-PK')})`);
       } else {
         toast.success('Membership renewed');
       }
@@ -373,6 +390,81 @@ export default function RenewModal({ member, plans, settings, onClose, onRenewed
             </div>
           )}
 
+          {/* Optional Add Trainer for members who do not currently have a trainer */}
+          {!hasTrainer && trainers && trainers.length > 0 && (
+            <div className="rounded-xl border border-dashed border-gray-300 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/40 p-3.5 space-y-2.5">
+              <label className="flex items-center gap-2 text-xs font-semibold text-gray-800 dark:text-slate-200 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeTrainer}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    setIncludeTrainer(checked);
+                    if (checked && !selectedTrainerId && trainers[0]) {
+                      setSelectedTrainerId(trainers[0].id);
+                    }
+                  }}
+                  className="w-4 h-4 text-purple-600 rounded"
+                />
+                <span className="flex items-center gap-1.5">
+                  <Dumbbell size={14} className="text-purple-600" />
+                  + Add Personal Trainer (PT) with this renewal?
+                </span>
+              </label>
+
+              {includeTrainer && (
+                <div className="space-y-2.5 pt-2.5 border-t border-gray-200 dark:border-slate-700">
+                  <div>
+                    <FieldLabel htmlFor="renew-new-trainer">Select Personal Trainer</FieldLabel>
+                    <select
+                      id="renew-new-trainer"
+                      value={selectedTrainerId}
+                      onChange={e => {
+                        const id = e.target.value;
+                        setSelectedTrainerId(id);
+                        const t = trainers.find(item => item.id === id);
+                        if (t?.ptFee != null && Number(t.ptFee) > 0) {
+                          setPtFee(String(t.ptFee));
+                        } else {
+                          setPtFee('10000');
+                        }
+                      }}
+                      className={inputClass}
+                    >
+                      <option value="">Select a trainer</option>
+                      {trainers.map(t => (
+                        <option key={t.id} value={t.id}>
+                          {t.name} ({t.specialization || 'Trainer'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <FieldLabel htmlFor="renew-new-pt-fee">Trainer Fee (Rs.)</FieldLabel>
+                      <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                        Default: Rs. 10,000 (Adjustable)
+                      </span>
+                    </div>
+                    <input
+                      id="renew-new-pt-fee"
+                      type="number"
+                      min={0}
+                      step={100}
+                      value={ptFee}
+                      onChange={e => setPtFee(e.target.value)}
+                      placeholder="10000"
+                      className={inputClass}
+                    />
+                    <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                      Aap trainer ki fee manually kam ya ziada kar saktay hain.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Says what the member is buying before they pay for it. Days
               still on the clock are carried, so renewing early costs them
               nothing. */}
@@ -398,10 +490,10 @@ export default function RenewModal({ member, plans, settings, onClose, onRenewed
                 Rs. {gymAmount.toLocaleString('en-PK')}
               </span>
             </div>
-            {hasTrainer && (
+            {(hasTrainer || isAddingNewTrainer) && (
               <div className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-slate-300">Trainer Fee ({trainerName}):</span>
-                {includeTrainer ? (
+                <span className="text-gray-600 dark:text-slate-300">Trainer Fee ({effectiveTrainerName}):</span>
+                {ptFeeNum > 0 ? (
                   <span className="font-semibold text-purple-600 dark:text-purple-400">
                     + Rs. {ptFeeNum.toLocaleString('en-PK')}
                   </span>

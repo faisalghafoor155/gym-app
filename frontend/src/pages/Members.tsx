@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, CalendarPlus, QrCode, Fingerprint, PauseCircle, PlayCircle, XCircle } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, CalendarPlus, QrCode, Fingerprint, PauseCircle, PlayCircle, XCircle, Dumbbell, UserPlus } from 'lucide-react';
 import Badge from '../components/Badge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FingerprintEnrollModal from '../components/FingerprintEnrollModal';
 import MemberFormModal from '../components/members/MemberFormModal';
 import MemberQrModal from '../components/members/MemberQrModal';
 import RenewModal from '../components/members/RenewModal';
+import AssignTrainerModal from '../components/members/AssignTrainerModal';
 import {
   Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl,
   inputClass, primaryButton, secondaryButton, focusRing,
@@ -90,6 +91,7 @@ export default function Members() {
   /** The member whose check-in code is on screen. The code itself is the
    *  modal's business. */
   const [qrMember, setQrMember] = useState<Member | null>(null);
+  const [assignTrainerMember, setAssignTrainerMember] = useState<Member | null>(null);
   const [fingerprintMember, setFingerprintMember] = useState<Member | null>(null);
   /** True when the dialog opened itself after a registration rather than being
    *  asked for from the roster — only affects its wording. */
@@ -515,10 +517,34 @@ export default function Members() {
                 )}
 
                 {/* Trainer Assignment */}
-                {m.trainer && (
-                  <div className="mt-3 px-3 py-1.5 rounded-lg bg-indigo-50/50 dark:bg-indigo-950/20 text-xs flex items-center justify-between text-indigo-700 dark:text-indigo-400">
-                    <span className="font-semibold flex items-center gap-1.5">🏋️ Trainer</span>
-                    <span className="font-bold">{m.trainer.name}</span>
+                {m.trainer ? (
+                  <div className="mt-3 px-3 py-1.5 rounded-lg bg-purple-50/60 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/40 text-xs flex items-center justify-between text-purple-700 dark:text-purple-300">
+                    <span className="font-semibold flex items-center gap-1.5 truncate mr-2">
+                      <Dumbbell size={13} className="shrink-0 text-purple-600 dark:text-purple-400" />
+                      <span className="truncate">{m.trainer.name}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setAssignTrainerMember(m)}
+                      className="shrink-0 font-medium text-[11px] underline hover:text-purple-900 dark:hover:text-purple-200 transition-colors"
+                      title="Change or remove assigned trainer"
+                    >
+                      Change / Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-3 px-3 py-1.5 rounded-lg bg-gray-50/80 dark:bg-slate-800/40 border border-dashed border-gray-200 dark:border-slate-700/60 text-xs flex items-center justify-between text-gray-500 dark:text-slate-400">
+                    <span className="text-[11px] flex items-center gap-1.5 text-gray-400 dark:text-slate-500">
+                      <Dumbbell size={12} className="opacity-60" />
+                      <span>No Trainer</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setAssignTrainerMember(m)}
+                      className="font-semibold text-[11px] text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1 transition-colors"
+                    >
+                      <UserPlus size={11} /> + Add Trainer
+                    </button>
                   </div>
                 )}
 
@@ -627,9 +653,23 @@ export default function Members() {
         <RenewModal
           member={renewing as Member & { currentMembership: NonNullable<Member['currentMembership']> }}
           plans={plans}
+          trainers={activeTrainers}
           settings={settings}
           onClose={() => setRenewing(null)}
           onRenewed={() => { setRenewing(null); void load(); }}
+        />
+      )}
+
+      {/* Assign, change or remove personal trainer */}
+      {assignTrainerMember && (
+        <AssignTrainerModal
+          member={assignTrainerMember}
+          trainers={activeTrainers}
+          onClose={() => setAssignTrainerMember(null)}
+          onAssigned={() => {
+            setAssignTrainerMember(null);
+            void load();
+          }}
         />
       )}
 
