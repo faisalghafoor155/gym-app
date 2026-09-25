@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  CalendarCheck, CreditCard, Dumbbell, Utensils, Clock, ShieldCheck, Sparkles,
+  CalendarCheck, CreditCard, Dumbbell, Utensils, Clock, ShieldCheck, Sparkles, Calculator, ArrowRight,
 } from 'lucide-react';
 import Badge from '../components/Badge';
 import {
@@ -310,6 +311,28 @@ export default function MyPortal() {
             ))}
           </div>
         )}
+      </Card>
+
+      {/* Fitness & Diet Calculator Quick Access */}
+      <Card className="p-4 sm:p-5 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent border-blue-200 dark:border-blue-500/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-blue-600/25">
+              <Calculator size={20} />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm">Calculate Your Daily Calories & Protein</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Apne body weight ke mutabiq exact daily calories, protein grams aur workout weights calculate karein.</p>
+            </div>
+          </div>
+          <Link
+            to="/calculator"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm shrink-0"
+          >
+            <span>Open Calculator</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
       </Card>
 
       {/* Plans */}

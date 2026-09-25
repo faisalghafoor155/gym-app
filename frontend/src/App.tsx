@@ -49,6 +49,7 @@ const MyPortal = lazy(() => import('./pages/MyPortal'));
 const Security = lazy(() => import('./pages/Security'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const Subscription = lazy(() => import('./pages/Subscription'));
+const FitnessCalculator = lazy(() => import('./pages/FitnessCalculator'));
 
 /** The whole-app boot state, before the session is known. */
 function BootSpinner() {
@@ -185,7 +186,8 @@ function AppRoutes() {
               <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/my" element={<MyPortal />} />
-                {/* Every role — the second factor guards an account, not a job. */}
+                {/* Every role — calculator, security and profile are available to all */}
+                <Route path="/calculator" element={<FitnessCalculator />} />
                 <Route path="/security" element={<Security />} />
                  <Route path="/dashboard" element={<StaffRoute><Dashboard /></StaffRoute>} />
                 <Route path="/attendance" element={<PermissionRoute action="canViewAttendance"><Attendance /></PermissionRoute>} />

@@ -12,7 +12,7 @@ import type { PlanFeatures } from '../utils/entitlements';
 import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   Dumbbell, LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
-  BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText, Sparkles,
+  BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText, Sparkles, Calculator,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -31,6 +31,7 @@ const staffNavItems: NavItem[] = [
   // to. Labelled apart so the sidebar does not read as a duplicate.
   { to: '/membership-plans', label: 'Membership Plans', icon: Tag },
   { to: '/plans', label: 'Workout & Diet', icon: Dumbbell },
+  { to: '/calculator', label: 'Fitness Calculator', icon: Calculator },
   { to: '/supplements', label: 'Supplements', icon: FlaskConical },
   // Taking a fee is counter work, so the page is staff's. What they see on it
   // is not: the server narrows their list to the payments they recorded
@@ -68,6 +69,7 @@ const ownerNavItems: NavItem[] = [
 
 const memberNavItems: NavItem[] = [
   { to: '/my', label: 'My Membership', icon: User },
+  { to: '/calculator', label: 'Fitness Calculator', icon: Calculator },
 ];
 
 /** Account security is everyone's, so it trails whatever list the role gets. */

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Plus, ClipboardList, Dumbbell, Utensils, UserPlus, Trash, ChevronDown, ChevronUp } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, ClipboardList, Dumbbell, Utensils, UserPlus, Trash, ChevronDown, ChevronUp, Calculator } from 'lucide-react';
 import Modal from '../components/Modal';
 import {
   Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl, FieldLabel,
@@ -182,6 +183,10 @@ export default function Plans() {
         subtitle="What members train to and eat by"
         action={
           <div className="flex gap-2">
+            <Link to="/calculator" className={secondaryButton} title="Open Fitness & Diet Calculator">
+              <Calculator size={15} className="text-blue-600 dark:text-blue-400" />
+              <span className="hidden sm:inline">Calculator</span>
+            </Link>
             <button onClick={() => setShowAssign(true)} className={secondaryButton}>
               <UserPlus size={15} />
               <span className="hidden sm:inline">Assign to Member</span>
