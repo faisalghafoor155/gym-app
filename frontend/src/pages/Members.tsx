@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, CalendarPlus, QrCode, Fingerprint, PauseCircle, PlayCircle, XCircle, Dumbbell, UserPlus } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, CalendarPlus, QrCode, Fingerprint, PauseCircle, PlayCircle, XCircle, Dumbbell, UserPlus, MessageCircle } from 'lucide-react';
 import Badge from '../components/Badge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FingerprintEnrollModal from '../components/FingerprintEnrollModal';
@@ -13,6 +13,8 @@ import {
   inputClass, primaryButton, secondaryButton, focusRing,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import { openWhatsApp, createExpiryMessage, createGeneralMessage } from '../utils/whatsapp';
 import { useDebounced } from '../hooks/useDebounced';
 import { useFingerprintReader } from '../hooks/useFingerprintReader';
 import type {
@@ -84,9 +86,31 @@ const canSuspend = (m: Member): boolean => {
 const canResume = (m: Member): boolean => m.currentMembership?.status === 'suspended';
 
 export default function Members() {
+  const { gym } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const handleWhatsApp = (m: Member) => {
+    if (!m.phone) {
+      toast.error('No phone number recorded for this member');
+      return;
+    }
+    const ms = m.currentMembership;
+    const text = ms && (ms.status === 'expiring' || ms.status === 'expired')
+      ? createExpiryMessage({
+          memberName: m.name,
+          gymName: gym?.name,
+          planName: ms.planName,
+          daysLeft: ms.daysLeft,
+          expiryDate: ms.expiryDate,
+        })
+      : createGeneralMessage({
+          memberName: m.name,
+          gymName: gym?.name,
+        });
+    openWhatsApp(m.phone, text);
+  };
   const [showModal, setShowModal] = useState(false);
   /** The member whose check-in code is on screen. The code itself is the
    *  modal's business. */
@@ -469,9 +493,22 @@ export default function Members() {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-gray-900 dark:text-slate-100 truncate">{m.name}</h3>
                     <p className="text-xs font-medium text-gray-400 dark:text-slate-500 mt-0.5">{m.memberNo}</p>
-                    <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
-                      <Phone size={11} /> {m.phone || 'No phone'}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1">
+                        <Phone size={11} /> {m.phone || 'No phone'}
+                      </p>
+                      {m.phone && (
+                        <button
+                          type="button"
+                          onClick={() => handleWhatsApp(m)}
+                          title="Message on WhatsApp"
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
+                        >
+                          <MessageCircle size={11} className="fill-emerald-500/20" />
+                          <span>WhatsApp</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {lapsed
                     ? <Badge status="lapsed" />
@@ -548,61 +585,105 @@ export default function Members() {
                   </div>
                 )}
 
-                <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
-                  <button onClick={() => setQrMember(m)}
-                    aria-label={`Show ${m.name}'s check-in code`}
-                    className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}>
-                    <QrCode size={12} />
-                  </button>
-                  {/* Filled when enrolled, outlined when not — the desk can see
-                      at a glance who can use the reader without opening it. */}
-                  <button onClick={() => { setFingerprintAfterRegister(false); setFingerprintMember(m); }}
-                    aria-label={m.fingerprint
-                      ? `Manage ${m.name}'s fingerprint`
-                      : `Enrol ${m.name}'s fingerprint`}
-                    title={m.fingerprint ? 'Fingerprint enrolled' : 'No fingerprint enrolled'}
-                    className={`flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${focusRing} ${
-                      m.fingerprint
-                        ? 'border-blue-200 dark:border-blue-500/30 text-blue-600 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-50 dark:hover:bg-blue-950/40'
-                        : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60'
-                    }`}>
-                    <Fingerprint size={12} />
-                  </button>
-                  <button onClick={() => openEdit(m)} aria-label={`Edit ${m.name}`}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}>
-                    <Pencil size={12} /> Edit
-                  </button>
-                  {canRenew(m) && (
-                    <button onClick={() => setRenewing(m)} aria-label={`Renew ${m.name}'s membership`}
-                      className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-blue-100 dark:border-blue-500/20 text-blue-600 hover:bg-blue-50 transition-colors ${focusRing}`}>
-                      <CalendarPlus size={12} /> Renew
+                <div className="mt-4 pt-3.5 border-t border-gray-100 dark:border-slate-800 space-y-2">
+                  {/* Primary Row: QR, Fingerprint, Edit, WhatsApp, Renew */}
+                  <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
+                    <button
+                      onClick={() => setQrMember(m)}
+                      aria-label={`Show ${m.name}'s check-in code`}
+                      title="Check-in QR Code"
+                      className={`p-2 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors shrink-0 ${focusRing}`}
+                    >
+                      <QrCode size={13} />
                     </button>
-                  )}
-                  {canSuspend(m) && (
-                    <button onClick={() => setStatusChange({ member: m, verb: 'suspend' })}
-                      aria-label={`Suspend ${m.name}'s membership`} title="Pause this membership"
-                      className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-orange-100 dark:border-orange-500/20 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors ${focusRing}`}>
-                      <PauseCircle size={12} /> Suspend
+                    <button
+                      onClick={() => { setFingerprintAfterRegister(false); setFingerprintMember(m); }}
+                      aria-label={m.fingerprint ? `Manage ${m.name}'s fingerprint` : `Enrol ${m.name}'s fingerprint`}
+                      title={m.fingerprint ? 'Fingerprint enrolled' : 'No fingerprint enrolled'}
+                      className={`p-2 rounded-lg text-xs font-medium border transition-colors shrink-0 ${focusRing} ${
+                        m.fingerprint
+                          ? 'border-blue-200 dark:border-blue-500/30 text-blue-600 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-50'
+                          : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <Fingerprint size={13} />
                     </button>
-                  )}
-                  {canResume(m) && (
-                    <button onClick={() => setStatusChange({ member: m, verb: 'resume' })}
-                      aria-label={`Resume ${m.name}'s membership`} title="Put this membership back into service"
-                      className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-green-100 dark:border-green-500/20 text-green-600 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors ${focusRing}`}>
-                      <PlayCircle size={12} /> Resume
+                    <button
+                      onClick={() => openEdit(m)}
+                      aria-label={`Edit ${m.name}`}
+                      className={`flex-1 min-w-[70px] flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}
+                    >
+                      <Pencil size={12} /> Edit
                     </button>
-                  )}
-                  {(canSuspend(m) || canResume(m)) && (
-                    <button onClick={() => setStatusChange({ member: m, verb: 'cancel' })}
-                      aria-label={`Cancel ${m.name}'s membership`} title="Call this membership off for good"
-                      className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}>
-                      <XCircle size={12} /> Cancel
+                    {m.phone && (
+                      <button
+                        onClick={() => handleWhatsApp(m)}
+                        aria-label={`Send WhatsApp message to ${m.name}`}
+                        title={ms?.status === 'expiring' || ms?.status === 'expired' ? 'Send WhatsApp expiry reminder' : 'Send WhatsApp message'}
+                        className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors shrink-0 ${focusRing} ${
+                          ms?.status === 'expiring' || ms?.status === 'expired'
+                            ? 'border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/40 hover:bg-emerald-100'
+                            : 'border-gray-200 dark:border-slate-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-slate-800/60'
+                        }`}
+                      >
+                        <MessageCircle size={13} />
+                        <span>Chat</span>
+                      </button>
+                    )}
+                    {canRenew(m) && (
+                      <button
+                        onClick={() => setRenewing(m)}
+                        aria-label={`Renew ${m.name}'s membership`}
+                        className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition-colors shrink-0 ${focusRing}`}
+                      >
+                        <CalendarPlus size={12} /> Renew
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Secondary Management Row: Suspend, Resume, Cancel, Delete */}
+                  <div className="flex items-center justify-between gap-1.5 pt-1">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      {canSuspend(m) && (
+                        <button
+                          onClick={() => setStatusChange({ member: m, verb: 'suspend' })}
+                          aria-label={`Suspend ${m.name}'s membership`}
+                          title="Pause this membership"
+                          className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-orange-200 dark:border-orange-500/20 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors ${focusRing}`}
+                        >
+                          <PauseCircle size={12} /> Suspend
+                        </button>
+                      )}
+                      {canResume(m) && (
+                        <button
+                          onClick={() => setStatusChange({ member: m, verb: 'resume' })}
+                          aria-label={`Resume ${m.name}'s membership`}
+                          title="Put this membership back into service"
+                          className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-green-200 dark:border-green-500/20 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors ${focusRing}`}
+                        >
+                          <PlayCircle size={12} /> Resume
+                        </button>
+                      )}
+                      {(canSuspend(m) || canResume(m)) && (
+                        <button
+                          onClick={() => setStatusChange({ member: m, verb: 'cancel' })}
+                          aria-label={`Cancel ${m.name}'s membership`}
+                          title="Cancel this membership"
+                          className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors ${focusRing}`}
+                        >
+                          <XCircle size={12} /> Cancel
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setDeleting(m)}
+                      aria-label={`Delete ${m.name}`}
+                      title="Delete member"
+                      className={`p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0 ${focusRing}`}
+                    >
+                      <Trash2 size={13} />
                     </button>
-                  )}
-                  <button onClick={() => setDeleting(m)} aria-label={`Delete ${m.name}`}
-                    className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-red-100 dark:border-red-500/20 text-red-500 hover:bg-red-50 transition-colors ${focusRing}`}>
-                    <Trash2 size={12} />
-                  </button>
+                  </div>
                 </div>
               </Card>
             );
