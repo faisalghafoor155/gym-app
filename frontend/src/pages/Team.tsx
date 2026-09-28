@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Shield, User, UserCog, Trash2, Crown, KeyRound } from 'lucide-react';
+import { Plus, Shield, User, UserCog, Trash2, Crown, KeyRound, Upload, Building2 } from 'lucide-react';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
@@ -133,7 +133,31 @@ export default function Team() {
    * never again, so a typo in the name printed on every receipt could only be
    * fixed in the database.
    */
-  const [profile, setProfile] = useState({ name: '', ownerName: '', phone: '', address: '' });
+  const [profile, setProfile] = useState<{
+    name: string;
+    ownerName: string;
+    phone: string;
+    address: string;
+    logo: string | null;
+  }>({ name: '', ownerName: '', phone: '', address: '', logo: null });
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Logo image must be under 2MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setProfile(p => ({ ...p, logo: ev.target?.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setProfile(p => ({ ...p, logo: null }));
+  };
 
   // Gym-wide pricing. Held as a string so an emptied field does not become 0
   // while the owner is mid-edit.
@@ -186,6 +210,7 @@ export default function Team() {
           ownerName: r.data.ownerName,
           phone: r.data.phone ?? '',
           address: r.data.address ?? '',
+          logo: r.data.logo ?? null,
         });
         setPtFeeInput(String(r.data.defaultPtFee));
         setAccounts({
@@ -210,6 +235,7 @@ export default function Team() {
         // Blank clears these, and the receipt simply omits the line.
         phone: profile.phone.trim(),
         address: profile.address.trim(),
+        logo: profile.logo,
         defaultPtFee: Number(ptFeeInput),
         // Blank clears the channel's published details — the channel is still
         // offered at the counter, just without an account line to read out.
@@ -226,6 +252,7 @@ export default function Team() {
           ownerName: data.ownerName,
           phone: data.phone,
           address: data.address,
+          logo: data.logo ?? null,
         });
       }
       toast.success('Settings updated');
@@ -424,6 +451,48 @@ export default function Team() {
               <p className="text-xs text-gray-400 dark:text-slate-500 mb-3">
                 Printed at the top of every receipt a member keeps.
               </p>
+              <div className="mb-4 p-4 rounded-xl bg-gray-50/70 dark:bg-slate-800/40 border border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row items-center gap-4">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 flex items-center justify-center shrink-0 shadow-md ring-2 ring-white/20 dark:ring-white/10 overflow-hidden">
+                  {profile.logo ? (
+                    <img src={profile.logo} alt="Gym Logo" className="w-full h-full object-cover" />
+                  ) : (
+                    <Building2 className="text-white/80" size={32} />
+                  )}
+                </div>
+                <div className="space-y-1.5 text-center sm:text-left flex-1 min-w-0">
+                  <div className="flex items-center justify-center sm:justify-start gap-2">
+                    <p className="text-xs font-bold text-gray-800 dark:text-slate-200">Gym Brand Logo</p>
+                    {profile.logo && (
+                      <span className="text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full">Custom Logo Set</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    Appears in the desktop sidebar, mobile header, and receipts. PNG, JPG, or SVG up to 2MB.
+                  </p>
+                  <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors">
+                      <Upload size={13} />
+                      <span>{profile.logo ? 'Change Logo' : 'Upload Logo'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleLogoChange}
+                      />
+                    </label>
+                    {profile.logo && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveLogo}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                      >
+                        <Trash2 size={13} />
+                        <span>Remove</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <FieldLabel htmlFor="gym-name">Gym name</FieldLabel>

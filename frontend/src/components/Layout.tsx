@@ -6,6 +6,7 @@ import ThemeToggle from './ThemeToggle';
 import OfflineBanner from './OfflineBanner';
 import VerifyEmailBanner from './VerifyEmailBanner';
 import InstallBanner from './InstallBanner';
+import InstallButton from './InstallButton';
 import { hasPermission, type PermissionRequirements } from '../utils/permissions';
 import { useSubscription } from '../context/SubscriptionContext';
 import type { PlanFeatures } from '../utils/entitlements';
@@ -136,33 +137,41 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Gym Info */}
       <div className="p-5 border-b border-gray-100 dark:border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shrink-0 shadow-md shadow-blue-600/25 ring-1 ring-white/20">
-            <Dumbbell className="text-white" size={18} />
+          <div className="w-11 h-11 bg-gradient-to-tr from-blue-600 via-indigo-600 to-violet-600 rounded-2xl flex items-center justify-center shrink-0 shadow-md shadow-blue-600/30 ring-2 ring-white/20 dark:ring-white/10 overflow-hidden">
+            {gym?.logo ? (
+              <img src={gym.logo} alt={gym.name} className="w-full h-full object-cover" />
+            ) : (
+              <Dumbbell className="text-white" size={20} />
+            )}
           </div>
           <div className="min-w-0">
-            <p className="font-bold text-gray-900 dark:text-slate-100 text-sm leading-tight truncate">{gym?.name || 'GymPro'}</p>
-            <p className="text-xs text-gray-400 dark:text-slate-500 truncate">{gym?.ownerName}</p>
+            <div className="flex items-center gap-1.5">
+              <p className="font-extrabold text-gray-900 dark:text-slate-100 text-sm leading-tight truncate font-heading">{gym?.name || 'GymPro'}</p>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" title="System Online" />
+            </div>
+            <p className="text-xs text-gray-400 dark:text-slate-500 truncate mt-0.5">{gym?.ownerName || 'Fitness Portal'}</p>
           </div>
         </div>
 
         <div className="mt-3 flex items-center justify-between gap-2">
           {isOwner ? (
-            <span className="inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300 text-xs font-bold px-2.5 py-1 rounded-full border border-purple-100 dark:border-purple-500/20">
-              <Crown size={10} /> Owner
+            <span className="inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300 text-xs font-bold px-2.5 py-1 rounded-full border border-purple-100 dark:border-purple-500/20 shadow-2xs">
+              <Crown size={11} /> Owner
             </span>
           ) : isStaff ? (
-            <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 text-xs font-bold px-2.5 py-1 rounded-full border border-blue-100 dark:border-blue-500/20">
-              <Shield size={10} /> Staff
+            <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 text-xs font-bold px-2.5 py-1 rounded-full border border-blue-100 dark:border-blue-500/20 shadow-2xs">
+              <Shield size={11} /> Staff
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-500 dark:bg-slate-800 dark:text-slate-400 text-xs font-bold px-2.5 py-1 rounded-full">
-              <User size={10} /> Member
+            <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-400 text-xs font-bold px-2.5 py-1 rounded-full shadow-2xs">
+              <User size={11} /> Member
             </span>
           )}
-          {/* Beside the role badge rather than buried at the bottom: it is a
-              setting people look for, and the sidebar header is where the rest
-              of "who am I and how is this configured" already lives. */}
           <ThemeToggle />
+        </div>
+
+        <div className="mt-3">
+          <InstallButton variant="sidebar" />
         </div>
       </div>
 
@@ -263,30 +272,58 @@ export default function Layout({ children }: { children: ReactNode }) {
             login or invite-acceptance screens — those do not use Layout. */}
         <InstallBanner />
 
-        {/* Mobile top bar */}
-        <header className="lg:hidden flex items-center gap-3 bg-white/90 backdrop-blur-xl border-b border-gray-200/80 dark:bg-slate-900/90 dark:border-slate-800 px-4 py-3 shrink-0">
-          <button
-            onClick={() => setDrawerOpen(true)}
-            aria-label="Open navigation menu"
-            className="text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100 p-1 -ml-1"
-          >
-            <Menu size={22} />
-          </button>
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-blue-600/25">
-              <Dumbbell className="text-white" size={15} />
+        {/* Universal Top Header Bar (Mobile + Desktop) */}
+        <header className="flex items-center justify-between gap-3 bg-white/85 backdrop-blur-xl border-b border-gray-200/80 dark:bg-slate-900/85 dark:border-slate-800 px-4 sm:px-6 py-2.5 shrink-0 z-20 shadow-2xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open navigation menu"
+              className="lg:hidden text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100 p-1 -ml-1 transition-colors"
+            >
+              <Menu size={22} />
+            </button>
+            <div className="flex items-center gap-2 lg:hidden min-w-0">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-blue-600/25 overflow-hidden">
+                {gym?.logo ? (
+                  <img src={gym.logo} alt={gym.name} className="w-full h-full object-cover" />
+                ) : (
+                  <Dumbbell className="text-white" size={15} />
+                )}
+              </div>
+              <p className="font-bold text-gray-900 dark:text-slate-100 text-sm truncate font-heading">{gym?.name || 'GymPro'}</p>
             </div>
-            <p className="font-bold text-gray-900 dark:text-slate-100 text-sm truncate">{gym?.name || 'GymPro'}</p>
+            {/* Desktop page breadcrumb / status indicator */}
+            <div className="hidden lg:flex items-center gap-2.5 text-xs">
+              <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-200/70 dark:border-emerald-800/40 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
+                <span>Online</span>
+              </div>
+              <span className="text-slate-300 dark:text-slate-700">/</span>
+              <span className="font-semibold text-slate-700 dark:text-slate-200">{gym?.name || 'GymPro'}</span>
+              <span className="text-slate-300 dark:text-slate-700">/</span>
+              <span className="text-slate-500 dark:text-slate-400 font-medium capitalize">
+                {pathname.replace('/', '').replace(/-/g, ' ') || 'Dashboard'}
+              </span>
+            </div>
           </div>
-          {/* On mobile the sidebar is behind a tap, so the toggle is repeated
-              here — a theme switch you have to open a drawer to reach is one
-              nobody finds. */}
-          <div className="ml-auto">
-            <ThemeToggle />
+
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <InstallButton variant="navbar" />
+            <div className="lg:hidden">
+              <ThemeToggle />
+            </div>
+            {user?.name && (
+              <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-gray-200 dark:border-slate-800 text-xs text-gray-700 dark:text-slate-200">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold flex items-center justify-center text-[10px] shadow-2xs">
+                  {user.name.slice(0, 1).toUpperCase()}
+                </div>
+                <span className="font-semibold truncate max-w-[130px]">{user.name}</span>
+              </div>
+            )}
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto bg-gray-50 dark:bg-slate-950">
+        <main className="flex-1 overflow-auto bg-slate-50/70 dark:bg-slate-950">
           {children}
         </main>
       </div>
