@@ -1,0 +1,376 @@
+const { app, BrowserWindow, ipcMain, shell, Menu } = require('electron');
+const path = require('node:path');
+const fs = require('node:fs');
+const crypto = require('node:crypto');
+const http = require('node:http');
+const { fork, execSync } = require('node:child_process');
+const DatabaseManager = require('./db-manager.cjs');
+
+// Prevent multiple instances
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+  process.exit(0);
+}
+
+const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';
+let splashWindow = null;
+let mainWindow = null;
+let backendProcess = null;
+let dbManager = null;
+
+const PORT = process.env.PORT || 5000;
+const DEV_URL = 'http://localhost:5173';
+const PROD_URL = `http://127.0.0.1:${PORT}`;
+
+function getAppDataDir() {
+  const dir = path.join(app.getPath('userData'), 'gympro-data');
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
+
+function getOrGenerateConfig() {
+  const configFile = path.join(getAppDataDir(), 'config.json');
+  let config = {};
+
+  if (fs.existsSync(configFile)) {
+    try {
+      config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+    } catch {
+      config = {};
+    }
+  }
+
+  // Also check backend/.env for existing secrets if present
+  const backendEnvFile = path.join(__dirname, '..', 'backend', '.env');
+  if (fs.existsSync(backendEnvFile)) {
+    try {
+      const content = fs.readFileSync(backendEnvFile, 'utf8');
+      const jwtMatch = content.match(/JWT_SECRET=["']?([^"'\r\n]+)["']?/);
+      if (jwtMatch && jwtMatch[1] && !config.jwtSecret) {
+        config.jwtSecret = jwtMatch[1];
+      }
+      const bioMatch = content.match(/BIOMETRIC_KEY=["']?([^"'\r\n]+)["']?/);
+      if (bioMatch && bioMatch[1] && !config.biometricKey) {
+        config.biometricKey = bioMatch[1];
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  let modified = false;
+
+  if (!config.jwtSecret || config.jwtSecret.length < 32) {
+    config.jwtSecret = crypto.randomBytes(48).toString('base64url');
+    modified = true;
+  }
+
+  if (!config.biometricKey) {
+    config.biometricKey = crypto.randomBytes(32).toString('base64');
+    modified = true;
+  }
+
+  if (modified) {
+    fs.writeFileSync(configFile, JSON.stringify(config, null, 2), 'utf8');
+  }
+
+  return config;
+}
+
+function updateSplashStatus(message) {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('splash:status', message);
+  }
+}
+
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 480,
+    height: 380,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    alwaysOnTop: true,
+    center: true,
+    icon: path.join(__dirname, 'assets', 'icon.png'),
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  });
+
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+  splashWindow.on('closed', () => {
+    splashWindow = null;
+  });
+}
+
+function checkServerHealth(url, timeoutMs = 25000) {
+  const start = Date.now();
+  return new Promise((resolve, reject) => {
+    const check = () => {
+      const req = http.get(`${url}/api/health`, (res) => {
+        if (res.statusCode === 200) {
+          resolve(true);
+        } else if (Date.now() - start > timeoutMs) {
+          reject(new Error(`Server health check returned HTTP ${res.statusCode}`));
+        } else {
+          setTimeout(check, 400);
+        }
+      });
+
+      req.on('error', () => {
+        if (Date.now() - start > timeoutMs) {
+          reject(new Error('Server health check timed out.'));
+        } else {
+          setTimeout(check, 400);
+        }
+      });
+      req.end();
+    };
+
+    check();
+  });
+}
+
+async function runPrismaMigrations(databaseUrl) {
+  try {
+    updateSplashStatus('Checking database tables & migrations...');
+    const backendRoot = app.isPackaged
+      ? path.join(process.resourcesPath, 'backend')
+      : path.join(__dirname, '..', 'backend');
+
+    const prismaCli = path.join(backendRoot, 'node_modules', 'prisma', 'build', 'index.js');
+    if (fs.existsSync(prismaCli)) {
+      console.log('[Prisma] Running migrate deploy in', backendRoot);
+      execSync(`node "node_modules/prisma/build/index.js" migrate deploy`, {
+        cwd: backendRoot,
+        env: { ...process.env, DATABASE_URL: databaseUrl },
+        windowsHide: true,
+        stdio: 'pipe',
+        timeout: 15000
+      });
+      console.log('[Prisma] Migrations checked successfully.');
+    }
+  } catch (err) {
+    console.warn('[Prisma] Migration note/error:', err.message);
+  }
+}
+
+function startBackendServer(databaseUrl, config) {
+  const backendRoot = app.isPackaged
+    ? path.join(process.resourcesPath, 'backend')
+    : path.join(__dirname, '..', 'backend');
+
+  const backendEntry = path.join(backendRoot, 'dist', 'index.js');
+
+  const staticDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'frontend', 'dist')
+    : path.join(__dirname, '..', 'frontend', 'dist');
+
+  console.log(`[Backend] Starting server from ${backendEntry}`);
+  console.log(`[Backend] Serving static frontend from ${staticDir}`);
+
+  const env = {
+    ...process.env,
+    PORT: String(PORT),
+    NODE_ENV: 'production',
+    DATABASE_URL: databaseUrl,
+    JWT_SECRET: config.jwtSecret,
+    BIOMETRIC_KEY: config.biometricKey,
+    SERVE_STATIC_DIR: staticDir,
+    APP_URL: `http://localhost:${PORT}`
+  };
+
+  backendProcess = fork(backendEntry, [], {
+    cwd: backendRoot,
+    env,
+    stdio: 'pipe',
+    windowsHide: true
+  });
+
+  backendProcess.stdout?.on('data', (data) => {
+    console.log(`[Server] ${data.toString().trim()}`);
+  });
+
+  backendProcess.stderr?.on('data', (data) => {
+    console.error(`[Server ERR] ${data.toString().trim()}`);
+  });
+
+  backendProcess.on('exit', (code, signal) => {
+    console.log(`[Backend] Process exited with code ${code}, signal ${signal}`);
+  });
+}
+
+function createMainWindow(targetUrl) {
+  mainWindow = new BrowserWindow({
+    width: 1320,
+    height: 860,
+    minWidth: 1024,
+    minHeight: 680,
+    title: 'GymPro',
+    backgroundColor: '#090d16',
+    show: false,
+    icon: path.join(__dirname, 'assets', 'icon.png'),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      spellcheck: false
+    }
+  });
+
+  // Set up custom application menu
+  const menuTemplate = [
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Print',
+          accelerator: 'CmdOrCtrl+P',
+          click: () => mainWindow && mainWindow.webContents.print()
+        },
+        { type: 'separator' },
+        { label: 'Quit GymPro', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    }
+  ];
+
+  const menu = Menu.buildFromTemplate(menuTemplate);
+  Menu.setApplicationMenu(menu);
+
+  mainWindow.loadURL(targetUrl);
+
+  mainWindow.once('ready-to-show', () => {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.close();
+    }
+    mainWindow.show();
+    mainWindow.focus();
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
+// IPC Handlers
+ipcMain.handle('app:version', () => app.getVersion());
+ipcMain.on('window:minimize', () => mainWindow && mainWindow.minimize());
+ipcMain.on('window:maximize', () => {
+  if (mainWindow) {
+    mainWindow.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
+  }
+});
+ipcMain.on('window:close', () => mainWindow && mainWindow.close());
+ipcMain.on('window:print', () => mainWindow && mainWindow.webContents.print());
+ipcMain.on('shell:openExternal', (_e, url) => shell.openExternal(url));
+
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
+
+app.whenReady().then(async () => {
+  createSplashWindow();
+
+  try {
+    const config = getOrGenerateConfig();
+
+    dbManager = new DatabaseManager(app, app.isPackaged, console.log);
+    const dbResult = await dbManager.initialize((status) => updateSplashStatus(status));
+
+    if (dbResult.success) {
+      await runPrismaMigrations(dbResult.url);
+    } else {
+      console.warn('[DB] DB initialize warning:', dbResult.message);
+    }
+
+    updateSplashStatus('Starting GymPro server...');
+
+    // If dev and Vite is active, we can connect dev to frontend
+    if (isDev && process.env.ELECTRON_START_URL) {
+      createMainWindow(process.env.ELECTRON_START_URL);
+    } else {
+      // Start express backend which serves the built frontend & handles /api
+      startBackendServer(dbResult.url, config);
+      updateSplashStatus('Connecting to GymPro...');
+
+      await checkServerHealth(PROD_URL);
+      createMainWindow(PROD_URL);
+    }
+  } catch (err) {
+    console.error('Failed to initialize application:', err);
+    updateSplashStatus(`Error: ${err.message}`);
+    setTimeout(() => {
+      app.quit();
+    }, 5000);
+  }
+});
+
+app.on('window-all-closed', async () => {
+  if (backendProcess) {
+    try {
+      backendProcess.kill();
+    } catch {
+      // ignore
+    }
+  }
+
+  if (dbManager) {
+    await dbManager.stop();
+  }
+
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('before-quit', async () => {
+  if (backendProcess) {
+    try {
+      backendProcess.kill();
+    } catch {
+      // ignore
+    }
+  }
+  if (dbManager) {
+    await dbManager.stop();
+  }
+});

@@ -1,0 +1,69 @@
+{
+  "name": "gym-pro-desktop",
+  "version": "1.0.0",
+  "description": "GymPro Desktop Application with Embedded Database",
+  "main": "electron/main.cjs",
+  "private": true,
+  "scripts": {
+    "download:pg": "node scripts/download-portable-pg.cjs",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "build:frontend": "npm run build --prefix frontend",
+    "build:backend": "npm run build --prefix backend",
+    "build:all": "npm run build:frontend && npm run build:backend",
+    "tunnel": "npx -y cloudflared tunnel --url http://localhost:5000",
+    "electron:dev": "concurrently -k -s first \"npm run dev:backend\" \"npm run dev:frontend\" \"wait-on tcp:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron .\"",
+    "electron:start": "electron .",
+    "electron:pack": "npm run build:all && electron-builder --dir",
+    "electron:dist": "npm run build:all && electron-builder",
+    "electron:dist:portable": "npm run build:all && electron-builder --win portable"
+  },
+  "keywords": [
+    "gym",
+    "management",
+    "electron",
+    "desktop"
+  ],
+  "author": "GymPro",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^35.0.0",
+    "electron-builder": "^25.1.8",
+    "wait-on": "^8.0.2"
+  },
+  "build": {
+    "appId": "com.gympro.desktop",
+    "productName": "GymPro",
+    "asar": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "backend/dist/**/*",
+      "backend/prisma/**/*",
+      "backend/package.json",
+      "backend/node_modules/**/*",
+      "frontend/dist/**/*",
+      "resources/**/*"
+    ],
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ],
+      "icon": "electron/assets/icon.png"
+    },
+    "portable": {
+      "artifactName": "GymPro-Portable.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
