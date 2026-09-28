@@ -114,16 +114,13 @@ export function Page({ children }: { children: ReactNode }) {
 
 export function Card({ className = '', hover = false, children }: {
   className?: string;
-  /** Lifts on hover. For cards that are themselves the click target — a plan
-   *  tile, a member row — never for a static panel, where a card that reacts
-   *  to the pointer promises something to click that is not there. */
   hover?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className={`bg-white rounded-2xl border border-gray-200 shadow-card
-      dark:bg-slate-900 dark:border-slate-800 transition-all ${
-        hover ? 'hover:shadow-lifted hover:-translate-y-0.5 hover:border-gray-300 dark:hover:border-slate-700' : ''
+    <div className={`bg-white rounded-2xl border border-slate-200/90 shadow-xs
+      dark:bg-slate-900/90 dark:backdrop-blur-sm dark:border-slate-800/80 transition-all duration-200 ${
+        hover ? 'hover:shadow-md hover:-translate-y-0.5 hover:border-slate-300 dark:hover:border-slate-700' : ''
       } ${className}`}>
       {children}
     </div>
@@ -133,10 +130,10 @@ export function Card({ className = '', hover = false, children }: {
 export function IconTile({ icon: Icon, tone = 'blue', size = 'md' }: {
   icon: LucideIcon; tone?: Tone; size?: 'sm' | 'md';
 }) {
-  const box = size === 'sm' ? 'w-9 h-9 rounded-xl' : 'w-12 h-12 rounded-2xl';
+  const box = size === 'sm' ? 'w-9 h-9 rounded-xl shadow-2xs' : 'w-12 h-12 rounded-2xl shadow-xs';
   return (
-    <div className={`${box} ${toneTile[tone]} flex items-center justify-center shrink-0`}>
-      <Icon size={size === 'sm' ? 16 : 20} />
+    <div className={`${box} ${toneTile[tone]} flex items-center justify-center shrink-0 ring-1 ring-black/5 dark:ring-white/10`}>
+      <Icon size={size === 'sm' ? 16 : 21} />
     </div>
   );
 }
@@ -146,8 +143,8 @@ export function DataRow({ icon: Icon, label, value }: {
   icon?: LucideIcon; label: string; value: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 bg-gray-50 dark:bg-slate-800/60 rounded-lg px-3 py-2 text-xs">
-      <span className="text-gray-500 dark:text-slate-400 flex items-center gap-1.5 shrink-0">
+    <div className="flex items-center justify-between gap-3 bg-gray-50/80 dark:bg-slate-800/50 rounded-xl px-3 py-2 text-xs border border-gray-100 dark:border-slate-800/60">
+      <span className="text-gray-500 dark:text-slate-400 flex items-center gap-1.5 shrink-0 font-medium">
         {Icon && <Icon size={12} />} {label}
       </span>
       <span className="font-semibold text-gray-800 dark:text-slate-200 text-right truncate">{value}</span>
@@ -161,14 +158,17 @@ export function StatTile({ icon: Icon, label, value, tone = 'blue', hint }: {
   icon: LucideIcon; label: string; value: ReactNode; tone?: Tone; hint?: string;
 }) {
   return (
-    <Card className="p-4 sm:p-5">
-      <div className="flex items-center gap-3 sm:gap-4">
+    <Card className="p-4 sm:p-5 relative overflow-hidden group hover:border-blue-300/80 dark:hover:border-blue-900/60 transition-all duration-200">
+      <div className="flex items-center gap-3 sm:gap-4 relative z-10">
         <IconTile icon={Icon} tone={tone} />
         <div className="min-w-0">
-          <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100 truncate">{value}</p>
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mt-0.5 truncate">{label}</p>
-          {hint && <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 truncate">{hint}</p>}
+          <p className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-slate-100 truncate tracking-tight font-heading">{value}</p>
+          <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-slate-400 mt-0.5 truncate">{label}</p>
+          {hint && <p className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5 truncate">{hint}</p>}
         </div>
+      </div>
+      <div className="absolute -right-3 -bottom-3 w-16 h-16 opacity-[0.04] dark:opacity-[0.07] group-hover:opacity-10 group-hover:scale-110 transition-all duration-300 pointer-events-none text-current">
+        <Icon size={64} />
       </div>
     </Card>
   );

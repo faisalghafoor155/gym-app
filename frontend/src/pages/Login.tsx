@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { inputClass, primaryButton } from '../components/ui';
 import api, { apiError } from '../api/client';
 import GoogleSignIn from '../components/GoogleSignIn';
+import InstallButton from '../components/InstallButton';
 import { isTwoFactorChallenge, type AuthResponse, type LoginResponse } from '../types';
 import toast from 'react-hot-toast';
 
@@ -61,9 +62,12 @@ export default function Login() {
   return (
     <div className="min-h-dvh bg-gray-50 dark:bg-slate-800/60 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 w-full max-w-md p-6 sm:p-8">
-        <div className="flex items-center gap-2 mb-8">
-          <Dumbbell className="text-blue-600" size={28} />
-          <span className="text-xl font-bold text-gray-900 dark:text-slate-100">GymPro</span>
+        <div className="flex items-center justify-between gap-2 mb-8">
+          <div className="flex items-center gap-2">
+            <Dumbbell className="text-blue-600" size={28} />
+            <span className="text-xl font-bold text-gray-900 dark:text-slate-100">GymPro</span>
+          </div>
+          <InstallButton variant="navbar" />
         </div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-1">
           {challenge ? 'Two-factor check' : 'Welcome back'}

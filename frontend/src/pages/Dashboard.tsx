@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   Users, UserCheck, CreditCard, CalendarCheck,
   AlertTriangle, TrendingUp, TrendingDown, Zap, Trophy, Wallet,
-  UserPlus, PhoneCall, Clock, UserMinus, ArrowRight, UserCog,
+  UserPlus, PhoneCall, Clock, UserMinus, ArrowRight, UserCog, MessageCircle,
 } from 'lucide-react';
 import Badge from '../components/Badge';
 import {
@@ -12,6 +12,7 @@ import {
 } from '../components/ui';
 import { useFetch } from '../hooks/useFetch';
 import { useAuth } from '../context/AuthContext';
+import { openWhatsApp, createExpiryMessage } from '../utils/whatsapp';
 import type { DashboardStats } from '../types';
 
 const GYM_IMAGES = [
@@ -54,12 +55,14 @@ function QuickAction({ to, icon: Icon, label }: {
   return (
     <Link
       to={to}
-      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800
-        text-sm font-semibold text-gray-700 dark:text-slate-300 hover:border-blue-300 hover:text-blue-700
-        hover:bg-blue-50/50 transition-colors ${focusRing}`}
+      className={`group flex items-center gap-3 px-3.5 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800
+        text-sm font-semibold text-slate-700 dark:text-slate-200 hover:border-blue-500/40 hover:text-blue-600 dark:hover:text-blue-400
+        hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 ${focusRing}`}
     >
-      <Icon size={16} className="text-blue-600 shrink-0" />
-      <span className="truncate">{label}</span>
+      <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-200 shadow-2xs">
+        <Icon size={16} />
+      </div>
+      <span className="truncate font-semibold tracking-tight">{label}</span>
     </Link>
   );
 }
@@ -126,30 +129,30 @@ export default function Dashboard() {
       <div className="space-y-5 sm:space-y-6">
 
       {/* Hero Banner */}
-      <div className="relative rounded-2xl overflow-hidden h-40 sm:h-48 shadow-md">
+      <div className="relative rounded-3xl overflow-hidden h-44 sm:h-52 shadow-md ring-1 ring-black/5 dark:ring-white/10 group">
         <img
           src={GYM_IMAGES[imgIndex]}
           alt="Gym"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
         />
-        <div className="absolute inset-0 bg-linear-to-r from-black/70 via-black/40 to-transparent" />
-        <div className="absolute inset-0 flex flex-col justify-center px-5 sm:px-8">
-          <div className="flex items-center gap-2 mb-1">
-            <Zap size={16} className="text-yellow-400" />
-            <span className="text-yellow-400 text-xs font-semibold uppercase tracking-wider">
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-black/20" />
+        <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-8">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/30 text-[11px] font-bold uppercase tracking-wider backdrop-blur-md">
+              <Zap size={12} className="fill-yellow-400" />
               Gym Dashboard
             </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight pr-24 sm:pr-0">
+          <h1 className="text-2xl sm:text-4xl font-extrabold text-white leading-tight pr-24 sm:pr-0 font-heading tracking-tight drop-shadow-sm">
             {gym?.name || 'GymPro'}
           </h1>
-          <p className="text-white/70 text-xs sm:text-sm mt-1 italic max-w-md line-clamp-2">
+          <p className="text-white/80 text-xs sm:text-sm mt-1.5 italic max-w-lg line-clamp-2 drop-shadow-sm font-medium">
             "{MOTIVATIONAL_QUOTES[quoteIndex]}"
           </p>
         </div>
-        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 bg-white/10 backdrop-blur-sm rounded-xl px-3 py-2 text-right border border-white/20 max-w-[45%] sm:max-w-none">
-          <p className="text-white/70 text-xs">Owner</p>
-          <p className="text-white font-semibold text-xs sm:text-sm truncate">{gym?.ownerName}</p>
+        <div className="absolute top-4 right-4 sm:top-5 sm:right-6 bg-white/10 backdrop-blur-md rounded-2xl px-3.5 py-2 text-right border border-white/20 max-w-[45%] sm:max-w-none shadow-sm">
+          <p className="text-white/60 text-[11px] font-medium uppercase tracking-wider">Owner</p>
+          <p className="text-white font-bold text-xs sm:text-sm truncate font-heading">{gym?.ownerName || 'Admin'}</p>
         </div>
       </div>
 
@@ -584,15 +587,36 @@ export default function Dashboard() {
                       <p className="font-medium text-gray-900 dark:text-slate-100 text-sm">{m.name}</p>
                       <p className="text-gray-500 dark:text-slate-400 text-xs">{m.memberNo} · {m.phone || 'No phone'}</p>
                     </div>
-                    <div className="text-right">
-                      {/* daysLeft is counted server-side from midnight, so it
-                          does not drift with the hour the page is open. */}
-                      <p className="text-yellow-700 font-semibold text-sm">
-                        {m.membership.daysLeft === 0 ? 'Today!' : `${m.membership.daysLeft}d left`}
-                      </p>
-                      <p className="text-gray-400 dark:text-slate-500 text-xs">
-                        {new Date(m.membership.expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        {/* daysLeft is counted server-side from midnight, so it
+                            does not drift with the hour the page is open. */}
+                        <p className="text-yellow-700 font-semibold text-sm">
+                          {m.membership.daysLeft === 0 ? 'Today!' : `${m.membership.daysLeft}d left`}
+                        </p>
+                        <p className="text-gray-400 dark:text-slate-500 text-xs">
+                          {new Date(m.membership.expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}
+                        </p>
+                      </div>
+                      {m.phone && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const text = createExpiryMessage({
+                              memberName: m.name,
+                              gymName: gym?.name,
+                              daysLeft: m.membership.daysLeft,
+                              expiryDate: m.membership.expiryDate,
+                            });
+                            openWhatsApp(m.phone, text);
+                          }}
+                          title={`WhatsApp reminder to ${m.name}`}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors shrink-0"
+                        >
+                          <MessageCircle size={13} />
+                          <span>WhatsApp</span>
+                        </button>
+                      )}
                     </div>
                   </li>
                 ))}
@@ -623,19 +647,39 @@ export default function Dashboard() {
                     {m.memberNo} · {m.membership.planName}
                   </p>
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="text-red-600 font-semibold text-xs">
-                    {Math.abs(m.membership.daysLeft)}d ago
-                  </p>
-                  {m.phone ? (
-                    <a
-                      href={`tel:${m.phone}`}
-                      className={`text-xs text-blue-600 font-medium hover:underline inline-flex items-center gap-1 ${focusRing}`}
+                <div className="text-right shrink-0 flex items-center gap-2">
+                  <div>
+                    <p className="text-red-600 font-semibold text-xs">
+                      {Math.abs(m.membership.daysLeft)}d ago
+                    </p>
+                    {m.phone ? (
+                      <a
+                        href={`tel:${m.phone}`}
+                        className={`text-xs text-blue-600 font-medium hover:underline inline-flex items-center gap-1 ${focusRing}`}
+                      >
+                        <PhoneCall size={10} /> {m.phone}
+                      </a>
+                    ) : (
+                      <p className="text-xs text-gray-400 dark:text-slate-500">No phone</p>
+                    )}
+                  </div>
+                  {m.phone && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const text = createExpiryMessage({
+                          memberName: m.name,
+                          gymName: gym?.name,
+                          planName: m.membership.planName,
+                          daysLeft: m.membership.daysLeft,
+                        });
+                        openWhatsApp(m.phone, text);
+                      }}
+                      title={`Send WhatsApp message to ${m.name}`}
+                      className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-700/40 transition-colors"
                     >
-                      <PhoneCall size={10} /> {m.phone}
-                    </a>
-                  ) : (
-                    <p className="text-xs text-gray-400 dark:text-slate-500">No phone</p>
+                      <MessageCircle size={13} />
+                    </button>
                   )}
                 </div>
               </li>
