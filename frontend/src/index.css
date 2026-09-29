@@ -156,3 +156,13 @@ html.dark {
     scroll-behavior: auto !important;
   }
 }
+
+/* Hide scrollbar for Chrome, Safari, Opera and touch scroll rails */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

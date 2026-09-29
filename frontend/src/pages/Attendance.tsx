@@ -350,23 +350,23 @@ export default function Attendance() {
         title="Attendance"
         subtitle={today}
         action={
-          <div className="flex gap-3">
-            <Card className="px-4 py-2.5 text-center">
+          <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
+            <Card className="px-3.5 sm:px-4 py-2 sm:py-2.5 text-center flex-1 sm:flex-initial min-w-[85px]">
               <p className="text-xl sm:text-2xl font-bold text-blue-600">{todayList.length}</p>
-              <p className="text-xs text-gray-500 dark:text-slate-400">Checked in</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">Checked in</p>
             </Card>
-            <Card className="px-4 py-2.5 text-center">
+            <Card className="px-3.5 sm:px-4 py-2 sm:py-2.5 text-center flex-1 sm:flex-initial min-w-[85px]">
               <p className="text-xl sm:text-2xl font-bold text-gray-400 dark:text-slate-500">
                 {Math.max(0, members.length - todayList.length)}
               </p>
-              <p className="text-xs text-gray-500 dark:text-slate-400">Absent</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">Absent</p>
             </Card>
           </div>
         }
       />
 
-      <div className="mb-5">
-        <Card className="p-2 inline-block">
+      <div className="mb-5 max-w-full overflow-hidden">
+        <Card className="p-1 sm:p-1.5 inline-block max-w-full">
           <SegmentedControl
             value={activeTab}
             onChange={setActiveTab}

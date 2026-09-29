@@ -372,74 +372,65 @@ export default function Members() {
 
       {/* Filters */}
       <Card className="p-3 sm:p-4 mb-5">
-        <div className="flex flex-wrap items-center gap-3">
-          <SegmentedControl
-            value={filterStatus}
-            onChange={setFilterStatus}
-            options={[
-              { value: 'all', label: 'All', count: counts.all },
-              { value: 'active', label: 'Active', count: counts.active },
-              { value: 'expiring', label: 'Expiring', count: counts.expiring },
-              { value: 'expired', label: 'Expired', count: counts.expired },
-              { value: 'lapsed', label: 'Lapsed', count: counts.lapsed },
-              { value: 'none', label: 'No membership', count: counts.none },
-            ]}
-          />
-          {/* Narrows the roster to one gender — for working through the
-              women's list on ladies' day, or counting either side of the
-              floor. "All" keeps members whose gender was never recorded,
-              which is most of the older rows.
-
-              Full width on a phone, where it wraps onto its own line under the
-              tabs; it only shrinks to its content once there is room beside
-              the search box. */}
-          <select
-            value={filterGender}
-            onChange={e => setFilterGender(e.target.value as GenderFilter)}
-            aria-label="Filter members by gender"
-            className={`${inputClass} sm:w-auto sm:ml-auto`}
-          >
-            <option value="">All genders</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-          </select>
-          {/* Whose members to show. Only worth offering once the gym has a
-              trainer to filter by, so an empty roster does not carry a
-              dropdown with nothing in it.
-
-              "Not assigned" is deliberately its own option rather than a blank:
-              the members nobody has been given are exactly who a gym is looking
-              for when handing them out. */}
-          {trainers.length > 0 && (
-            <select
-              value={filterTrainer}
-              onChange={e => setFilterTrainer(e.target.value)}
-              aria-label="Filter members by trainer"
-              className={`${inputClass} sm:w-auto`}
-            >
-              <option value="">All trainers</option>
-              <option value="none">Not assigned</option>
-              {/* Departed trainers stay on the list — their members still
-                  need finding, and are exactly who a gym reassigns first —
-                  but are marked, so the name is not read as a live choice. */}
-              {trainers.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.isActive ? t.name : `${t.name} (left)`}
-                </option>
-              ))}
-            </select>
-          )}
-          <div className="relative flex-1 min-w-50 sm:max-w-xs">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
-            <input
-              type="search"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search name, ID or phone..."
-              aria-label="Search members"
-              className={`${inputClass} pl-9`}
+        <div className="flex flex-col xl:flex-row xl:items-center gap-3">
+          <div className="w-full xl:w-auto overflow-hidden">
+            <SegmentedControl
+              value={filterStatus}
+              onChange={setFilterStatus}
+              options={[
+                { value: 'all', label: 'All', count: counts.all },
+                { value: 'active', label: 'Active', count: counts.active },
+                { value: 'expiring', label: 'Expiring', count: counts.expiring },
+                { value: 'expired', label: 'Expired', count: counts.expired },
+                { value: 'lapsed', label: 'Lapsed', count: counts.lapsed },
+                { value: 'none', label: 'No membership', count: counts.none },
+              ]}
             />
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap xl:ml-auto w-full xl:w-auto">
+            {/* Narrows the roster to one gender */}
+            <select
+              value={filterGender}
+              onChange={e => setFilterGender(e.target.value as GenderFilter)}
+              aria-label="Filter members by gender"
+              className={`${inputClass} flex-1 sm:w-auto`}
+            >
+              <option value="">All genders</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+
+            {/* Whose members to show */}
+            {trainers.length > 0 && (
+              <select
+                value={filterTrainer}
+                onChange={e => setFilterTrainer(e.target.value)}
+                aria-label="Filter members by trainer"
+                className={`${inputClass} flex-1 sm:w-auto`}
+              >
+                <option value="">All trainers</option>
+                <option value="none">Not assigned</option>
+                {trainers.map(t => (
+                  <option key={t.id} value={t.id}>
+                    {t.isActive ? t.name : `${t.name} (left)`}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <div className="relative flex-1 min-w-[180px] w-full sm:w-auto sm:max-w-xs">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+              <input
+                type="search"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search name, ID or phone..."
+                aria-label="Search members"
+                className={`${inputClass} pl-9`}
+              />
+            </div>
           </div>
         </div>
       </Card>
@@ -592,26 +583,26 @@ export default function Members() {
                       onClick={() => setQrMember(m)}
                       aria-label={`Show ${m.name}'s check-in code`}
                       title="Check-in QR Code"
-                      className={`p-2 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors shrink-0 ${focusRing}`}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 active:scale-95 transition-all shrink-0 ${focusRing}`}
                     >
-                      <QrCode size={13} />
+                      <QrCode size={14} />
                     </button>
                     <button
                       onClick={() => { setFingerprintAfterRegister(false); setFingerprintMember(m); }}
                       aria-label={m.fingerprint ? `Manage ${m.name}'s fingerprint` : `Enrol ${m.name}'s fingerprint`}
                       title={m.fingerprint ? 'Fingerprint enrolled' : 'No fingerprint enrolled'}
-                      className={`p-2 rounded-lg text-xs font-medium border transition-colors shrink-0 ${focusRing} ${
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-medium border active:scale-95 transition-all shrink-0 ${focusRing} ${
                         m.fingerprint
                           ? 'border-blue-200 dark:border-blue-500/30 text-blue-600 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-50'
                           : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60'
                       }`}
                     >
-                      <Fingerprint size={13} />
+                      <Fingerprint size={14} />
                     </button>
                     <button
                       onClick={() => openEdit(m)}
                       aria-label={`Edit ${m.name}`}
-                      className={`flex-1 min-w-[70px] flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg text-xs font-semibold border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}
+                      className={`flex-1 min-w-[70px] min-h-[36px] flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800/60 active:scale-95 transition-all ${focusRing}`}
                     >
                       <Pencil size={12} /> Edit
                     </button>
@@ -620,13 +611,13 @@ export default function Members() {
                         onClick={() => handleWhatsApp(m)}
                         aria-label={`Send WhatsApp message to ${m.name}`}
                         title={ms?.status === 'expiring' || ms?.status === 'expired' ? 'Send WhatsApp expiry reminder' : 'Send WhatsApp message'}
-                        className={`flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors shrink-0 ${focusRing} ${
+                        className={`min-h-[36px] flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border active:scale-95 transition-all shrink-0 ${focusRing} ${
                           ms?.status === 'expiring' || ms?.status === 'expired'
                             ? 'border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/40 hover:bg-emerald-100'
                             : 'border-gray-200 dark:border-slate-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-slate-800/60'
                         }`}
                       >
-                        <MessageCircle size={13} />
+                        <MessageCircle size={13} className="fill-emerald-500/20" />
                         <span>Chat</span>
                       </button>
                     )}
@@ -634,7 +625,7 @@ export default function Members() {
                       <button
                         onClick={() => setRenewing(m)}
                         aria-label={`Renew ${m.name}'s membership`}
-                        className={`flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs transition-colors shrink-0 ${focusRing}`}
+                        className={`min-h-[36px] flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs active:scale-95 transition-all shrink-0 ${focusRing}`}
                       >
                         <CalendarPlus size={12} /> Renew
                       </button>

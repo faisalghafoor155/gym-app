@@ -239,7 +239,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div
-            className="absolute inset-0 bg-black/40 dark:bg-black/70"
+            className="absolute inset-0 bg-black/50 dark:bg-black/80 backdrop-blur-xs transition-opacity"
             onClick={() => setDrawerOpen(false)}
             aria-hidden="true"
           />
@@ -248,12 +248,12 @@ export default function Layout({ children }: { children: ReactNode }) {
             role="dialog"
             aria-modal="true"
             aria-label="Navigation menu"
-            className="relative flex flex-col w-72 max-w-[85vw] h-full bg-white dark:bg-slate-900 shadow-xl"
+            className="relative flex flex-col w-72 max-w-[85vw] h-full bg-white dark:bg-slate-900 shadow-2xl z-10"
           >
             <button
               onClick={() => setDrawerOpen(false)}
               aria-label="Close navigation menu"
-              className="absolute top-4 right-4 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 p-1"
+              className="absolute top-4 right-4 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
             >
               <X size={20} />
             </button>
@@ -278,11 +278,11 @@ export default function Layout({ children }: { children: ReactNode }) {
             <button
               onClick={() => setDrawerOpen(true)}
               aria-label="Open navigation menu"
-              className="lg:hidden text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100 p-1 -ml-1 transition-colors"
+              className="lg:hidden text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100 p-1.5 -ml-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
             >
               <Menu size={22} />
             </button>
-            <div className="flex items-center gap-2 lg:hidden min-w-0">
+            <div className="flex items-center gap-2.5 lg:hidden min-w-0">
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-blue-600/25 overflow-hidden">
                 {gym?.logo ? (
                   <img src={gym.logo} alt={gym.name} className="w-full h-full object-cover" />
@@ -307,7 +307,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <InstallButton variant="navbar" />
             <div className="lg:hidden">
               <ThemeToggle />
@@ -323,9 +323,183 @@ export default function Layout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto bg-slate-50/70 dark:bg-slate-950">
+        <main className="flex-1 overflow-auto bg-slate-50/70 dark:bg-slate-950 pb-20 lg:pb-0">
           {children}
         </main>
+
+        {/* Mobile Bottom Navigation Bar for Instant 1-Tap Switching */}
+        <nav
+          aria-label="Mobile navigation"
+          className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-gray-200/90 dark:border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1.5 flex items-center justify-around pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+        >
+          {isStaff ? (
+            <>
+              <NavLink
+                to="/dashboard"
+                className={({ isActive }) =>
+                  `flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl text-[10.5px] font-semibold transition-all ${
+                    isActive
+                      ? 'text-blue-600 dark:text-blue-400 font-bold'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
+                      <LayoutDashboard size={18} />
+                    </div>
+                    <span className="mt-0.5 tracking-tight">Dashboard</span>
+                  </>
+                )}
+              </NavLink>
+
+              <NavLink
+                to="/members"
+                className={({ isActive }) =>
+                  `flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl text-[10.5px] font-semibold transition-all ${
+                    isActive
+                      ? 'text-blue-600 dark:text-blue-400 font-bold'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
+                      <Users size={18} />
+                    </div>
+                    <span className="mt-0.5 tracking-tight">Members</span>
+                  </>
+                )}
+              </NavLink>
+
+              <NavLink
+                to="/attendance"
+                className={({ isActive }) =>
+                  `flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl text-[10.5px] font-semibold transition-all ${
+                    isActive
+                      ? 'text-blue-600 dark:text-blue-400 font-bold'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
+                      <CalendarCheck size={18} />
+                    </div>
+                    <span className="mt-0.5 tracking-tight">Check-in</span>
+                  </>
+                )}
+              </NavLink>
+
+              <NavLink
+                to="/payments"
+                className={({ isActive }) =>
+                  `flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl text-[10.5px] font-semibold transition-all ${
+                    isActive
+                      ? 'text-blue-600 dark:text-blue-400 font-bold'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
+                      <CreditCard size={18} />
+                    </div>
+                    <span className="mt-0.5 tracking-tight">Payments</span>
+                  </>
+                )}
+              </NavLink>
+
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                className="flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl text-[10.5px] font-semibold text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 active:scale-95 transition-all"
+              >
+                <div className="p-1 rounded-lg">
+                  <Menu size={18} />
+                </div>
+                <span className="mt-0.5 tracking-tight">More</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <NavLink
+                to="/my"
+                className={({ isActive }) =>
+                  `flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl text-[10.5px] font-semibold transition-all ${
+                    isActive
+                      ? 'text-blue-600 dark:text-blue-400 font-bold'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
+                      <User size={18} />
+                    </div>
+                    <span className="mt-0.5 tracking-tight">My Pass</span>
+                  </>
+                )}
+              </NavLink>
+
+              <NavLink
+                to="/calculator"
+                className={({ isActive }) =>
+                  `flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl text-[10.5px] font-semibold transition-all ${
+                    isActive
+                      ? 'text-blue-600 dark:text-blue-400 font-bold'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
+                      <Calculator size={18} />
+                    </div>
+                    <span className="mt-0.5 tracking-tight">Fitness</span>
+                  </>
+                )}
+              </NavLink>
+
+              <NavLink
+                to="/security"
+                className={({ isActive }) =>
+                  `flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl text-[10.5px] font-semibold transition-all ${
+                    isActive
+                      ? 'text-blue-600 dark:text-blue-400 font-bold'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
+                      <ShieldCheck size={18} />
+                    </div>
+                    <span className="mt-0.5 tracking-tight">Security</span>
+                  </>
+                )}
+              </NavLink>
+
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                className="flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl text-[10.5px] font-semibold text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 active:scale-95 transition-all"
+              >
+                <div className="p-1 rounded-lg">
+                  <Menu size={18} />
+                </div>
+                <span className="mt-0.5 tracking-tight">More</span>
+              </button>
+            </>
+          )}
+        </nav>
       </div>
     </div>
   );

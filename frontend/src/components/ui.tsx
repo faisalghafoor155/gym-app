@@ -93,15 +93,15 @@ interface PageProps {
 
 export function PageHeader({ icon: Icon, title, subtitle, action }: PageProps) {
   return (
-    <div className="flex items-start justify-between gap-3 mb-5 sm:mb-6">
+    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-5 sm:mb-6">
       <div className="min-w-0">
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
           <Icon size={22} className="text-blue-600 dark:text-blue-400 shrink-0" />
           <span className="truncate">{title}</span>
         </h1>
-        {subtitle && <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mt-0.5">{subtitle}</p>}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && <div className="shrink-0 flex items-center gap-2 sm:gap-3 flex-wrap">{action}</div>}
     </div>
   );
 }
@@ -130,10 +130,11 @@ export function Card({ className = '', hover = false, children }: {
 export function IconTile({ icon: Icon, tone = 'blue', size = 'md' }: {
   icon: LucideIcon; tone?: Tone; size?: 'sm' | 'md';
 }) {
-  const box = size === 'sm' ? 'w-9 h-9 rounded-xl shadow-2xs' : 'w-12 h-12 rounded-2xl shadow-xs';
+  const box = size === 'sm' ? 'w-8 h-8 sm:w-9 sm:h-9 rounded-xl shadow-2xs' : 'w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl shadow-xs';
   return (
     <div className={`${box} ${toneTile[tone]} flex items-center justify-center shrink-0 ring-1 ring-black/5 dark:ring-white/10`}>
-      <Icon size={size === 'sm' ? 16 : 21} />
+      <Icon size={size === 'sm' ? 15 : 19} className="sm:hidden" />
+      <Icon size={size === 'sm' ? 16 : 21} className="hidden sm:block" />
     </div>
   );
 }
@@ -158,13 +159,13 @@ export function StatTile({ icon: Icon, label, value, tone = 'blue', hint }: {
   icon: LucideIcon; label: string; value: ReactNode; tone?: Tone; hint?: string;
 }) {
   return (
-    <Card className="p-4 sm:p-5 relative overflow-hidden group hover:border-blue-300/80 dark:hover:border-blue-900/60 transition-all duration-200">
-      <div className="flex items-center gap-3 sm:gap-4 relative z-10">
+    <Card className="p-3.5 sm:p-5 relative overflow-hidden group hover:border-blue-300/80 dark:hover:border-blue-900/60 transition-all duration-200">
+      <div className="flex items-center gap-2.5 sm:gap-4 relative z-10">
         <IconTile icon={Icon} tone={tone} />
-        <div className="min-w-0">
-          <p className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-slate-100 truncate tracking-tight font-heading">{value}</p>
-          <p className="text-xs sm:text-sm font-medium text-gray-500 dark:text-slate-400 mt-0.5 truncate">{label}</p>
-          {hint && <p className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5 truncate">{hint}</p>}
+        <div className="min-w-0 flex-1">
+          <p className="text-lg sm:text-2xl font-extrabold text-gray-900 dark:text-slate-100 truncate tracking-tight font-heading">{value}</p>
+          <p className="text-[11px] sm:text-sm font-medium text-gray-500 dark:text-slate-400 mt-0.5 truncate">{label}</p>
+          {hint && <p className="text-[10px] sm:text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5 truncate">{hint}</p>}
         </div>
       </div>
       <div className="absolute -right-3 -bottom-3 w-16 h-16 opacity-[0.04] dark:opacity-[0.07] group-hover:opacity-10 group-hover:scale-110 transition-all duration-300 pointer-events-none text-current">
@@ -457,22 +458,22 @@ export function SegmentedControl<T extends string>({ value, onChange, options }:
   options: readonly { value: T; label: string; count?: number }[];
 }) {
   return (
-    <div className="inline-flex bg-gray-100 dark:bg-slate-800 rounded-xl p-1 gap-1" role="tablist">
+    <div className="flex max-w-full overflow-x-auto no-scrollbar bg-gray-100/90 dark:bg-slate-800/90 rounded-xl p-1 gap-1" role="tablist">
       {options.map(o => (
         <button
           key={o.value}
           role="tab"
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
-          className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${focusRing} ${
+          className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold capitalize transition-all ${focusRing} ${
             value === o.value
-              ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm'
+              ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-2xs'
               : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
           }`}
         >
           {o.label}
           {o.count !== undefined && (
-            <span className="ml-1.5 text-xs text-gray-400 dark:text-slate-500">{o.count}</span>
+            <span className="ml-1.5 text-[11px] font-bold px-1.5 py-0.2 rounded-full bg-gray-200/80 dark:bg-slate-600 text-gray-600 dark:text-slate-300">{o.count}</span>
           )}
         </button>
       ))}
