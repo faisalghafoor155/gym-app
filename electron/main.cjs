@@ -151,12 +151,13 @@ async function runPrismaMigrations(databaseUrl) {
         env: { ...process.env, DATABASE_URL: databaseUrl },
         windowsHide: true,
         stdio: 'pipe',
-        timeout: 15000
+        timeout: 60000
       });
       console.log('[Prisma] Migrations checked successfully.');
     }
   } catch (err) {
-    console.warn('[Prisma] Migration note/error:', err.message);
+    const detail = err.stderr ? err.stderr.toString() : err.message;
+    console.warn('[Prisma] Migration note/error:', detail);
   }
 }
 
@@ -269,6 +270,15 @@ function createMainWindow(targetUrl) {
   Menu.setApplicationMenu(menu);
 
   mainWindow.loadURL(targetUrl);
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.warn(`[Window] Server not ready yet: ${validatedURL} (${errorCode}: ${errorDescription}). Retrying...`);
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.loadURL(targetUrl);
+      }
+    }, 1200);
+  });
 
   mainWindow.once('ready-to-show', () => {
     if (splashWindow && !splashWindow.isDestroyed()) {

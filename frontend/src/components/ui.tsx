@@ -93,15 +93,15 @@ interface PageProps {
 
 export function PageHeader({ icon: Icon, title, subtitle, action }: PageProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-5 sm:mb-6">
+    <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
       <div className="min-w-0">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-          <Icon size={22} className="text-blue-600 dark:text-blue-400 shrink-0" />
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+          <Icon size={20} className="text-blue-600 dark:text-blue-400 shrink-0 sm:w-6 sm:h-6" />
           <span className="truncate">{title}</span>
         </h1>
-        {subtitle && <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mt-0.5">{subtitle}</p>}
+        {subtitle && <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mt-0.5 truncate">{subtitle}</p>}
       </div>
-      {action && <div className="shrink-0 flex items-center gap-2 sm:gap-3 flex-wrap">{action}</div>}
+      {action && <div className="shrink-0 flex items-center gap-2 sm:gap-3">{action}</div>}
     </div>
   );
 }
@@ -458,22 +458,28 @@ export function SegmentedControl<T extends string>({ value, onChange, options }:
   options: readonly { value: T; label: string; count?: number }[];
 }) {
   return (
-    <div className="flex max-w-full overflow-x-auto no-scrollbar bg-gray-100/90 dark:bg-slate-800/90 rounded-xl p-1 gap-1" role="tablist">
+    <div className="flex max-w-full overflow-x-auto no-scrollbar touch-pan-x overscroll-x-contain bg-gray-100/90 dark:bg-slate-800/90 rounded-xl p-1 gap-1" role="tablist">
       {options.map(o => (
         <button
           key={o.value}
           role="tab"
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
-          className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold capitalize transition-all ${focusRing} ${
+          className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold capitalize transition-all cursor-pointer ${focusRing} ${
             value === o.value
-              ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-2xs'
+              ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-2xs font-bold'
               : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
           }`}
         >
           {o.label}
           {o.count !== undefined && (
-            <span className="ml-1.5 text-[11px] font-bold px-1.5 py-0.2 rounded-full bg-gray-200/80 dark:bg-slate-600 text-gray-600 dark:text-slate-300">{o.count}</span>
+            <span className={`ml-1.5 text-[11px] font-bold px-1.5 py-0.5 rounded-full transition-colors ${
+              value === o.value
+                ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/25 dark:text-blue-300'
+                : 'bg-gray-200/80 text-gray-600 dark:bg-slate-700 dark:text-slate-300'
+            }`}>
+              {o.count}
+            </span>
           )}
         </button>
       ))}

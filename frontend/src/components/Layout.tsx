@@ -273,24 +273,31 @@ export default function Layout({ children }: { children: ReactNode }) {
         <InstallBanner />
 
         {/* Universal Top Header Bar (Mobile + Desktop) */}
-        <header className="flex items-center justify-between gap-3 bg-white/85 backdrop-blur-xl border-b border-gray-200/80 dark:bg-slate-900/85 dark:border-slate-800 px-4 sm:px-6 py-2.5 shrink-0 z-20 shadow-2xs">
-          <div className="flex items-center gap-3 min-w-0">
+        <header className="flex items-center justify-between gap-2 sm:gap-3 bg-white/85 backdrop-blur-xl border-b border-gray-200/80 dark:bg-slate-900/85 dark:border-slate-800 px-3.5 sm:px-6 py-2 sm:py-2.5 shrink-0 z-20 shadow-2xs">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={() => setDrawerOpen(true)}
               aria-label="Open navigation menu"
-              className="lg:hidden text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100 p-1.5 -ml-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+              className="lg:hidden text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100 p-1.5 -ml-1 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors shrink-0"
             >
-              <Menu size={22} />
+              <Menu size={20} />
             </button>
-            <div className="flex items-center gap-2.5 lg:hidden min-w-0">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-blue-600/25 overflow-hidden">
+            <div className="flex items-center gap-2 lg:hidden min-w-0">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shrink-0 shadow-sm shadow-blue-600/25 overflow-hidden">
                 {gym?.logo ? (
                   <img src={gym.logo} alt={gym.name} className="w-full h-full object-cover" />
                 ) : (
-                  <Dumbbell className="text-white" size={15} />
+                  <Dumbbell className="text-white" size={14} />
                 )}
               </div>
-              <p className="font-bold text-gray-900 dark:text-slate-100 text-sm truncate font-heading">{gym?.name || 'GymPro'}</p>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <p className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm truncate font-heading">{gym?.name || 'GymPro'}</p>
+                {pathname === '/members' && (
+                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/15 px-1.5 py-0.5 rounded-md shrink-0">
+                    Members
+                  </span>
+                )}
+              </div>
             </div>
             {/* Desktop page breadcrumb / status indicator */}
             <div className="hidden lg:flex items-center gap-2.5 text-xs">
@@ -307,7 +314,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <InstallButton variant="navbar" />
             <div className="lg:hidden">
               <ThemeToggle />

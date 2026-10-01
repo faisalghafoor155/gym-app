@@ -63,6 +63,38 @@ async function main() {
     return;
   }
 
+  // If standard PostgreSQL 17 or 18 is installed locally, copy binaries directly!
+  const localCandidates = [
+    'C:\\Program Files\\PostgreSQL\\17',
+    'C:\\Program Files\\PostgreSQL\\18',
+    'C:\\Program Files\\PostgreSQL\\16'
+  ];
+
+  for (const localPg of localCandidates) {
+    if (fs.existsSync(path.join(localPg, 'bin', 'postgres.exe'))) {
+      console.log(`Found installed PostgreSQL at: ${localPg}`);
+      console.log(`Copying binaries to ${TARGET_DIR} ...`);
+      fs.mkdirSync(TARGET_DIR, { recursive: true });
+
+      try {
+        // Copy bin, lib, and share
+        for (const sub of ['bin', 'lib', 'share']) {
+          const src = path.join(localPg, sub);
+          const dest = path.join(TARGET_DIR, sub);
+          if (fs.existsSync(src)) {
+            execSync(`powershell -Command "Copy-Item -Path '${src}' -Destination '${dest}' -Recurse -Force"`, {
+              stdio: 'inherit'
+            });
+          }
+        }
+        console.log(`Local PostgreSQL binaries bundled into: ${TARGET_DIR}`);
+        return;
+      } catch (copyErr) {
+        console.warn(`Local copy failed: ${copyErr.message}. Falling back to download...`);
+      }
+    }
+  }
+
   try {
     await download(PG_ZIP_URL, TEMP_ZIP);
 

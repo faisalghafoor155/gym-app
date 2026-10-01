@@ -39,9 +39,9 @@ export default function InstallButton({ className = '', variant = 'navbar' }: In
       <button
         onClick={handleClick}
         type="button"
-        className={`inline-flex items-center justify-center gap-1.5 font-semibold transition-all active:scale-95 cursor-pointer shadow-sm ${
+        className={`inline-flex items-center justify-center gap-1 sm:gap-1.5 font-semibold transition-all active:scale-95 cursor-pointer shadow-sm ${
           variant === 'navbar'
-            ? 'px-3 py-1.5 text-xs rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-blue-500/30 ring-1 ring-white/20'
+            ? 'px-2 sm:px-3 py-1.5 text-xs rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-blue-500/30 ring-1 ring-white/20'
             : variant === 'sidebar'
             ? 'w-full px-3 py-2 text-xs rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-600/20'
             : variant === 'compact'
@@ -50,8 +50,9 @@ export default function InstallButton({ className = '', variant = 'navbar' }: In
         } ${className}`}
         title="Install app on mobile or desktop"
       >
-        <Smartphone size={15} className="animate-pulse shrink-0" />
-        <span className="truncate">Install App</span>
+        <Smartphone size={14} className="animate-pulse shrink-0" />
+        <span className="truncate hidden sm:inline">Install App</span>
+        <span className="truncate sm:hidden">Install</span>
       </button>
 
       {/* Guide Modal for Android, iOS & Desktop */}

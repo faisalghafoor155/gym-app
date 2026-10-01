@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, CalendarPlus, QrCode, Fingerprint, PauseCircle, PlayCircle, XCircle, Dumbbell, UserPlus, MessageCircle } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, CalendarPlus, QrCode, Fingerprint, PauseCircle, PlayCircle, XCircle, Dumbbell, UserPlus, MessageCircle, X } from 'lucide-react';
 import Badge from '../components/Badge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FingerprintEnrollModal from '../components/FingerprintEnrollModal';
@@ -363,17 +363,18 @@ export default function Members() {
         title="Members"
         subtitle={`${rosterSize} ${rosterSize === 1 ? 'member' : 'members'} on the books`}
         action={
-          <button onClick={() => openAdd()} className={primaryButton}>
+          <button onClick={() => openAdd()} className={`${primaryButton} shrink-0 !py-1.5 !px-3 sm:!py-2 sm:!px-4 text-xs sm:text-sm gap-1 sm:gap-2`}>
             <Plus size={16} />
-            <span className="hidden sm:inline">Add Member</span><span className="sm:hidden">Add</span>
+            <span className="hidden sm:inline">Add Member</span><span className="sm:hidden font-bold">Add</span>
           </button>
         }
       />
 
-      {/* Filters */}
-      <Card className="p-3 sm:p-4 mb-5">
-        <div className="flex flex-col xl:flex-row xl:items-center gap-3">
-          <div className="w-full xl:w-auto overflow-hidden">
+      {/* Filters and Navigation Bar */}
+      <Card className="p-2.5 sm:p-4 mb-4 sm:mb-5">
+        <div className="flex flex-col gap-2.5 sm:gap-3">
+          {/* Status Tabs Navbar */}
+          <div className="w-full min-w-0 overflow-x-auto no-scrollbar -mx-0.5 px-0.5">
             <SegmentedControl
               value={filterStatus}
               onChange={setFilterStatus}
@@ -383,53 +384,66 @@ export default function Members() {
                 { value: 'expiring', label: 'Expiring', count: counts.expiring },
                 { value: 'expired', label: 'Expired', count: counts.expired },
                 { value: 'lapsed', label: 'Lapsed', count: counts.lapsed },
-                { value: 'none', label: 'No membership', count: counts.none },
+                { value: 'none', label: 'No plan', count: counts.none },
               ]}
             />
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap xl:ml-auto w-full xl:w-auto">
-            {/* Narrows the roster to one gender */}
-            <select
-              value={filterGender}
-              onChange={e => setFilterGender(e.target.value as GenderFilter)}
-              aria-label="Filter members by gender"
-              className={`${inputClass} flex-1 sm:w-auto`}
-            >
-              <option value="">All genders</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-
-            {/* Whose members to show */}
-            {trainers.length > 0 && (
-              <select
-                value={filterTrainer}
-                onChange={e => setFilterTrainer(e.target.value)}
-                aria-label="Filter members by trainer"
-                className={`${inputClass} flex-1 sm:w-auto`}
-              >
-                <option value="">All trainers</option>
-                <option value="none">Not assigned</option>
-                {trainers.map(t => (
-                  <option key={t.id} value={t.id}>
-                    {t.isActive ? t.name : `${t.name} (left)`}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            <div className="relative flex-1 min-w-[180px] w-full sm:w-auto sm:max-w-xs">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
+          {/* Search & Filter Row */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            {/* Search Input - Full width on mobile for easy typing */}
+            <div className="relative flex-1 min-w-0">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 pointer-events-none" />
               <input
                 type="search"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search name, ID or phone..."
                 aria-label="Search members"
-                className={`${inputClass} pl-9`}
+                className={`${inputClass} pl-9 pr-8 text-xs sm:text-sm py-2`}
               />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Gender & Trainer dropdowns - side-by-side on mobile, inline on desktop */}
+            <div className={`grid ${trainers.length > 0 ? 'grid-cols-2' : 'grid-cols-1'} sm:flex items-center gap-2 shrink-0`}>
+              <select
+                value={filterGender}
+                onChange={e => setFilterGender(e.target.value as GenderFilter)}
+                aria-label="Filter members by gender"
+                className={`${inputClass} text-xs sm:text-sm py-2 sm:w-auto`}
+              >
+                <option value="">All genders</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+
+              {trainers.length > 0 && (
+                <select
+                  value={filterTrainer}
+                  onChange={e => setFilterTrainer(e.target.value)}
+                  aria-label="Filter members by trainer"
+                  className={`${inputClass} text-xs sm:text-sm py-2 sm:w-auto`}
+                >
+                  <option value="">All trainers</option>
+                  <option value="none">Not assigned</option>
+                  {trainers.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.isActive ? t.name : `${t.name} (left)`}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
         </div>

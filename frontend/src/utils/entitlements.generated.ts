@@ -33,7 +33,7 @@ export interface Entitlements {
 }
 
 /** The tiers, cheapest first. */
-export const PLAN_ORDER: readonly GymPlan[] = ['free', 'basic', 'pro'] as const;
+export const PLAN_ORDER: readonly GymPlan[] = ['free', 'basic', 'growth', 'pro'] as const;
 
 export const ENTITLEMENTS: Record<GymPlan, Entitlements> = {
   free: {
@@ -53,7 +53,7 @@ export const ENTITLEMENTS: Record<GymPlan, Entitlements> = {
   basic: {
     limits: {
       classes: 20,
-      members: 300,
+      members: 200,
       staff: 6,
       trainers: 10,
     },
@@ -64,11 +64,25 @@ export const ENTITLEMENTS: Record<GymPlan, Entitlements> = {
       whatsapp: true,
     },
   },
+  growth: {
+    limits: {
+      classes: 35,
+      members: 400,
+      staff: 10,
+      trainers: 20,
+    },
+    features: {
+      analytics: true,
+      biometrics: false,
+      onlinePayments: true,
+      whatsapp: true,
+    },
+  },
   pro: {
     limits: {
       classes: null,
       members: null,
-      staff: 15,
+      staff: 25,
       trainers: null,
     },
     features: {
@@ -83,5 +97,6 @@ export const ENTITLEMENTS: Record<GymPlan, Entitlements> = {
 export const PLAN_LABELS: Record<GymPlan, string> = {
   free: "Free",
   basic: "Basic",
+  growth: "Growth",
   pro: "Pro",
 };

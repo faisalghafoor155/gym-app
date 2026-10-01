@@ -49,6 +49,9 @@ export default defineConfig({
     }),
   ],
   server: {
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: true,
     // Demo tunnels only. Vite rejects unknown Host headers by default, which is
     // what stops a stranger's domain from pointing at this dev server; keeping
     // the list to the one tunnel domain preserves that for everything else.

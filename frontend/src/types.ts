@@ -32,7 +32,7 @@ export type Role = 'owner' | 'staff' | 'member';
 export type StaffPermission = 'manager' | 'members_manager' | 'accountant' | 'receptionist' | 'inventory_manager';
 
 /** The gym's subscription tier. Mirrors the `GymPlan` enum in the schema. */
-export type GymPlan = 'free' | 'basic' | 'pro';
+export type GymPlan = 'free' | 'basic' | 'growth' | 'pro';
 
 export interface Gym {
   id: string;
@@ -92,7 +92,7 @@ export interface SubscriptionStatus {
   limits: Record<keyof PlanLimits, LimitStatus>;
   /** Every tier, so an upgrade prompt can name what the next one holds
    *  without the client keeping its own copy of the pricing table. */
-  plans: ({ plan: GymPlan; label: string } & Entitlements)[];
+  plans: ({ plan: GymPlan; label: string; price?: number } & Entitlements)[];
 }
 
 /** One period billed to the gym, and what became of it. */

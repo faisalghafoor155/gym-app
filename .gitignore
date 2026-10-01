@@ -25,3 +25,7 @@ Thumbs.db
 
 # Database dumps — never commit a copy of the gym's data
 docker/backups/
+
+# Portable PostgreSQL binaries
+resources/postgres/
+
