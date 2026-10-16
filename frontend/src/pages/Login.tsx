@@ -8,6 +8,7 @@ import GoogleSignIn from '../components/GoogleSignIn';
 import InstallButton from '../components/InstallButton';
 import { isTwoFactorChallenge, type AuthResponse, type LoginResponse } from '../types';
 import toast from 'react-hot-toast';
+import { takeAfterLogin } from '../utils/afterLogin';
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -26,7 +27,7 @@ export default function Login() {
       return;
     }
     login(data.user, data.gym);
-    navigate('/dashboard');
+    navigate(takeAfterLogin() ?? '/dashboard');
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -51,7 +52,7 @@ export default function Login() {
         code: code.trim(),
       });
       login(data.user, data.gym);
-      navigate('/dashboard');
+      navigate(takeAfterLogin() ?? '/dashboard');
     } catch (err) {
       toast.error(apiError(err, 'Invalid code'));
     } finally {

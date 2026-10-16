@@ -34,6 +34,7 @@ const AcceptInvite = lazy(() => import('./pages/AcceptInvite'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Members = lazy(() => import('./pages/Members'));
 const Attendance = lazy(() => import('./pages/Attendance'));
+const QrCheckin = lazy(() => import('./pages/QrCheckin'));
 const Payments = lazy(() => import('./pages/Payments'));
 const MonthlyCollection = lazy(() => import('./pages/MonthlyCollection'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
@@ -158,6 +159,9 @@ function AppRoutes() {
       <Route path="/verify-email" element={<VerifyEmail />} />
       {/* Public: the invitee has no session yet, and is signed in on accept. */}
       <Route path="/accept-invite" element={<AcceptInvite />} />
+      {/* Opened by a member's phone from the gym's check-in QR. Handles its own
+          sign-in redirect so the scan survives a trip through /login. */}
+      <Route path="/checkin" element={<QrCheckin />} />
       <Route path="/" element={<HomeRedirect />} />
       <Route
         path="/*"

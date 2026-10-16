@@ -6,6 +6,7 @@ import {
 import api, { apiError } from '../api/client';
 import { useDebounced } from '../hooks/useDebounced';
 import CheckinResultModal, { type CheckinDisplay } from '../components/attendance/CheckinResultModal';
+import GymQrPanel from '../components/attendance/GymQrPanel';
 import type {
   Member, AttendanceRecord, CheckinResult, Paginated,
   FingerprintStatus, FingerprintIdentifyResult,
@@ -36,7 +37,7 @@ function playBeep() {
   }
 }
 
-type TabType = 'search' | 'scanner' | 'fingerprint';
+type TabType = 'search' | 'scanner' | 'gymqr' | 'fingerprint';
 
 export default function Attendance() {
   const [activeTab, setActiveTab] = useState<TabType>('search');
@@ -364,6 +365,7 @@ export default function Attendance() {
             options={[
               { value: 'search', label: 'Search Check-In' },
               { value: 'scanner', label: 'QR Scanner' },
+              { value: 'gymqr', label: 'Gym QR' },
               { value: 'fingerprint', label: 'Fingerprint' },
             ]}
           />
@@ -551,6 +553,9 @@ export default function Attendance() {
           )}
         </Card>
       )}
+
+      {/* TAB: the gym's own QR, scanned by members' phones */}
+      {activeTab === 'gymqr' && <GymQrPanel onRefreshToday={loadToday} />}
 
       {/* TAB 3: Fingerprint */}
       {activeTab === 'fingerprint' && (
