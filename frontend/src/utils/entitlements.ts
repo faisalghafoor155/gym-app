@@ -26,7 +26,15 @@ import {
 export type { Entitlements, Limit, PlanFeatures, PlanLimits };
 export { ENTITLEMENTS, PLAN_LABELS, PLAN_ORDER };
 
-export const entitlementsFor = (plan: GymPlan): Entitlements => ENTITLEMENTS[plan];
+/**
+ * Client half of the backend's `SUBSCRIPTIONS_ENABLED` switch. While off, the
+ * plan step on Register and the Plan & Usage page are hidden. Set
+ * `VITE_SUBSCRIPTIONS_ENABLED=true` together with the backend flag to turn
+ * subscriptions back on.
+ */
+export const SUBSCRIPTIONS_ENABLED = import.meta.env['VITE_SUBSCRIPTIONS_ENABLED'] === 'true';
+
+export const entitlementsFor =(plan: GymPlan): Entitlements => ENTITLEMENTS[plan];
 
 export const planHasFeature = (plan: GymPlan, feature: keyof PlanFeatures): boolean =>
   ENTITLEMENTS[plan]?.features[feature] ?? false;

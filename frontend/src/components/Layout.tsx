@@ -9,7 +9,7 @@ import InstallBanner from './InstallBanner';
 import InstallButton from './InstallButton';
 import { hasPermission, type PermissionRequirements } from '../utils/permissions';
 import { useSubscription } from '../context/SubscriptionContext';
-import type { PlanFeatures } from '../utils/entitlements';
+import { SUBSCRIPTIONS_ENABLED, type PlanFeatures } from '../utils/entitlements';
 import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   Dumbbell, LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
@@ -64,7 +64,7 @@ const ownerNavItems: NavItem[] = [
   { to: '/audit-log', label: 'Audit Log', icon: ScrollText },
   // What the gym is paying for and how close it is to each ceiling. Owner's,
   // because changing it is a billing conversation.
-  { to: '/subscription', label: 'Plan & Usage', icon: Sparkles },
+  ...(SUBSCRIPTIONS_ENABLED ? [{ to: '/subscription', label: 'Plan & Usage', icon: Sparkles }] : []),
 ];
 
 const memberNavItems: NavItem[] = [

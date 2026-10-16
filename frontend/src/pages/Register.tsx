@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { inputClass, primaryButton } from '../components/ui';
 import api, { apiError } from '../api/client';
 import type { AuthResponse, GymPlan } from '../types';
+import { SUBSCRIPTIONS_ENABLED } from '../utils/entitlements';
 import toast from 'react-hot-toast';
 
 interface RegisterForm {
@@ -125,12 +126,15 @@ export default function Register() {
             Register Your Gym
           </h1>
           <p className="text-gray-500 dark:text-slate-400 mt-1 text-sm sm:text-base">
-            Select your member capacity plan and start managing your gym effortlessly
+            {SUBSCRIPTIONS_ENABLED
+              ? 'Select your member capacity plan and start managing your gym effortlessly'
+              : 'Create your account and start managing your gym effortlessly'}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Step 1: Choose Plan */}
+          {/* Step 1: Choose Plan — skipped while subscriptions are switched off */}
+          {SUBSCRIPTIONS_ENABLED && (
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 p-6 sm:p-8">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -224,11 +228,12 @@ export default function Register() {
               })}
             </div>
           </div>
+          )}
 
           {/* Step 2: Gym Details */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 p-6 sm:p-8">
             <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2 mb-4">
-              <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center justify-center">2</span>
+              <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center justify-center">{SUBSCRIPTIONS_ENABLED ? 2 : 1}</span>
               Gym & Owner Details
             </h2>
 
@@ -308,10 +313,12 @@ export default function Register() {
             </div>
 
             <div className="mt-8 pt-6 border-t border-gray-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
-                <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
-                <span>Selected: <strong className="text-gray-900 dark:text-slate-200">{PLAN_OPTIONS.find(p => p.id === form.plan)?.name} ({PLAN_OPTIONS.find(p => p.id === form.plan)?.members})</strong></span>
-              </div>
+              {SUBSCRIPTIONS_ENABLED ? (
+                <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
+                  <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
+                  <span>Selected: <strong className="text-gray-900 dark:text-slate-200">{PLAN_OPTIONS.find(p => p.id === form.plan)?.name} ({PLAN_OPTIONS.find(p => p.id === form.plan)?.members})</strong></span>
+                </div>
+              ) : <span />}
 
               <button
                 type="submit"

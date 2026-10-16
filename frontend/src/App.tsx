@@ -75,7 +75,7 @@ function StaffRoute({ children }: { children: ReactNode }) {
 }
 
 import { hasPermission, type PermissionRequirements } from './utils/permissions';
-import type { PlanFeatures } from './utils/entitlements';
+import { SUBSCRIPTIONS_ENABLED, type PlanFeatures } from './utils/entitlements';
 
 function PermissionRoute({ children, action }: { children: ReactNode; action: keyof PermissionRequirements }) {
   const { isAuth, isStaff, isOwner, user, loading } = useAuth();
@@ -215,7 +215,9 @@ function AppRoutes() {
                 <Route path="/expenses" element={<PermissionRoute action="canManageExpenses"><Expenses /></PermissionRoute>} />
                 <Route path="/team" element={<OwnerRoute><Team /></OwnerRoute>} />
                 {/* Owner-only: what the gym pays for is a billing matter. */}
-                <Route path="/subscription" element={<OwnerRoute><Subscription /></OwnerRoute>} />
+                {SUBSCRIPTIONS_ENABLED && (
+                  <Route path="/subscription" element={<OwnerRoute><Subscription /></OwnerRoute>} />
+                )}
                 <Route path="/trainers" element={<PermissionRoute action="canManageTrainers"><Trainers /></PermissionRoute>} />
                 <Route path="/classes" element={<PermissionRoute action="canManageClasses"><Classes /></PermissionRoute>} />
                 <Route path="*" element={<HomeRedirect />} />
