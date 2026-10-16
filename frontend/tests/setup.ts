@@ -2,6 +2,26 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 
+// jsdom has no matchMedia, and the install prompt asks it whether the app is
+// running standalone on every page that renders the button. Answers "no match"
+// by default; tests that care (InstallBanner) redefine it, hence configurable.
+if (!window.matchMedia) {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }),
+  });
+}
+
 /**
  * Shared setup for the frontend suite.
  *

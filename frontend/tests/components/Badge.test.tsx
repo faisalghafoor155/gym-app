@@ -13,6 +13,9 @@ import Badge from '../../src/components/Badge';
  * setup works at all.
  */
 
+/** The pill itself — the text sits in its own span beside the status dot. */
+const pill = (text: string): HTMLElement => screen.getByText(text).parentElement!;
+
 describe('Badge', () => {
   it('shows the status it was given', () => {
     render(<Badge status="active" />);
@@ -23,7 +26,7 @@ describe('Badge', () => {
   it('colours an expired membership red, to be noticed', () => {
     render(<Badge status="expired" />);
 
-    expect(screen.getByText('expired')).toHaveClass('bg-red-100', 'text-red-700');
+    expect(pill('expired')).toHaveClass('bg-rose-50', 'text-rose-700');
   });
 
   it('colours a lapsed one grey, so it does not compete', () => {
@@ -31,21 +34,21 @@ describe('Badge', () => {
 
     // Long gone rather than newly overdue — it must not draw the eye away from
     // the expired members the gym can still do something about.
-    expect(screen.getByText('lapsed')).toHaveClass('bg-slate-200');
+    expect(pill('lapsed')).toHaveClass('bg-slate-100', 'text-slate-600');
   });
 
   it('plays down a superseded membership, which is history not a problem', () => {
     render(<Badge status="superseded" />);
 
-    expect(screen.getByText('superseded')).toHaveClass('bg-gray-100', 'text-gray-500');
+    expect(pill('superseded')).toHaveClass('bg-gray-100', 'text-gray-500');
   });
 
   it('separates paid from due', () => {
     const { rerender } = render(<Badge status="paid" />);
-    expect(screen.getByText('paid')).toHaveClass('bg-green-100');
+    expect(pill('paid')).toHaveClass('bg-emerald-50');
 
     rerender(<Badge status="due" />);
-    expect(screen.getByText('due')).toHaveClass('bg-red-100');
+    expect(pill('due')).toHaveClass('bg-rose-50');
   });
 
   it('falls back to neutral for a status it has no colour for', () => {
@@ -53,6 +56,6 @@ describe('Badge', () => {
 
     // A status added on the server must render as plain rather than crash or
     // come out unstyled.
-    expect(screen.getByText('something-new')).toHaveClass('bg-gray-100', 'text-gray-600');
+    expect(pill('something-new')).toHaveClass('bg-gray-100', 'text-gray-600');
   });
 });

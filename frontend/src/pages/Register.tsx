@@ -100,7 +100,10 @@ export default function Register() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await api.post<AuthResponse>('/auth/register', form);
+      // No plan to choose while subscriptions are off, so none is sent.
+      const { plan, ...details } = form;
+      const body = SUBSCRIPTIONS_ENABLED ? { ...details, plan } : details;
+      const { data } = await api.post<AuthResponse>('/auth/register', body);
       login(data.user, data.gym);
       toast.success('Gym registered successfully! Welcome aboard.');
       navigate('/dashboard');

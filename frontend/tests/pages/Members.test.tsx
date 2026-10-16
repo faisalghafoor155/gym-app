@@ -462,7 +462,7 @@ describe('Members — renewing', () => {
     const user = await openRenew();
     expect(await screen.findByRole('dialog', { name: /renew membership/i })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /^renew$/i }));
+    await user.click(screen.getByRole('button', { name: /^renew \(rs/i }));
 
     await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
     // The old membership's id is in the path: a renewal supersedes a specific
@@ -489,7 +489,7 @@ describe('Members — renewing', () => {
     // ...and editable, because a haggled renewal is recorded at what was taken.
     await user.clear(amount);
     await user.type(amount, '2000');
-    await user.click(screen.getByRole('button', { name: /^renew$/i }));
+    await user.click(screen.getByRole('button', { name: /^renew \(rs/i }));
 
     await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
     const [, body] = api.current!.post.mock.calls[0] as unknown as [string, { amount: number }];
@@ -511,7 +511,7 @@ describe('Members — renewing', () => {
     await user.selectOptions(channel, 'easypaisa');
     // Switching back must drop the wallet, not leave it on a cash row.
     await user.click(within(dialog).getByRole('button', { name: /cash/i }));
-    await user.click(within(dialog).getByRole('button', { name: /^renew$/i }));
+    await user.click(within(dialog).getByRole('button', { name: /^renew \(rs/i }));
 
     await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
     const [, body] = api.current!.post.mock.calls[0] as unknown as [string, Record<string, unknown>];

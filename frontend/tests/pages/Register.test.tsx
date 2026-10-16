@@ -45,11 +45,11 @@ const session = {
 };
 
 const fillForm = async (over: { phone?: string } = {}) => {
-  await userEvent.type(screen.getByPlaceholderText('Fitness Plus Gym'), 'Iron House');
-  await userEvent.type(screen.getByPlaceholderText('Ahmed Khan'), 'Ahmed Khan');
-  await userEvent.type(screen.getByPlaceholderText('owner@gym.com'), 'ahmed@ironhouse.pk');
-  if (over.phone) await userEvent.type(screen.getByPlaceholderText('03001234567'), over.phone);
-  await userEvent.type(screen.getByPlaceholderText(/min 8 characters/i), 'hunter2hunter2');
+  await userEvent.type(screen.getByPlaceholderText(/iron strong fitness/i), 'Iron House');
+  await userEvent.type(screen.getByPlaceholderText(/faisal ghafoor/i), 'Ahmed Khan');
+  await userEvent.type(screen.getByPlaceholderText('owner@yourgym.com'), 'ahmed@ironhouse.pk');
+  if (over.phone) await userEvent.type(screen.getByPlaceholderText('0300 1234567'), over.phone);
+  await userEvent.type(screen.getByPlaceholderText(/minimum 8 characters/i), 'hunter2hunter2');
 };
 
 describe('Register', () => {
@@ -109,7 +109,7 @@ describe('Register', () => {
     // A rejected registration must be one correction away from working, not
     // five fields of retyping.
     await waitFor(() => expect(login).not.toHaveBeenCalled());
-    expect(screen.getByPlaceholderText('Fitness Plus Gym')).toHaveValue('Iron House');
-    expect(screen.getByPlaceholderText('owner@gym.com')).toHaveValue('ahmed@ironhouse.pk');
+    expect(screen.getByPlaceholderText(/iron strong fitness/i)).toHaveValue('Iron House');
+    expect(screen.getByPlaceholderText('owner@yourgym.com')).toHaveValue('ahmed@ironhouse.pk');
   });
 });
