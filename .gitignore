@@ -8,6 +8,8 @@ node_modules/
 
 dist/
 build/
+# electron-builder output (the portable .exe and installers)
+release/
 *.log
 npm-debug.log*
 *.tsbuildinfo
