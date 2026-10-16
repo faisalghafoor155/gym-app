@@ -1,6 +1,6 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, Calendar } from 'lucide-react';
+import { Camera, Calendar, Fingerprint } from 'lucide-react';
 import {
   FieldLabel, inputClass, primaryButton, secondaryButton, focusRing,
 } from '../ui';
@@ -384,6 +384,9 @@ export default function MemberFormModal({
             <label htmlFor="member-phone" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Phone</label>
             <input
               id="member-phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
               value={form.phone}
               onChange={e => setChecked('phone')(e.target.value)}
               onBlur={() => void checkDuplicate(form)}
@@ -724,6 +727,15 @@ export default function MemberFormModal({
                   </>
                 )}
               </div>
+            </div>
+          )}
+
+          {!editing && (
+            <div className="flex items-center gap-2.5 p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-xs text-blue-700 dark:text-blue-300">
+              <Fingerprint size={18} className="shrink-0 text-blue-600 dark:text-blue-400" />
+              <span>
+                Member save hote hi <strong>Fingerprint Enrolment</strong> ka scan popup automatically open ho jaye ga.
+              </span>
             </div>
           )}
 

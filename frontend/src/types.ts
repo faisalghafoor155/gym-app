@@ -436,7 +436,18 @@ export interface AttendanceRecord {
  */
 export interface CheckinResult extends AttendanceRecord {
   membership: Membership | null;
+  /** What the current membership cost and how much is still owed. Null when
+   *  there is no membership. */
+  fee?: CheckinFee | null;
   alreadyCheckedIn: boolean;
+}
+
+/** The fee picture for a membership, as the check-in returns it. */
+export interface CheckinFee {
+  amount: number;
+  paid: number;
+  /** Never negative — overpaying is not a debt. */
+  balance: number;
 }
 
 /** Whether the gym has a fingerprint reader, and whether it is answering. */

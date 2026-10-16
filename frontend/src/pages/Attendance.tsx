@@ -136,30 +136,19 @@ export default function Attendance() {
         '/attendance/checkin', { memberId: member.id },
       );
 
-      if (data.alreadyCheckedIn) {
-        toast(`${member.name} was already checked in today`, { icon: 'ℹ️' });
-      } else {
-        toast.success(`${member.name} checked in!`);
-      }
+      playBeep();
 
-      const ms = data.membership;
-      if (!ms) {
-        toast(`${member.name} has no membership`, { icon: '⚠️', duration: 6000 });
-      } else if (ms.status === 'expired') {
-        toast(
-          `${member.name}'s membership expired ${Math.abs(ms.daysLeft)} day${
-            Math.abs(ms.daysLeft) === 1 ? '' : 's'} ago`,
-          { icon: '⚠️', duration: 6000 },
-        );
-      } else if (ms.status === 'expiring') {
-        toast(
-          ms.daysLeft === 0
-            ? `${member.name}'s membership expires today`
-            : `${member.name}'s membership expires in ${ms.daysLeft} day${
-              ms.daysLeft === 1 ? '' : 's'}`,
-          { icon: '⏳', duration: 5000 },
-        );
-      }
+      // Same panel the scanners put up: the name, number, fee and expiry at a
+      // size the desk can read, rather than a string of toasts that fade.
+      setCheckinResult({
+        name: member.name,
+        memberNo: data.member?.memberNo ?? member.memberNo,
+        phone: data.member?.phone ?? member.phone,
+        photo: data.member?.photo ?? member.photo,
+        membership: data.membership,
+        fee: data.fee,
+        alreadyCheckedIn: data.alreadyCheckedIn,
+      });
 
       await loadToday();
       setSearch('');
@@ -213,8 +202,10 @@ export default function Attendance() {
       setCheckinResult({
         name: memberName,
         memberNo: data.member?.memberNo ?? member?.memberNo,
-        photo,
+        phone: data.member?.phone ?? member?.phone,
+        photo: photo ?? data.member?.photo,
         membership: data.membership,
+        fee: data.fee,
         alreadyCheckedIn: data.alreadyCheckedIn,
       });
 

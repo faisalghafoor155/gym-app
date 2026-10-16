@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { CheckCircle2, AlertTriangle, XCircle, Clock, CalendarX2 } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, Clock, CalendarX2, Phone, Wallet } from 'lucide-react';
 
-import type { Membership } from '../../types';
+import type { CheckinFee, Membership } from '../../types';
 
 /**
  * What the front desk sees the moment somebody checks in.
@@ -25,8 +25,11 @@ import type { Membership } from '../../types';
 export interface CheckinDisplay {
   name: string;
   memberNo?: string | null;
+  phone?: string | null;
   photo?: string | null;
   membership: Membership | null;
+  /** Fee, paid and balance for the current membership, when known. */
+  fee?: CheckinFee | null;
   alreadyCheckedIn: boolean;
 }
 
@@ -42,6 +45,8 @@ const asDate = (iso: string): string =>
   });
 
 const days = (n: number): string => `${n} day${n === 1 ? '' : 's'}`;
+
+const rs = (n: number): string => `Rs. ${n.toLocaleString()}`;
 
 /**
  * The one thing the desk has to act on, worked out once.
@@ -119,7 +124,7 @@ const TONES: Record<Tone, {
 export default function CheckinResultModal(
   { result, onClose }: { result: CheckinDisplay; onClose: () => void },
 ) {
-  const { name, memberNo, photo, membership, alreadyCheckedIn } = result;
+  const { name, memberNo, phone, photo, membership, fee, alreadyCheckedIn } = result;
   const { tone, headline, detail } = readStanding(membership);
   const { panel, badge, text, Icon } = TONES[tone];
 
@@ -183,6 +188,11 @@ export default function CheckinResultModal(
               {memberNo && (
                 <p className="text-sm font-mono text-gray-500 dark:text-slate-400">{memberNo}</p>
               )}
+              {phone && (
+                <p className="text-sm text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
+                  <Phone size={12} /> {phone}
+                </p>
+              )}
               <p className="text-sm font-semibold text-gray-700 dark:text-slate-300 mt-1 flex items-center gap-1.5">
                 {alreadyCheckedIn
                   ? <><Clock size={14} /> Already checked in today</>
@@ -211,6 +221,27 @@ export default function CheckinResultModal(
                 <dd className="font-semibold text-gray-900 dark:text-slate-100 text-right">
                   {asDate(membership.expiryDate)}
                 </dd>
+                {/* A free plan has no fee to talk about. */}
+                {fee && fee.amount > 0 && (
+                  <>
+                    <dt className="text-gray-600 dark:text-slate-400 flex items-center gap-1.5">
+                      <Wallet size={13} /> Fee
+                    </dt>
+                    <dd className="font-semibold text-gray-900 dark:text-slate-100 text-right">
+                      {rs(fee.amount)}
+                    </dd>
+                    <dt className="text-gray-600 dark:text-slate-400">Paid</dt>
+                    <dd className="font-semibold text-gray-900 dark:text-slate-100 text-right">
+                      {rs(fee.paid)}
+                    </dd>
+                    <dt className="text-gray-600 dark:text-slate-400">Balance due</dt>
+                    <dd className={`font-bold text-right ${
+                      fee.balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'
+                    }`}>
+                      {fee.balance > 0 ? rs(fee.balance) : 'Fully paid'}
+                    </dd>
+                  </>
+                )}
               </dl>
             )}
           </div>

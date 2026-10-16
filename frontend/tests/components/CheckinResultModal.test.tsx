@@ -127,6 +127,33 @@ describe('the membership standing', () => {
   });
 });
 
+describe('the fee', () => {
+  it('shows the phone number alongside the member number', () => {
+    show({ phone: '0300-1234567' });
+
+    expect(screen.getByText(/0300-1234567/)).toBeDefined();
+  });
+
+  it('shows what is still owed on the membership', () => {
+    show({ fee: { amount: 3000, paid: 1000, balance: 2000 } });
+
+    expect(screen.getByText(/balance due/i)).toBeDefined();
+    expect(screen.getByText('Rs. 2,000')).toBeDefined();
+  });
+
+  it('says fully paid when nothing is owed', () => {
+    show({ fee: { amount: 3000, paid: 3000, balance: 0 } });
+
+    expect(screen.getByText(/fully paid/i)).toBeDefined();
+  });
+
+  it('leaves the fee out for a free plan', () => {
+    show({ fee: { amount: 0, paid: 0, balance: 0 } });
+
+    expect(screen.queryByText(/balance due/i)).toBeNull();
+  });
+});
+
 describe('getting out of the way', () => {
   it('closes when the desk presses the button', async () => {
     const onClose = vi.fn();
