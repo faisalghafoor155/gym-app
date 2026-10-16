@@ -285,7 +285,9 @@ export default function Register() {
                   Contact Phone
                 </label>
                 <input
-                  type="text"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
                   value={form.phone}
                   onChange={set('phone')}
                   placeholder="0300 1234567"

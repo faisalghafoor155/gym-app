@@ -3,7 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      interactive-widget=resizes-content: on Android the on-screen keyboard
+      shrinks the layout viewport instead of being drawn over it, so a bottom
+      sheet (every form modal here) moves up with the keyboard rather than
+      hiding the field being typed into. iOS ignores it; mobileKeyboard.ts
+      covers that case.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
+    <meta name="description" content="GymPro — gym management: members, attendance, fees, staff and WhatsApp reminders." />
     <title>GymPro</title>
 
     <link rel="manifest" href="/manifest.webmanifest" />

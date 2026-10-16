@@ -119,8 +119,8 @@ export function Card({ className = '', hover = false, children }: {
 }) {
   return (
     <div className={`bg-white rounded-2xl border border-slate-200/90 shadow-xs
-      dark:bg-slate-900/90 dark:backdrop-blur-sm dark:border-slate-800/80 transition-all duration-200 ${
-        hover ? 'hover:shadow-md hover:-translate-y-0.5 hover:border-slate-300 dark:hover:border-slate-700' : ''
+      dark:bg-slate-900 dark:border-slate-800/80 ${
+        hover ? 'transition-[transform,box-shadow] duration-150 ease-out hover:shadow-md hover:-translate-y-0.5 hover:border-slate-300 dark:hover:border-slate-700' : ''
       } ${className}`}>
       {children}
     </div>

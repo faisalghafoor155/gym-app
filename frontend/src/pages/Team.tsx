@@ -520,6 +520,8 @@ export default function Team() {
                   <FieldLabel htmlFor="gym-phone">Phone</FieldLabel>
                   <input
                     id="gym-phone"
+                    type="tel"
+                    inputMode="tel"
                     maxLength={30}
                     placeholder="0300-1234567"
                     value={profile.phone}
@@ -579,6 +581,7 @@ export default function Team() {
                   </label>
                   <input
                     id="acct-easypaisa"
+                    inputMode="tel"
                     maxLength={200}
                     value={accounts.easypaisa}
                     onChange={e => setAccounts(a => ({ ...a, easypaisa: e.target.value }))}
@@ -592,6 +595,7 @@ export default function Team() {
                   </label>
                   <input
                     id="acct-jazzcash"
+                    inputMode="tel"
                     maxLength={200}
                     value={accounts.jazzcash}
                     onChange={e => setAccounts(a => ({ ...a, jazzcash: e.target.value }))}

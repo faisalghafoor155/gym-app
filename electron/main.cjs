@@ -3,6 +3,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
 const http = require('node:http');
+const os = require('node:os');
 const { fork, execSync } = require('node:child_process');
 const DatabaseManager = require('./db-manager.cjs');
 
@@ -14,6 +15,12 @@ if (!gotTheLock) {
 }
 
 const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';
+
+// Optimize Chromium performance & GPU rendering for Windows Desktop
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+
 let splashWindow = null;
 let mainWindow = null;
 let backendProcess = null;
@@ -29,6 +36,30 @@ function getAppDataDir() {
     fs.mkdirSync(dir, { recursive: true });
   }
   return dir;
+}
+
+/**
+ * The PC's address on the gym's Wi-Fi/LAN (e.g. 192.168.1.10), or null.
+ *
+ * Links the server builds (staff invites, password resets) and the address a
+ * phone types in must point here — `localhost` on a phone means the phone.
+ */
+function getLanAddress() {
+  const nets = os.networkInterfaces();
+  const candidates = [];
+  for (const [name, addrs] of Object.entries(nets)) {
+    for (const a of addrs || []) {
+      if (a.family !== 'IPv4' && a.family !== 4) continue;
+      if (a.internal) continue;
+      // Virtual adapters (VirtualBox, Hyper-V, WSL, VPNs) are unreachable
+      // from a phone; prefer real Wi-Fi/Ethernet.
+      const virtual = /virtual|vbox|vmware|hyper-v|vethernet|wsl|docker|loopback|tailscale|zerotier/i.test(name);
+      const privateRange = /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a.address);
+      candidates.push({ address: a.address, score: (virtual ? 0 : 2) + (privateRange ? 1 : 0) });
+    }
+  }
+  candidates.sort((x, y) => y.score - x.score);
+  return candidates[0] ? candidates[0].address : null;
 }
 
 function getOrGenerateConfig() {
@@ -175,6 +206,10 @@ function startBackendServer(databaseUrl, config) {
   console.log(`[Backend] Starting server from ${backendEntry}`);
   console.log(`[Backend] Serving static frontend from ${staticDir}`);
 
+  const lanIp = getLanAddress();
+  const publicUrl = lanIp ? `http://${lanIp}:${PORT}` : `http://localhost:${PORT}`;
+  console.log(`[Backend] Phones on the same Wi-Fi can open: ${publicUrl}`);
+
   const env = {
     ...process.env,
     PORT: String(PORT),
@@ -183,7 +218,15 @@ function startBackendServer(databaseUrl, config) {
     JWT_SECRET: config.jwtSecret,
     BIOMETRIC_KEY: config.biometricKey,
     SERVE_STATIC_DIR: staticDir,
-    APP_URL: `http://localhost:${PORT}`
+    // The desktop server is plain http. Without this the session cookie is
+    // marked Secure, which a phone opening http://192.168.x.x refuses to
+    // store — login "succeeds" and bounces straight back to the login page.
+    // It also stops the server forcing https:// on the page's own scripts.
+    HTTPS: 'false',
+    // Invite / reset links are opened on other devices, so they must carry
+    // an address those devices can reach. An explicit APP_URL still wins
+    // (e.g. when the desktop app sits behind a real domain).
+    APP_URL: process.env.APP_URL || publicUrl
   };
 
   backendProcess = fork(backendEntry, [], {

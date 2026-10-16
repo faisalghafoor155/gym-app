@@ -231,7 +231,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     <div className="flex h-dvh bg-gray-50 dark:bg-slate-950">
 
       {/* Desktop sidebar — always present from lg up */}
-      <aside className="hidden lg:flex w-64 bg-white/80 backdrop-blur-xl border-r border-gray-200/80 dark:bg-slate-900/80 dark:border-slate-800 flex-col shadow-sm shrink-0">
+      <aside className="hidden lg:flex w-64 bg-white border-r border-gray-200 dark:bg-slate-900 dark:border-slate-800 flex-col shadow-sm shrink-0">
         {sidebar}
       </aside>
 
@@ -273,7 +273,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         <InstallBanner />
 
         {/* Universal Top Header Bar (Mobile + Desktop) */}
-        <header className="flex items-center justify-between gap-2 sm:gap-3 bg-white/85 backdrop-blur-xl border-b border-gray-200/80 dark:bg-slate-900/85 dark:border-slate-800 px-3.5 sm:px-6 py-2 sm:py-2.5 shrink-0 z-20 shadow-2xs">
+        <header className="flex items-center justify-between gap-2 sm:gap-3 bg-white border-b border-gray-200 dark:bg-slate-900 dark:border-slate-800 px-3.5 sm:px-6 py-2 sm:py-2.5 shrink-0 z-20 shadow-2xs">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={() => setDrawerOpen(true)}
@@ -337,7 +337,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         {/* Mobile Bottom Navigation Bar for Instant 1-Tap Switching */}
         <nav
           aria-label="Mobile navigation"
-          className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-gray-200/90 dark:border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1.5 flex items-center justify-around pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+          className="mobile-bottom-nav lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1.5 flex items-center justify-around pb-[max(0.5rem,env(safe-area-inset-bottom))]"
         >
           {isStaff ? (
             <>

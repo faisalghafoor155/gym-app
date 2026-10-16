@@ -82,8 +82,6 @@ body {
   color: #0f172a;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Smooth theme transition */
-  transition: background-color 200ms ease, color 200ms ease;
 }
 
 h1, h2, h3, h4, .font-heading {
@@ -98,13 +96,14 @@ html.dark body {
 
 /* Glassmorphism helpers */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transform: translateZ(0);
 }
 
 html.dark .glass-panel {
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(15, 23, 42, 0.85);
 }
 
 #root {
@@ -164,5 +163,47 @@ html.dark {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/**
+ * On-screen keyboard handling (phones). See utils/mobileKeyboard.ts.
+ *
+ * Unlayered on purpose so it wins over Tailwind's `inset-0` / `max-h-*`
+ * utilities without !important. Screen only: the receipt overlay is also a
+ * `fixed inset-0`, and print must never be cropped to a keyboard.
+ */
+@media screen {
+  /* Every modal/bottom sheet is a `fixed inset-0` overlay. While the keyboard
+     is up, shrink it to the area the user can actually see (on iOS the
+     keyboard is drawn over the page instead of resizing it). */
+  html.keyboard-open .fixed.inset-0 {
+    top: var(--keyboard-top, 0px);
+    bottom: var(--keyboard-inset, 0px);
+  }
+
+  /* …and let the sheet inside shrink with it, so its own scroll area — not
+     the keyboard — is what hides the lower fields. */
+  html.keyboard-open .fixed.inset-0 > :not(.absolute) {
+    max-height: 100%;
+  }
+
+  /* The mobile tab bar would otherwise ride up on top of the keyboard and
+     cover the field being typed into. */
+  html.keyboard-open .mobile-bottom-nav {
+    display: none;
+  }
+}
+
+/**
+ * iOS zooms the whole page into any field under 16px and never zooms back
+ * out, which shifts every fixed element and is half of why a modal "jumps
+ * behind the keyboard". Touch screens only — desktop keeps the compact size.
+ */
+@media (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 

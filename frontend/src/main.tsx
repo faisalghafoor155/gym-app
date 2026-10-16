@@ -6,6 +6,11 @@ import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary.tsx'
 import UpdatePrompt from './components/UpdatePrompt.tsx'
 import { ThemeProvider, useTheme } from './context/ThemeContext.tsx'
+import { installKeyboardAvoidance } from './utils/mobileKeyboard.ts'
+
+// Phones only: keeps the field being typed into above the on-screen keyboard
+// in every modal and page, rather than patching each form separately.
+installKeyboardAvoidance()
 
 /**
  * The toasts render into a portal outside the styled tree, so they take their
