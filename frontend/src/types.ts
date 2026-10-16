@@ -218,6 +218,8 @@ export interface GymUser {
   createdAt: string;
   member?: { id: string; name: string } | null;
   staffPermission?: StaffPermission | null;
+  /** Invited but has not set a password yet. */
+  invitePending?: boolean;
 }
 
 export interface MyProfile {

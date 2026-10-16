@@ -22,10 +22,22 @@ type AccountMethod = 'invite' | 'password';
 /** What the API answers when an account was created by invite. */
 interface InviteResult {
   emailed: boolean;
-  /** Only present when the mail could not be sent, so the owner can pass the
-   *  link on themselves. */
-  link?: string;
+  /** Always returned, so the owner can also send it on WhatsApp. */
+  link: string;
 }
+
+/** The invite on screen after creating or re-inviting an account. */
+interface SharedInvite extends InviteResult {
+  name: string;
+}
+
+/** A WhatsApp message the owner forwards; no number, so they pick the chat. */
+const whatsappInviteUrl = (invite: SharedInvite) =>
+  `https://wa.me/?text=${encodeURIComponent(
+    `Assalam o Alaikum ${invite.name}, aap ko gym app mein add kar diya gaya hai. ` +
+    `Ye link khol kar apna password set karein (48 ghante ke liye, sirf aik dafa):
+${invite.link}`,
+  )}`;
 
 const roleStyles: Record<Role, { label: string; icon: typeof Shield; className: string }> = {
   owner: { label: 'Owner', icon: Crown, className: 'bg-purple-50 dark:bg-purple-500/15 text-purple-700 border-purple-200 dark:border-purple-500/20' },
@@ -113,8 +125,9 @@ export default function Team() {
   // who never learns the password cannot leak it.
   const [staffMethod, setStaffMethod] = useState<AccountMethod>('invite');
   const [loginMethod, setLoginMethod] = useState<AccountMethod>('invite');
-  // Shown when an invite could not be emailed, so the link is not lost.
-  const [manualLink, setManualLink] = useState<string | null>(null);
+  // The invite just issued, so its link can be copied or sent on WhatsApp.
+  const [sharedInvite, setSharedInvite] = useState<SharedInvite | null>(null);
+  const [reinviting, setReinviting] = useState<string | null>(null);
   // Both are destructive enough to confirm, and both name the person, so they
   // share one dialog rather than two near-identical ones.
   const [confirming, setConfirming] =
@@ -286,11 +299,24 @@ export default function Team() {
    * emailed is not a failure — the account exists — but the owner has to be
    * told, or they will wait for a message that never arrives.
    */
-  const announce = (invite: InviteResult | null, created: string) => {
+  const announce = (invite: InviteResult | null, created: string, name: string) => {
     if (!invite) { toast.success(`${created} — they can sign in now`); return; }
-    if (invite.emailed) { toast.success(`${created} — invite sent`); return; }
-    setManualLink(invite.link ?? null);
-    toast(`${created}, but the invite could not be emailed`, { icon: '⚠️' });
+    setSharedInvite({ ...invite, name });
+    if (invite.emailed) toast.success(`${created} — invite emailed`);
+    else toast(`${created}, but the invite could not be emailed`, { icon: '⚠️' });
+  };
+
+  /** A fresh link for somebody whose invite never arrived or ran out. */
+  const resendInvite = async (u: GymUser) => {
+    setReinviting(u.id);
+    try {
+      const { data } = await api.post<{ invite: InviteResult }>(`/users/${u.id}/invite`);
+      announce(data.invite, 'New invite ready', u.member?.name ?? u.name);
+    } catch (err) {
+      toast.error(apiError(err, 'Could not send the invite'));
+    } finally {
+      setReinviting(null);
+    }
   };
 
   const handleAddStaff = async (e: FormEvent<HTMLFormElement>) => {
@@ -304,7 +330,7 @@ export default function Team() {
         staffPermission: staffForm.staffPermission,
         ...(staffMethod === 'password' && { password: staffForm.password }),
       });
-      announce(data.invite, 'Staff account created');
+      announce(data.invite, 'Staff account created', staffForm.name);
       setShowStaff(false);
       setStaffForm({ name: '', email: '', password: '', staffPermission: 'receptionist' as StaffPermission });
       await load();
@@ -324,7 +350,8 @@ export default function Team() {
         email: loginForm.email,
         ...(loginMethod === 'password' && { password: loginForm.password }),
       });
-      announce(data.invite, 'Member login created');
+      announce(data.invite, 'Member login created',
+        members.find(m => m.id === loginForm.memberId)?.name ?? loginForm.email);
       setShowMemberLogin(false);
       setLoginForm({ memberId: '', email: '', password: '' });
       await load();
@@ -687,7 +714,7 @@ export default function Team() {
                   <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
                     {u.lastLoginAt
                       ? `Last signed in ${new Date(u.lastLoginAt).toLocaleDateString()}`
-                      : 'Never signed in'}
+                      : u.invitePending ? 'Invite sent — password not set yet' : 'Never signed in'}
                   </p>
                 </div>
 
@@ -698,6 +725,15 @@ export default function Team() {
                   <div className="flex items-center justify-end gap-1.5 flex-wrap shrink-0">
                     {u.role !== 'owner' && (
                       <>
+                        {u.invitePending && u.isActive && (
+                          <button
+                            onClick={() => void resendInvite(u)}
+                            disabled={reinviting === u.id}
+                            className={`text-xs font-medium px-2.5 py-1.5 rounded-lg border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-40 ${focusRing}`}
+                          >
+                            {reinviting === u.id ? 'Sending…' : 'Resend invite'}
+                          </button>
+                        )}
                         <button
                           // Restoring access is harmless and stays one click;
                           // revoking locks someone out mid-shift, so it asks.
@@ -867,35 +903,49 @@ export default function Team() {
         </Modal>
       )}
 
-      {/* The account exists but nothing was emailed, so the link has to be
-          handed over by hand — losing this dialog means re-inviting. */}
-      {manualLink && (
-        <Modal title="Send this link to them" onClose={() => setManualLink(null)}>
+      {/* Shown after every invite: the link can also go on WhatsApp, and when
+          the mail failed it is the only way to hand the account over. */}
+      {sharedInvite && (
+        <Modal title={`Invite for ${sharedInvite.name}`} onClose={() => setSharedInvite(null)}>
           <div className="space-y-4">
+            <p className={`text-sm rounded-xl p-3 ${sharedInvite.emailed
+              ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300'
+              : 'bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300'}`}>
+              {sharedInvite.emailed
+                ? 'The invite email has been sent. You can also send the link on WhatsApp.'
+                : 'The invite email could not be sent. Send them this link on WhatsApp or copy it.'}
+            </p>
             <p className="text-sm text-gray-500 dark:text-slate-400">
-              The account was created, but the invite email could not be sent —
-              no mail service is set up. Copy this link and give it to them
-              yourself. It lasts 48 hours and works once.
+              They open the link, choose their own password and are signed in with the
+              access you gave them. It lasts 48 hours and works once.
             </p>
             <div className="bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 rounded-xl p-3">
               <p className="text-xs text-gray-700 dark:text-slate-300 break-all font-mono leading-relaxed">
-                {manualLink}
+                {sharedInvite.link}
               </p>
             </div>
+            <a
+              href={whatsappInviteUrl(sharedInvite)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center justify-center w-full rounded-xl py-2.5 font-semibold text-white bg-green-600 hover:bg-green-700 ${focusRing}`}
+            >
+              Send on WhatsApp
+            </a>
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => {
-                  void navigator.clipboard.writeText(manualLink)
+                  void navigator.clipboard.writeText(sharedInvite.link)
                     .then(() => toast.success('Link copied'))
                     .catch(() => toast.error('Could not copy — select the text instead'));
                 }}
-                className={`flex-1 ${primaryButton}`}
+                className={`flex-1 ${secondaryButton}`}
               >
                 Copy link
               </button>
-              <button type="button" onClick={() => setManualLink(null)}
-                className={`flex-1 ${secondaryButton}`}>
+              <button type="button" onClick={() => setSharedInvite(null)}
+                className={`flex-1 ${primaryButton}`}>
                 Done
               </button>
             </div>
