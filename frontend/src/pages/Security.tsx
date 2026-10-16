@@ -236,9 +236,10 @@ export default function Security() {
                   autoComplete="one-time-code"
                   inputMode="numeric"
                   pattern="\d{6}"
-                  maxLength={6}
+                  // No maxLength: a pasted "123 456" is 7 characters, and the
+                  // browser would cut the last digit before the space is stripped.
                   value={code}
-                  onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
+                  onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   className={`${inputClass} tracking-widest`}
                   placeholder="123456"
                 />
