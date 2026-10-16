@@ -326,6 +326,43 @@ change — set `AWS_*` and `S3_BUCKET_NAME` to R2's values and `AWS_REGION=auto`
 
 ---
 
+## 9. The desktop .exe on the same data
+
+The gym's PC runs `GymPro-Portable.exe`; the owner manages the gym from the
+website on their phone. Both read and write the same Neon database, so a
+member added at the desk shows on the phone straight away.
+
+Put a file called `gympro-config.json` **in the same folder as the .exe**
+(on the USB is fine). Start from `gympro-config.example.json` in the repo:
+
+```json
+{
+  "databaseUrl": "<the pooled Neon string from §1>",
+  "biometricKey": "<the SAME key you gave Render in §2>",
+  "appUrl": "https://<your-service>.onrender.com",
+  "smtpHost": "smtp.gmail.com",
+  "smtpPort": 587,
+  "smtpUser": "<gmail address>",
+  "smtpPass": "<gmail app password>"
+}
+```
+
+- **`biometricKey` must match Render's `BIOMETRIC_KEY` exactly.** Two-factor
+  secrets and fingerprints are encrypted with it; with a different key, a
+  record written on one side cannot be read on the other.
+- **`appUrl`** makes invite and reset links point at the website, so they open
+  on a phone anywhere — not at the gym PC.
+- Mail is optional; blank values are ignored.
+- With `databaseUrl` set the .exe does not start its own database, and it
+  leaves the daily reminders to Render so members are not messaged twice.
+- **The desk now needs internet.** With none, the .exe waits on its splash
+  screen ("No internet — waiting…") and closes after about 90 seconds.
+- The file holds the database password. It is in `.gitignore`; keep it off
+  anything shared.
+
+Remove the file (or empty `databaseUrl`) and the .exe goes back to its own
+database on that PC — which still has whatever it held before.
+
 ## The limits, in one place
 
 | | Limit | Consequence |

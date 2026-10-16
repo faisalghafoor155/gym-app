@@ -31,3 +31,6 @@ docker/backups/
 # Portable PostgreSQL binaries
 resources/postgres/
 
+
+# Desktop settings carried beside the .exe — holds the database password
+gympro-config.json

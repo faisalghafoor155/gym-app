@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const http = require('node:http');
 const os = require('node:os');
+const net = require('node:net');
 const { fork, execSync } = require('node:child_process');
 const DatabaseManager = require('./db-manager.cjs');
 
@@ -108,7 +109,105 @@ function getOrGenerateConfig() {
     fs.writeFileSync(configFile, JSON.stringify(config, null, 2), 'utf8');
   }
 
-  return config;
+  // Merged after the write so settings carried on the USB are never copied
+  // into this PC's AppData — take the stick away and they go with it.
+  return { ...config, ...readPortableConfig() };
+}
+
+/**
+ * `gympro-config.json` beside the .exe, for settings that should travel with
+ * it rather than be typed into every PC: the online database the desktop
+ * shares with the website, the BIOMETRIC_KEY that database's secrets are
+ * encrypted with, the website's address for emailed links, and mail.
+ *
+ * electron-builder's portable build unpacks to a temp folder, so the .exe's
+ * real folder comes from PORTABLE_EXECUTABLE_DIR; an installed build has the
+ * file beside its own executable.
+ */
+function readPortableConfig() {
+  const dir = process.env.PORTABLE_EXECUTABLE_DIR
+    || (app.isPackaged ? path.dirname(process.execPath) : path.join(__dirname, '..'));
+  const file = path.join(dir, 'gympro-config.json');
+  if (!fs.existsSync(file)) return {};
+  try {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    console.log(`[Config] Using ${file}`);
+    // Blank values are the template's placeholders, not settings.
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '')
+    );
+  } catch (err) {
+    console.warn(`[Config] Ignoring unreadable ${file}: ${err.message}`);
+    return {};
+  }
+}
+
+/**
+ * Waits until the online database answers on its port.
+ *
+ * Connecting to it is the whole job of an online build, so with no internet
+ * there is nothing useful to open. Rather than a blank window or a server
+ * that crashes on its first query, the splash says plainly that it is waiting
+ * for the internet and keeps trying.
+ */
+function waitForOnlineDatabase(databaseUrl, timeoutMs = 90000) {
+  let host;
+  let port;
+  try {
+    const u = new URL(databaseUrl);
+    host = u.hostname;
+    port = Number(u.port || 5432);
+  } catch {
+    return Promise.reject(new Error('databaseUrl in gympro-config.json is not a valid connection string.'));
+  }
+
+  const start = Date.now();
+  return new Promise((resolve, reject) => {
+    const attempt = () => {
+      const socket = net.connect({ host, port });
+      socket.setTimeout(5000);
+      // A timeout can be followed by an error on the same socket; one retry
+      // per attempt, or the waits would multiply.
+      let settled = false;
+      const retry = () => {
+        if (settled) return;
+        settled = true;
+        socket.destroy();
+        if (Date.now() - start > timeoutMs) {
+          reject(new Error('Could not reach the online database. Check the internet connection and open GymPro again.'));
+          return;
+        }
+        updateSplashStatus('No internet — waiting to reach the online database...');
+        setTimeout(attempt, 3000);
+      };
+      socket.once('connect', () => { settled = true; socket.destroy(); resolve(); });
+      socket.once('timeout', retry);
+      socket.once('error', retry);
+    };
+    attempt();
+  });
+}
+
+/** config.json key → backend env var, for the mail settings an owner may add. */
+const MAIL_KEYS = {
+  resendApiKey: 'RESEND_API_KEY',
+  mailFrom: 'MAIL_FROM',
+  smtpHost: 'SMTP_HOST',
+  smtpPort: 'SMTP_PORT',
+  smtpUser: 'SMTP_USER',
+  smtpPass: 'SMTP_PASS',
+  smtpFrom: 'SMTP_FROM'
+};
+
+function mailEnv(config) {
+  const env = {};
+  for (const [key, name] of Object.entries(MAIL_KEYS)) {
+    const value = config[key];
+    if (value !== undefined && value !== null && String(value).trim()) {
+      env[name] = String(value).trim();
+    }
+  }
+  return env;
 }
 
 function updateSplashStatus(message) {
@@ -226,7 +325,16 @@ function startBackendServer(databaseUrl, config) {
     // Invite / reset links are opened on other devices, so they must carry
     // an address those devices can reach. An explicit APP_URL still wins
     // (e.g. when the desktop app sits behind a real domain).
-    APP_URL: process.env.APP_URL || publicUrl
+    // Online, links go to the website so they open from anywhere.
+    APP_URL: process.env.APP_URL || config.appUrl || publicUrl,
+    // Online, the website runs the daily reminders against the same data.
+    // Every desk PC running them too would send each member the same message
+    // once per PC.
+    ...(config.databaseUrl && { RUN_JOBS: 'false' }),
+    // Mail for staff/member invites and password resets. The packaged app
+    // ships no .env, so these live in config.json beside the secrets; with
+    // none set, invites fall back to a link the owner copies by hand.
+    ...mailEnv(config)
   };
 
   backendProcess = fork(backendEntry, [], {
@@ -366,8 +474,17 @@ app.whenReady().then(async () => {
   try {
     const config = getOrGenerateConfig();
 
-    dbManager = new DatabaseManager(app, app.isPackaged, console.log);
-    const dbResult = await dbManager.initialize((status) => updateSplashStatus(status));
+    let dbResult;
+    if (config.databaseUrl) {
+      // Online: the same data the website uses, so the owner can manage the
+      // gym from a phone anywhere. The local Postgres is not started at all.
+      updateSplashStatus('Connecting to the online database...');
+      await waitForOnlineDatabase(config.databaseUrl);
+      dbResult = { success: true, url: config.databaseUrl };
+    } else {
+      dbManager = new DatabaseManager(app, app.isPackaged, console.log);
+      dbResult = await dbManager.initialize((status) => updateSplashStatus(status));
+    }
 
     if (dbResult.success) {
       await runPrismaMigrations(dbResult.url);

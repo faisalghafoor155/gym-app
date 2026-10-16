@@ -1,0 +1,9 @@
+{
+  "databaseUrl": "",
+  "biometricKey": "",
+  "appUrl": "",
+  "smtpHost": "smtp.gmail.com",
+  "smtpPort": 587,
+  "smtpUser": "",
+  "smtpPass": ""
+}
