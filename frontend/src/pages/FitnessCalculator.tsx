@@ -4,13 +4,16 @@ import {
   Scale, Sparkles, Copy, Check, Info, Award,
   Activity, Zap, Bot, Package, Clock, ShieldAlert,
   AlertCircle, Send, HelpCircle, CheckCircle2, ChevronRight,
-  Calendar, Layers, Key, Trash2, Dumbbell as WorkoutIcon
+  Calendar, Layers, Key, Trash2, Dumbbell as WorkoutIcon, Compass,
+  Image as ImageIcon
 } from 'lucide-react';
 import {
   Page, PageHeader, Card, SegmentedControl, FieldLabel,
   inputClass, secondaryButton, Spinner,
 } from '../components/ui';
 import Modal from '../components/Modal';
+import ExerciseAnglesModal from '../components/fitness/ExerciseAnglesModal';
+import ExercisePhotoModal, { WORKOUT_GAMES_PHOTOS } from '../components/fitness/ExercisePhotoModal';
 import api from '../api/client';
 import toast from 'react-hot-toast';
 
@@ -154,6 +157,16 @@ export default function FitnessCalculator() {
   const [exercise, setExercise] = useState<string>('bench_press');
   const [liftWeight, setLiftWeight] = useState<number>(60);
   const [liftReps, setLiftReps] = useState<number>(8);
+
+  // Exercise Angle Guide Modal State
+  const [showAngleModal, setShowAngleModal] = useState<boolean>(false);
+  const [selectedAngleExercise, setSelectedAngleExercise] = useState<string>('incline_bench_press');
+  const [selectedAngleMuscle, setSelectedAngleMuscle] = useState<'chest' | 'back' | 'shoulders' | 'legs' | 'arms'>('chest');
+
+  // Exercise Real Photo Modal & Viewer State ("Jo bhi game select karon pic dikha de")
+  const [showPhotoModal, setShowPhotoModal] = useState<boolean>(false);
+  const [selectedPhotoExercise, setSelectedPhotoExercise] = useState<string>('flat_bench');
+  const [selectedPhotoMuscle, setSelectedPhotoMuscle] = useState<'chest' | 'back' | 'shoulders' | 'legs' | 'arms'>('chest');
 
   // AI Chat Q&A State
   const [userQuery, setUserQuery] = useState('');
@@ -348,17 +361,80 @@ export default function FitnessCalculator() {
   const foodProteinNeeded = Math.max(30, macros.proteinGrams - gainerProtein);
 
   // 5-Day Hypertrophy "Games" / Workout Routine (Specially designed for Mass Gainers & Strength)
-  const workoutSplitDays = [
+  const workoutSplitDays: Array<{
+    day: string;
+    tag: string;
+    gamesCount: string;
+    exercises: Array<{
+      name: string;
+      sets: string;
+      reps: string;
+      tip: string;
+      photoId?: string;
+      photoMuscle?: 'chest' | 'back' | 'shoulders' | 'legs' | 'arms';
+      angleId?: string;
+      angleBadge?: string;
+      angleMuscle?: 'chest' | 'back' | 'shoulders' | 'legs' | 'arms';
+    }>;
+    intensity: string;
+  }> = [
     {
       day: 'Day 1: Chest & Triceps (Heavy Push)',
       tag: 'Upper Body',
       gamesCount: '5 Games / Exercises',
       exercises: [
-        { name: 'Flat Barbell Bench Press', sets: '4 sets', reps: '6-8 reps (Heavy)', tip: 'Chest expansion & strength' },
-        { name: 'Incline Dumbbell Press', sets: '3 sets', reps: '8-10 reps', tip: 'Upper chest shelf build' },
-        { name: 'Dips (Weighted if possible)', sets: '3 sets', reps: '10-12 reps', tip: 'Lower chest & tricep power' },
-        { name: 'Cable Chest Flyes', sets: '3 sets', reps: '12-15 reps (Squeeze)', tip: 'Chest pump & blood flow' },
-        { name: 'Rope Tricep Pushdowns', sets: '4 sets', reps: '10-12 reps', tip: 'Tricep horseshoe pump' },
+        {
+          name: 'Flat Barbell Bench Press',
+          sets: '4 sets',
+          reps: '6-8 reps (Heavy)',
+          tip: 'Chest expansion & strength',
+          photoId: 'flat_bench',
+          photoMuscle: 'chest',
+          angleId: 'flat_bench_press',
+          angleBadge: '📐 0° Bench · 45° Elbows',
+          angleMuscle: 'chest',
+        },
+        {
+          name: 'Incline Dumbbell Press',
+          sets: '3 sets',
+          reps: '8-10 reps',
+          tip: 'Upper chest shelf build',
+          photoId: 'incline_bench',
+          photoMuscle: 'chest',
+          angleId: 'incline_bench_press',
+          angleBadge: '📐 30°-45° Incline (Upper Chest)',
+          angleMuscle: 'chest',
+        },
+        {
+          name: 'Dips (Weighted if possible)',
+          sets: '3 sets',
+          reps: '10-12 reps',
+          tip: 'Lower chest & tricep power',
+          photoId: 'dips',
+          photoMuscle: 'chest',
+          angleId: 'chest_dips',
+          angleBadge: '📐 30° Torso Forward Lean',
+          angleMuscle: 'chest',
+        },
+        {
+          name: 'Cable Chest Flyes',
+          sets: '3 sets',
+          reps: '12-15 reps (Squeeze)',
+          tip: 'Chest pump & blood flow',
+          photoId: 'cable_flyes',
+          photoMuscle: 'chest',
+          angleId: 'cable_crossover',
+          angleBadge: '📐 45° Downward Arc',
+          angleMuscle: 'chest',
+        },
+        {
+          name: 'Rope Tricep Pushdowns',
+          sets: '4 sets',
+          reps: '10-12 reps',
+          tip: 'Tricep horseshoe pump',
+          photoId: 'tricep_pushdown',
+          photoMuscle: 'arms',
+        },
       ],
       intensity: 'Heavy Compound Lift. Pre-workout 25 min pehle len!',
     },
@@ -367,11 +443,21 @@ export default function FitnessCalculator() {
       tag: 'Pull Power',
       gamesCount: '5 Games / Exercises',
       exercises: [
-        { name: 'Deadlifts (Conventional)', sets: '4 sets', reps: '5-6 reps', tip: 'Overall spinal thickness & trap power' },
-        { name: 'Wide Grip Lat Pulldown', sets: '4 sets', reps: '8-10 reps', tip: 'V-Taper back width' },
-        { name: 'Bent-Over Barbell Row', sets: '3 sets', reps: '8-10 reps', tip: 'Middle back density' },
-        { name: 'Seated Cable Row', sets: '3 sets', reps: '10-12 reps', tip: 'Lats contraction' },
-        { name: 'Barbell Bicep Curls', sets: '4 sets', reps: '8-10 reps', tip: 'Bicep peak & mass' },
+        { name: 'Deadlifts (Conventional)', sets: '4 sets', reps: '5-6 reps', tip: 'Spine & trap thickness', photoId: 'deadlift', photoMuscle: 'back' },
+        { name: 'Wide Grip Lat Pulldown', sets: '4 sets', reps: '8-10 reps', tip: 'V-Taper back width', photoId: 'lat_pulldown', photoMuscle: 'back' },
+        {
+          name: 'Bent-Over Barbell Row',
+          sets: '3 sets',
+          reps: '8-10 reps',
+          tip: 'Middle back density',
+          photoId: 'bent_over_row',
+          photoMuscle: 'back',
+          angleId: 'bent_over_barbell_row',
+          angleBadge: '📐 45°-70° Torso Hinge',
+          angleMuscle: 'back',
+        },
+        { name: 'Seated Cable Row', sets: '3 sets', reps: '10-12 reps', tip: 'Lats contraction', photoId: 'bent_over_row', photoMuscle: 'back' },
+        { name: 'Barbell Bicep Curls', sets: '4 sets', reps: '8-10 reps', tip: 'Bicep peak & mass', photoId: 'bicep_curl', photoMuscle: 'arms' },
       ],
       intensity: 'High calorie burn day. Post-workout Mass Gainer foran len!',
     },
@@ -380,11 +466,21 @@ export default function FitnessCalculator() {
       tag: 'Delts & Core',
       gamesCount: '5 Games / Exercises',
       exercises: [
-        { name: 'Overhead Barbell Military Press', sets: '4 sets', reps: '6-8 reps', tip: 'Front delt power' },
-        { name: 'Dumbbell Lateral Raises (Side)', sets: '4 sets', reps: '12-15 reps', tip: 'Shoulder width & 3D look' },
-        { name: 'Face Pulls / Rear Delt Flyes', sets: '4 sets', reps: '15 reps', tip: 'Shoulder posture & rear head' },
-        { name: 'Dumbbell Shrugs', sets: '3 sets', reps: '12 reps', tip: 'Traps growth' },
-        { name: 'Hanging Leg Raises', sets: '3 sets', reps: '15 reps', tip: 'Lower abs control' },
+        { name: 'Overhead Barbell Military Press', sets: '4 sets', reps: '6-8 reps', tip: 'Front delt power', photoId: 'overhead_press', photoMuscle: 'shoulders' },
+        {
+          name: 'Dumbbell Lateral Raises (Side)',
+          sets: '4 sets',
+          reps: '12-15 reps',
+          tip: 'Shoulder width & 3D look',
+          photoId: 'lateral_raise',
+          photoMuscle: 'shoulders',
+          angleId: 'dumbbell_lateral_raise',
+          angleBadge: '📐 15°-30° Scapular Plane',
+          angleMuscle: 'shoulders',
+        },
+        { name: 'Face Pulls / Rear Delt Flyes', sets: '4 sets', reps: '15 reps', tip: 'Shoulder posture & rear head', photoId: 'lateral_raise', photoMuscle: 'shoulders' },
+        { name: 'Dumbbell Shrugs', sets: '3 sets', reps: '12 reps', tip: 'Traps growth', photoId: 'deadlift', photoMuscle: 'back' },
+        { name: 'Hanging Leg Raises', sets: '3 sets', reps: '15 reps', tip: 'Lower abs control', photoId: 'barbell_squats', photoMuscle: 'legs' },
       ],
       intensity: 'Moderate weight with strict form for rounded 3D delts.',
     },
@@ -393,11 +489,21 @@ export default function FitnessCalculator() {
       tag: 'Lower Body',
       gamesCount: '5 Games / Exercises',
       exercises: [
-        { name: 'Barbell Back Squats', sets: '4 sets', reps: '6-8 reps', tip: 'Ultimate natural testosterone booster' },
-        { name: 'Leg Press Machine', sets: '4 sets', reps: '10-12 reps (Heavy)', tip: 'Quad sweep & bulk' },
-        { name: 'Romanian Deadlift (Hamstrings)', sets: '3 sets', reps: '8-10 reps', tip: 'Hamstrings & glutes stretch' },
-        { name: 'Leg Extensions', sets: '3 sets', reps: '15 reps (Burnout)', tip: 'Quad separation' },
-        { name: 'Standing Calf Raises', sets: '4 sets', reps: '15-20 reps', tip: 'Calf muscle volume' },
+        {
+          name: 'Barbell Back Squats',
+          sets: '4 sets',
+          reps: '6-8 reps',
+          tip: 'Ultimate natural testosterone booster',
+          photoId: 'barbell_squats',
+          photoMuscle: 'legs',
+          angleId: 'barbell_back_squat',
+          angleBadge: '📐 15°-30° Shoe Flare',
+          angleMuscle: 'legs',
+        },
+        { name: 'Leg Press Machine', sets: '4 sets', reps: '10-12 reps (Heavy)', tip: 'Quad sweep & bulk', photoId: 'leg_press', photoMuscle: 'legs' },
+        { name: 'Romanian Deadlift (Hamstrings)', sets: '3 sets', reps: '8-10 reps', tip: 'Hamstrings & glutes stretch', photoId: 'deadlift', photoMuscle: 'back' },
+        { name: 'Leg Extensions', sets: '3 sets', reps: '15 reps (Burnout)', tip: 'Quad separation', photoId: 'leg_press', photoMuscle: 'legs' },
+        { name: 'Standing Calf Raises', sets: '4 sets', reps: '15-20 reps', tip: 'Calf muscle volume', photoId: 'barbell_squats', photoMuscle: 'legs' },
       ],
       intensity: 'Sab se zyada calorie burn hoti ha. Extra water & Mass Gainer zaroor len.',
     },
@@ -406,11 +512,11 @@ export default function FitnessCalculator() {
       tag: 'Arm Size',
       gamesCount: '5 Games / Exercises',
       exercises: [
-        { name: 'Incline Dumbbell Bicep Curls', sets: '3 sets', reps: '10 reps', tip: 'Full bicep stretch' },
-        { name: 'EZ-Bar Skullcrushers', sets: '3 sets', reps: '8-10 reps', tip: 'Tricep long head mass' },
-        { name: 'Hammer Curls (Dumbbell)', sets: '3 sets', reps: '10 reps', tip: 'Brachialis & forearm thickness' },
-        { name: 'Overhead Cable Tricep Extension', sets: '3 sets', reps: '12 reps', tip: 'Elbow safety & stretch' },
-        { name: 'Preacher Curls / Concentration Curls', sets: '3 sets', reps: '12 reps', tip: 'Peak pump finish' },
+        { name: 'Incline Dumbbell Bicep Curls', sets: '3 sets', reps: '10 reps', tip: 'Full bicep stretch', photoId: 'bicep_curl', photoMuscle: 'arms' },
+        { name: 'EZ-Bar Skullcrushers', sets: '3 sets', reps: '8-10 reps', tip: 'Tricep long head mass', photoId: 'tricep_pushdown', photoMuscle: 'arms' },
+        { name: 'Hammer Curls (Dumbbell)', sets: '3 sets', reps: '10 reps', tip: 'Brachialis & forearm thickness', photoId: 'bicep_curl', photoMuscle: 'arms' },
+        { name: 'Overhead Cable Tricep Extension', sets: '3 sets', reps: '12 reps', tip: 'Elbow safety & stretch', photoId: 'tricep_pushdown', photoMuscle: 'arms' },
+        { name: 'Preacher Curls / Concentration Curls', sets: '3 sets', reps: '12 reps', tip: 'Peak pump finish', photoId: 'bicep_curl', photoMuscle: 'arms' },
       ],
       intensity: 'High rep supersets for maximum blood pump & arm growth.',
     },
@@ -1280,13 +1386,179 @@ Generated via Gym App Fitness & AI Calculator`;
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 bg-white/10 px-4 py-2.5 rounded-xl shrink-0 text-center">
-                  <div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPhotoMuscle('chest');
+                      setSelectedPhotoExercise('flat_bench');
+                      setShowPhotoModal(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 shadow-md shadow-blue-500/20"
+                  >
+                    <ImageIcon size={16} />
+                    <span>🖼️ Sab Games Ki Photos Dekhein</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedAngleMuscle('chest');
+                      setSelectedAngleExercise('incline_bench_press');
+                      setShowAngleModal(true);
+                    }}
+                    className="px-3 py-2.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-slate-200 transition flex items-center gap-1.5 border border-white/15"
+                  >
+                    <Compass size={14} />
+                    <span>Angles Guide</span>
+                  </button>
+                  <div className="bg-white/10 px-3.5 py-2 rounded-xl text-center">
                     <span className="text-[10px] text-blue-200 uppercase block font-semibold">Volume Standard</span>
                     <span className="text-sm font-black text-white">5 Games · 16-18 Sets/Day</span>
                   </div>
                 </div>
               </div>
+            </Card>
+
+            {/* INTERACTIVE WORKOUT GAME PHOTO VIEWER (Instant picture on click) */}
+            <Card className="p-4 sm:p-5 border-t-4 border-t-blue-600 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <ImageIcon size={19} />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm flex items-center gap-1.5">
+                      <span>🖼️ Game Select Karein — Real Photo & Lagane Ka Tareeqa</span>
+                    </h3>
+                    <p className="text-[11px] text-gray-500 dark:text-slate-400">
+                      Kisi bhi game par click karein, us ki asali photo aur sahi form foran samnay aa jaye gi!
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPhotoModal(true)}
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1 shrink-0 self-start sm:self-auto"
+                >
+                  <span>Gallery Full-Screen</span>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+
+              {/* Muscle Switcher Tabs */}
+              <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-gray-100 dark:bg-slate-800/80 border border-gray-200 dark:border-slate-700">
+                {(
+                  [
+                    { key: 'chest', label: '🔥 Chest (Seena)' },
+                    { key: 'back', label: '🛡️ Back (Peeth)' },
+                    { key: 'shoulders', label: '⚡ Shoulders (Kandhay)' },
+                    { key: 'legs', label: '🦵 Legs (Taangein)' },
+                    { key: 'arms', label: '💪 Arms (Baazu)' },
+                  ] as const
+                ).map(tab => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPhotoMuscle(tab.key);
+                      const firstInMuscle = WORKOUT_GAMES_PHOTOS.find(e => e.muscle === tab.key);
+                      if (firstInMuscle) setSelectedPhotoExercise(firstInMuscle.id);
+                    }}
+                    className={`flex-1 py-1 px-2.5 rounded-lg text-xs font-bold transition text-center ${
+                      selectedPhotoMuscle === tab.key
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Exercise Selector Pills for Active Muscle */}
+              <div className="flex flex-wrap gap-1.5">
+                {WORKOUT_GAMES_PHOTOS.filter(e => e.muscle === selectedPhotoMuscle).map(ex => (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => setSelectedPhotoExercise(ex.id)}
+                    className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 ${
+                      selectedPhotoExercise === ex.id
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                        : 'border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800/60 hover:border-gray-300'
+                    }`}
+                  >
+                    <Dumbbell size={12} className="shrink-0" />
+                    <span>{ex.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Real Photo & Form Guide Card */}
+              {(() => {
+                const activePhotoEx = WORKOUT_GAMES_PHOTOS.find(e => e.id === selectedPhotoExercise) || WORKOUT_GAMES_PHOTOS[0]!;
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-3.5 rounded-2xl bg-gray-50/80 dark:bg-slate-850 border border-gray-200 dark:border-slate-800 mt-1">
+                    <div
+                      className="md:col-span-5 relative rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-md group cursor-pointer"
+                      onClick={() => setShowPhotoModal(true)}
+                    >
+                      <img
+                        src={activePhotoEx.image}
+                        alt={activePhotoEx.name}
+                        className="w-full h-48 sm:h-56 object-cover group-hover:scale-105 transition duration-300 select-none"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent flex items-end p-2.5">
+                        <span className="text-[11px] font-bold text-white flex items-center gap-1">
+                          <ImageIcon size={13} className="text-blue-400" />
+                          <span>Click karein — Full Screen Photo Dekhein</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-7 flex flex-col justify-between space-y-2">
+                      <div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                            {activePhotoEx.muscleUrdu}
+                          </span>
+                          <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
+                            {activePhotoEx.sets} · {activePhotoEx.reps}
+                          </span>
+                        </div>
+                        <h4 className="text-base font-black text-gray-900 dark:text-slate-100 mt-1">
+                          {activePhotoEx.name}
+                        </h4>
+                        <p className="text-xs text-gray-700 dark:text-slate-300 mt-1 leading-relaxed">
+                          <strong>Kaise Lagani Hai:</strong> {activePhotoEx.howToUrdu}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
+                        <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 text-emerald-950 dark:text-emerald-200">
+                          <strong className="block text-emerald-700 dark:text-emerald-400 font-bold mb-0.5">✓ Sahi Tareeqa:</strong>
+                          {activePhotoEx.goodFormTips[0]}
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/30 text-rose-950 dark:text-rose-200">
+                          <strong className="block text-rose-700 dark:text-rose-400 font-bold mb-0.5">✗ Ghalti Se Bachen:</strong>
+                          {activePhotoEx.mistakesToAvoid[0]}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setShowPhotoModal(true)}
+                          className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 shadow-xs"
+                        >
+                          <ImageIcon size={13} />
+                          <span>Badi Pic & Mukammal Form Dekhein</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </Card>
 
             {/* The 5 Workout Days Cards */}
@@ -1308,14 +1580,44 @@ Generated via Gym App Fitness & AI Calculator`;
 
                     <div className="space-y-2 mt-3 pt-3 border-t border-gray-100 dark:border-slate-800">
                       {d.exercises.map((ex, exIdx) => (
-                        <div key={exIdx} className="p-2 rounded-lg bg-gray-50 dark:bg-slate-800/60 text-xs">
+                        <div
+                          key={exIdx}
+                          onClick={() => {
+                            if (ex.photoId) {
+                              setSelectedPhotoMuscle(ex.photoMuscle || 'chest');
+                              setSelectedPhotoExercise(ex.photoId);
+                              setShowPhotoModal(true);
+                            }
+                          }}
+                          className="p-2.5 rounded-xl bg-gray-50 dark:bg-slate-800/60 text-xs border border-transparent hover:border-blue-500/30 hover:bg-blue-50/30 dark:hover:bg-slate-800 transition cursor-pointer group"
+                        >
                           <div className="flex items-center justify-between font-semibold text-gray-900 dark:text-slate-100">
-                            <span>{exIdx + 1}. {ex.name}</span>
+                            <span className="group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">{exIdx + 1}. {ex.name}</span>
                             <span className="text-blue-600 dark:text-blue-400 font-bold">{ex.sets}</span>
                           </div>
-                          <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-slate-500 mt-0.5">
+                          <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-slate-500 mt-1">
                             <span>{ex.tip}</span>
                             <span>{ex.reps}</span>
+                          </div>
+                          <div className="mt-2 pt-1.5 border-t border-gray-100 dark:border-slate-800/80 flex items-center justify-between">
+                            <span className="text-[10px] font-medium text-gray-500 dark:text-slate-400">
+                              {ex.reps}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (ex.photoId) {
+                                  setSelectedPhotoMuscle(ex.photoMuscle || 'chest');
+                                  setSelectedPhotoExercise(ex.photoId);
+                                  setShowPhotoModal(true);
+                                }
+                              }}
+                              className="text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-2 py-0.5 rounded-lg transition flex items-center gap-1 shadow-xs"
+                            >
+                              <ImageIcon size={11} />
+                              <span>🖼️ Pic Dekhein</span>
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -1876,6 +2178,22 @@ Generated via Gym App Fitness & AI Calculator`;
           </div>
         </Modal>
       )}
+
+      {/* EXERCISE REAL PHOTO & FORM GUIDE MODAL */}
+      <ExercisePhotoModal
+        isOpen={showPhotoModal}
+        onClose={() => setShowPhotoModal(false)}
+        initialMuscle={selectedPhotoMuscle}
+        initialExerciseId={selectedPhotoExercise}
+      />
+
+      {/* EXERCISE ANGLES GUIDE MODAL */}
+      <ExerciseAnglesModal
+        isOpen={showAngleModal}
+        onClose={() => setShowAngleModal(false)}
+        defaultMuscle={selectedAngleMuscle}
+        initialExerciseId={selectedAngleExercise}
+      />
     </Page>
   );
 }
