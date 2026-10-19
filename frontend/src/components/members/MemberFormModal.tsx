@@ -252,6 +252,20 @@ export default function MemberFormModal({
     return rate === 0 ? 'No charge' : `Usual rate — ${rate.toLocaleString('en-PK')}`;
   })();
 
+  /**
+   * What the trainer will cost this member, by the same override → trainer →
+   * gym order as the server. Null when there is no trainer, or no price to
+   * resolve; shown next to the gym fee so the two are never read as one.
+   */
+  const trainerCharge = (() => {
+    if (!form.trainerId) return null;
+    if (form.ptFee.trim() !== '') return Number(form.ptFee) || 0;
+    const rate = trainers.find(t => t.id === form.trainerId)?.ptFee ?? gymPtFee;
+    return rate ?? null;
+  })();
+  const gymFeeNow = Number(form.feeAmount) > 0 ? Number(form.feeAmount) : 0;
+  const trainerNow = form.ptFeePaid && trainerCharge ? trainerCharge : 0;
+
   const selectedPlan = plans.find(p => p.id === form.planId);
   const expiryPreview = selectedPlan
     ? previewExpiry(form.startDate, selectedPlan.durationDays)
@@ -654,7 +668,7 @@ export default function MemberFormModal({
               <div className="space-y-3">
                 <div>
                   <label htmlFor="member-fee" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
-                    Fee Collected (Rs.)
+                    Gym Fee Collected (Rs.)
                   </label>
                   <input
                     id="member-fee"
@@ -760,6 +774,43 @@ export default function MemberFormModal({
                   </>
                 )}
               </div>
+
+              {/* The two fees are recorded as two payments, so they are shown
+                  as two lines. The gym-fee box above is the gym's part only —
+                  the trainer's fee is taken through the trainer section — and
+                  this is where the desk can see what adds up to the cash
+                  handed over. */}
+              {(gymFeeNow > 0 || (trainerCharge ?? 0) > 0) && (
+                <div
+                  aria-label="Fee breakdown"
+                  className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-sm space-y-1.5"
+                >
+                  <div className="flex justify-between text-gray-600 dark:text-slate-300">
+                    <span>Gym fee</span>
+                    <span className="font-semibold">Rs. {gymFeeNow.toLocaleString('en-PK')}</span>
+                  </div>
+                  {trainerCharge !== null && trainerCharge > 0 && (
+                    <div className="flex justify-between text-gray-600 dark:text-slate-300">
+                      <span>
+                        Trainer fee{' '}
+                        <span className="text-xs text-gray-400 dark:text-slate-500">
+                          ({form.ptFeePaid ? 'received now' : 'left as due'})
+                        </span>
+                      </span>
+                      <span className="font-semibold">Rs. {trainerCharge.toLocaleString('en-PK')}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-gray-100 dark:border-slate-800 pt-1.5 font-bold text-gray-900 dark:text-slate-100">
+                    <span>Received now</span>
+                    <span>Rs. {(gymFeeNow + trainerNow).toLocaleString('en-PK')}</span>
+                  </div>
+                  {trainerCharge !== null && trainerCharge > 0 && (
+                    <p className="text-xs text-gray-400 dark:text-slate-500">
+                      Don&apos;t include the trainer fee in the gym fee above — it is added on its own.
+                    </p>
+                  )}
+                </div>
+              )}
             </Section>
           )}
 

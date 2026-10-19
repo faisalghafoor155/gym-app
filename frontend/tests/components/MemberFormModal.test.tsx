@@ -636,3 +636,32 @@ describe('the photo', () => {
     );
   });
 });
+
+describe('the fee breakdown', () => {
+  it('shows the gym fee and the trainer fee as separate lines that add up', async () => {
+    renderModal({
+      settings: { ...settings, joiningFee: 3000 },
+      trainers: [aTrainer({ ptFee: 8000 })],
+    });
+
+    await userEvent.selectOptions(screen.getByLabelText(/personal trainer/i), 'trainer-1');
+    await userEvent.click(screen.getByRole('checkbox', { name: /fee collected now/i }));
+
+    const box = screen.getByLabelText(/fee breakdown/i);
+    expect(box).toHaveTextContent(/gym fee\s*Rs\. 3,000/i);
+    expect(box).toHaveTextContent(/trainer fee.*received now.*Rs\. 8,000/i);
+    // Cash handed over is both parts, not either one.
+    expect(box).toHaveTextContent(/received now\s*Rs\. 11,000/i);
+  });
+
+  it('leaves an unpaid trainer fee out of what was received', async () => {
+    renderModal({
+      settings: { ...settings, joiningFee: 3000 },
+      trainers: [aTrainer({ ptFee: 8000 })],
+    });
+
+    await userEvent.selectOptions(screen.getByLabelText(/personal trainer/i), 'trainer-1');
+
+    expect(screen.getByLabelText(/fee breakdown/i)).toHaveTextContent(/received now\s*Rs\. 3,000/i);
+  });
+});
