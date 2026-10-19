@@ -49,6 +49,7 @@
       "backend/dist/**/*",
       "backend/prisma/**/*",
       "backend/package.json",
+      "backend/prisma.config.ts",
       "frontend/dist/**/*",
       "resources/**/*"
     ],

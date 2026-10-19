@@ -270,7 +270,7 @@ async function runPrismaMigrations(databaseUrl) {
   try {
     updateSplashStatus('Checking database tables & migrations...');
     const backendRoot = app.isPackaged
-      ? path.join(process.resourcesPath, 'backend')
+      ? path.join(app.getAppPath(), 'backend')
       : path.join(__dirname, '..', 'backend');
 
     const prismaCli = path.join(backendRoot, 'node_modules', 'prisma', 'build', 'index.js');
@@ -293,13 +293,13 @@ async function runPrismaMigrations(databaseUrl) {
 
 function startBackendServer(databaseUrl, config) {
   const backendRoot = app.isPackaged
-    ? path.join(process.resourcesPath, 'backend')
+    ? path.join(app.getAppPath(), 'backend')
     : path.join(__dirname, '..', 'backend');
 
   const backendEntry = path.join(backendRoot, 'dist', 'index.js');
 
   const staticDir = app.isPackaged
-    ? path.join(process.resourcesPath, 'frontend', 'dist')
+    ? path.join(app.getAppPath(), 'frontend', 'dist')
     : path.join(__dirname, '..', 'frontend', 'dist');
 
   console.log(`[Backend] Starting server from ${backendEntry}`);
