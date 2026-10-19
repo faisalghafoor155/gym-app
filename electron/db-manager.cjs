@@ -46,6 +46,9 @@ class DatabaseManager {
 
     if (this.isPackaged) {
       candidateDirs.push(
+        // Where electron-builder actually puts `resources/**/*` when asar is
+        // off: under the app folder, not beside it.
+        path.join(this.app.getAppPath(), 'resources', 'postgres', 'bin'),
         path.join(process.resourcesPath, 'postgres', 'bin'),
         path.join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'postgres', 'bin')
       );

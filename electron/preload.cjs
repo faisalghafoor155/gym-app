@@ -8,5 +8,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   maximize: () => ipcRenderer.send('window:maximize'),
   close: () => ipcRenderer.send('window:close'),
   printPage: () => ipcRenderer.send('window:print'),
-  openExternal: (url) => ipcRenderer.send('shell:openExternal', url)
+  openExternal: (url) => ipcRenderer.send('shell:openExternal', url),
+  backup: {
+    status: () => ipcRenderer.invoke('backup:status'),
+    create: () => ipcRenderer.invoke('backup:create'),
+    restore: () => ipcRenderer.invoke('backup:restore'),
+    openFolder: () => ipcRenderer.invoke('backup:openFolder')
+  }
 });

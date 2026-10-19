@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain, shell, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu, dialog } = require('electron');
+const backup = require('./backup.cjs');
 const path = require('node:path');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
@@ -25,6 +26,9 @@ app.commandLine.appendSwitch('ignore-gpu-blocklist');
 let splashWindow = null;
 let mainWindow = null;
 let backendProcess = null;
+/** What the backend was started with, so a restore can restart it the same way. */
+let currentDbUrl = null;
+let currentConfig = null;
 let dbManager = null;
 
 const PORT = process.env.PORT || 5000;
@@ -465,6 +469,126 @@ ipcMain.on('window:close', () => mainWindow && mainWindow.close());
 ipcMain.on('window:print', () => mainWindow && mainWindow.webContents.print());
 ipcMain.on('shell:openExternal', (_e, url) => shell.openExternal(url));
 
+
+// --- Backup & restore -----------------------------------------------------
+// Only for the embedded database. With an online one the data lives on a server
+// that has its own backups.
+const backupDir = () => path.join(getAppDataDir(), 'backups');
+const backupSupported = () => Boolean(dbManager && dbManager.isEmbedded && dbManager.pgBinDir);
+const notSupported = () => ({
+  ok: false,
+  error: 'Backups here are only for the data stored on this PC. Your data is on the online server, which keeps its own backups.'
+});
+
+/** Stops the backend and waits for it to let go of the database. */
+function stopBackend() {
+  return new Promise((resolve) => {
+    if (!backendProcess) return resolve();
+    const proc = backendProcess;
+    const timer = setTimeout(resolve, 5000);
+    proc.once('exit', () => { clearTimeout(timer); resolve(); });
+    try { proc.kill(); } catch { clearTimeout(timer); resolve(); }
+  });
+}
+
+ipcMain.handle('backup:status', () => {
+  if (!backupSupported()) {
+    return { supported: false, reason: notSupported().error };
+  }
+  return { supported: true, folder: backupDir(), ...backup.autoStatus(backupDir()) };
+});
+
+ipcMain.handle('backup:create', async () => {
+  if (!backupSupported()) return notSupported();
+  const pick = await dialog.showSaveDialog(mainWindow, {
+    title: 'Save GymPro backup',
+    defaultPath: path.join(app.getPath('documents'), backup.suggestedName()),
+    filters: [{ name: 'GymPro backup', extensions: ['dump'] }]
+  });
+  if (pick.canceled || !pick.filePath) return { ok: false, canceled: true };
+  try {
+    const made = await backup.createBackup({ binDir: dbManager.pgBinDir, dbUrl: currentDbUrl, dest: pick.filePath });
+    return { ok: true, path: made.path, size: made.size };
+  } catch (err) {
+    console.error('[Backup] failed:', err.message);
+    return { ok: false, error: 'The backup could not be made. ' + err.message };
+  }
+});
+
+ipcMain.handle('backup:restore', async () => {
+  if (!backupSupported()) return notSupported();
+  const pick = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choose a GymPro backup to restore',
+    filters: [{ name: 'GymPro backup', extensions: ['dump'] }],
+    properties: ['openFile']
+  });
+  if (pick.canceled || !pick.filePaths[0]) return { ok: false, canceled: true };
+  const file = pick.filePaths[0];
+  const binDir = dbManager.pgBinDir;
+
+  // Checked before anyone is asked anything, so a wrong file is refused up
+  // front rather than after a warning about losing the data.
+  try {
+    await backup.verifyBackup(binDir, file);
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+
+  const choice = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    buttons: ['Cancel', 'Replace my data with this backup'],
+    defaultId: 0,
+    cancelId: 0,
+    title: 'Restore backup',
+    message: 'Replace all current data with this backup?',
+    detail: path.basename(file) + '\n\nEverything entered since this backup was made will be lost. ' +
+      'A copy of the current data is saved first, in case you change your mind.'
+  });
+  if (choice.response !== 1) return { ok: false, canceled: true };
+
+  const safetyCopy = path.join(backupDir(), `before-restore-${backup.stamp()}.dump`);
+  try {
+    await backup.createBackup({ binDir, dbUrl: currentDbUrl, dest: safetyCopy });
+  } catch (err) {
+    // No way back means no restore: the one thing worse than a failed restore
+    // is a restore that cannot be undone.
+    return { ok: false, error: 'Could not save a copy of the current data first, so nothing was changed. ' + err.message };
+  }
+
+  await stopBackend();
+  let restoreError = null;
+  try {
+    await backup.restoreBackup({ binDir, dbUrl: currentDbUrl, file });
+    // A backup from an older version lacks newer tables and columns.
+    await runPrismaMigrations(currentDbUrl);
+  } catch (err) {
+    restoreError = err;
+    console.error('[Backup] restore failed:', err.message);
+  }
+
+  // Back up either way: a failed restore rolls back and leaves the old data.
+  startBackendServer(currentDbUrl, currentConfig);
+  await checkServerHealth(PROD_URL);
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.reload();
+
+  return restoreError
+    ? { ok: false, error: 'The restore failed and nothing was changed. ' + restoreError.message }
+    : { ok: true, safetyCopy };
+});
+
+ipcMain.handle('backup:openFolder', async () => {
+  fs.mkdirSync(backupDir(), { recursive: true });
+  await shell.openPath(backupDir());
+});
+
+/** The daily automatic copy. Never blocks start-up and never raises. */
+function scheduleAutoBackup() {
+  if (!backupSupported()) return;
+  backup.autoBackup({ binDir: dbManager.pgBinDir, dbUrl: currentDbUrl, dir: backupDir() })
+    .then((r) => { if (!r.skipped) console.log('[Backup] automatic backup saved'); })
+    .catch((err) => console.warn('[Backup] automatic backup failed:', err.message));
+}
+
 app.on('second-instance', () => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
@@ -503,11 +627,14 @@ app.whenReady().then(async () => {
       createMainWindow(process.env.ELECTRON_START_URL);
     } else {
       // Start express backend which serves the built frontend & handles /api
+      currentDbUrl = dbResult.url;
+      currentConfig = config;
       startBackendServer(dbResult.url, config);
       updateSplashStatus('Connecting to GymPro...');
 
       await checkServerHealth(PROD_URL);
       createMainWindow(PROD_URL);
+      scheduleAutoBackup();
     }
   } catch (err) {
     console.error('Failed to initialize application:', err);

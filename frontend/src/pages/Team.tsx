@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import type { GymUser, GymSettings, Member, Paginated, Role, StaffSeats, TeamResponse, StaffPermission } from '../types';
 import { getPermissionLabel } from '../utils/permissions';
 import PermissionPicker from '../components/team/PermissionPicker';
+import BackupPanel from '../components/team/BackupPanel';
 import toast from 'react-hot-toast';
 
 /** How a new account gets its password: emailed invite, or one the owner
@@ -674,6 +675,8 @@ export default function Team() {
           </form>
         </Card>
       )}
+
+      {isOwner && <BackupPanel />}
 
       {isOwner && seatsFull && (
         <div className="bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4 mb-5 flex items-start gap-3">
