@@ -13,13 +13,14 @@
     "build:frontend": "npm run build --prefix frontend",
     "build:backend": "npm run build --prefix backend",
     "build:all": "npm run build:frontend && npm run build:backend",
+    "stage:backend": "node scripts/stage-backend-modules.cjs",
     "tunnel": "npx -y cloudflared tunnel --url http://localhost:5000",
     "tunnel:dev": "npx -y cloudflared tunnel --url http://localhost:5173",
     "electron:dev": "node scripts/start-db.cjs && concurrently -k -s first \"npm run dev:backend\" \"npm run dev:frontend\" \"wait-on tcp:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron .\"",
     "electron:start": "electron .",
-    "electron:pack": "npm run build:all && electron-builder --dir",
-    "electron:dist": "npm run build:all && electron-builder",
-    "electron:dist:portable": "npm run build:all && electron-builder --win portable"
+    "electron:pack": "npm run build:all && npm run stage:backend && electron-builder --dir",
+    "electron:dist": "npm run build:all && npm run stage:backend && electron-builder",
+    "electron:dist:portable": "npm run build:all && npm run stage:backend && electron-builder --win portable"
   },
   "keywords": [
     "gym",
@@ -48,9 +49,14 @@
       "backend/dist/**/*",
       "backend/prisma/**/*",
       "backend/package.json",
-      "backend/node_modules/**/*",
       "frontend/dist/**/*",
       "resources/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "release-stage/backend/node_modules",
+        "to": "app/backend/node_modules"
+      }
     ],
     "win": {
       "target": [
