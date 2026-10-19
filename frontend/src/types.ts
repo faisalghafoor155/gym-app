@@ -474,6 +474,8 @@ export interface FingerprintStatus {
   /** True when the reader holds its own template store and matches internally,
    *  which decides whether check-in sends an id or a captured template. */
   matchesLocally: boolean;
+  /** The finger is taken on the machine itself rather than captured here. */
+  enrolOnDevice?: boolean;
   enrolledCount: number;
 }
 

@@ -55,6 +55,9 @@ export default function FingerprintEnrollModal({
   const [error, setError] = useState<string | null>(null);
   /** Scans the reader has accepted so far in this attempt, out of SCANS_NEEDED. */
   const [scansDone, setScansDone] = useState(0);
+  /** The member's number on the machine, once it has been told to start taking
+   *  their finger. Null until then. */
+  const [deviceId, setDeviceId] = useState<string | null>(null);
 
   const handleEnroll = async () => {
     setBusy(true);
@@ -93,6 +96,41 @@ export default function FingerprintEnrollModal({
       onClose();
     } catch (err) {
       setError(apiError(err, 'Could not enrol the fingerprint'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Puts the member on the machine and opens its enrolment screen. */
+  const handleDeviceStart = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { data } = await api.post<{ deviceUserId: string }>(
+        '/fingerprint/device-enrol/start', { memberId: member.id },
+      );
+      setDeviceId(data.deviceUserId);
+    } catch (err) {
+      setError(apiError(err, 'Could not start enrolment on the machine'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Records the enrolment once the machine has said it took the finger. */
+  const handleDeviceConfirm = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post('/fingerprint/device-enrol/confirm', {
+        memberId: member.id,
+        finger: finger.trim() || undefined,
+      });
+      toast.success(existing ? `${member.name}'s fingerprint updated` : `${member.name} enrolled`);
+      onChanged();
+      onClose();
+    } catch (err) {
+      setError(apiError(err, 'Could not confirm the enrolment'));
     } finally {
       setBusy(false);
     }
@@ -212,6 +250,55 @@ export default function FingerprintEnrollModal({
               </div>
             )}
 
+            {status.enrolOnDevice ? (
+              /* The machine takes the finger itself, three times, and its own
+                 screen says whether each one was right. This only starts that
+                 and records it afterwards. */
+              deviceId === null ? (
+                <>
+                  <button
+                    onClick={() => void handleDeviceStart()}
+                    disabled={busy}
+                    className={`w-full ${primaryButton}`}
+                  >
+                    {busy
+                      ? 'Contacting machine…'
+                      : existing ? 'Start again on the machine' : 'Start on the machine'}
+                  </button>
+                  <p className="text-xs text-center text-gray-400 dark:text-slate-500">
+                    {status.label} will open enrolment for this member. The finger is
+                    placed on the machine itself, three times.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 text-sm text-blue-900 dark:text-blue-200 space-y-1">
+                    <p className="font-semibold">Ab machine par finger rakhwayein</p>
+                    <ol className="list-decimal list-inside text-xs space-y-0.5">
+                      <li>Machine par ID <strong>{deviceId}</strong> ({member.name}) ki enrolment khuli hai.</li>
+                      <li>Member same finger <strong>3 baar</strong> rakhe.</li>
+                      <li>Har baar machine screen par right / OK dikhayegi — galat ho to wo dobara mangegi.</li>
+                      <li>Machine "Enrolment OK" dikhaye to neeche Done dabayein.</li>
+                    </ol>
+                  </div>
+                  <button
+                    onClick={() => void handleDeviceConfirm()}
+                    disabled={busy}
+                    className={`w-full ${primaryButton}`}
+                  >
+                    {busy ? 'Saving…' : 'Done — machine ne finger le li'}
+                  </button>
+                  <button
+                    onClick={() => void handleDeviceStart()}
+                    disabled={busy}
+                    className={`w-full ${secondaryButton}`}
+                  >
+                    Machine par dobara shuru karein
+                  </button>
+                </>
+              )
+            ) : (
+            <>
             {/* One dot per scan: grey until taken, green with a tick once the
                 reader has accepted it. */}
             <ol
@@ -265,6 +352,8 @@ export default function FingerprintEnrollModal({
               Ask the member to place a finger on the reader and hold it still.
               Each scan is confirmed here before the next one starts.
             </p>
+            </>
+            )}
           </div>
         )}
 

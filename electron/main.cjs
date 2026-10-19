@@ -334,7 +334,11 @@ function startBackendServer(databaseUrl, config) {
     // Mail for staff/member invites and password resets. The packaged app
     // ships no .env, so these live in config.json beside the secrets; with
     // none set, invites fall back to a link the owner copies by hand.
-    ...mailEnv(config)
+    ...mailEnv(config),
+    // The ZKTeco fingerprint reader on the gym's network. Only the desk PC
+    // next to it can reach it, so this belongs in that PC's config file.
+    ...(config.zktecoHost && { ZKTECO_HOST: String(config.zktecoHost).trim() }),
+    ...(config.zktecoPort && { ZKTECO_PORT: String(config.zktecoPort).trim() })
   };
 
   backendProcess = fork(backendEntry, [], {

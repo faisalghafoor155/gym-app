@@ -273,3 +273,56 @@ describe('FingerprintEnrollModal — opened straight after registering', () => {
     expect(screen.queryByText(/member registered/i)).not.toBeInTheDocument();
   });
 });
+
+describe('FingerprintEnrollModal — a reader that takes the finger itself', () => {
+  beforeEach(() => {
+    api.get.mockResolvedValue({ data: aStatus({ enrolOnDevice: true, matchesLocally: true }) });
+  });
+
+  it('starts enrolment on the machine instead of capturing three scans here', async () => {
+    api.post.mockResolvedValue({ data: { deviceUserId: '12' } });
+    const user = userEvent.setup();
+    renderModal();
+    await settled();
+
+    expect(screen.queryByRole('button', { name: /scan fingerprint/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /start on the machine/i }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    expect(api.post).toHaveBeenCalledWith('/fingerprint/device-enrol/start', { memberId: 'member-1' });
+    // The machine's own number is what the desk reads off its screen.
+    expect(await screen.findByText(/ab machine par finger rakhwayein/i)).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+  });
+
+  it('records the enrolment only when the desk confirms the machine took it', async () => {
+    api.post.mockResolvedValue({ data: { deviceUserId: '12' } });
+    const user = userEvent.setup();
+    const { onChanged, onClose } = renderModal();
+    await settled();
+
+    await user.click(screen.getByRole('button', { name: /start on the machine/i }));
+    await screen.findByText(/ab machine par finger rakhwayein/i);
+    // Nothing is stored just because the machine was told to start.
+    expect(api.post).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: /machine ne finger le li/i }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
+    expect(api.post.mock.calls[1]![0]).toBe('/fingerprint/device-enrol/confirm');
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('says so and stays on the first step when the machine will not start', async () => {
+    api.post.mockRejectedValue(new Error('refused'));
+    const user = userEvent.setup();
+    renderModal();
+    await settled();
+
+    await user.click(screen.getByRole('button', { name: /start on the machine/i }));
+
+    expect(await screen.findByText(/could not start enrolment on the machine/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /start on the machine/i })).toBeEnabled();
+  });
+});
