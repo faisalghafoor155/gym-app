@@ -7,6 +7,11 @@ import { useDialog } from '../hooks/useDialog';
 import { useFingerprintReader } from '../hooks/useFingerprintReader';
 import type { Member, FingerprintEnrolment } from '../types';
 
+/** How many times the same finger is placed on the reader. */
+const SCANS_NEEDED = 3;
+/** Gap between scans, so the member can lift the finger and put it back. */
+const LIFT_PAUSE_MS = 900;
+
 /**
  * Enrol a member's fingerprint, or remove one already enrolled.
  *
@@ -48,17 +53,29 @@ export default function FingerprintEnrollModal({
   const [busy, setBusy] = useState(false);
   const [finger, setFinger] = useState(existing?.finger ?? '');
   const [error, setError] = useState<string | null>(null);
+  /** Scans the reader has accepted so far in this attempt, out of SCANS_NEEDED. */
+  const [scansDone, setScansDone] = useState(0);
 
   const handleEnroll = async () => {
     setBusy(true);
     setError(null);
+    setScansDone(0);
     try {
-      // The reader takes the scan and returns its template. Until hardware is
-      // configured this 503s, which is the branch the "not set up" panel below
-      // already covers — so this button is never reachable without a device.
-      const { data: captured } = await api.post<{ template: string; format: string }>(
-        '/fingerprint/capture', {},
-      );
+      // Readers want the same finger several times to build a reliable
+      // template, and the desk needs to see each one land. A failed scan stops
+      // the run — it is retried from the start rather than leaving a member
+      // half-enrolled. Until hardware is configured the capture 503s, which is
+      // the branch the "not set up" panel below already covers.
+      let captured: { template: string; format: string } | null = null;
+      for (let i = 0; i < SCANS_NEEDED; i++) {
+        if (i > 0) await new Promise(r => setTimeout(r, LIFT_PAUSE_MS));
+        const res = await api.post<{ template: string; format: string }>(
+          '/fingerprint/capture', {},
+        );
+        captured = res.data;
+        setScansDone(i + 1);
+      }
+      if (!captured) throw new Error('no scan');
 
       await api.post('/fingerprint/enroll', {
         memberId: member.id,
@@ -195,6 +212,45 @@ export default function FingerprintEnrollModal({
               </div>
             )}
 
+            {/* One dot per scan: grey until taken, green with a tick once the
+                reader has accepted it. */}
+            <ol
+              aria-label="Scan progress"
+              className="flex items-center justify-center gap-3"
+            >
+              {Array.from({ length: SCANS_NEEDED }, (_, i) => {
+                const done = i < scansDone;
+                const current = busy && i === scansDone;
+                return (
+                  <li
+                    key={i}
+                    aria-label={`Scan ${i + 1} ${done ? 'done' : current ? 'in progress' : 'waiting'}`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors ${
+                      done
+                        ? 'bg-green-50 dark:bg-green-950/30 border-green-500 text-green-600'
+                        : current
+                          ? 'border-blue-500 text-blue-600 animate-pulse'
+                          : 'border-gray-200 dark:border-slate-700 text-gray-400 dark:text-slate-500'
+                    }`}
+                  >
+                    {done ? <CheckCircle2 size={18} /> : i + 1}
+                  </li>
+                );
+              })}
+            </ol>
+
+            <p role="status" className="text-sm text-center font-medium text-gray-700 dark:text-slate-300">
+              {busy
+                ? scansDone === 0
+                  ? 'Finger reader par rakhein (1 of 3)…'
+                  : scansDone < SCANS_NEEDED
+                    ? `Scan ${scansDone} right ✓ — finger hata kar dobara rakhein (${scansDone + 1} of ${SCANS_NEEDED})…`
+                    : 'Saving…'
+                : scansDone === SCANS_NEEDED
+                  ? 'All 3 scans right ✓'
+                  : `Same finger ${SCANS_NEEDED} baar rakhna hoga.`}
+            </p>
+
             <button
               onClick={() => void handleEnroll()}
               disabled={busy}
@@ -207,6 +263,7 @@ export default function FingerprintEnrollModal({
 
             <p className="text-xs text-center text-gray-400 dark:text-slate-500">
               Ask the member to place a finger on the reader and hold it still.
+              Each scan is confirmed here before the next one starts.
             </p>
           </div>
         )}

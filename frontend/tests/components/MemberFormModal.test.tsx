@@ -82,6 +82,7 @@ const settings: GymSettings = {
   phone: null,
   address: null,
   defaultPtFee: 10000,
+  joiningFee: 0,
   easypaisaAccount: '0300-1234567',
   jazzcashAccount: null,
   bankAccount: null,
@@ -177,7 +178,56 @@ describe('registering somebody', () => {
     await userEvent.type(screen.getByLabelText(/full name/i), 'Sana Tariq');
     await save();
 
-    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(created));
+    // No reader attached, so the fingerprint option is off.
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(created, false));
+  });
+
+  it('asks for the fingerprint scan when a reader is there and the option is left on', async () => {
+    const created = aMember({ id: 'new-member' });
+    api.current!.post = vi.fn(() => Promise.resolve({ data: created }));
+    renderModal({ fingerprintReady: true });
+
+    await userEvent.type(screen.getByLabelText(/full name/i), 'Sana Tariq');
+    await save();
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(created, true));
+  });
+
+  it('skips the fingerprint scan when the option is unticked', async () => {
+    const created = aMember({ id: 'new-member' });
+    api.current!.post = vi.fn(() => Promise.resolve({ data: created }));
+    renderModal({ fingerprintReady: true });
+
+    await userEvent.type(screen.getByLabelText(/full name/i), 'Sana Tariq');
+    await userEvent.click(screen.getByRole('checkbox', { name: /add fingerprint/i }));
+    await save();
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(created, false));
+  });
+
+  it('shows the fingerprint option but cannot tick it without a reader', () => {
+    renderModal();
+
+    expect(screen.getByRole('checkbox', { name: /add fingerprint/i })).toBeDisabled();
+  });
+
+  it('does not ask for a date of birth or address when registering', () => {
+    renderModal();
+
+    expect(screen.queryByLabelText(/date of birth/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^address$/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/emergency contact/i)).toBeInTheDocument();
+  });
+
+  it('fills in the fixed joining fee and sends it with the registration', async () => {
+    renderModal({ settings: { ...settings, joiningFee: 3000 } });
+
+    expect(screen.getByLabelText(/fee collected/i)).toHaveValue(3000);
+    await userEvent.type(screen.getByLabelText(/full name/i), 'Sana Tariq');
+    await save();
+
+    await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
+    expect(createdWith()).toMatchObject({ feeAmount: 3000 });
   });
 
   it('omits a date of birth that was never filled in', async () => {
@@ -368,7 +418,7 @@ describe('editing an existing member', () => {
 
     await save();
 
-    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(null));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(null, false));
   });
 
   it('offers no fee field for a trainer the member already had', async () => {

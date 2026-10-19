@@ -135,11 +135,12 @@ describe('FingerprintEnrollModal — enrolling', () => {
     await user.type(screen.getByLabelText(/which finger/i), 'right thumb');
     await user.click(screen.getByRole('button', { name: /scan fingerprint/i }));
 
-    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
-    // The capture has to come first: enrolling without it would store a
+    // Three scans of the same finger, then the enrolment.
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(4), { timeout: 5000 });
+    // The captures have to come first: enrolling without them would store a
     // template nobody scanned.
-    expect(api.post.mock.calls[0]![0]).toBe('/fingerprint/capture');
-    const [url, body] = api.post.mock.calls[1] as [string, Record<string, unknown>];
+    expect(api.post.mock.calls.slice(0, 3).map(c => c[0])).toEqual(Array(3).fill('/fingerprint/capture'));
+    const [url, body] = api.post.mock.calls[3] as [string, Record<string, unknown>];
     expect(url).toBe('/fingerprint/enroll');
     expect(body).toMatchObject({
       memberId: 'member-1',
@@ -150,6 +151,25 @@ describe('FingerprintEnrollModal — enrolling', () => {
 
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('marks each scan as done as the reader accepts it', async () => {
+    api.post.mockImplementation((url: string) => {
+      if (url === '/fingerprint/capture') {
+        return Promise.resolve({ data: { template: 'TPL-abc', format: 'zkteco-v10' } });
+      }
+      // Hold the enrolment open so the three finished scans can be looked at.
+      return new Promise(() => {});
+    });
+    const user = userEvent.setup();
+    renderModal();
+    await settled();
+
+    await user.click(screen.getByRole('button', { name: /scan fingerprint/i }));
+
+    await waitFor(() => expect(screen.getByLabelText(/scan 3 done/i)).toBeInTheDocument(), { timeout: 5000 });
+    expect(screen.getByLabelText(/scan 1 done/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/scan 2 done/i)).toBeInTheDocument();
   });
 
   it('sends no finger at all when the field is left blank', async () => {
@@ -165,8 +185,8 @@ describe('FingerprintEnrollModal — enrolling', () => {
 
     await user.click(screen.getByRole('button', { name: /scan fingerprint/i }));
 
-    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
-    const [, body] = api.post.mock.calls[1] as [string, Record<string, unknown>];
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(4), { timeout: 5000 });
+    const [, body] = api.post.mock.calls[3] as [string, Record<string, unknown>];
     // The note is optional, and an empty string is not a finger — it would
     // show up on the desk as a blank label rather than as "not recorded".
     expect(body.finger).toBeUndefined();

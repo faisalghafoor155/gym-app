@@ -715,16 +715,17 @@ export default function Members() {
           // because a departed trainer's members still have to be findable.
           trainers={activeTrainers}
           settings={settings}
+          fingerprintReady={fingerprintReady}
           onClose={() => setShowModal(false)}
-          onSaved={created => {
+          onSaved={(created, enrolFingerprint) => {
             setShowModal(false);
             // Enrolment needs a member id, which only exists once the save has
             // returned — so the scan cannot happen inside the form and has to
             // follow it. Opening the dialog here keeps it one errand for the
             // front desk instead of two: register the member, take their
-            // finger, done. It is skippable, and only offered when a reader is
-            // actually attached.
-            if (created && fingerprintReady) {
+            // finger, done. The form's "Add fingerprint" option decides
+            // whether it opens; it is still skippable once it has.
+            if (created && enrolFingerprint) {
               setFingerprintAfterRegister(true);
               setFingerprintMember(created);
             }

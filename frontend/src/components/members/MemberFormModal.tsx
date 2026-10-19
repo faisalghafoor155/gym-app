@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Camera, Calendar, Fingerprint } from 'lucide-react';
 import {
@@ -78,13 +78,28 @@ function previewExpiry(startDate: string, durationDays: number): string {
 }
 
 /** The registration form's opening state, with the sensible defaults filled. */
-function addDefaults(plans: MembershipPlan[]): MemberForm {
+function addDefaults(plans: MembershipPlan[], settings: GymSettings | null): MemberForm {
   return {
     ...emptyForm,
     startDate: new Date().toISOString().split('T')[0]!,
     // Preselect the cheapest offered plan so the common case is one click.
     planId: plans[0]?.id ?? '',
+    // The gym's fixed joining fee, so the desk does not retype it every time.
+    // Still editable per member; zero means the gym has none.
+    feeAmount: settings && settings.joiningFee > 0 ? String(settings.joiningFee) : '',
   };
+}
+
+/** A titled group of fields, so a long form reads as steps rather than a wall. */
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-4 rounded-2xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/30 p-4">
+      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
 }
 
 /**
@@ -117,11 +132,15 @@ interface Props {
   /** The gym's own settings: the default PT rate, and the accounts members are
    *  told to send money to. Null while loading, or if that call failed. */
   settings: GymSettings | null;
+  /** Whether a fingerprint reader is attached. Without one the "Add
+   *  fingerprint" option is shown but cannot be ticked. */
+  fingerprintReady?: boolean;
   onClose: () => void;
   /** Handed the created member when registering, so the caller can follow up —
    *  enrolment needs an id that only exists once the save has returned. Null
-   *  on an edit, which creates nobody. */
-  onSaved: (created: Member | null) => void;
+   *  on an edit, which creates nobody. `enrolFingerprint` is whether the desk
+   *  ticked "Add fingerprint", so the scan should open next. */
+  onSaved: (created: Member | null, enrolFingerprint: boolean) => void;
 }
 
 /**
@@ -134,11 +153,14 @@ interface Props {
  * typed about them is this modal's.
  */
 export default function MemberFormModal({
-  member, plans, trainers, settings, onClose, onSaved,
+  member, plans, trainers, settings, fingerprintReady = false, onClose, onSaved,
 }: Props) {
   const editing = member?.id ?? null;
+  /** On by default: when a reader is there, taking the finger is the normal
+   *  end of registering somebody. */
+  const [enrolFingerprint, setEnrolFingerprint] = useState(true);
   const [form, setForm] = useState<MemberForm>(
-    () => (member ? editDefaults(member) : addDefaults(plans)),
+    () => (member ? editDefaults(member) : addDefaults(plans, settings)),
   );
   /**
    * The trainer the member already had, so a re-save is told apart from a new
@@ -273,7 +295,7 @@ export default function MemberFormModal({
       if (editing) {
         await api.put(`/members/${editing}`, payload);
         toast.success('Member updated');
-        onSaved(null);
+        onSaved(null, false);
       } else {
         // A plan sells the membership in the same call; without one the member
         // is registered and can be given a membership later.
@@ -295,7 +317,7 @@ export default function MemberFormModal({
         // The created member goes back to the page: enrolment needs an id that
         // did not exist until this call returned, and offering the scan is the
         // page's decision rather than the form's.
-        onSaved(created);
+        onSaved(created, fingerprintReady && enrolFingerprint);
       }
     } catch (err) {
       // The server found a duplicate the live check missed — either it was
@@ -356,6 +378,7 @@ export default function MemberFormModal({
             </button>
           </div>
 
+          <Section title="Personal details">
           {/* Name */}
           <div>
             <label htmlFor="member-name" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Full Name *</label>
@@ -403,7 +426,7 @@ export default function MemberFormModal({
           </div>
 
           {/* Gender + Date of birth */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className={editing ? 'grid grid-cols-2 gap-3' : ''}>
             <div>
               <label htmlFor="member-gender" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Gender</label>
               <select
@@ -418,23 +441,53 @@ export default function MemberFormModal({
                 <option value="other">Other</option>
               </select>
             </div>
-            {/* Half of the name+DOB duplicate rule, so the form has to be
-                able to set it — a rule keyed on a field nobody can fill
-                would never fire. */}
+            {/* Half of the name+DOB duplicate rule. Not asked for at
+                registration — the desk does not collect it, and the phone
+                number still catches duplicates — but an edit can set it. */}
+            {editing && (
+              <div>
+                <label htmlFor="member-dob" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Date of Birth</label>
+                <input
+                  id="member-dob"
+                  type="date"
+                  value={form.dateOfBirth}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={e => setChecked('dateOfBirth')(e.target.value)}
+                  onBlur={() => void checkDuplicate(form)}
+                  className={inputClass}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Emergency contact — asked at registration; the full address is
+              only kept on an edit. */}
+          <div>
+            <label htmlFor="member-emergency" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Emergency Contact</label>
+            <input
+              id="member-emergency"
+              value={form.emergencyContact}
+              onChange={e => set('emergencyContact')(e.target.value)}
+              placeholder="Brother — 03009876543"
+              className={inputClass}
+            />
+          </div>
+
+          {editing && (
             <div>
-              <label htmlFor="member-dob" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Date of Birth</label>
+              <label htmlFor="member-address" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Address</label>
               <input
-                id="member-dob"
-                type="date"
-                value={form.dateOfBirth}
-                max={new Date().toISOString().split('T')[0]}
-                onChange={e => setChecked('dateOfBirth')(e.target.value)}
-                onBlur={() => void checkDuplicate(form)}
+                id="member-address"
+                value={form.address}
+                onChange={e => set('address')(e.target.value)}
+                placeholder="House 12, Street 4, Lahore"
                 className={inputClass}
               />
             </div>
-          </div>
+          )}
+          </Section>
 
+          <Section title="Personal trainer">
           {/* Personal Trainer Selection */}
           <div>
             <label htmlFor="member-trainer" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Personal Trainer (PT)</label>
@@ -498,29 +551,7 @@ export default function MemberFormModal({
             </div>
           )}
 
-          {/* Address */}
-          <div>
-            <label htmlFor="member-address" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Address</label>
-            <input
-              id="member-address"
-              value={form.address}
-              onChange={e => set('address')(e.target.value)}
-              placeholder="House 12, Street 4, Lahore"
-              className={inputClass}
-            />
-          </div>
-
-          {/* Emergency contact */}
-          <div>
-            <label htmlFor="member-emergency" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Emergency Contact</label>
-            <input
-              id="member-emergency"
-              value={form.emergencyContact}
-              onChange={e => set('emergencyContact')(e.target.value)}
-              placeholder="Brother — 03009876543"
-              className={inputClass}
-            />
-          </div>
+          </Section>
 
           {/* Only on an edit. Nobody opts out before they have been
               registered, and a box on the registration form invites the desk
@@ -547,7 +578,7 @@ export default function MemberFormModal({
           {/* Membership — only when registering. Changing what an existing
               member bought is its own action, not a profile edit. */}
           {!editing && (
-            <div className="border-t border-gray-100 dark:border-slate-800 pt-4 space-y-4">
+            <Section title="Membership & fee">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Membership Plan</label>
                 {plans.length === 0 ? (
@@ -620,7 +651,7 @@ export default function MemberFormModal({
                   a gym takes a registration fee from somebody who has not
                   picked a package yet, and that money still has to land in
                   the books. Leaving the amount blank records no payment. */}
-              <div className="border-t border-gray-100 dark:border-slate-800 pt-4 space-y-3">
+              <div className="space-y-3">
                 <div>
                   <label htmlFor="member-fee" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
                     Fee Collected (Rs.)
@@ -640,7 +671,9 @@ export default function MemberFormModal({
                     className={inputClass}
                   />
                   <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
-                    Leave blank to register without taking payment.
+                    {settings && settings.joiningFee > 0
+                      ? `Fixed joining fee of Rs. ${settings.joiningFee.toLocaleString('en-PK')} is filled in for every new member — change it here for this member if needed, or clear it to take no payment.`
+                      : 'Leave blank to register without taking payment.'}
                   </p>
                 </div>
 
@@ -727,16 +760,34 @@ export default function MemberFormModal({
                   </>
                 )}
               </div>
-            </div>
+            </Section>
           )}
 
+          {/* The scan itself needs the new member's id, so it follows the save;
+              this only records whether the desk wants it. */}
           {!editing && (
-            <div className="flex items-center gap-2.5 p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-xs text-blue-700 dark:text-blue-300">
+            <label
+              className={`flex items-start gap-2.5 p-3 rounded-xl border text-xs ${
+                fingerprintReady
+                  ? 'bg-blue-50/70 dark:bg-blue-950/30 border-blue-200/60 dark:border-blue-900/40 cursor-pointer'
+                  : 'bg-gray-50 dark:bg-slate-800/60 border-gray-200 dark:border-slate-800 opacity-70'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={fingerprintReady && enrolFingerprint}
+                disabled={!fingerprintReady}
+                onChange={e => setEnrolFingerprint(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 shrink-0"
+              />
               <Fingerprint size={18} className="shrink-0 text-blue-600 dark:text-blue-400" />
-              <span>
-                Member save hote hi <strong>Fingerprint Enrolment</strong> ka scan popup automatically open ho jaye ga.
+              <span className="text-gray-700 dark:text-slate-300">
+                <span className="block text-sm font-semibold">Add fingerprint</span>
+                {fingerprintReady
+                  ? 'Member save hote hi scan screen khulegi — same finger 3 baar rakhna hoga, har scan ke baad "right" dikhega.'
+                  : 'Koi fingerprint reader set up nahi hai. Reader connect hone ke baad members list se add kar sakte hain.'}
               </span>
-            </div>
+            </label>
           )}
 
           <div className="flex gap-3 pt-2">

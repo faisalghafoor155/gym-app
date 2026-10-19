@@ -175,6 +175,7 @@ export default function Team() {
   // Gym-wide pricing. Held as a string so an emptied field does not become 0
   // while the owner is mid-edit.
   const [ptFeeInput, setPtFeeInput] = useState('');
+  const [joiningFeeInput, setJoiningFeeInput] = useState('');
   /**
    * Where members are told to send money, per channel. Read out at the front
    * desk when somebody pays online, so what matters is that it is exactly what
@@ -226,6 +227,7 @@ export default function Team() {
           logo: r.data.logo ?? null,
         });
         setPtFeeInput(String(r.data.defaultPtFee));
+        setJoiningFeeInput(String(r.data.joiningFee ?? 0));
         setAccounts({
           easypaisa: r.data.easypaisaAccount ?? '',
           jazzcash: r.data.jazzcashAccount ?? '',
@@ -250,6 +252,7 @@ export default function Team() {
         address: profile.address.trim(),
         logo: profile.logo,
         defaultPtFee: Number(ptFeeInput),
+        joiningFee: Number(joiningFeeInput) || 0,
         // Blank clears the channel's published details — the channel is still
         // offered at the counter, just without an account line to read out.
         easypaisaAccount: accounts.easypaisa.trim(),
@@ -571,6 +574,25 @@ export default function Team() {
               </div>
               <p className="mt-2 text-xs text-gray-400 dark:text-slate-500">
                 Leave the phone or address blank and the receipt simply leaves that line out.
+              </p>
+            </div>
+
+            <div className="max-w-xs border-t border-gray-100 dark:border-slate-800 pt-4">
+              <label htmlFor="joining-fee" className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+                Fixed joining fee (Rs.)
+              </label>
+              <input
+                id="joining-fee"
+                type="number"
+                min="0"
+                step="1"
+                value={joiningFeeInput}
+                onChange={e => setJoiningFeeInput(e.target.value)}
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+                Filled in automatically on every new member, e.g. 3000. The desk can still
+                change it for one member. Set it to 0 for no fixed fee.
               </p>
             </div>
 

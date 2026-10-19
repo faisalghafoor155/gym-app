@@ -843,6 +843,8 @@ export interface GymSettings {
   address: string | null;
   logo?: string | null;
   defaultPtFee: number;
+  /** Fixed fee prefilled for every new member. Zero means none. */
+  joiningFee: number;
   /** Where members are told to send money, per channel. Free text — a wallet
    *  is a phone number, a bank is a name plus an IBAN. Null when the gym has
    *  not published that channel's details. */
