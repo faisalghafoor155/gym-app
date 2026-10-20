@@ -71,7 +71,7 @@ describe('Security — turning 2FA on', () => {
     }
   });
 
-  it('sends the code together with the codes it was shown', async () => {
+  it('sends only the code — the server keeps the backup codes it issued', async () => {
     const stub = setup(false);
 
     renderPage(<Security />);
@@ -81,9 +81,9 @@ describe('Security — turning 2FA on', () => {
 
     await waitFor(() => expect(stub.post).toHaveBeenCalledWith(
       '/auth/two-factor/verify-setup',
-      // The codes travel back because the server stores only their hashes.
-      // Sending the code alone would enable 2FA with no way back in.
-      { code: '123456', backupCodes: BACKUP_CODES },
+      // The server hashed and stored the backup codes at setup, so the client
+      // must not choose them: it sends the authenticator code alone.
+      { code: '123456' },
     ));
   });
 

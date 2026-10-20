@@ -69,7 +69,7 @@ export default function Security() {
       // The codes go back with the confirmation: the server stores only their
       // hashes, and sending them along is what ties this exact set to the
       // account being enabled.
-      await api.post('/auth/two-factor/verify-setup', { code: code.trim(), backupCodes: setup.backupCodes });
+      await api.post('/auth/two-factor/verify-setup', { code: code.trim() });
       toast.success('Two-factor authentication enabled');
       setSetup(null);
       load();
