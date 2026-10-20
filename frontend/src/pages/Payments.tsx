@@ -1,28 +1,18 @@
 /** @format */
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type ChangeEvent,
-  type FormEvent,
-} from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Plus,
   Search,
   X,
   Download,
-  Pencil,
-  Trash2,
   CreditCard,
   Wallet,
   AlertCircle,
   Receipt,
 } from "lucide-react";
-import Modal from "../components/Modal";
 import ReceiptModal from "../components/ReceiptModal";
-import Badge from "../components/Badge";
 import ConfirmDialog from "../components/ConfirmDialog";
 import {
   Page,
@@ -32,13 +22,22 @@ import {
   PageLoader,
   EmptyState,
   Refetching,
-  IconButton,
   SegmentedControl,
-  FieldLabel,
   inputClass,
   primaryButton,
   secondaryButton,
 } from "../components/ui";
+import MonthlyTotals from "../components/payments/MonthlyTotals";
+import PaymentsList from "../components/payments/PaymentsList";
+import PaymentFormModal from "../components/payments/PaymentFormModal";
+import {
+  emptyForm,
+  FILTERS,
+  PAGE_SIZE,
+  SUMMARY_MONTHS,
+  type Filter,
+  type PaymentForm,
+} from "../components/payments/paymentForm";
 import { useDebounced } from "../hooks/useDebounced";
 import { downloadFromServer } from "../utils/csv";
 import api, { apiError } from "../api/client";
@@ -47,73 +46,12 @@ import type {
   Payment,
   Member,
   GymSettings,
-  PaymentChannel,
-  PaymentMethod,
-  PaymentStatus,
-  PaymentType,
   PaymentSummary,
   Paginated,
   PaginatedPayments,
 } from "../types";
-import {
-  CHANNELS,
-  CHANNEL_LABELS,
-  accountFor,
-  channelLabel,
-} from "../utils/paymentChannels";
 import toast from "react-hot-toast";
 
-interface PaymentForm {
-  memberId: string;
-  amount: string;
-  method: PaymentMethod;
-  /** Which wallet the money came through. '' on cash, and until one is picked. */
-  channel: PaymentChannel | "";
-  reference: string;
-  notes: string;
-  status: PaymentStatus;
-  type: PaymentType;
-  /** '' means "not against a membership", which is what the API stores as null. */
-  membershipId: string;
-  paymentDate: string;
-}
-
-const today = () => new Date().toISOString().split("T")[0]!;
-
-const emptyForm = (): PaymentForm => ({
-  memberId: "",
-  amount: "",
-  method: "cash",
-  channel: "",
-  reference: "",
-  notes: "",
-  status: "paid",
-  type: "membership",
-  membershipId: "",
-  paymentDate: today(),
-});
-
-const TYPE_LABELS: Record<PaymentType, string> = {
-  membership: "Membership fee",
-  supplement: "Supplement",
-  other: "Other",
-};
-
-type Filter = "all" | PaymentStatus;
-
-const FILTERS = [
-  { value: "all" as const, label: "All" },
-  { value: "paid" as const, label: "Paid" },
-  { value: "due" as const, label: "Due" },
-];
-
-/** Rows per request. The table stops being something anyone reads long before
- *  this, so the rest are fetched on demand rather than shipped up front. */
-const PAGE_SIZE = 50;
-
-/** How many months of history the summary covers — the same window as the
- *  supplement sales report, so the two pages line up month for month. */
-const SUMMARY_MONTHS = 6;
 
 export default function Payments() {
   const { isOwner } = useAuth();
@@ -302,17 +240,6 @@ export default function Payments() {
       loadSummary(),
     ]);
 
-  const set =
-    (k: keyof PaymentForm) =>
-    (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm((f) => ({ ...f, [k]: e.target.value }));
-
-  // The member the form is about — the picked one when adding, the payment's
-  // own when editing, since the member select is read-only there.
-  const formMember = members.find(
-    (m) => m.id === (editing ? editing.memberId : form.memberId),
-  );
-
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm());
@@ -489,120 +416,7 @@ export default function Payments() {
         come through the same till, and a lone grand total reconciles against
         nothing.
       */}
-      {isOwner && summary && (
-        <Card className="p-4 sm:p-5 mb-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
-            <div>
-              <h2 className="font-bold text-gray-900 dark:text-slate-100">
-                Monthly totals
-              </h2>
-              <p className="text-xs text-gray-400 dark:text-slate-500">
-                Settled payments only · last {summary.months} months
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-gray-400 dark:text-slate-500">
-                This month
-              </p>
-              <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
-                Rs. {summary.thisMonth.toLocaleString()}
-              </p>
-              {summary.lastMonth > 0 && (
-                <p className="text-xs text-gray-400 dark:text-slate-500">
-                  vs Rs. {summary.lastMonth.toLocaleString()} last month
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-125">
-              <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-800">
-                <tr>
-                  <th className="text-left px-3 py-2 font-semibold text-gray-600 dark:text-slate-300">
-                    Month
-                  </th>
-                  {["Membership", "Supplements", "Other"].map((h) => (
-                    <th
-                      key={h}
-                      className="text-right px-3 py-2 font-semibold text-gray-600 dark:text-slate-300"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                  <th className="text-right px-3 py-2 font-semibold text-gray-600 dark:text-slate-300">
-                    Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {summary.byMonth.map((m, i) => (
-                  <tr
-                    key={m.month}
-                    className={`border-b border-gray-100 dark:border-slate-800 last:border-0 ${
-                      // The current month is still being earned, so it reads as
-                      // a running figure rather than a closed one.
-                      i === summary.byMonth.length - 1 ? "bg-blue-50/40" : ""
-                    }`}
-                  >
-                    <td className="px-3 py-2 font-medium text-gray-900 dark:text-slate-100 whitespace-nowrap">
-                      {m.label}
-                      {i === summary.byMonth.length - 1 && (
-                        <span className="ml-2 text-xs font-normal text-blue-600">
-                          so far
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right text-gray-600 dark:text-slate-300 tabular-nums">
-                      {m.membership.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 text-right text-gray-600 dark:text-slate-300 tabular-nums">
-                      {m.supplement.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 text-right text-gray-600 dark:text-slate-300 tabular-nums">
-                      {m.other.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2 text-right font-bold text-gray-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
-                      Rs. {m.total.toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="border-t-2 border-gray-200 dark:border-slate-800">
-                <tr>
-                  <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-slate-100">
-                    Grand total
-                  </td>
-                  {(["membership", "supplement", "other"] as const).map((k) => (
-                    <td
-                      key={k}
-                      className="px-3 py-2.5 text-right font-semibold text-gray-700 dark:text-slate-300 tabular-nums"
-                    >
-                      {summary.byMonth
-                        .reduce((s, m) => s + m[k], 0)
-                        .toLocaleString()}
-                    </td>
-                  ))}
-                  <td className="px-3 py-2.5 text-right font-bold text-gray-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
-                    Rs. {summary.grandTotal.toLocaleString()}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          {summary.dueTotal > 0 && (
-            // Outstanding is the whole ledger, not just this window — money owed
-            // from four months ago is still owed today. Kept out of the totals
-            // above: it is a debt the gym is owed, not income it has received.
-            <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
-              Rs. {summary.dueTotal.toLocaleString()} still outstanding across{" "}
-              {summary.dueCount} unpaid{" "}
-              {summary.dueCount === 1 ? "entry" : "entries"}, not counted above.
-            </p>
-          )}
-        </Card>
-      )}
+      {isOwner && summary && <MonthlyTotals summary={summary} />}
 
       {/* Filters */}
       <Card className="p-3 sm:p-4 mb-5">
@@ -704,184 +518,13 @@ export default function Payments() {
         )
       ) : (
         <Refetching busy={refetching}>
-          {/* Mobile: cards — an eight-column table cannot fit a phone screen */}
-          <div className="space-y-3 md:hidden">
-            {shown.map((p) => (
-              <Card
-                key={p.id}
-                className={`p-4 ${p.status === "due" ? "border-red-200 dark:border-red-500/20 bg-red-50/40" : ""}`}
-              >
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 dark:text-slate-100 truncate">
-                      {p.member.name}
-                    </p>
-                    {p.member.memberNo && (
-                      <p className="text-xs text-gray-400 dark:text-slate-500">
-                        {p.member.memberNo}
-                      </p>
-                    )}
-                  </div>
-                  <p className="font-bold text-gray-900 dark:text-slate-100 shrink-0">
-                    Rs. {p.amount.toLocaleString()}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge status={p.status} />
-                  <Badge status={p.method} />
-                  {p.channel && (
-                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400">
-                      {channelLabel(p.channel)}
-                    </span>
-                  )}
-                  <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">
-                    {new Date(p.paymentDate).toLocaleDateString()}
-                  </span>
-                </div>
-                {p.notes && (
-                  <p className="text-xs text-gray-500 dark:text-slate-400 mt-2 wrap-break-word">
-                    {p.notes}
-                  </p>
-                )}
-                {/* Correcting the record is the owner's — an entry that can be
-                    edited by whoever took it is not a record of anything. The
-                    API refuses staff either way; hiding the buttons just keeps
-                    them from being offered an action they cannot complete. */}
-                {isOwner && (
-                  <div className="flex items-center gap-1 mt-2 -mb-1 -mr-1">
-                    {p.recordedBy && (
-                      <span className="text-xs text-gray-400 dark:text-slate-500 truncate mr-auto">
-                        by {p.recordedBy.name}
-                      </span>
-                    )}
-                    <IconButton
-                      icon={Pencil}
-                      label={`Edit payment for ${p.member.name}`}
-                      onClick={() => openEdit(p)}
-                    />
-                    <IconButton
-                      icon={Trash2}
-                      tone="red"
-                      label={`Delete payment for ${p.member.name}`}
-                      onClick={() => setDeleting(p)}
-                    />
-                  </div>
-                )}
-              </Card>
-            ))}
-          </div>
-
-          {/* Desktop: table */}
-          <Card className="hidden md:block overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-800">
-                  <tr>
-                    {[
-                      "Member",
-                      "Amount",
-                      "Method",
-                      "Date",
-                      "Status",
-                      "Notes",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-slate-300"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                    {/* Staff see only their own entries, so "who took this"
-                        would tell them nothing they did not already know. */}
-                    {isOwner && (
-                      <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-slate-300">
-                        Taken by
-                      </th>
-                    )}
-                    <th className="px-4 py-3 w-28 text-right">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {shown.map((p) => (
-                    <tr
-                      key={p.id}
-                      className={`border-b border-gray-100 dark:border-slate-800 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-800/60 ${
-                        p.status === "due" ? "bg-red-50/40" : ""
-                      }`}
-                    >
-                      <td className="px-4 py-3 max-w-55">
-                        <p className="font-medium text-gray-900 dark:text-slate-100 truncate">
-                          {p.member.name}
-                        </p>
-                        {p.member.memberNo && (
-                          <p className="text-xs text-gray-400 dark:text-slate-500">
-                            {p.member.memberNo}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-gray-900 dark:text-slate-100 font-semibold whitespace-nowrap">
-                        Rs. {p.amount.toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge status={p.method} />
-                        {p.channel && (
-                          <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-                            {channelLabel(p.channel)}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 dark:text-slate-400 whitespace-nowrap">
-                        {new Date(p.paymentDate).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge status={p.status} />
-                      </td>
-                      <td
-                        className="px-4 py-3 text-gray-500 dark:text-slate-400 max-w-65 truncate"
-                        title={p.notes ?? ""}
-                      >
-                        {p.notes || "—"}
-                      </td>
-                      {isOwner && (
-                        <td className="px-4 py-3 text-gray-500 dark:text-slate-400 max-w-35 truncate">
-                          {/* An em dash rather than a guess: the row predates
-                              the column, or the account that took it is gone. */}
-                          {p.recordedBy?.name ?? "—"}
-                        </td>
-                      )}
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-1">
-                          <IconButton
-                            icon={Receipt}
-                            label={`Receipt for ${p.member.name}`}
-                            onClick={() => setActiveReceipt(p)}
-                          />
-                          {isOwner && (
-                            <>
-                              <IconButton
-                                icon={Pencil}
-                                label={`Edit payment for ${p.member.name}`}
-                                onClick={() => openEdit(p)}
-                              />
-                              <IconButton
-                                icon={Trash2}
-                                tone="red"
-                                label={`Delete payment for ${p.member.name}`}
-                                onClick={() => setDeleting(p)}
-                              />
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          <PaymentsList
+            shown={shown}
+            isOwner={isOwner}
+            onEdit={openEdit}
+            onDelete={setDeleting}
+            onReceipt={setActiveReceipt}
+          />
 
           {hasMore && (
             <div className="flex justify-center mt-5">
@@ -900,243 +543,16 @@ export default function Payments() {
       )}
 
       {showModal && (
-        <Modal
-          title={editing ? "Edit Payment" : "Record Payment"}
+        <PaymentFormModal
+          editing={editing}
+          form={form}
+          setForm={setForm}
+          members={members}
+          settings={settings}
+          saving={saving}
           onClose={() => setShowModal(false)}
-        >
-          <form onSubmit={(e) => void handleSave(e)} className="space-y-4">
-            <div>
-              {/* Points at the picker, which only the add form renders. When
-                  editing there is no control to name — the member is shown as
-                  text — and a label pointing at nothing is inert rather than
-                  wrong. */}
-              <FieldLabel htmlFor="payments-member" required>Member</FieldLabel>
-              {editing ? (
-                // Reassigning a payment is a delete and a re-entry, so the trail
-                // shows both. Shown read-only rather than hidden.
-                <p className="px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 text-sm text-gray-600 dark:text-slate-300">
-                  {editing.member.name}
-                </p>
-              ) : (
-                <select
-                  id="payments-member"
-                  required
-                  value={form.memberId}
-                  // Changing the member invalidates any membership already
-                  // picked — it belongs to the previous one.
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      memberId: e.target.value,
-                      membershipId: "",
-                    }))
-                  }
-                  className={inputClass}
-                >
-                  <option value="">Select member...</option>
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                      {m.phone ? ` · ${m.phone}` : ""}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {!editing && members.length === 0 && (
-                <p className="text-xs text-yellow-700 mt-1.5">
-                  No members yet — add a member before recording a payment.
-                </p>
-              )}
-            </div>
-
-            <div>
-              <FieldLabel htmlFor="payments-for">For</FieldLabel>
-              <select id="payments-for"
-                value={form.type}
-                onChange={set("type")}
-                className={inputClass}
-              >
-                {(Object.keys(TYPE_LABELS) as PaymentType[]).map((t) => (
-                  <option key={t} value={t}>
-                    {TYPE_LABELS[t]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Which membership this settles. Offered only for membership money,
-                and only once a member is chosen — there is nothing to list
-                before that. */}
-            {form.type === "membership" && formMember && (
-              <div>
-                <FieldLabel htmlFor="payments-membership">Membership</FieldLabel>
-                {formMember.currentMembership ? (
-                  <select
-                    id="payments-membership"
-                    value={form.membershipId}
-                    onChange={set("membershipId")}
-                    className={inputClass}
-                  >
-                    <option value="">Not linked to a membership</option>
-                    <option value={formMember.currentMembership.id}>
-                      {formMember.currentMembership.planName}
-                      {" · Rs. "}
-                      {formMember.currentMembership.pricePaid.toLocaleString()}
-                      {" · expires "}
-                      {new Date(
-                        formMember.currentMembership.expiryDate,
-                      ).toLocaleDateString("en-PK", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </option>
-                  </select>
-                ) : (
-                  <p className="px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 text-sm text-gray-500 dark:text-slate-400">
-                    This member has no membership to link to.
-                  </p>
-                )}
-                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5">
-                  Linking is what lets the app tell a paid-up membership from an
-                  unpaid one.
-                </p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <FieldLabel htmlFor="payments-amount-rs" required>Amount (Rs.)</FieldLabel>
-                <input id="payments-amount-rs"
-                  type="number"
-                  required
-                  min="1"
-                  step="any"
-                  value={form.amount}
-                  onChange={set("amount")}
-                  className={inputClass}
-                  placeholder="2500"
-                />
-              </div>
-              <div>
-                <FieldLabel htmlFor="payments-date" required>Date</FieldLabel>
-                <input id="payments-date"
-                  type="date"
-                  required
-                  max={today()}
-                  value={form.paymentDate}
-                  onChange={set("paymentDate")}
-                  className={inputClass}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <FieldLabel htmlFor="payments-method">Method</FieldLabel>
-                <select id="payments-method"
-                  value={form.method}
-                  onChange={(e) => {
-                    const method = e.target.value as PaymentMethod;
-                    // Switching to cash drops the wallet details with it —
-                    // leaving them would send a channel the API rejects, and
-                    // show one on a row that never had it.
-                    setForm((f) => ({
-                      ...f,
-                      method,
-                      ...(method === "cash" && { channel: "", reference: "" }),
-                    }));
-                  }}
-                  className={inputClass}
-                >
-                  <option value="cash">Cash</option>
-                  <option value="online">Online</option>
-                </select>
-              </div>
-              <div>
-                <FieldLabel htmlFor="payments-status">Status</FieldLabel>
-                <select id="payments-status"
-                  value={form.status}
-                  onChange={set("status")}
-                  className={inputClass}
-                >
-                  <option value="paid">Paid</option>
-                  <option value="due">Due</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Which wallet, and its transaction id. Only meaningful for money
-                that came in online — cash has no channel to record. */}
-            {form.method === "online" && (
-              // Stacked on a phone: "Bank Transfer" and a transaction id do
-              // not both fit in half of a 360px screen, and a channel nobody
-              // can read is a channel picked wrong.
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <FieldLabel htmlFor="payments-received-in">Received in</FieldLabel>
-                  <select id="payments-received-in"
-                    value={form.channel}
-                    onChange={set("channel")}
-                    className={inputClass}
-                  >
-                    <option value="">Select account</option>
-                    {CHANNELS.map((c) => (
-                      <option key={c} value={c}>
-                        {CHANNEL_LABELS[c]}
-                      </option>
-                    ))}
-                  </select>
-                  {accountFor(settings, form.channel) && (
-                    <p className="mt-1.5 text-xs text-gray-500 dark:text-slate-400 break-words">
-                      {accountFor(settings, form.channel)}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <FieldLabel htmlFor="payments-transaction-id">Transaction ID</FieldLabel>
-                  <input id="payments-transaction-id"
-                    type="text"
-                    maxLength={100}
-                    value={form.reference}
-                    onChange={set("reference")}
-                    placeholder="Optional"
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div>
-              <FieldLabel htmlFor="payments-notes">Notes</FieldLabel>
-              <input id="payments-notes"
-                type="text"
-                maxLength={500}
-                value={form.notes}
-                onChange={set("notes")}
-                className={inputClass}
-                placeholder="Optional note..."
-              />
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className={`flex-1 ${secondaryButton}`}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className={`flex-1 ${primaryButton}`}
-              >
-                {saving ? "Saving..." : editing ? "Save changes" : "Record"}
-              </button>
-            </div>
-          </form>
-        </Modal>
+          onSubmit={(e) => void handleSave(e)}
+        />
       )}
 
       {deleting && (
@@ -1157,4 +573,4 @@ export default function Payments() {
       )}
     </Page>
   );
-}
+}

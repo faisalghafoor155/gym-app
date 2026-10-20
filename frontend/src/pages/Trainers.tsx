@@ -1,10 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Plus, Pencil, Trash2, Award, IndianRupee, BookOpen, Clock } from 'lucide-react';
-import Badge from '../components/Badge';
+import { Plus, Award } from 'lucide-react';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
-  Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl, DataRow,
-  FieldLabel, inputClass, primaryButton, secondaryButton,
+  Page, PageHeader, Card, PageLoader, SegmentedControl, primaryButton,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import toast from 'react-hot-toast';
@@ -14,44 +12,15 @@ import type {
 } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { hasPermission } from '../utils/permissions';
-
-
-interface TrainerForm {
-  name: string;
-  phone: string;
-  specialization: string;
-  commissionPercentage: number;
-  /** Empty means "use the gym default", which is not the same as 0. */
-  ptFee: string;
-}
-
-const emptyTrainerForm: TrainerForm = {
-  name: '',
-  phone: '',
-  specialization: '',
-  commissionPercentage: 10,
-  ptFee: '',
-};
-
-interface PtSessionForm {
-  memberId: string;
-  trainerId: string;
-  sessionDate: string;
-  priceCharged: number;
-  status: 'scheduled' | 'completed' | 'cancelled';
-  paymentStatus: 'unpaid' | 'paid';
-}
-
-const emptyPtForm = (): PtSessionForm => ({
-  memberId: '',
-  trainerId: '',
-  sessionDate: new Date().toISOString().substring(0, 16),
-  priceCharged: 2000,
-  status: 'scheduled',
-  paymentStatus: 'unpaid',
-});
-
-type TabType = 'trainers' | 'bookings' | 'commissions' | 'payouts';
+import {
+  emptyTrainerForm, emptyPtForm, type TrainerForm, type PtSessionForm, type TabType,
+} from '../components/trainers/types';
+import TrainersRoster from '../components/trainers/TrainersRoster';
+import BookingsTab from '../components/trainers/BookingsTab';
+import CommissionsTab from '../components/trainers/CommissionsTab';
+import PayoutsTab from '../components/trainers/PayoutsTab';
+import TrainerModal from '../components/trainers/TrainerModal';
+import PtSessionModal from '../components/trainers/PtSessionModal';
 
 export default function Trainers() {
   const { user } = useAuth();
@@ -275,638 +244,80 @@ export default function Trainers() {
 
       {/* TAB 1: Trainers Roster */}
       {activeTab === 'trainers' && (
-        trainers.length === 0 ? (
-          <EmptyState
-            icon={Award}
-            title="No trainers found"
-            hint="Create trainer profiles to assign them to gym members."
-            action={
-              <button
-                onClick={() => {
-                  setEditingTrainerId(null);
-                  setTrainerForm(emptyTrainerForm);
-                  setShowTrainerModal(true);
-                }}
-                className={primaryButton}
-              >
-                Add first trainer
-              </button>
-            }
-          />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {trainers.map(t => (
-              <Card key={t.id} className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
-                <div>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg">{t.name}</h3>
-                      <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
-                        {t.specialization || 'General Fitness'}
-                      </span>
-                    </div>
-                    <span className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">
-                      {t.commissionPercentage}% Comm.
-                    </span>
-                  </div>
-
-                  <div className="mt-5 space-y-2 text-sm text-gray-600 dark:text-slate-400">
-                    <p className="flex items-center gap-2">
-                      <span className="text-gray-400">📞</span> {t.phone || 'No phone number'}
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <span className="text-gray-400">👥</span> {t.activeMembersCount} Active Members Assigned
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <span className="text-gray-400">💰</span>
-                      {t.ptFee === null
-                        ? `Assignment fee: gym default${gymDefaultPtFee === null ? '' : ` (Rs. ${gymDefaultPtFee.toLocaleString()})`}`
-                        : t.ptFee === 0
-                          ? 'Assignment fee: none'
-                          : `Assignment fee: Rs. ${t.ptFee.toLocaleString()}`}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6 pt-4 border-t border-gray-100 dark:border-slate-800 flex gap-3">
-                  <button
-                    onClick={() => {
-                      setEditingTrainerId(t.id);
-                      setTrainerForm({
-                        name: t.name,
-                        phone: t.phone || '',
-                        specialization: t.specialization || '',
-                        commissionPercentage: t.commissionPercentage,
-                        // Null becomes the empty field that means "use the gym
-                        // default"; a stored 0 becomes "0", because charging
-                        // nothing is a real choice and must not read back as
-                        // an unset field.
-                        ptFee: t.ptFee === null ? '' : String(t.ptFee),
-                      });
-                      setShowTrainerModal(true);
-                    }}
-                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors"
-                  >
-                    <Pencil size={13} /> Edit
-                  </button>
-                  <button
-                    onClick={() => setDeactivatingTrainer(t)}
-                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                  >
-                    <Trash2 size={13} /> Deactivate
-                  </button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )
+        <TrainersRoster
+          trainers={trainers}
+          gymDefaultPtFee={gymDefaultPtFee}
+          onAdd={() => {
+            setEditingTrainerId(null);
+            setTrainerForm(emptyTrainerForm);
+            setShowTrainerModal(true);
+          }}
+          onEdit={t => {
+            setEditingTrainerId(t.id);
+            setTrainerForm({
+              name: t.name,
+              phone: t.phone || '',
+              specialization: t.specialization || '',
+              commissionPercentage: t.commissionPercentage,
+              // Null becomes the empty field that means "use the gym
+              // default"; a stored 0 becomes "0", because charging
+              // nothing is a real choice and must not read back as
+              // an unset field.
+              ptFee: t.ptFee === null ? '' : String(t.ptFee),
+            });
+            setShowTrainerModal(true);
+          }}
+          onDeactivate={setDeactivatingTrainer}
+        />
       )}
 
       {/* TAB 2: Bookings & Sessions */}
       {activeTab === 'bookings' && (
-        sessions.length === 0 ? (
-          <EmptyState
-            icon={BookOpen}
-            title="No PT sessions booked yet"
-            hint="Click Book PT Session to record training slots."
-          />
-        ) : (
-          <Card className="overflow-hidden">
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full text-sm text-left text-gray-500 dark:text-slate-400">
-                <thead className="text-xs uppercase bg-gray-50 dark:bg-slate-800/50 text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800">
-                  <tr>
-                    <th className="px-6 py-4 font-bold">Member</th>
-                    <th className="px-6 py-4 font-bold">Trainer</th>
-                    <th className="px-6 py-4 font-bold">Date & Time</th>
-                    <th className="px-6 py-4 font-bold">Price</th>
-                    <th className="px-6 py-4 font-bold">Trainer Comm.</th>
-                    <th className="px-6 py-4 font-bold">Status</th>
-                    <th className="px-6 py-4 font-bold">Payment</th>
-                    <th className="px-6 py-4 font-bold text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-slate-800/60">
-                  {sessions.map(s => {
-                    const sessionDate = new Date(s.sessionDate);
-                    return (
-                      <tr key={s.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/20">
-                        <td className="px-6 py-4 font-semibold text-gray-900 dark:text-slate-200">
-                          {s.member.name}
-                        </td>
-                        <td className="px-6 py-4">
-                          {s.trainer.name}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="flex items-center gap-1.5">
-                            <Clock size={13} className="text-gray-400" />
-                            {sessionDate.toLocaleDateString()} {sessionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 font-medium text-gray-900 dark:text-slate-200">
-                          Rs. {s.priceCharged.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-indigo-600 dark:text-indigo-400 font-semibold">
-                          Rs. {s.trainerCommission.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4">
-                          <Badge status={s.status} />
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            s.paymentStatus === 'paid'
-                              ? 'bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400'
-                              : 'bg-yellow-50 text-yellow-700 dark:bg-yellow-950/20 dark:text-yellow-400'
-                          }`}>
-                            {/* Whose money this is, said out loud: the trainer's
-                                commission is tracked separately on the Payouts
-                                page, and "Paid" alone read as either. */}
-                            {s.paymentStatus === 'paid' ? 'Member paid' : 'Member unpaid'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right space-x-2">
-                          {s.status === 'scheduled' && (
-                            <>
-                              <button
-                                onClick={() => updateSessionStatus(s.id, 'completed')}
-                                className="px-2.5 py-1 rounded-md text-xs font-semibold bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-950/30 dark:hover:bg-green-950/50 dark:text-green-400"
-                              >
-                                Complete
-                              </button>
-                              <button
-                                onClick={() => setCancellingSession(s)}
-                                className="px-2.5 py-1 rounded-md text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/30 dark:hover:bg-red-950/50 dark:text-red-400"
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          )}
-                          {s.paymentStatus === 'unpaid' && (
-                            <button
-                              onClick={() => updateSessionPayment(s.id, 'paid')}
-                              className="px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:hover:bg-indigo-950/50 dark:text-indigo-400"
-                            >
-                              Member paid
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Eight columns as a stacked card. The actions go full-width at the
-                bottom rather than in a scrolled-off right-hand cell. */}
-            <div className="md:hidden divide-y divide-gray-100 dark:divide-slate-800">
-              {sessions.map(s => {
-                const sessionDate = new Date(s.sessionDate);
-                return (
-                  <div key={s.id} className="p-4 space-y-2.5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-gray-900 dark:text-slate-200 truncate">
-                          {s.member.name}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
-                          with {s.trainer.name}
-                        </p>
-                      </div>
-                      <Badge status={s.status} />
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
-                      <Clock size={12} className="text-gray-400" />
-                      {sessionDate.toLocaleDateString()}{' '}
-                      {sessionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                    <div className="space-y-1.5">
-                      <DataRow label="Price" value={`Rs. ${s.priceCharged.toLocaleString()}`} />
-                      <DataRow label="Trainer commission" value={`Rs. ${s.trainerCommission.toLocaleString()}`} />
-                      <DataRow
-                        label="Payment"
-                        value={s.paymentStatus === 'paid' ? 'Member paid' : 'Member unpaid'}
-                      />
-                    </div>
-                    {(s.status === 'scheduled' || s.paymentStatus === 'unpaid') && (
-                      <div className="flex flex-wrap gap-2 pt-0.5">
-                        {s.status === 'scheduled' && (
-                          <>
-                            <button
-                              onClick={() => updateSessionStatus(s.id, 'completed')}
-                              className="flex-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-950/30 dark:hover:bg-green-950/50 dark:text-green-400"
-                            >
-                              Complete
-                            </button>
-                            <button
-                              onClick={() => setCancellingSession(s)}
-                              className="flex-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/30 dark:hover:bg-red-950/50 dark:text-red-400"
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        )}
-                        {s.paymentStatus === 'unpaid' && (
-                          <button
-                            onClick={() => updateSessionPayment(s.id, 'paid')}
-                            className="flex-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:hover:bg-indigo-950/50 dark:text-indigo-400"
-                          >
-                            Member paid
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        )
+        <BookingsTab
+          sessions={sessions}
+          onComplete={id => updateSessionStatus(id, 'completed')}
+          onCancel={setCancellingSession}
+          onMarkPaid={id => updateSessionPayment(id, 'paid')}
+        />
       )}
 
       {/* TAB 3: Commissions & Revenue Split */}
-      {activeTab === 'commissions' && (
-        report.length === 0 ? (
-          <EmptyState
-            icon={IndianRupee}
-            title="No commission records"
-            hint="Complete PT sessions to see commission payouts."
-          />
-        ) : (
-          <div className="space-y-6">
-            <Card className="overflow-hidden">
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm text-left text-gray-500 dark:text-slate-400">
-                  <thead className="text-xs uppercase bg-gray-50 dark:bg-slate-800/50 text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800">
-                    <tr>
-                      <th className="px-6 py-4 font-bold">Trainer</th>
-                      <th className="px-6 py-4 font-bold">Rate</th>
-                      <th className="px-6 py-4 font-bold">Sessions Completed</th>
-                      <th className="px-6 py-4 font-bold">Gross Revenue</th>
-                      <th className="px-6 py-4 font-bold">Trainer Share</th>
-                      <th className="px-6 py-4 font-bold text-right">Gym Net Share</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-slate-800/60">
-                    {report.map(r => {
-                      const gymShare = r.totalRevenue - r.totalCommission;
-                      return (
-                        <tr key={r.trainerId} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/20">
-                          <td className="px-6 py-4 font-semibold text-gray-900 dark:text-slate-200">
-                            {r.trainerName}
-                          </td>
-                          <td className="px-6 py-4">
-                            {r.commissionPercentage}%
-                          </td>
-                          <td className="px-6 py-4 font-medium">
-                            {r.totalSessions} sessions
-                          </td>
-                          <td className="px-6 py-4 font-semibold text-gray-900 dark:text-slate-200">
-                            Rs. {r.totalRevenue.toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 text-red-600 dark:text-red-400 font-bold">
-                            Rs. {r.totalCommission.toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 text-right text-green-700 dark:text-green-400 font-extrabold">
-                            Rs. {gymShare.toLocaleString()}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="md:hidden divide-y divide-gray-100 dark:divide-slate-800">
-                {report.map(r => (
-                  <div key={r.trainerId} className="p-4 space-y-2.5">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="font-semibold text-gray-900 dark:text-slate-200 truncate">
-                        {r.trainerName}
-                      </p>
-                      <span className="text-xs text-gray-400 dark:text-slate-500 shrink-0">
-                        {r.commissionPercentage}% · {r.totalSessions} sessions
-                      </span>
-                    </div>
-                    <div className="space-y-1.5">
-                      <DataRow label="Gross revenue" value={`Rs. ${r.totalRevenue.toLocaleString()}`} />
-                      <DataRow label="Trainer share" value={`Rs. ${r.totalCommission.toLocaleString()}`} />
-                      <DataRow
-                        label="Gym net share"
-                        value={`Rs. ${(r.totalRevenue - r.totalCommission).toLocaleString()}`}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-        )
-      )}
+      {activeTab === 'commissions' && <CommissionsTab report={report} />}
 
       {/* TAB 4: Payouts Tracker */}
       {activeTab === 'payouts' && (
-        payouts.length === 0 ? (
-          <EmptyState
-            icon={IndianRupee}
-            title="No payouts found"
-            hint="Create trainers and complete sessions to track payouts."
-          />
-        ) : (
-          <div className="space-y-6">
-            <Card className="overflow-hidden">
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm text-left text-gray-500 dark:text-slate-400">
-                  <thead className="text-xs uppercase bg-gray-50 dark:bg-slate-800/50 text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800">
-                    <tr>
-                      <th className="px-6 py-4 font-bold">Trainer</th>
-                      <th className="px-6 py-4 font-bold">Rate</th>
-                      <th className="px-6 py-4 font-bold">Total Sessions</th>
-                      <th className="px-6 py-4 font-bold">Total Earned</th>
-                      <th className="px-6 py-4 font-bold text-green-600">Paid</th>
-                      <th className="px-6 py-4 font-bold text-yellow-600">Unpaid</th>
-                      <th className="px-6 py-4 font-bold text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-slate-800/60">
-                    {payouts.map(p => (
-                      <tr key={p.trainerId} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/20">
-                        <td className="px-6 py-4 font-semibold text-gray-900 dark:text-slate-200">
-                          {p.trainerName}
-                        </td>
-                        <td className="px-6 py-4">
-                          {p.commissionPercentage}%
-                        </td>
-                        <td className="px-6 py-4 font-medium">
-                          {p.totalSessionsCount} sessions
-                        </td>
-                        <td className="px-6 py-4 font-semibold text-gray-900 dark:text-slate-200">
-                          Rs. {p.totalEarned.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-green-700 dark:text-green-400 font-bold">
-                          Rs. {p.paidCommission.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-yellow-700 dark:text-yellow-400 font-bold">
-                          Rs. {p.unpaidCommission.toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          {p.unpaidCommission > 0 ? (
-                            canManagePayouts ? (
-                              <button
-                                onClick={() => setPayingOut(p)}
-                                disabled={saving}
-                                className="px-3 py-1.5 rounded-md text-xs font-semibold bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-800 disabled:opacity-50"
-                              >
-                                Clear Unpaid
-                              </button>
-                            ) : (
-                              <span className="text-xs text-yellow-600 font-semibold">Unpaid</span>
-                            )
-                          ) : (
-                            <span className="text-xs text-gray-400 font-semibold">Fully Paid</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Seven columns do not survive a phone. The same figures as
-                  stacked rows, with the amount owed kept prominent because it
-                  is the number the button acts on. */}
-              <div className="md:hidden divide-y divide-gray-100 dark:divide-slate-800">
-                {payouts.map(p => (
-                  <div key={p.trainerId} className="p-4 space-y-2.5">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="font-semibold text-gray-900 dark:text-slate-200 truncate">
-                        {p.trainerName}
-                      </p>
-                      <span className="text-xs text-gray-400 dark:text-slate-500 shrink-0">
-                        {p.commissionPercentage}% · {p.totalSessionsCount} sessions
-                      </span>
-                    </div>
-                    <div className="space-y-1.5">
-                      <DataRow label="Total earned" value={`Rs. ${p.totalEarned.toLocaleString()}`} />
-                      <DataRow label="Paid" value={`Rs. ${p.paidCommission.toLocaleString()}`} />
-                      <DataRow label="Unpaid" value={`Rs. ${p.unpaidCommission.toLocaleString()}`} />
-                    </div>
-                    {p.unpaidCommission > 0 ? (
-                      canManagePayouts && (
-                        <button
-                          onClick={() => setPayingOut(p)}
-                          disabled={saving}
-                          className="w-full px-3 py-2 rounded-lg text-xs font-semibold bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-800 disabled:opacity-50"
-                        >
-                          Clear Unpaid
-                        </button>
-                      )
-                    ) : (
-                      <p className="text-xs text-gray-400 font-semibold">Fully Paid</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-        )
+        <PayoutsTab
+          payouts={payouts}
+          canManagePayouts={canManagePayouts}
+          saving={saving}
+          onPayOut={setPayingOut}
+        />
       )}
 
       {/* MODAL: Trainer Add/Edit */}
       {showTrainerModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <Card className="w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-4">
-              {editingTrainerId ? 'Edit Trainer Profile' : 'Add New Trainer'}
-            </h3>
-            <form onSubmit={handleTrainerSave} className="space-y-4">
-              <div>
-                <FieldLabel htmlFor="trainers-full-name">Full Name</FieldLabel>
-                <input id="trainers-full-name"
-                  required
-                  value={trainerForm.name}
-                  onChange={e => setTrainerForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g. Trainer Zain"
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <FieldLabel htmlFor="trainers-phone-number">Phone Number</FieldLabel>
-                <input id="trainers-phone-number"
-                  value={trainerForm.phone}
-                  onChange={e => setTrainerForm(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="e.g. 03001234567"
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <FieldLabel htmlFor="trainers-specialization-skills">Specialization / Skills</FieldLabel>
-                <input id="trainers-specialization-skills"
-                  value={trainerForm.specialization}
-                  onChange={e => setTrainerForm(prev => ({ ...prev, specialization: e.target.value }))}
-                  placeholder="e.g. Bodybuilding, Yoga, Strength Training"
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <FieldLabel htmlFor="trainers-trainer-commission-percentage">Trainer Commission Percentage (%)</FieldLabel>
-                <input id="trainers-trainer-commission-percentage"
-                  required
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={trainerForm.commissionPercentage}
-                  onChange={e => setTrainerForm(prev => ({ ...prev, commissionPercentage: Number(e.target.value) }))}
-                  className={inputClass}
-                />
-                <p className="text-xs text-gray-400 mt-1">Trainer earns this percentage on every personal training session booked.</p>
-              </div>
-
-              <div>
-                <FieldLabel htmlFor="trainers-assignment-fee-rs">Assignment Fee (Rs.)</FieldLabel>
-                <input id="trainers-assignment-fee-rs"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder={`Gym default${gymDefaultPtFee === null ? '' : ` — Rs. ${gymDefaultPtFee.toLocaleString()}`}`}
-                  value={trainerForm.ptFee}
-                  onChange={e => setTrainerForm(prev => ({ ...prev, ptFee: e.target.value }))}
-                  className={inputClass}
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  Charged once when this trainer is assigned to a member. Leave blank to use the
-                  gym default; enter 0 to charge nothing.
-                </p>
-              </div>
-
-              <div className="flex gap-3 justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowTrainerModal(false)}
-                  className={secondaryButton}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className={primaryButton}
-                >
-                  {saving ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-            </form>
-          </Card>
-        </div>
+        <TrainerModal
+          editing={!!editingTrainerId}
+          form={trainerForm}
+          setForm={setTrainerForm}
+          gymDefaultPtFee={gymDefaultPtFee}
+          saving={saving}
+          onSave={handleTrainerSave}
+          onClose={() => setShowTrainerModal(false)}
+        />
       )}
 
       {/* MODAL: Book PT Session */}
       {showPtModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <Card className="w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-4">Book Personal Training Session</h3>
-            <form onSubmit={handlePtSave} className="space-y-4">
-              <div>
-                <FieldLabel htmlFor="trainers-select-member">Select Member</FieldLabel>
-                <select id="trainers-select-member"
-                  required
-                  value={ptForm.memberId}
-                  onChange={e => setPtForm(prev => ({ ...prev, memberId: e.target.value }))}
-                  className={inputClass}
-                >
-                  <option value="">-- Choose Member --</option>
-                  {members.map(m => (
-                    <option key={m.id} value={m.id}>{m.name} ({m.memberNo})</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <FieldLabel htmlFor="trainers-select-trainer">Select Trainer</FieldLabel>
-                <select id="trainers-select-trainer"
-                  required
-                  value={ptForm.trainerId}
-                  onChange={e => setPtForm(prev => ({ ...prev, trainerId: e.target.value }))}
-                  className={inputClass}
-                >
-                  <option value="">-- Choose Trainer --</option>
-                  {trainers.map(t => (
-                    <option key={t.id} value={t.id}>{t.name} ({t.commissionPercentage}% Comm)</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <FieldLabel htmlFor="trainers-session-date-time">Session Date & Time</FieldLabel>
-                <input id="trainers-session-date-time"
-                  required
-                  type="datetime-local"
-                  value={ptForm.sessionDate}
-                  onChange={e => setPtForm(prev => ({ ...prev, sessionDate: e.target.value }))}
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <FieldLabel htmlFor="trainers-price-charged-rs">Price Charged (Rs.)</FieldLabel>
-                <input id="trainers-price-charged-rs"
-                  required
-                  type="number"
-                  min="0"
-                  value={ptForm.priceCharged}
-                  onChange={e => setPtForm(prev => ({ ...prev, priceCharged: Number(e.target.value) }))}
-                  className={inputClass}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <FieldLabel htmlFor="trainers-initial-status">Initial Status</FieldLabel>
-                  <select id="trainers-initial-status"
-                    value={ptForm.status}
-                    onChange={e => setPtForm(prev => ({ ...prev, status: e.target.value as any }))}
-                    className={inputClass}
-                  >
-                    <option value="scheduled">Scheduled</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
-                <div>
-                  <FieldLabel htmlFor="trainers-payment">Payment</FieldLabel>
-                  <select id="trainers-payment"
-                    value={ptForm.paymentStatus}
-                    onChange={e => setPtForm(prev => ({ ...prev, paymentStatus: e.target.value as any }))}
-                    className={inputClass}
-                  >
-                    <option value="unpaid">Unpaid</option>
-                    <option value="paid">Paid</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex gap-3 justify-end pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowPtModal(false)}
-                  className={secondaryButton}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className={primaryButton}
-                >
-                  {saving ? 'Booking…' : 'Book Session'}
-                </button>
-              </div>
-            </form>
-          </Card>
-        </div>
+        <PtSessionModal
+          form={ptForm}
+          setForm={setPtForm}
+          members={members}
+          trainers={trainers}
+          saving={saving}
+          onSave={handlePtSave}
+          onClose={() => setShowPtModal(false)}
+        />
       )}
 
       {/* Confirm Deactivate Dialog */}
