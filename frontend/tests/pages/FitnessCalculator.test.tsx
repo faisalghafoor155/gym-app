@@ -19,6 +19,9 @@ vi.mock('../../src/api/client', () => ({
 vi.mock('react-hot-toast', () => ({
   default: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
 }));
+// Staff by default: no member id, so the page never asks for weigh-ins.
+const auth = vi.hoisted(() => ({ current: { user: { id: 'me', memberId: null as string | null } } }));
+vi.mock('../../src/context/AuthContext', () => ({ useAuth: () => auth.current }));
 
 const FitnessCalculator = (await import('../../src/pages/FitnessCalculator')).default;
 
@@ -75,5 +78,26 @@ describe('FitnessCalculator page', () => {
     renderPage(<FitnessCalculator />);
     await userEvent.click(await screen.findByText('Auto Meal Plan'));
     expect(screen.getByText(/Breakfast \(Nashta\)/)).toBeTruthy();
+  });
+});
+
+describe('FitnessCalculator for a member', () => {
+  it('starts from the member\'s latest logged weight', async () => {
+    const api = (await import('../../src/api/client')).default as unknown as { get: ReturnType<typeof vi.fn> };
+    api.get.mockResolvedValueOnce({
+      data: { data: [
+        { id: 'w2', weightKg: null, measuredOn: '2026-10-20T00:00:00.000Z' },
+        { id: 'w1', weightKg: 82.5, measuredOn: '2026-10-10T00:00:00.000Z' },
+      ] },
+    });
+    auth.current = { user: { id: 'me', memberId: 'member-1' } };
+    try {
+      renderPage(<FitnessCalculator />);
+      expect(await screen.findByText(/latest weigh-in/i)).toBeTruthy();
+      expect(api.get).toHaveBeenCalledWith('/me/measurements');
+      expect(screen.getByDisplayValue('82.5')).toBeTruthy();
+    } finally {
+      auth.current = { user: { id: 'me', memberId: null } };
+    }
   });
 });

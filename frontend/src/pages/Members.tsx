@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, CalendarPlus, QrCode, Fingerprint, PauseCircle, PlayCircle, XCircle, Dumbbell, UserPlus, MessageCircle, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, CalendarPlus, QrCode, Fingerprint, PauseCircle, PlayCircle, XCircle, Dumbbell, UserPlus, MessageCircle, X, Snowflake, Activity } from 'lucide-react';
 import Badge from '../components/Badge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FingerprintEnrollModal from '../components/FingerprintEnrollModal';
@@ -8,6 +8,8 @@ import MemberFormModal from '../components/members/MemberFormModal';
 import MemberQrModal from '../components/members/MemberQrModal';
 import RenewModal from '../components/members/RenewModal';
 import AssignTrainerModal from '../components/members/AssignTrainerModal';
+import FreezeModal from '../components/members/FreezeModal';
+import ProgressModal from '../components/members/ProgressModal';
 import {
   Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl,
   inputClass, primaryButton, secondaryButton, focusRing,
@@ -84,6 +86,19 @@ const canSuspend = (m: Member): boolean => {
 };
 
 const canResume = (m: Member): boolean => m.currentMembership?.status === 'suspended';
+
+/**
+ * Freezing stops the clock, so it is offered only while the clock is running
+ * and not already stopped — the API refuses an expired, paused or
+ * already-frozen membership, and the button is absent rather than failing.
+ */
+const canFreeze = (m: Member): boolean => {
+  const ms = m.currentMembership;
+  return !!ms && (ms.status === 'active' || ms.status === 'expiring') && !ms.freeze;
+};
+
+const freezeDate = (iso: string): string =>
+  new Date(iso).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' });
 
 export default function Members() {
   const { gym } = useAuth();
@@ -180,6 +195,9 @@ export default function Members() {
   const [statusChange, setStatusChange] =
     useState<{ member: Member; verb: 'suspend' | 'resume' | 'cancel' } | null>(null);
   const [statusBusy, setStatusBusy] = useState(false);
+  const [freezing, setFreezing] = useState<Member | null>(null);
+  const [unfreezing, setUnfreezing] = useState<Member | null>(null);
+  const [progressMember, setProgressMember] = useState<Member | null>(null);
 
   const debouncedSearch = useDebounced(search);
 
@@ -340,6 +358,23 @@ export default function Members() {
       await load();
     } catch (err) {
       toast.error(apiError(err, `Could not ${verb} membership`));
+    } finally {
+      setStatusBusy(false);
+    }
+  };
+
+  /** Ends a freeze early; the server hands back only the unused days. */
+  const handleUnfreeze = async () => {
+    const membershipId = unfreezing?.currentMembership?.id;
+    if (!unfreezing || !membershipId) return;
+    setStatusBusy(true);
+    try {
+      await api.post(`/members/${unfreezing.id}/memberships/${membershipId}/unfreeze`);
+      toast.success('Freeze ended');
+      setUnfreezing(null);
+      await load();
+    } catch (err) {
+      toast.error(apiError(err, 'Could not end freeze'));
     } finally {
       setStatusBusy(false);
     }
@@ -551,6 +586,16 @@ export default function Members() {
                         }
                       </span>
                     </div>
+                    {ms.freeze && (
+                      <div className="flex items-center justify-between rounded-lg px-3 py-2 bg-sky-50 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300">
+                        <span className="flex items-center gap-1.5"><Snowflake size={12} /> Frozen</span>
+                        <span className="font-semibold text-xs">
+                          {new Date(ms.freeze.from) > new Date()
+                            ? `${freezeDate(ms.freeze.from)} – ${freezeDate(ms.freeze.until)}`
+                            : `until ${freezeDate(ms.freeze.until)}`}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="rounded-lg bg-gray-50 dark:bg-slate-800/60 px-3 py-4 text-center text-xs text-gray-400 dark:text-slate-500">
@@ -614,6 +659,14 @@ export default function Members() {
                       <Fingerprint size={14} />
                     </button>
                     <button
+                      onClick={() => setProgressMember(m)}
+                      aria-label={`${m.name}'s progress`}
+                      title="Progress & measurements"
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 active:scale-95 transition-all shrink-0 ${focusRing}`}
+                    >
+                      <Activity size={14} />
+                    </button>
+                    <button
                       onClick={() => openEdit(m)}
                       aria-label={`Edit ${m.name}`}
                       className={`flex-1 min-w-[70px] min-h-[36px] flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800/60 active:scale-95 transition-all ${focusRing}`}
@@ -649,6 +702,26 @@ export default function Members() {
                   {/* Secondary Management Row: Suspend, Resume, Cancel, Delete */}
                   <div className="flex items-center justify-between gap-1.5 pt-1">
                     <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                      {canFreeze(m) && (
+                        <button
+                          onClick={() => setFreezing(m)}
+                          aria-label={`Freeze ${m.name}'s membership`}
+                          title="Freeze for travel, injury or Ramadan — the expiry moves forward"
+                          className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-sky-200 dark:border-sky-500/20 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/30 transition-colors ${focusRing}`}
+                        >
+                          <Snowflake size={12} /> Freeze
+                        </button>
+                      )}
+                      {m.currentMembership?.freeze && (
+                        <button
+                          onClick={() => setUnfreezing(m)}
+                          aria-label={`End ${m.name}'s freeze`}
+                          title="End the freeze early"
+                          className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-sky-200 dark:border-sky-500/20 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/30 transition-colors ${focusRing}`}
+                        >
+                          <Snowflake size={12} /> Unfreeze
+                        </button>
+                      )}
                       {canSuspend(m) && (
                         <button
                           onClick={() => setStatusChange({ member: m, verb: 'suspend' })}
@@ -794,6 +867,30 @@ export default function Members() {
           onConfirm={() => void handleMembershipAction()}
           onCancel={() => setStatusChange(null)}
         />
+      )}
+
+      {freezing?.currentMembership && (
+        <FreezeModal
+          member={freezing as Member & { currentMembership: NonNullable<Member['currentMembership']> }}
+          onClose={() => setFreezing(null)}
+          onFrozen={() => { setFreezing(null); void load(); }}
+        />
+      )}
+
+      {unfreezing?.currentMembership?.freeze && (
+        <ConfirmDialog
+          title="End freeze"
+          message={`End ${unfreezing.name}'s freeze now? Only the days not yet used come off the expiry.`}
+          confirmLabel="End freeze"
+          tone="primary"
+          busy={statusBusy}
+          onConfirm={() => void handleUnfreeze()}
+          onCancel={() => setUnfreezing(null)}
+        />
+      )}
+
+      {progressMember && (
+        <ProgressModal member={progressMember} onClose={() => setProgressMember(null)} />
       )}
 
       {deleting && (

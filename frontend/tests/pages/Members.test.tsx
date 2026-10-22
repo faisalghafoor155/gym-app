@@ -480,20 +480,42 @@ describe('Members — renewing', () => {
 
     const user = await openRenew();
     const dialog = await screen.findByRole('dialog', { name: /renew membership/i });
-    // `FieldLabel` renders no `htmlFor`, so the fee field is reached by role
-    // rather than by its label.
-    const amount = within(dialog).getByRole('spinbutton');
+    const amount = within(dialog).getByLabelText(/paying now/i);
     // Prefilled from the plan's price so the common case is one click...
     expect(amount).toHaveValue(2500);
 
-    // ...and editable, because a haggled renewal is recorded at what was taken.
+    // ...and editable, because a renewal is recorded at what was taken.
     await user.clear(amount);
     await user.type(amount, '2000');
     await user.click(screen.getByRole('button', { name: /^renew \(rs/i }));
 
     await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
-    const [, body] = api.current!.post.mock.calls[0] as unknown as [string, { amount: number }];
+    const [, body] = api.current!.post.mock.calls[0] as unknown as [string, { amount: number; price: number }];
     expect(body.amount).toBe(2000);
+    // The plan price still stands, so the 500 not paid is a balance owed.
+    expect(body.price).toBe(2500);
+  });
+
+  it('treats a lowered agreed price as a discount, not a debt', async () => {
+    api.current = mockApi({
+      '/membership-plans': listPage([{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }]),
+      '/members': membersPage([expiringMember()]),
+    });
+    auth.current = ownerAuth;
+
+    const user = await openRenew();
+    const dialog = await screen.findByRole('dialog', { name: /renew membership/i });
+    const price = within(dialog).getByLabelText(/agreed price/i);
+    await user.clear(price);
+    await user.type(price, '2000');
+    // Paying follows the price down while it was untouched.
+    expect(within(dialog).getByLabelText(/paying now/i)).toHaveValue(2000);
+    expect(within(dialog).queryByText(/balance due later/i)).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: /^renew \(rs/i }));
+    await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
+    const [, body] = api.current!.post.mock.calls[0] as unknown as [string, { amount: number; price: number }];
+    expect(body).toMatchObject({ amount: 2000, price: 2000 });
   });
 
   it('sends no wallet for a renewal switched back to cash', async () => {

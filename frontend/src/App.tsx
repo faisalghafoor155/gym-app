@@ -50,6 +50,8 @@ const Security = lazy(() => import('./pages/Security'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const Subscription = lazy(() => import('./pages/Subscription'));
 const FitnessCalculator = lazy(() => import('./pages/FitnessCalculator'));
+const Leads = lazy(() => import('./pages/Leads'));
+const Dues = lazy(() => import('./pages/Dues'));
 
 /** The whole-app boot state, before the session is known. */
 function BootSpinner() {
@@ -204,10 +206,12 @@ function AppRoutes() {
                     stays owner-only, matching what the API enforces. */}
                 <Route path="/supplement-sales" element={<OwnerRoute><SupplementSales /></OwnerRoute>} />
                 <Route path="/members" element={<PermissionRoute action="canManageMembers"><Members /></PermissionRoute>} />
+                <Route path="/leads" element={<PermissionRoute action="canManageMembers"><Leads /></PermissionRoute>} />
                 {/* Open to staff so the counter can take a fee. The page is not
                     the same for both: the API narrows staff to their own
                     entries and withholds the gym's totals. */}
                 <Route path="/payments" element={<PermissionRoute action="canViewPayments"><Payments /></PermissionRoute>} />
+                <Route path="/dues" element={<PermissionRoute action="canViewPayments"><Dues /></PermissionRoute>} />
                 {/* Who paid in a given month — the gym's collection rather
                     than one counter's takings, so owner-only like the API. */}
                 <Route path="/monthly-collection" element={<OwnerRoute><MonthlyCollection /></OwnerRoute>} />

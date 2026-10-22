@@ -299,6 +299,9 @@ export interface Membership {
   durationDays: number;
   status: MemberStatus;
   daysLeft: number;
+  /** A freeze covering today or booked for later. `until` is the first day
+   *  back. Null when the membership is not frozen. */
+  freeze?: { from: string; until: string } | null;
 }
 
 export interface Member {
@@ -982,4 +985,92 @@ export interface ProfitReport {
   outstanding: number;
   revenueByType: { type: string; total: number }[];
   expensesByCategory: { category: string; total: number }[];
+}
+
+/** Where an enquiry has got to. */
+export type LeadStatus = 'new' | 'contacted' | 'trial' | 'converted' | 'lost';
+
+/** Somebody who asked about the gym but has not joined. */
+export interface Lead {
+  id: string;
+  name: string;
+  phone: string | null;
+  source: string;
+  interest: string | null;
+  notes: string | null;
+  status: LeadStatus;
+  followUpOn: string | null;
+  convertedMember: { id: string; name: string; memberNo: string } | null;
+  convertedAt: string | null;
+  createdBy: { id: string; name: string } | null;
+  createdAt: string;
+}
+
+export interface LeadList {
+  data: Lead[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  /** Over the gym's whole list. `due` is open leads whose follow-up is today
+   *  or overdue. */
+  counts: Record<LeadStatus | 'due', number>;
+}
+
+/** One weigh-in. Every number is optional. */
+export interface Measurement {
+  id: string;
+  memberId: string;
+  measuredOn: string;
+  weightKg: number | null;
+  bodyFatPct: number | null;
+  chestCm: number | null;
+  waistCm: number | null;
+  hipsCm: number | null;
+  armCm: number | null;
+  thighCm: number | null;
+  photo: string | null;
+  notes: string | null;
+  recordedById: string | null;
+  recordedBy: { id: string; name: string } | null;
+  createdAt: string;
+}
+
+/** A current membership with part of its price still unpaid. */
+export interface MembershipBalance {
+  membershipId: string;
+  member: { id: string; name: string; memberNo: string; phone: string | null; status: string };
+  membership: Membership;
+  expected: number;
+  paid: number;
+  outstanding: number;
+}
+
+/** A `due` payment row that belongs to no membership. */
+export interface UnpaidCharge {
+  paymentId: string;
+  member: { id: string; name: string; memberNo: string; phone: string | null };
+  amount: number;
+  notes: string | null;
+  type: string;
+  paymentDate: string;
+}
+
+export interface Balances {
+  memberships: MembershipBalance[];
+  charges: UnpaidCharge[];
+  totalOutstanding: number;
+}
+
+interface Celebrant {
+  id: string;
+  name: string;
+  memberNo: string;
+  phone: string | null;
+}
+
+/** Today's birthdays and joining anniversaries. */
+export interface Celebrations {
+  birthdays: (Celebrant & { turning: number | null })[];
+  anniversaries: (Celebrant & { years: number })[];
 }

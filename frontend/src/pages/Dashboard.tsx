@@ -6,6 +6,7 @@ import {
   UserPlus, PhoneCall, Clock, UserMinus, ArrowRight, UserCog, MessageCircle,
 } from 'lucide-react';
 import Badge from '../components/Badge';
+import CelebrationsCard from '../components/dashboard/CelebrationsCard';
 import {
   Page, Card, StatTile, PageLoader, LoadFailed, EmptyState, BarChart, LineChart,
   primaryButton, focusRing,
@@ -213,6 +214,8 @@ export default function Dashboard() {
           <StatTile icon={CreditCard} label="Expired Memberships" value={stats.duePayments} tone="red" />
         )}
       </div>
+
+      <CelebrationsCard />
 
       {/* This month's takings, broken down by what they were for. The whole
           block keys off `revenue`, which the server omits for staff — so there

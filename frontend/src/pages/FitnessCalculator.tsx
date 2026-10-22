@@ -1,10 +1,12 @@
-import { useState, useId } from 'react';
-import { Calculator, Copy, Check } from 'lucide-react';
+import { useEffect, useState, useId } from 'react';
+import { Activity, Calculator, Copy, Check } from 'lucide-react';
 import { Page, PageHeader, SegmentedControl, FieldLabel, inputClass, secondaryButton } from '../components/ui';
 import Modal from '../components/Modal';
 import ExerciseAnglesModal from '../components/fitness/ExerciseAnglesModal';
 import ExercisePhotoModal from '../components/fitness/ExercisePhotoModal';
 import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import type { Measurement } from '../types';
 import toast from 'react-hot-toast';
 import {
   type AiAnswer, type CalcTab, type DietPreference, type Gender, type Goal, type Muscle,
@@ -28,6 +30,23 @@ export default function FitnessCalculator() {
   const [age, setAge] = useState<number>(25);
   const [activityLevel, setActivityLevel] = useState<number>(1.55); // Moderate (3-5 days gym)
   const [goal, setGoal] = useState<Goal>('bulk_lean');
+
+  // A member's own logged weight, so the numbers start from them rather than
+  // from a 70 kg stranger. Staff use this page for walk-ins and get the default.
+  const { user } = useAuth();
+  const [latestWeighIn, setLatestWeighIn] = useState<{ weightKg: number; measuredOn: string } | null>(null);
+  useEffect(() => {
+    if (!user?.memberId) return;
+    void api.get<{ data: Measurement[] }>('/me/measurements')
+      .then(r => {
+        // Newest first from the API; the first with a weight is the latest.
+        const row = r.data.data.find(m => m.weightKg != null);
+        if (!row) return;
+        setLatestWeighIn({ weightKg: row.weightKg!, measuredOn: row.measuredOn });
+        setWeightKg(row.weightKg!);
+      })
+      .catch(() => { /* the calculator works fine on its defaults */ });
+  }, [user?.memberId]);
   const [dietPreference, setDietPreference] = useState<DietPreference>('pakistani_desi');
   const [copiedPlan, setCopiedPlan] = useState(false);
 
@@ -229,6 +248,17 @@ Generated via Gym App Fitness & AI Calculator`;
         title="Fitness, Mass Gainer & Workout Calculator"
         subtitle="Automatic calorie engine with Anabolic Mass, Serious Mass & Carnivor integration + Workout games guide"
       />
+
+      {latestWeighIn && (
+        <div className="mb-4 rounded-xl px-4 py-2.5 bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/20 text-sm text-blue-800 dark:text-blue-200 flex items-center gap-2">
+          <Activity size={15} className="shrink-0" />
+          <span>
+            Using your latest weigh-in: <strong>{latestWeighIn.weightKg} kg</strong> on{' '}
+            {new Date(latestWeighIn.measuredOn).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}.
+            The AI coach also sees your progress history.
+          </span>
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* Navigation Tabs */}

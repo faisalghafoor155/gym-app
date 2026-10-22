@@ -135,6 +135,9 @@ interface Props {
   /** Whether a fingerprint reader is attached. Without one the "Add
    *  fingerprint" option is shown but cannot be ticked. */
   fingerprintReady?: boolean;
+  /** Details already known when registering — a lead being converted. Ignored
+   *  on an edit. */
+  prefill?: { name: string; phone: string | null };
   onClose: () => void;
   /** Handed the created member when registering, so the caller can follow up —
    *  enrolment needs an id that only exists once the save has returned. Null
@@ -153,14 +156,16 @@ interface Props {
  * typed about them is this modal's.
  */
 export default function MemberFormModal({
-  member, plans, trainers, settings, fingerprintReady = false, onClose, onSaved,
+  member, plans, trainers, settings, fingerprintReady = false, prefill, onClose, onSaved,
 }: Props) {
   const editing = member?.id ?? null;
   /** On by default: when a reader is there, taking the finger is the normal
    *  end of registering somebody. */
   const [enrolFingerprint, setEnrolFingerprint] = useState(true);
   const [form, setForm] = useState<MemberForm>(
-    () => (member ? editDefaults(member) : addDefaults(plans, settings)),
+    () => (member
+      ? editDefaults(member)
+      : { ...addDefaults(plans, settings), ...(prefill && { name: prefill.name, phone: prefill.phone ?? '' }) }),
   );
   /**
    * The trainer the member already had, so a re-save is told apart from a new

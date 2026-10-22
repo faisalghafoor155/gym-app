@@ -14,7 +14,7 @@ import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   Dumbbell, LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
   BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText, Sparkles, Calculator,
-  type LucideIcon,
+  UserPlus, HandCoins, type LucideIcon,
 } from 'lucide-react';
 
 interface NavItem {
@@ -27,6 +27,8 @@ const staffNavItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/members', label: 'Members', icon: Users },
+  // Next to Members: an enquiry is a member who has not happened yet.
+  { to: '/leads', label: 'Leads & Enquiries', icon: UserPlus },
   { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
   // Two different kinds of "plan": what a member buys, and what they train
   // to. Labelled apart so the sidebar does not read as a duplicate.
@@ -37,6 +39,8 @@ const staffNavItems: NavItem[] = [
   // is not: the server narrows their list to the payments they recorded
   // themselves, and refuses them the gym's totals outright.
   { to: '/payments', label: 'Payments', icon: CreditCard },
+  // Who still owes part of a fee — the list the counter collects from.
+  { to: '/dues', label: 'Pending Dues', icon: HandCoins },
   // Not in the owner-only list below, because an accountant needs it too —
   // the permission gate rather than the role is what decides who sees it.
   { to: '/expenses', label: 'Expenses', icon: Wallet },
@@ -94,11 +98,13 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   const navItemPermissions: Record<string, keyof PermissionRequirements> = {
     '/members': 'canManageMembers',
+    '/leads': 'canManageMembers',
     '/attendance': 'canViewAttendance',
     '/analytics': 'canViewReports',
     '/membership-plans': 'canManageMemberships',
     '/supplements': 'canManageSupplements',
     '/payments': 'canViewPayments',
+    '/dues': 'canViewPayments',
     '/expenses': 'canManageExpenses',
     '/trainers': 'canManageTrainers',
     '/classes': 'canManageClasses',

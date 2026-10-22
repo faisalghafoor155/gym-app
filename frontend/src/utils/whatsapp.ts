@@ -79,3 +79,59 @@ export function createGeneralMessage({
   const gym = gymName || 'GymPro';
   return `Assalam-o-Alaikum ${memberName},\n\nHope you are doing well. Message from *${gym}*.\n\n`;
 }
+
+/** A call-back to somebody who enquired but has not joined. */
+export function createLeadFollowUpMessage({
+  name,
+  gymName,
+  interest,
+}: {
+  name: string;
+  gymName?: string;
+  interest?: string | null;
+}): string {
+  const gym = gymName || 'GymPro';
+  const about = interest ? ` about *${interest}*` : '';
+  return `Assalam-o-Alaikum ${name},\n\nThank you for your interest in *${gym}*${about}. We would love to have you train with us — feel free to visit for a trial session or reply here with any questions about plans and timings.\n\nThank you,\n*${gym} Management*`;
+}
+
+/** A balance still owed on a membership or charge. */
+export function createDuesMessage({
+  memberName,
+  gymName,
+  amount,
+  forWhat,
+}: {
+  memberName: string;
+  gymName?: string;
+  amount: number;
+  forWhat?: string;
+}): string {
+  const gym = gymName || 'GymPro';
+  const what = forWhat ? ` for *${forWhat}*` : '';
+  return `Assalam-o-Alaikum ${memberName},\n\nThis is a gentle reminder that *Rs. ${amount.toLocaleString('en-PK')}* is still pending${what} at *${gym}*. Kindly clear it at the counter at your convenience.\n\nThank you,\n*${gym} Management*`;
+}
+
+export function createBirthdayMessage({
+  memberName,
+  gymName,
+}: {
+  memberName: string;
+  gymName?: string;
+}): string {
+  const gym = gymName || 'GymPro';
+  return `Happy Birthday ${memberName}! 🎉\n\nEveryone at *${gym}* wishes you a healthy, strong and happy year ahead. Keep crushing your goals! 💪\n\n*${gym} Family*`;
+}
+
+export function createAnniversaryMessage({
+  memberName,
+  gymName,
+  years,
+}: {
+  memberName: string;
+  gymName?: string;
+  years: number;
+}): string {
+  const gym = gymName || 'GymPro';
+  return `Congratulations ${memberName}! 🎉\n\nToday marks *${years} year${years === 1 ? '' : 's'}* since you joined *${gym}*. Thank you for training with us — here's to many more!\n\n*${gym} Family*`;
+}

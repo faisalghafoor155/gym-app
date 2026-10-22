@@ -13,6 +13,9 @@ import toast from 'react-hot-toast';
 interface RenewForm {
   /** Blank means the same plan again. */
   planId: string;
+  /** What the period is sold for — the plan price, or a discount. */
+  price: string;
+  /** What is handed over today. Less than `price` leaves a balance owed. */
   amount: string;
   method: PaymentMethod;
   channel: PaymentChannel | '';
@@ -88,6 +91,7 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
       planId: ms.planId ?? plans[0]?.id ?? '',
       // Prefilled from the plan's price, and editable — a haggled renewal is
       // recorded at what was actually taken, not what the list says.
+      price: plan ? String(plan.price) : '',
       amount: plan ? String(plan.price) : '',
       method: 'cash',
       channel: '',
@@ -105,6 +109,9 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
     : trainers?.find(t => t.id === selectedTrainerId)?.name || 'Personal Trainer';
 
   const gymAmount = Number(form.amount) || 0;
+  const agreedPrice = Number(form.price) || 0;
+  // What the member still owes on this period once today's money is in.
+  const balance = Math.max(0, agreedPrice - gymAmount);
   const ptFeeNum = (hasTrainer ? includeTrainer : isAddingNewTrainer) ? Math.max(0, Number(ptFee) || 0) : 0;
   const totalAmount = gymAmount + ptFeeNum;
 
@@ -114,11 +121,16 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
       toast.error('Gym membership plan fee must be greater than zero');
       return;
     }
+    if (agreedPrice > 0 && gymAmount > agreedPrice) {
+      toast.error('The amount paid cannot be more than the agreed price');
+      return;
+    }
     setSaving(true);
     try {
       await api.post(`/members/${member.id}/memberships/${ms.id}/renew`, {
         ...(form.planId && { planId: form.planId }),
         amount: gymAmount,
+        ...(agreedPrice > 0 && { price: agreedPrice }),
         method: form.method,
         ...(form.method === 'online' && {
           channel: form.channel || null,
@@ -207,7 +219,7 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
                 // The price follows the plan, so switching plans does not
                 // leave the old plan's figure sitting in the amount.
                 setForm(f => ({
-                  ...f, planId, ...(plan && { amount: String(plan.price) }),
+                  ...f, planId, ...(plan && { price: String(plan.price), amount: String(plan.price) }),
                 }));
               }}
               className={inputClass}
@@ -226,17 +238,37 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
             </select>
           </div>
 
-          <div>
-            <FieldLabel htmlFor="renew-amount" required>Fee collected (Rs.)</FieldLabel>
-            <input
-              id="renew-amount"
-              type="number" min={1} step={1} required
-              value={form.amount}
-              onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-              className={inputClass}
-            />
-            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-              Change it if a different amount was agreed.
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <FieldLabel htmlFor="renew-price" required>Agreed price (Rs.)</FieldLabel>
+              <input
+                id="renew-price"
+                type="number" min={1} step={1} required
+                value={form.price}
+                // A discount lowers what is owed, so what is being paid
+                // follows it down unless the desk already typed less.
+                onChange={e => setForm(f => ({
+                  ...f,
+                  price: e.target.value,
+                  amount: Number(f.amount) > Number(e.target.value) || f.amount === f.price
+                    ? e.target.value : f.amount,
+                }))}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <FieldLabel htmlFor="renew-amount" required>Paying now (Rs.)</FieldLabel>
+              <input
+                id="renew-amount"
+                type="number" min={1} max={agreedPrice || undefined} step={1} required
+                value={form.amount}
+                onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+                className={inputClass}
+              />
+            </div>
+            <p className="col-span-2 text-xs text-gray-400 dark:text-slate-500 -mt-1">
+              Lower the agreed price for a discount. Paying less than it now leaves the rest as a due,
+              which shows on the Pending Dues list and is reminded on WhatsApp.
             </p>
           </div>
 
@@ -510,6 +542,12 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
                 Rs. {totalAmount.toLocaleString('en-PK')}
               </span>
             </div>
+            {balance > 0 && (
+              <div className="flex items-center justify-between text-red-600 dark:text-red-400 font-semibold">
+                <span>Balance due later:</span>
+                <span>Rs. {balance.toLocaleString('en-PK')}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-3 pt-2">

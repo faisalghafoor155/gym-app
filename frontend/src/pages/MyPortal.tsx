@@ -12,6 +12,8 @@ import MyClasses from '../components/portal/MyClasses';
 import MyCheckInCode from '../components/portal/MyCheckInCode';
 import { MyMemberships, MyPayments, MyPurchases } from '../components/portal/MyHistory';
 import MyProfileForm from '../components/portal/MyProfileForm';
+import ProgressPanel from '../components/progress/ProgressPanel';
+import { useAuth } from '../context/AuthContext';
 import api, { apiError } from '../api/client';
 import type { MyProfile, MembershipPlan, PaymentProviderOption, CheckoutStarted } from '../types';
 import toast from 'react-hot-toast';
@@ -46,10 +48,11 @@ const postToProvider = (url: string, fields: Record<string, string>): void => {
  * have buried the two things a member opens it for — when their membership
  * ends, and the code to get in.
  */
-type PortalTab = 'overview' | 'classes' | 'checkin' | 'history' | 'profile';
+type PortalTab = 'overview' | 'progress' | 'classes' | 'checkin' | 'history' | 'profile';
 
 const TABS: readonly { value: PortalTab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
+  { value: 'progress', label: 'Progress' },
   { value: 'classes', label: 'Classes' },
   { value: 'checkin', label: 'Check-in' },
   { value: 'history', label: 'History' },
@@ -57,6 +60,7 @@ const TABS: readonly { value: PortalTab; label: string }[] = [
 ];
 
 export default function MyPortal() {
+  const { user } = useAuth();
   const [tab, setTab] = useState<PortalTab>('overview');
   const [data, setData] = useState<MyProfile | null>(null);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
@@ -174,6 +178,12 @@ export default function MyPortal() {
 
       <SegmentedControl value={tab} onChange={setTab} options={TABS} />
 
+      {tab === 'progress' && (
+        // A member may take back what they logged; what a trainer recorded
+        // about them stays — the API says the same.
+        <ProgressPanel url="/me/measurements" canDelete={r => r.recordedById === user?.id} />
+      )}
+
       {tab === 'classes' && (
         // Reloads the profile after a booking: nothing on the overview
         // depends on it today, but a stale membership card behind a
@@ -247,7 +257,18 @@ export default function MyPortal() {
                 : `${membership.daysLeft}d left`}
             </span>
           </div>
-        ) : (
+        ) : null}
+
+        {membership?.freeze && (
+          <div className="mt-3 rounded-xl px-4 py-3 flex items-center justify-between bg-sky-50 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300">
+            <span className="text-sm">Membership frozen</span>
+            <span className="text-sm font-bold">
+              until {new Date(membership.freeze.until).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+          </div>
+        )}
+
+        {!membership && (
           <div className="mt-4 rounded-xl px-4 py-3 bg-gray-50 dark:bg-slate-800/60 text-sm text-gray-500 dark:text-slate-400 text-center">
             No membership yet — ask the front desk to set one up.
           </div>
