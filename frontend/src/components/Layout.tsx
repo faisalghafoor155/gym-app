@@ -3,6 +3,8 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
 import ThemeToggle from './ThemeToggle';
+import LanguageToggle from './LanguageToggle';
+import { useLanguage } from '../context/LanguageContext';
 import OfflineBanner from './OfflineBanner';
 import VerifyEmailBanner from './VerifyEmailBanner';
 import InstallBanner from './InstallBanner';
@@ -14,7 +16,7 @@ import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   Dumbbell, LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
   BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText, Sparkles, Calculator,
-  UserPlus, HandCoins, type LucideIcon,
+  HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, type LucideIcon,
 } from 'lucide-react';
 
 interface NavItem {
@@ -28,11 +30,15 @@ const staffNavItems: NavItem[] = [
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/members', label: 'Members', icon: Users },
   // Next to Members: an enquiry is a member who has not happened yet.
-  { to: '/leads', label: 'Leads & Enquiries', icon: UserPlus },
+  { to: '/referrals', label: 'Referrals', icon: Gift },
   { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
+  // Paying members who stopped coming — the list to call before they lapse.
+  { to: '/inactive', label: 'Inactive Members', icon: UserX },
   // Two different kinds of "plan": what a member buys, and what they train
   // to. Labelled apart so the sidebar does not read as a duplicate.
   { to: '/membership-plans', label: 'Membership Plans', icon: Tag },
+  { to: '/promo-codes', label: 'Promo Codes', icon: Ticket },
+  { to: '/plans', label: 'Workout & Diet Plans', icon: ClipboardList },
   { to: '/calculator', label: 'Fitness Calculator', icon: Calculator },
   { to: '/supplements', label: 'Supplements', icon: FlaskConical },
   // Taking a fee is counter work, so the page is staff's. What they see on it
@@ -45,6 +51,7 @@ const staffNavItems: NavItem[] = [
   // the permission gate rather than the role is what decides who sees it.
   { to: '/expenses', label: 'Expenses', icon: Wallet },
   { to: '/trainers', label: 'Trainers & PT', icon: Award },
+  { to: '/lockers', label: 'Lockers', icon: KeyRound },
   { to: '/classes', label: 'Classes & Schedules', icon: Calendar },
 ];
 
@@ -81,6 +88,7 @@ const securityNavItem: NavItem = { to: '/security', label: 'Security', icon: Shi
 
 export default function Layout({ children }: { children: ReactNode }) {
   const { gym, user, logout, isStaff, isOwner } = useAuth();
+  const { t } = useLanguage();
   const { has } = useSubscription();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -98,7 +106,11 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   const navItemPermissions: Record<string, keyof PermissionRequirements> = {
     '/members': 'canManageMembers',
-    '/leads': 'canManageMembers',
+    '/referrals': 'canManageMembers',
+    '/lockers': 'canManageMembers',
+    '/inactive': 'canViewAttendance',
+    '/promo-codes': 'canManageMemberships',
+    '/plans': 'canManagePlans',
     '/attendance': 'canViewAttendance',
     '/analytics': 'canViewReports',
     '/membership-plans': 'canManageMemberships',
@@ -162,18 +174,21 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="mt-3 flex items-center justify-between gap-2">
           {isOwner ? (
             <span className="inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300 text-xs font-bold px-2.5 py-1 rounded-full border border-purple-100 dark:border-purple-500/20 shadow-2xs">
-              <Crown size={11} /> Owner
+              <Crown size={11} /> {t('Owner')}
             </span>
           ) : isStaff ? (
             <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 text-xs font-bold px-2.5 py-1 rounded-full border border-blue-100 dark:border-blue-500/20 shadow-2xs">
-              <Shield size={11} /> Staff
+              <Shield size={11} /> {t('Staff')}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-400 text-xs font-bold px-2.5 py-1 rounded-full shadow-2xs">
-              <User size={11} /> Member
+              <User size={11} /> {t('Member')}
             </span>
           )}
-          <ThemeToggle />
+          <div className="flex items-center gap-1.5">
+            <LanguageToggle />
+            <ThemeToggle />
+          </div>
         </div>
 
         <div className="mt-3">
@@ -210,7 +225,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                   size={17}
                   className={`shrink-0 transition-transform ${isActive ? '' : 'group-hover:scale-110'}`}
                 />
-                {label}
+                {t(label)}
               </>
             )}
           </NavLink>
@@ -227,7 +242,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 dark:text-slate-400 dark:hover:bg-red-500/15 dark:hover:text-red-400 w-full transition-all active:scale-[0.98]"
         >
           <LogOut size={17} />
-          Logout
+          {t('Logout')}
         </button>
       </div>
     </>
@@ -322,7 +337,8 @@ export default function Layout({ children }: { children: ReactNode }) {
 
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <InstallButton variant="navbar" />
-            <div className="lg:hidden">
+            <div className="lg:hidden flex items-center gap-1.5">
+              <LanguageToggle />
               <ThemeToggle />
             </div>
             {user?.name && (

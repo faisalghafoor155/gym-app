@@ -7,6 +7,7 @@
 import type { ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 export type Tone = 'blue' | 'green' | 'red' | 'yellow' | 'gray' | 'purple';
 
@@ -92,12 +93,13 @@ interface PageProps {
 }
 
 export function PageHeader({ icon: Icon, title, subtitle, action }: PageProps) {
+  const { t } = useLanguage();
   return (
     <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
       <div className="min-w-0">
         <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
           <Icon size={20} className="text-blue-600 dark:text-blue-400 shrink-0 sm:w-6 sm:h-6" />
-          <span className="truncate">{title}</span>
+          <span className="truncate">{t(title)}</span>
         </h1>
         {subtitle && <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mt-0.5 truncate">{subtitle}</p>}
       </div>
@@ -158,13 +160,14 @@ export function DataRow({ icon: Icon, label, value }: {
 export function StatTile({ icon: Icon, label, value, tone = 'blue', hint }: {
   icon: LucideIcon; label: string; value: ReactNode; tone?: Tone; hint?: string;
 }) {
+  const { t } = useLanguage();
   return (
     <Card className="p-3.5 sm:p-5 relative overflow-hidden group hover:border-blue-300/80 dark:hover:border-blue-900/60 transition-all duration-200">
       <div className="flex items-center gap-2.5 sm:gap-4 relative z-10">
         <IconTile icon={Icon} tone={tone} />
         <div className="min-w-0 flex-1">
           <p className="text-lg sm:text-2xl font-extrabold text-gray-900 dark:text-slate-100 truncate tracking-tight font-heading">{value}</p>
-          <p className="text-[11px] sm:text-sm font-medium text-gray-500 dark:text-slate-400 mt-0.5 truncate">{label}</p>
+          <p className="text-[11px] sm:text-sm font-medium text-gray-500 dark:text-slate-400 mt-0.5 truncate">{t(label)}</p>
           {hint && <p className="text-[10px] sm:text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5 truncate">{hint}</p>}
         </div>
       </div>
@@ -457,6 +460,7 @@ export function SegmentedControl<T extends string>({ value, onChange, options }:
   onChange: (v: T) => void;
   options: readonly { value: T; label: string; count?: number }[];
 }) {
+  const { t } = useLanguage();
   return (
     <div className="flex max-w-full overflow-x-auto no-scrollbar touch-pan-x overscroll-x-contain bg-gray-100/90 dark:bg-slate-800/90 rounded-xl p-1 gap-1" role="tablist">
       {options.map(o => (
@@ -471,7 +475,7 @@ export function SegmentedControl<T extends string>({ value, onChange, options }:
               : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
           }`}
         >
-          {o.label}
+          {t(o.label)}
           {o.count !== undefined && (
             <span className={`ml-1.5 text-[11px] font-bold px-1.5 py-0.5 rounded-full transition-colors ${
               value === o.value

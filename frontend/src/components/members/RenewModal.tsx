@@ -5,8 +5,9 @@ import {
 import { Dumbbell, UserCheck, UserX } from 'lucide-react';
 import api, { apiError } from '../../api/client';
 import { useDialog } from '../../hooks/useDialog';
-import type { GymSettings, Member, MembershipPlan, PaymentChannel, PaymentMethod, Trainer } from '../../types';
+import type { GymSettings, Member, MembershipPlan, PaymentChannel, PaymentMethod, PromoCheck, Trainer } from '../../types';
 import { CHANNELS, CHANNEL_LABELS, accountFor } from '../../utils/paymentChannels';
+import PromoCodeField from './PromoCodeField';
 import toast from 'react-hot-toast';
 
 /** What the desk fills in to renew: the next period, and the money for it. */
@@ -99,6 +100,9 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
     };
   });
   const [saving, setSaving] = useState(false);
+  /** A code the server confirmed for the picked plan. While set it decides
+   *  the price; the server applies it again on save. */
+  const [promo, setPromo] = useState<PromoCheck | null>(null);
   const dialogRef = useDialog(true, onClose);
 
   const picked = plans.find(p => p.id === form.planId);
@@ -130,7 +134,9 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
       await api.post(`/members/${member.id}/memberships/${ms.id}/renew`, {
         ...(form.planId && { planId: form.planId }),
         amount: gymAmount,
-        ...(agreedPrice > 0 && { price: agreedPrice }),
+        ...(promo
+          ? { promoCode: promo.code }
+          : agreedPrice > 0 && { price: agreedPrice }),
         method: form.method,
         ...(form.method === 'online' && {
           channel: form.channel || null,
@@ -215,6 +221,8 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
               value={form.planId}
               onChange={e => {
                 const planId = e.target.value;
+                // A code was checked against the old plan; its price no longer holds.
+                setPromo(null);
                 const plan = plans.find(p => p.id === planId);
                 // The price follows the plan, so switching plans does not
                 // leave the old plan's figure sitting in the amount.
@@ -238,12 +246,26 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
             </select>
           </div>
 
+          <PromoCodeField
+            planId={form.planId}
+            applied={promo}
+            onApplied={check => {
+              setPromo(check);
+              // The code's price becomes the agreed price, and what is paid
+              // now follows it — the desk can still lower what is paid today.
+              const plan = plans.find(p => p.id === form.planId);
+              const price = check ? check.finalPrice : plan?.price;
+              if (price != null) setForm(f => ({ ...f, price: String(price), amount: String(price) }));
+            }}
+          />
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <FieldLabel htmlFor="renew-price" required>Agreed price (Rs.)</FieldLabel>
               <input
                 id="renew-price"
                 type="number" min={1} step={1} required
+                disabled={!!promo}
                 value={form.price}
                 // A discount lowers what is owed, so what is being paid
                 // follows it down unless the desk already typed less.

@@ -50,8 +50,12 @@ const Security = lazy(() => import('./pages/Security'));
 const Analytics = lazy(() => import('./pages/Analytics'));
 const Subscription = lazy(() => import('./pages/Subscription'));
 const FitnessCalculator = lazy(() => import('./pages/FitnessCalculator'));
-const Leads = lazy(() => import('./pages/Leads'));
 const Dues = lazy(() => import('./pages/Dues'));
+const Plans = lazy(() => import('./pages/Plans'));
+const PromoCodes = lazy(() => import('./pages/PromoCodes'));
+const Referrals = lazy(() => import('./pages/Referrals'));
+const InactiveMembers = lazy(() => import('./pages/InactiveMembers'));
+const Lockers = lazy(() => import('./pages/Lockers'));
 
 /** The whole-app boot state, before the session is known. */
 function BootSpinner() {
@@ -196,17 +200,20 @@ function AppRoutes() {
                 <Route path="/security" element={<Security />} />
                  <Route path="/dashboard" element={<StaffRoute><Dashboard /></StaffRoute>} />
                 <Route path="/attendance" element={<PermissionRoute action="canViewAttendance"><Attendance /></PermissionRoute>} />
+                <Route path="/inactive" element={<PermissionRoute action="canViewAttendance"><InactiveMembers /></PermissionRoute>} />
                 {/* Both gates: whether this person may see reports, and
                     whether the gym's plan includes them. */}
                 <Route path="/analytics" element={<PermissionRoute action="canViewReports"><FeatureRoute feature="analytics"><Analytics /></FeatureRoute></PermissionRoute>} />
-                <Route path="/plans" element={<Navigate to="/calculator" replace />} />
+                <Route path="/plans" element={<PermissionRoute action="canManagePlans"><Plans /></PermissionRoute>} />
+                <Route path="/promo-codes" element={<PermissionRoute action="canManageMemberships"><PromoCodes /></PermissionRoute>} />
                 <Route path="/membership-plans" element={<PermissionRoute action="canManageMemberships"><MembershipPlans /></PermissionRoute>} />
                 <Route path="/supplements" element={<PermissionRoute action="canManageSupplements"><Supplements /></PermissionRoute>} />
                 {/* A report of what the gym earns, rather than a till — so it
                     stays owner-only, matching what the API enforces. */}
                 <Route path="/supplement-sales" element={<OwnerRoute><SupplementSales /></OwnerRoute>} />
                 <Route path="/members" element={<PermissionRoute action="canManageMembers"><Members /></PermissionRoute>} />
-                <Route path="/leads" element={<PermissionRoute action="canManageMembers"><Leads /></PermissionRoute>} />
+                <Route path="/referrals" element={<PermissionRoute action="canManageMembers"><Referrals /></PermissionRoute>} />
+                <Route path="/lockers" element={<PermissionRoute action="canManageMembers"><Lockers /></PermissionRoute>} />
                 {/* Open to staff so the counter can take a fee. The page is not
                     the same for both: the API narrows staff to their own
                     entries and withholds the gym's totals. */}

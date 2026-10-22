@@ -89,6 +89,15 @@ h1, h2, h3, h4, .font-heading {
   letter-spacing: -0.015em;
 }
 
+/* Urdu mode. The Latin fonts stay first, so numbers, names and member IDs keep
+   their usual look; Urdu letters, which those fonts lack, fall through to
+   Nastaliq. Offline (the desktop app), the system's Urdu font takes over. */
+html.lang-ur body,
+html.lang-ur h1, html.lang-ur h2, html.lang-ur h3, html.lang-ur h4, html.lang-ur .font-heading {
+  font-family: 'Plus Jakarta Sans', 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Urdu Typesetting', system-ui, sans-serif;
+  letter-spacing: normal;
+}
+
 html.dark body {
   background: #090e17;
   color: #f1f5f9;

@@ -1,5 +1,8 @@
 import { useEffect, useState, type MouseEvent } from 'react';
-import { secondaryButton } from '../ui';
+import { CreditCard } from 'lucide-react';
+import { primaryButton, secondaryButton } from '../ui';
+import { useAuth } from '../../context/AuthContext';
+import { printIdCard } from '../../utils/idCard';
 import { useDialog } from '../../hooks/useDialog';
 import type { Member } from '../../types';
 import QRCode from 'qrcode';
@@ -24,6 +27,7 @@ interface Props {
  * the modal appearing complete.
  */
 export default function MemberQrModal({ member, onClose }: Props) {
+  const { gym } = useAuth();
   const [dataUrl, setDataUrl] = useState('');
   // Wired up only once there is something to render: until then this component
   // returns null, so there is no container for the trap to hold focus in.
@@ -72,9 +76,21 @@ export default function MemberQrModal({ member, onClose }: Props) {
           <img src={dataUrl} alt={`QR Code for ${member.name}`} className="w-56 h-56" />
         </div>
         <p className="text-xs text-gray-400 dark:text-slate-500 mt-4">Scan this code at the front desk for instant check-in</p>
-        <button onClick={onClose} className={`mt-4 w-full ${secondaryButton}`}>
-          Close
-        </button>
+        <div className="mt-4 flex gap-2">
+          <button onClick={onClose} className={`flex-1 ${secondaryButton}`}>
+            Close
+          </button>
+          <button
+            onClick={() => {
+              if (!printIdCard(member, dataUrl, { name: gym?.name ?? 'GymPro', logo: gym?.logo })) {
+                toast.error('Allow pop-ups for this site to print the card');
+              }
+            }}
+            className={`flex-1 ${primaryButton}`}
+          >
+            <CreditCard size={15} /> Print ID card
+          </button>
+        </div>
       </div>
     </div>
   );

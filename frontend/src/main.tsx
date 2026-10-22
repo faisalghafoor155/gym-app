@@ -6,6 +6,7 @@ import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary.tsx'
 import UpdatePrompt from './components/UpdatePrompt.tsx'
 import { ThemeProvider, useTheme } from './context/ThemeContext.tsx'
+import { LanguageProvider } from './context/LanguageContext.tsx'
 import { installKeyboardAvoidance } from './utils/mobileKeyboard.ts'
 
 // Phones only: keeps the field being typed into above the on-screen keyboard
@@ -43,9 +44,11 @@ createRoot(document.getElementById('root')!).render(
       this has to survive — a boundary nested any deeper would go down with it.
     */}
     <ThemeProvider>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
+      <LanguageProvider>
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
+      </LanguageProvider>
       <ThemedToaster />
       {/*
         Outside the boundary and beside the toaster it renders into: it is the

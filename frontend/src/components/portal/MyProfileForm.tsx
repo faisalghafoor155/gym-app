@@ -10,8 +10,8 @@ import type { MyProfile } from '../../types';
 /**
  * The contact details a member maintains themselves.
  *
- * Only the four the server will take: `PUT /me` accepts phone, email, address
- * and emergency contact, and nothing else on the record is a member's to
+ * Only what the server will take: `PUT /me` accepts phone, email, address,
+ * emergency contact and date of birth, and nothing else on the record is a member's to
  * change. Name, photo and membership are the desk's, which is why they are
  * read on the Overview tab and not writable here.
  *
@@ -27,12 +27,15 @@ type Draft = {
   phone: string;
   address: string;
   emergencyContact: string;
+  /** YYYY-MM-DD, as a date input holds it. */
+  dateOfBirth: string;
 };
 
 const draftOf = (member: MyProfile['member']): Draft => ({
   phone: member.phone ?? '',
   address: member.address ?? '',
   emergencyContact: member.emergencyContact ?? '',
+  dateOfBirth: member.dateOfBirth ? member.dateOfBirth.split('T')[0]! : '',
 });
 
 /** Blank is a real edit — it clears the field — so it is sent as null rather
@@ -70,6 +73,7 @@ export default function MyProfileForm({
         phone: orNull(draft.phone),
         address: orNull(draft.address),
         emergencyContact: orNull(draft.emergencyContact),
+        dateOfBirth: draft.dateOfBirth || null,
       });
       toast.success('Your details are saved');
       onSaved(data);
@@ -153,6 +157,21 @@ export default function MyProfileForm({
           />
           <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
             Who the gym should call if something happens while you are training.
+          </p>
+        </div>
+
+        <div>
+          <FieldLabel htmlFor="my-dob">Date of birth</FieldLabel>
+          <input
+            id="my-dob"
+            type="date"
+            value={draft.dateOfBirth}
+            max={new Date().toISOString().split('T')[0]}
+            onChange={e => set('dateOfBirth')(e.target.value)}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+            So the gym can wish you on your birthday. 🎂
           </p>
         </div>
 

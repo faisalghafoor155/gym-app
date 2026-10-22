@@ -7,12 +7,14 @@ import {
 } from 'lucide-react';
 import Badge from '../components/Badge';
 import CelebrationsCard from '../components/dashboard/CelebrationsCard';
+import LowStockCard from '../components/dashboard/LowStockCard';
 import {
   Page, Card, StatTile, PageLoader, LoadFailed, EmptyState, BarChart, LineChart,
   primaryButton, focusRing,
 } from '../components/ui';
 import { useFetch } from '../hooks/useFetch';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { openWhatsApp, createExpiryMessage } from '../utils/whatsapp';
 import type { DashboardStats } from '../types';
 
@@ -53,6 +55,7 @@ const growth = (now: number, before: number): number | null =>
 function QuickAction({ to, icon: Icon, label }: {
   to: string; icon: typeof Users; label: string;
 }) {
+  const { t } = useLanguage();
   return (
     <Link
       to={to}
@@ -63,7 +66,7 @@ function QuickAction({ to, icon: Icon, label }: {
       <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-200 shadow-2xs">
         <Icon size={16} />
       </div>
-      <span className="truncate font-semibold tracking-tight">{label}</span>
+      <span className="truncate font-semibold tracking-tight">{t(label)}</span>
     </Link>
   );
 }
@@ -216,6 +219,7 @@ export default function Dashboard() {
       </div>
 
       <CelebrationsCard />
+      <LowStockCard />
 
       {/* This month's takings, broken down by what they were for. The whole
           block keys off `revenue`, which the server omits for staff — so there

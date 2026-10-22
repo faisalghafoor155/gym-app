@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, ClipboardList, Dumbbell, Utensils, UserPlus, Trash, ChevronDown, ChevronUp, Calculator } from 'lucide-react';
 import Modal from '../components/Modal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import {
   Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl, FieldLabel,
   inputClass, primaryButton, secondaryButton,
@@ -48,6 +49,23 @@ export default function Plans() {
   ]);
 
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<Plan | null>(null);
+  const [deletingBusy, setDeletingBusy] = useState(false);
+
+  const handleDelete = async () => {
+    if (!deleting) return;
+    setDeletingBusy(true);
+    try {
+      await api.delete(`/plans/${tab}/${deleting.id}`);
+      toast.success('Plan deleted');
+      setDeleting(null);
+      await load();
+    } catch (err) {
+      toast.error(apiError(err, 'Could not delete plan'));
+    } finally {
+      setDeletingBusy(false);
+    }
+  };
 
   const load = () =>
     Promise.all([
@@ -246,12 +264,23 @@ export default function Plans() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => setExpandedPlan(isExpanded ? null : p.id)}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200"
-                  >
-                    {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => setDeleting(p)}
+                      aria-label={`Delete ${p.name}`}
+                      title="Delete plan"
+                      className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                    >
+                      <Trash size={16} />
+                    </button>
+                    <button
+                      onClick={() => setExpandedPlan(isExpanded ? null : p.id)}
+                      aria-label={isExpanded ? 'Collapse plan' : 'Expand plan'}
+                      className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200"
+                    >
+                      {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </button>
+                  </div>
                 </div>
 
                 {isExpanded && (
@@ -498,6 +527,15 @@ export default function Plans() {
             </div>
           </form>
         </Modal>
+      )}
+      {deleting && (
+        <ConfirmDialog
+          title="Delete plan"
+          message={`Delete "${deleting.name}"? Members it was assigned to will no longer see it in their portal.`}
+          busy={deletingBusy}
+          onConfirm={() => void handleDelete()}
+          onCancel={() => setDeleting(null)}
+        />
       )}
     </Page>
   );

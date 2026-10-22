@@ -16,6 +16,7 @@ import {
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { openWhatsApp, createExpiryMessage, createGeneralMessage } from '../utils/whatsapp';
 import { useDebounced } from '../hooks/useDebounced';
 import { useFingerprintReader } from '../hooks/useFingerprintReader';
@@ -102,6 +103,7 @@ const freezeDate = (iso: string): string =>
 
 export default function Members() {
   const { gym } = useAuth();
+  const { t } = useLanguage();
   const [members, setMembers] = useState<Member[]>([]);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -400,7 +402,7 @@ export default function Members() {
         action={
           <button onClick={() => openAdd()} className={`${primaryButton} shrink-0 !py-1.5 !px-3 sm:!py-2 sm:!px-4 text-xs sm:text-sm gap-1 sm:gap-2`}>
             <Plus size={16} />
-            <span className="hidden sm:inline">Add Member</span><span className="sm:hidden font-bold">Add</span>
+            <span className="hidden sm:inline">{t('Add Member')}</span><span className="sm:hidden font-bold">{t('Add')}</span>
           </button>
         }
       />
@@ -558,11 +560,11 @@ export default function Members() {
                 {ms ? (
                   <div className="space-y-2 text-xs text-gray-500 dark:text-slate-400">
                     <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-800/60 rounded-lg px-3 py-2">
-                      <span className="flex items-center gap-1.5"><Calendar size={12} /> Plan</span>
+                      <span className="flex items-center gap-1.5"><Calendar size={12} /> {t('Plan')}</span>
                       <span className="font-semibold text-gray-800 dark:text-slate-200">{ms.planName}</span>
                     </div>
                     <div className="flex items-center justify-between bg-gray-50 dark:bg-slate-800/60 rounded-lg px-3 py-2">
-                      <span className="flex items-center gap-1.5"><CreditCard size={12} /> Fee</span>
+                      <span className="flex items-center gap-1.5"><CreditCard size={12} /> {t('Fee')}</span>
                       <span className="font-semibold text-gray-800 dark:text-slate-200">
                         Rs. {ms.pricePaid.toLocaleString()}
                       </span>
@@ -572,7 +574,7 @@ export default function Members() {
                       ms.status === 'expiring' ? 'bg-yellow-100 dark:bg-yellow-500/15' : 'bg-green-50 dark:bg-green-500/15'
                     }`}>
                       <span className="flex items-center gap-1.5">
-                        <Calendar size={12} /> Expiry
+                        <Calendar size={12} /> {t('Expiry')}
                       </span>
                       <span className={`font-bold text-xs ${
                         ms.status === 'expired' ? 'text-red-600' :
@@ -588,7 +590,7 @@ export default function Members() {
                     </div>
                     {ms.freeze && (
                       <div className="flex items-center justify-between rounded-lg px-3 py-2 bg-sky-50 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300">
-                        <span className="flex items-center gap-1.5"><Snowflake size={12} /> Frozen</span>
+                        <span className="flex items-center gap-1.5"><Snowflake size={12} /> {t('Frozen')}</span>
                         <span className="font-semibold text-xs">
                           {new Date(ms.freeze.from) > new Date()
                             ? `${freezeDate(ms.freeze.from)} – ${freezeDate(ms.freeze.until)}`
@@ -599,7 +601,7 @@ export default function Members() {
                   </div>
                 ) : (
                   <div className="rounded-lg bg-gray-50 dark:bg-slate-800/60 px-3 py-4 text-center text-xs text-gray-400 dark:text-slate-500">
-                    No membership yet
+                    {t('No membership yet')}
                   </div>
                 )}
 
@@ -616,21 +618,21 @@ export default function Members() {
                       className="shrink-0 font-medium text-[11px] underline hover:text-purple-900 dark:hover:text-purple-200 transition-colors"
                       title="Change or remove assigned trainer"
                     >
-                      Change / Remove
+                      {t('Change / Remove')}
                     </button>
                   </div>
                 ) : (
                   <div className="mt-3 px-3 py-1.5 rounded-lg bg-gray-50/80 dark:bg-slate-800/40 border border-dashed border-gray-200 dark:border-slate-700/60 text-xs flex items-center justify-between text-gray-500 dark:text-slate-400">
                     <span className="text-[11px] flex items-center gap-1.5 text-gray-400 dark:text-slate-500">
                       <Dumbbell size={12} className="opacity-60" />
-                      <span>No Trainer</span>
+                      <span>{t('No Trainer')}</span>
                     </span>
                     <button
                       type="button"
                       onClick={() => setAssignTrainerMember(m)}
                       className="font-semibold text-[11px] text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1 transition-colors"
                     >
-                      <UserPlus size={11} /> + Add Trainer
+                      <UserPlus size={11} /> {t('+ Add Trainer')}
                     </button>
                   </div>
                 )}
@@ -671,7 +673,7 @@ export default function Members() {
                       aria-label={`Edit ${m.name}`}
                       className={`flex-1 min-w-[70px] min-h-[36px] flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800/60 active:scale-95 transition-all ${focusRing}`}
                     >
-                      <Pencil size={12} /> Edit
+                      <Pencil size={12} /> {t('Edit')}
                     </button>
                     {m.phone && (
                       <button
@@ -685,7 +687,7 @@ export default function Members() {
                         }`}
                       >
                         <MessageCircle size={13} className="fill-emerald-500/20" />
-                        <span>Chat</span>
+                        <span>{t('Chat')}</span>
                       </button>
                     )}
                     {canRenew(m) && (
@@ -694,7 +696,7 @@ export default function Members() {
                         aria-label={`Renew ${m.name}'s membership`}
                         className={`min-h-[36px] flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs active:scale-95 transition-all shrink-0 ${focusRing}`}
                       >
-                        <CalendarPlus size={12} /> Renew
+                        <CalendarPlus size={12} /> {t('Renew')}
                       </button>
                     )}
                   </div>
@@ -709,7 +711,7 @@ export default function Members() {
                           title="Freeze for travel, injury or Ramadan — the expiry moves forward"
                           className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-sky-200 dark:border-sky-500/20 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/30 transition-colors ${focusRing}`}
                         >
-                          <Snowflake size={12} /> Freeze
+                          <Snowflake size={12} /> {t('Freeze')}
                         </button>
                       )}
                       {m.currentMembership?.freeze && (
@@ -719,7 +721,7 @@ export default function Members() {
                           title="End the freeze early"
                           className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-sky-200 dark:border-sky-500/20 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/30 transition-colors ${focusRing}`}
                         >
-                          <Snowflake size={12} /> Unfreeze
+                          <Snowflake size={12} /> {t('Unfreeze')}
                         </button>
                       )}
                       {canSuspend(m) && (
@@ -729,7 +731,7 @@ export default function Members() {
                           title="Pause this membership"
                           className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-orange-200 dark:border-orange-500/20 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors ${focusRing}`}
                         >
-                          <PauseCircle size={12} /> Suspend
+                          <PauseCircle size={12} /> {t('Suspend')}
                         </button>
                       )}
                       {canResume(m) && (
@@ -739,7 +741,7 @@ export default function Members() {
                           title="Put this membership back into service"
                           className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-green-200 dark:border-green-500/20 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors ${focusRing}`}
                         >
-                          <PlayCircle size={12} /> Resume
+                          <PlayCircle size={12} /> {t('Resume')}
                         </button>
                       )}
                       {(canSuspend(m) || canResume(m)) && (
@@ -749,7 +751,7 @@ export default function Members() {
                           title="Cancel this membership"
                           className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors ${focusRing}`}
                         >
-                          <XCircle size={12} /> Cancel
+                          <XCircle size={12} /> {t('Cancel')}
                         </button>
                       )}
                     </div>

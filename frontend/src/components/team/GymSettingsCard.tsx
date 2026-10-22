@@ -5,7 +5,7 @@ import type { GymProfile, PaymentAccounts } from './types';
 
 export default function GymSettingsCard({
   profile, setProfile, handleLogoChange, handleRemoveLogo,
-  joiningFeeInput, setJoiningFeeInput, ptFeeInput, setPtFeeInput,
+  joiningFeeInput, setJoiningFeeInput, ptFeeInput, setPtFeeInput, retention, setRetention,
   accounts, setAccounts, savingSettings, handleSettingsSave,
 }: {
   profile: GymProfile;
@@ -16,6 +16,8 @@ export default function GymSettingsCard({
   setJoiningFeeInput: (v: string) => void;
   ptFeeInput: string;
   setPtFeeInput: (v: string) => void;
+  retention: { referralRewardDays: string; inactivityDays: string };
+  setRetention: Dispatch<SetStateAction<{ referralRewardDays: string; inactivityDays: string }>>;
   accounts: PaymentAccounts;
   setAccounts: Dispatch<SetStateAction<PaymentAccounts>>;
   savingSettings: boolean;
@@ -167,6 +169,47 @@ export default function GymSettingsCard({
             Charged once when a member is put with a personal trainer. A trainer with their
             own fee set overrides this. Set it to 0 to charge nothing.
           </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 max-w-xl border-t border-gray-100 dark:border-slate-800 pt-4">
+          <div>
+            <label htmlFor="referral-days" className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+              Referral reward (free days)
+            </label>
+            <input
+              id="referral-days"
+              type="number"
+              min="0"
+              max="90"
+              step="1"
+              value={retention.referralRewardDays}
+              onChange={e => setRetention(r => ({ ...r, referralRewardDays: e.target.value }))}
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+              Added to a member's membership for each friend they bring in, when you give the
+              reward on the Referrals page. 0 to reward another way.
+            </p>
+          </div>
+          <div>
+            <label htmlFor="inactivity-days" className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+              Inactive after (days without a visit)
+            </label>
+            <input
+              id="inactivity-days"
+              type="number"
+              min="3"
+              max="90"
+              step="1"
+              value={retention.inactivityDays}
+              onChange={e => setRetention(r => ({ ...r, inactivityDays: e.target.value }))}
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+              Members with a running membership who have not checked in for this long show on
+              the Inactive Members list.
+            </p>
+          </div>
         </div>
 
         <div className="border-t border-gray-100 dark:border-slate-800 pt-4">

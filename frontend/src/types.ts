@@ -388,6 +388,8 @@ export interface Paginated<T> {
 export interface SupplementCounts {
   all: number;
   outOfStock: number;
+  /** At or below each product's own low-stock line. */
+  lowStock?: number;
   byCategory: Partial<Record<SupplementCategory, number>>;
 }
 
@@ -680,6 +682,10 @@ export interface Supplement {
   timing: string | null;
   price: number | null;
   stock: number;
+  /** What the gym pays per unit; null when not recorded. */
+  costPrice?: number | null;
+  /** Stock at or below this counts as running low. */
+  lowStockAt?: number;
   createdAt: string;
 }
 
@@ -856,6 +862,10 @@ export interface GymSettings {
   easypaisaAccount: string | null;
   jazzcashAccount: string | null;
   bankAccount: string | null;
+  /** Free days a referrer earns per friend who joins. */
+  referralRewardDays?: number;
+  /** Days without a visit before a member shows as inactive. */
+  inactivityDays?: number;
 }
 
 export interface PtSession {
@@ -987,36 +997,6 @@ export interface ProfitReport {
   expensesByCategory: { category: string; total: number }[];
 }
 
-/** Where an enquiry has got to. */
-export type LeadStatus = 'new' | 'contacted' | 'trial' | 'converted' | 'lost';
-
-/** Somebody who asked about the gym but has not joined. */
-export interface Lead {
-  id: string;
-  name: string;
-  phone: string | null;
-  source: string;
-  interest: string | null;
-  notes: string | null;
-  status: LeadStatus;
-  followUpOn: string | null;
-  convertedMember: { id: string; name: string; memberNo: string } | null;
-  convertedAt: string | null;
-  createdBy: { id: string; name: string } | null;
-  createdAt: string;
-}
-
-export interface LeadList {
-  data: Lead[];
-  total: number;
-  page: number;
-  limit: number;
-  hasMore: boolean;
-  /** Over the gym's whole list. `due` is open leads whose follow-up is today
-   *  or overdue. */
-  counts: Record<LeadStatus | 'due', number>;
-}
-
 /** One weigh-in. Every number is optional. */
 export interface Measurement {
   id: string;
@@ -1073,4 +1053,105 @@ interface Celebrant {
 export interface Celebrations {
   birthdays: (Celebrant & { turning: number | null })[];
   anniversaries: (Celebrant & { years: number })[];
+}
+
+export type PromoKind = 'percent' | 'fixed';
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  description: string | null;
+  kind: PromoKind;
+  value: number;
+  validFrom: string | null;
+  validUntil: string | null;
+  maxUses: number | null;
+  usedCount: number;
+  isActive: boolean;
+  createdAt: string;
+  redemptions: number;
+  /** Rupees given away through this code so far. */
+  totalDiscount: number;
+}
+
+/** The answer to "would this code work on this plan?". */
+export interface PromoCheck {
+  code: string;
+  description: string | null;
+  kind: PromoKind;
+  value: number;
+  price: number;
+  discount: number;
+  finalPrice: number;
+}
+
+export type ReferralStatus = 'pending' | 'granted' | 'cancelled';
+
+export interface ReferralReward {
+  id: string;
+  status: ReferralStatus;
+  rewardDays: number;
+  note: string | null;
+  grantedAt: string | null;
+  createdAt: string;
+  referrer: { id: string; name: string; memberNo: string; phone: string | null };
+  referred: { id: string; name: string; memberNo: string; createdAt: string };
+}
+
+export interface ReferralList {
+  data: ReferralReward[];
+  counts: Record<ReferralStatus, number>;
+  topReferrers: { member: { id: string; name: string; memberNo: string } | null; referrals: number }[];
+}
+
+export interface InactiveMember {
+  id: string;
+  name: string;
+  memberNo: string;
+  phone: string | null;
+  planName: string;
+  expiryDate: string;
+  daysLeft: number;
+  lastVisit: string | null;
+  daysAway: number;
+}
+
+export interface Locker {
+  id: string;
+  number: string;
+  location: string | null;
+  notes: string | null;
+  assignedAt: string | null;
+  member: {
+    id: string; name: string; memberNo: string; phone: string | null;
+    planName: string | null; expiryDate: string | null; daysLeft: number | null;
+  } | null;
+  /** Held by somebody with no running membership. */
+  holderExpired: boolean;
+}
+
+export interface LockerList {
+  data: Locker[];
+  counts: { total: number; free: number; taken: number; expired: number };
+}
+
+export interface SupplementProfitRow {
+  supplementId: string;
+  name: string;
+  category: string;
+  stock: number;
+  unitsSold: number;
+  revenue: number;
+  cost: number;
+  profit: number;
+  marginPct: number | null;
+  /** Units sold before any cost price was recorded. */
+  uncostedUnits: number;
+}
+
+export interface SupplementProfit {
+  since: string;
+  months: number;
+  data: SupplementProfitRow[];
+  totals: { revenue: number; cost: number; profit: number; uncostedUnits: number };
 }

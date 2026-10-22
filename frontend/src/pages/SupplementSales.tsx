@@ -6,6 +6,7 @@ import {
   secondaryButton,
 } from '../components/ui';
 import { useFetch } from '../hooks/useFetch';
+import ProfitByProduct from '../components/supplements/ProfitByProduct';
 import { downloadFromServer } from '../utils/csv';
 import type { SalesReport } from '../types';
 import toast from 'react-hot-toast';
@@ -170,6 +171,10 @@ export default function SupplementSales() {
           </div>
         </>
       )}
+
+      <div className="mt-5">
+        <ProfitByProduct />
+      </div>
     </Page>
   );
 }

@@ -87,7 +87,7 @@ describe('a member editing their own details', () => {
     expect(stub.put).not.toHaveBeenCalled();
   });
 
-  it('sends only the three fields a member owns', async () => {
+  it('sends only the fields a member owns', async () => {
     const { stub, onSaved } = setup();
 
     await userEvent.clear(screen.getByLabelText(/phone/i));
@@ -101,10 +101,21 @@ describe('a member editing their own details', () => {
       phone: '03111111111',
       address: 'House 5, Gulberg',
       emergencyContact: 'Bilal 03009876543',
+      dateOfBirth: null,
     });
     // Email is never in the payload, however the server would treat it.
     expect(body).not.toHaveProperty('email');
     expect(onSaved).toHaveBeenCalled();
+  });
+
+  it('lets the member set their own birthday', async () => {
+    const { stub } = setup();
+
+    await userEvent.type(screen.getByLabelText(/date of birth/i), '1998-03-14');
+    await userEvent.click(saveButton());
+
+    await waitFor(() => expect(stub.put).toHaveBeenCalledTimes(1));
+    expect(stub.put.mock.calls[0][1]).toMatchObject({ dateOfBirth: '1998-03-14' });
   });
 
   it('will not let the member edit the email they sign in with', () => {

@@ -2,7 +2,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, FlaskConical, Package, ShoppingCart, PackagePlus, BarChart3,
-  Search,
+  Search, AlertTriangle,
 } from 'lucide-react';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
@@ -50,11 +50,13 @@ interface SupplementForm {
   timing: string;
   price: string;
   stock: string;
+  costPrice: string;
+  lowStockAt: string;
 }
 
 const emptyForm: SupplementForm = {
   name: '', category: 'protein', description: '',
-  dosage: '', timing: '', price: '', stock: '',
+  dosage: '', timing: '', price: '', stock: '', costPrice: '', lowStockAt: '5',
 };
 
 export default function Supplements() {
@@ -63,6 +65,8 @@ export default function Supplements() {
   const [form, setForm] = useState<SupplementForm>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [filterCat, setFilterCat] = useState<'all' | SupplementCategory>('all');
+  /** Only products at or below their own low-stock line. */
+  const [onlyLow, setOnlyLow] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   // Pages beyond the first, appended to what `useFetch` holds for page one.
   const [extra, setExtra] = useState<Supplement[]>([]);
@@ -102,7 +106,8 @@ export default function Supplements() {
   // be loaded, and the shelf outgrows one page.
   const query = `/supplements?limit=${PAGE_SIZE}` +
     (filterCat === 'all' ? '' : `&category=${filterCat}`) +
-    (search ? `&search=${encodeURIComponent(search)}` : '');
+    (search ? `&search=${encodeURIComponent(search)}` : '') +
+    (onlyLow ? '&lowStock=true' : '');
 
   const { data, loading, reload: load } = useFetch<PaginatedSupplements>(
     query,
@@ -157,6 +162,8 @@ export default function Supplements() {
       timing: s.timing || '',
       price: s.price != null ? String(s.price) : '',
       stock: String(s.stock ?? 0),
+      costPrice: s.costPrice != null ? String(s.costPrice) : '',
+      lowStockAt: String(s.lowStockAt ?? 5),
     });
     setShowModal(true);
   };
@@ -174,6 +181,11 @@ export default function Supplements() {
         timing: form.timing,
         ...(form.price !== '' && { price: form.price }),
         ...(form.stock !== '' && { stock: form.stock }),
+        // Blank clears a cost on an edit; on a new product it is simply absent.
+        ...(form.costPrice !== ''
+          ? { costPrice: form.costPrice }
+          : editing ? { costPrice: null } : {}),
+        ...(form.lowStockAt !== '' && { lowStockAt: form.lowStockAt }),
       };
       if (editing) {
         await api.put(`/supplements/${editing}`, payload);
@@ -345,7 +357,7 @@ export default function Supplements() {
       />
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
         {/* Over the whole shelf, not the page: a tile counted from what
             happened to be loaded would climb as you pressed Show more. */}
         <StatTile icon={Package} tone="blue" label="Total Products" value={counts?.all ?? 0} />
@@ -357,6 +369,12 @@ export default function Supplements() {
           icon={FlaskConical} tone="red" label="Out of Stock"
           value={counts?.outOfStock ?? 0}
         />
+        {/* A button as well as a number: the list it opens is the reorder list. */}
+        <button type="button" onClick={() => setOnlyLow(v => !v)} aria-pressed={onlyLow}
+          className={`text-left rounded-2xl ${onlyLow ? 'ring-2 ring-yellow-400' : ''}`}>
+          <StatTile icon={AlertTriangle} tone="yellow" label={onlyLow ? 'Running low · showing' : 'Running low'}
+            value={counts?.lowStock ?? 0} hint={onlyLow ? 'Tap to show all' : 'Tap to list'} />
+        </button>
       </div>
 
       {/* Category filter */}
@@ -428,7 +446,7 @@ export default function Supplements() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map(s => {
             const catInfo = getCatInfo(s.category);
-            const lowStock = s.stock <= 5;
+            const lowStock = s.stock <= (s.lowStockAt ?? 5);
             return (
               <Card key={s.id} className="p-5 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between gap-2 mb-3">
@@ -609,6 +627,21 @@ export default function Supplements() {
                   <FieldLabel htmlFor="supplements-stock-units">Stock (units)</FieldLabel>
                   <input id="supplements-stock-units" type="number" min="0" value={form.stock} onChange={set('stock')}
                     placeholder="10"
+                    className={inputClass} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <FieldLabel htmlFor="supplements-cost-rs">Cost price (Rs.)</FieldLabel>
+                  <input id="supplements-cost-rs" type="number" min="0" value={form.costPrice} onChange={set('costPrice')}
+                    placeholder="What you pay the supplier"
+                    className={inputClass} />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="supplements-low-at">Warn when stock is at</FieldLabel>
+                  <input id="supplements-low-at" type="number" min="0" value={form.lowStockAt} onChange={set('lowStockAt')}
+                    placeholder="5"
                     className={inputClass} />
                 </div>
               </div>

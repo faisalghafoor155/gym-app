@@ -13,6 +13,7 @@ import MyCheckInCode from '../components/portal/MyCheckInCode';
 import { MyMemberships, MyPayments, MyPurchases } from '../components/portal/MyHistory';
 import MyProfileForm from '../components/portal/MyProfileForm';
 import ProgressPanel from '../components/progress/ProgressPanel';
+import MyPlans from '../components/portal/MyPlans';
 import { useAuth } from '../context/AuthContext';
 import api, { apiError } from '../api/client';
 import type { MyProfile, MembershipPlan, PaymentProviderOption, CheckoutStarted } from '../types';
@@ -48,10 +49,11 @@ const postToProvider = (url: string, fields: Record<string, string>): void => {
  * have buried the two things a member opens it for — when their membership
  * ends, and the code to get in.
  */
-type PortalTab = 'overview' | 'progress' | 'classes' | 'checkin' | 'history' | 'profile';
+type PortalTab = 'overview' | 'plans' | 'progress' | 'classes' | 'checkin' | 'history' | 'profile';
 
 const TABS: readonly { value: PortalTab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
+  { value: 'plans', label: 'My Plan' },
   { value: 'progress', label: 'Progress' },
   { value: 'classes', label: 'Classes' },
   { value: 'checkin', label: 'Check-in' },
@@ -177,6 +179,8 @@ export default function MyPortal() {
       <div className="space-y-5">
 
       <SegmentedControl value={tab} onChange={setTab} options={TABS} />
+
+      {tab === 'plans' && <MyPlans plan={plan} />}
 
       {tab === 'progress' && (
         // A member may take back what they logged; what a trainer recorded
@@ -368,6 +372,9 @@ export default function MyPortal() {
               <p className="text-sm text-gray-500 dark:text-slate-400 mt-1 whitespace-pre-wrap">
                 {plan.workoutPlan.description || 'No description'}
               </p>
+              <button type="button" onClick={() => setTab('plans')} className="mt-3 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
+                See today's workout →
+              </button>
             </>
           ) : (
             <InlineEmpty message="No workout plan assigned yet. Your trainer sets this up for you." />
@@ -384,6 +391,9 @@ export default function MyPortal() {
               <p className="text-sm text-gray-500 dark:text-slate-400 mt-1 whitespace-pre-wrap">
                 {plan.dietPlan.description || 'No description'}
               </p>
+              <button type="button" onClick={() => setTab('plans')} className="mt-3 text-xs font-semibold text-green-600 dark:text-green-400 hover:underline">
+                See all meals →
+              </button>
             </>
           ) : (
             <InlineEmpty message="No diet plan assigned yet. Your trainer sets this up for you." />

@@ -518,6 +518,34 @@ describe('Members — renewing', () => {
     expect(body).toMatchObject({ amount: 2000, price: 2000 });
   });
 
+  it('lets a promo code set the price and sends the code, not a typed price', async () => {
+    api.current = mockApi({
+      '/membership-plans': listPage([{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }]),
+      '/members': membersPage([expiringMember()]),
+      '/promo-codes/check': {
+        code: 'STUDENT', description: null, kind: 'percent', value: 20,
+        price: 2500, discount: 500, finalPrice: 2000,
+      },
+    });
+    auth.current = ownerAuth;
+
+    const user = await openRenew();
+    const dialog = await screen.findByRole('dialog', { name: /renew membership/i });
+    await user.type(within(dialog).getByLabelText(/promo code/i), 'student');
+    await user.click(within(dialog).getByRole('button', { name: /^apply$/i }));
+
+    expect(await within(dialog).findByText(/applied/i)).toBeInTheDocument();
+    // The code decides the price: the field is locked and paying follows it.
+    expect(within(dialog).getByLabelText(/agreed price/i)).toBeDisabled();
+    expect(within(dialog).getByLabelText(/paying now/i)).toHaveValue(2000);
+
+    await user.click(screen.getByRole('button', { name: /^renew \(rs/i }));
+    await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
+    const [, body] = api.current!.post.mock.calls[0] as unknown as [string, Record<string, unknown>];
+    expect(body).toMatchObject({ promoCode: 'STUDENT', amount: 2000 });
+    expect(body).not.toHaveProperty('price');
+  });
+
   it('sends no wallet for a renewal switched back to cash', async () => {
     api.current = mockApi({
       '/membership-plans': listPage([{ id: 'plan-1', name: 'Monthly', price: 2500, durationDays: 30, isActive: true }]),

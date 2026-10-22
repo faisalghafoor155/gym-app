@@ -211,10 +211,11 @@ describe('registering somebody', () => {
     expect(screen.getByRole('checkbox', { name: /add fingerprint/i })).toBeDisabled();
   });
 
-  it('does not ask for a date of birth or address when registering', () => {
+  it('asks for a date of birth but not the address when registering', () => {
     renderModal();
 
-    expect(screen.queryByLabelText(/date of birth/i)).not.toBeInTheDocument();
+    // Without it a new member is never wished on their birthday.
+    expect(screen.getByLabelText(/date of birth/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/^address$/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/emergency contact/i)).toBeInTheDocument();
   });
@@ -228,6 +229,17 @@ describe('registering somebody', () => {
 
     await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
     expect(createdWith()).toMatchObject({ feeAmount: 3000 });
+  });
+
+  it('sends the date of birth typed at registration', async () => {
+    renderModal();
+
+    await userEvent.type(screen.getByLabelText(/full name/i), 'Sana Tariq');
+    await userEvent.type(screen.getByLabelText(/date of birth/i), '2000-05-20');
+    await save();
+
+    await waitFor(() => expect(api.current!.post).toHaveBeenCalled());
+    expect(createdWith()).toMatchObject({ dateOfBirth: '2000-05-20' });
   });
 
   it('omits a date of birth that was never filled in', async () => {

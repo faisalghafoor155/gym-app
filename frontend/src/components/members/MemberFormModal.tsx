@@ -8,9 +8,11 @@ import type { AxiosError } from 'axios';
 import api, { apiError } from '../../api/client';
 import { useDialog } from '../../hooks/useDialog';
 import type {
-  Gender, GymSettings, Member, MembershipPlan, PaymentChannel, PaymentMethod, Trainer,
+  Gender, GymSettings, Member, MembershipPlan, PaymentChannel, PaymentMethod, PromoCheck, Trainer,
 } from '../../types';
 import { CHANNELS, CHANNEL_LABELS, accountFor } from '../../utils/paymentChannels';
+import PromoCodeField from './PromoCodeField';
+import ReferrerPicker, { type Referrer } from './ReferrerPicker';
 import toast from 'react-hot-toast';
 
 /** What the desk fills in to register somebody, or to correct their details. */
@@ -135,9 +137,6 @@ interface Props {
   /** Whether a fingerprint reader is attached. Without one the "Add
    *  fingerprint" option is shown but cannot be ticked. */
   fingerprintReady?: boolean;
-  /** Details already known when registering — a lead being converted. Ignored
-   *  on an edit. */
-  prefill?: { name: string; phone: string | null };
   onClose: () => void;
   /** Handed the created member when registering, so the caller can follow up —
    *  enrolment needs an id that only exists once the save has returned. Null
@@ -156,16 +155,14 @@ interface Props {
  * typed about them is this modal's.
  */
 export default function MemberFormModal({
-  member, plans, trainers, settings, fingerprintReady = false, prefill, onClose, onSaved,
+  member, plans, trainers, settings, fingerprintReady = false, onClose, onSaved,
 }: Props) {
   const editing = member?.id ?? null;
   /** On by default: when a reader is there, taking the finger is the normal
    *  end of registering somebody. */
   const [enrolFingerprint, setEnrolFingerprint] = useState(true);
   const [form, setForm] = useState<MemberForm>(
-    () => (member
-      ? editDefaults(member)
-      : { ...addDefaults(plans, settings), ...(prefill && { name: prefill.name, phone: prefill.phone ?? '' }) }),
+    () => (member ? editDefaults(member) : addDefaults(plans, settings)),
   );
   /**
    * The trainer the member already had, so a re-save is told apart from a new
@@ -174,6 +171,10 @@ export default function MemberFormModal({
    */
   const [originalTrainerId] = useState(() => member?.trainerId || '');
   const [saving, setSaving] = useState(false);
+  /** Registration only: a confirmed promo code for the picked plan, and the
+   *  member who referred this one. */
+  const [promo, setPromo] = useState<PromoCheck | null>(null);
+  const [referrer, setReferrer] = useState<Referrer | null>(null);
   /**
    * Whether what has been typed so far already belongs to somebody, and under
    * which field to say so. Cleared as soon as the offending field is edited,
@@ -321,6 +322,8 @@ export default function MemberFormModal({
         const { data: created } = await api.post<Member>('/members', {
           ...payload,
           ...(form.planId && { planId: form.planId, startDate: form.startDate }),
+          ...(form.planId && promo && { promoCode: promo.code }),
+          ...(referrer && { referredById: referrer.id }),
           // Only sent when money actually changed hands. A blank amount means
           // no payment was taken, not a payment of nothing.
           ...(form.feeAmount.trim() !== '' && Number(form.feeAmount) > 0 && {
@@ -445,7 +448,7 @@ export default function MemberFormModal({
           </div>
 
           {/* Gender + Date of birth */}
-          <div className={editing ? 'grid grid-cols-2 gap-3' : ''}>
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label htmlFor="member-gender" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Gender</label>
               <select
@@ -460,23 +463,23 @@ export default function MemberFormModal({
                 <option value="other">Other</option>
               </select>
             </div>
-            {/* Half of the name+DOB duplicate rule. Not asked for at
-                registration — the desk does not collect it, and the phone
-                number still catches duplicates — but an edit can set it. */}
-            {editing && (
-              <div>
-                <label htmlFor="member-dob" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Date of Birth</label>
-                <input
-                  id="member-dob"
-                  type="date"
-                  value={form.dateOfBirth}
-                  max={new Date().toISOString().split('T')[0]}
-                  onChange={e => setChecked('dateOfBirth')(e.target.value)}
-                  onBlur={() => void checkDuplicate(form)}
-                  className={inputClass}
-                />
-              </div>
-            )}
+            {/* Asked at registration as well as on an edit: it is what the
+                birthday greeting and the dashboard's "Celebrating today" run
+                on, and a member registered without one is never wished. Still
+                optional — and half of the name+DOB duplicate rule. */}
+            <div>
+              <label htmlFor="member-dob" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Date of Birth</label>
+              <input
+                id="member-dob"
+                type="date"
+                value={form.dateOfBirth}
+                max={new Date().toISOString().split('T')[0]}
+                onChange={e => setChecked('dateOfBirth')(e.target.value)}
+                onBlur={() => void checkDuplicate(form)}
+                className={inputClass}
+              />
+              <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">For birthday wishes (optional)</p>
+            </div>
           </div>
 
           {/* Emergency contact — asked at registration; the full address is
@@ -611,7 +614,7 @@ export default function MemberFormModal({
                 ) : (
                   <div className="grid grid-cols-2 gap-2">
                     <button type="button"
-                      onClick={() => set('planId')('')}
+                      onClick={() => { set('planId')(''); setPromo(null); }}
                       className={`border rounded-xl py-2.5 px-2 text-center transition-all ${focusRing} ${
                         form.planId === ''
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700'
@@ -622,7 +625,7 @@ export default function MemberFormModal({
                     </button>
                     {plans.map(p => (
                       <button key={p.id} type="button"
-                        onClick={() => set('planId')(p.id)}
+                        onClick={() => { set('planId')(p.id); setPromo(null); }}
                         className={`border rounded-xl py-2.5 px-2 text-center transition-all ${focusRing} ${
                           form.planId === p.id
                             ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700'
@@ -637,6 +640,21 @@ export default function MemberFormModal({
                   </div>
                 )}
               </div>
+
+              {form.planId && (
+                <PromoCodeField
+                  key={form.planId}
+                  planId={form.planId}
+                  applied={promo}
+                  onApplied={check => {
+                    setPromo(check);
+                    // The fee taken today follows the discounted price.
+                    if (check) set('feeAmount')(String(check.finalPrice));
+                  }}
+                />
+              )}
+
+              <ReferrerPicker value={referrer} onChange={setReferrer} />
 
               {form.planId && (
                 <div>
