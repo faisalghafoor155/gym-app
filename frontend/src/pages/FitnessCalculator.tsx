@@ -4,7 +4,7 @@ import { Page, PageHeader, SegmentedControl, FieldLabel, inputClass, secondaryBu
 import Modal from '../components/Modal';
 import ExerciseAnglesModal from '../components/fitness/ExerciseAnglesModal';
 import ExercisePhotoModal from '../components/fitness/ExercisePhotoModal';
-import api from '../api/client';
+import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import type { Measurement } from '../types';
 import toast from 'react-hot-toast';
@@ -175,8 +175,7 @@ export default function FitnessCalculator() {
         toast.success('AI Coach answered your question!');
       }
     } catch (err: unknown) {
-      const errorMsg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      toast.error(errorMsg || 'AI Coach se rabta nahi ho saka. Dobara koshish karein.');
+      toast.error(apiError(err, 'AI Coach se rabta nahi ho saka. Dobara koshish karein.'));
     } finally {
       setLoadingAi(false);
     }
