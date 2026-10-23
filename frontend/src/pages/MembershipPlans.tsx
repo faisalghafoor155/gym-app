@@ -17,9 +17,19 @@ interface PlanForm {
   name: string;
   price: string;
   durationDays: string;
+  includesCardio: boolean;
+  includesLocker: boolean;
 }
 
-const emptyForm: PlanForm = { name: '', price: '', durationDays: '30' };
+const emptyForm: PlanForm = {
+  name: '', price: '', durationDays: '30', includesCardio: false, includesLocker: false,
+};
+
+/** What a plan covers beyond the gym floor, as the toggles and badges show it. */
+const INCLUSIONS = [
+  { key: 'includesCardio', label: 'Cardio' },
+  { key: 'includesLocker', label: 'Locker' },
+] as const;
 
 /** Shortcuts for the durations gyms actually sell, so the common cases are
  *  one tap and the unusual ones are still typeable. */
@@ -56,13 +66,19 @@ export default function MembershipPlans() {
   // Null only before the first load lands, which the spinner covers.
   const plans = data?.data ?? [];
 
-  const set = (k: keyof PlanForm) => (v: string) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k: 'name' | 'price' | 'durationDays') => (v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setShowModal(true); };
 
   const openEdit = (p: MembershipPlan) => {
     setEditing(p.id);
-    setForm({ name: p.name, price: String(p.price), durationDays: String(p.durationDays) });
+    setForm({
+      name: p.name,
+      price: String(p.price),
+      durationDays: String(p.durationDays),
+      includesCardio: p.includesCardio,
+      includesLocker: p.includesLocker,
+    });
     setShowModal(true);
   };
 
@@ -74,6 +90,8 @@ export default function MembershipPlans() {
         name: form.name,
         price: form.price === '' ? 0 : form.price,
         durationDays: form.durationDays,
+        includesCardio: form.includesCardio,
+        includesLocker: form.includesLocker,
       };
       if (editing) {
         await api.put(`/membership-plans/${editing}`, payload);
@@ -174,6 +192,16 @@ export default function MembershipPlans() {
             </>
           }
         />
+      </div>
+      <div className="flex flex-wrap gap-1.5 mt-3">
+        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+          Gym
+        </span>
+        {INCLUSIONS.filter(i => p[i.key]).map(i => (
+          <span key={i.key} className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+            {i.label}
+          </span>
+        ))}
       </div>
     </Card>
   );
@@ -341,6 +369,25 @@ export default function MembershipPlans() {
                   Expiry is counted in days from the start date.
                 </p>
               </div>
+
+              <fieldset>
+                <legend className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
+                  Included
+                </legend>
+                <div className="flex flex-wrap gap-4">
+                  {INCLUSIONS.map(i => (
+                    <label key={i.key} className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={form[i.key]}
+                        onChange={e => setForm(f => ({ ...f, [i.key]: e.target.checked }))}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600"
+                      />
+                      {i.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
 
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)}

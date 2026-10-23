@@ -40,6 +40,7 @@ export const emptyForm = (): PaymentForm => ({
 export const TYPE_LABELS: Record<PaymentType, string> = {
   membership: "Membership fee",
   supplement: "Supplement",
+  locker: "Locker",
   other: "Other",
 };
 

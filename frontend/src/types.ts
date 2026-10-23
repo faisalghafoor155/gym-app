@@ -23,7 +23,7 @@ export type PaymentChannel = 'easypaisa' | 'jazzcash' | 'bank';
 export type PaymentStatus = 'paid' | 'due';
 /** What the money was for. Membership payments name the membership they
  *  settle; supplement sales and one-off fees have nothing to point at. */
-export type PaymentType = 'membership' | 'supplement' | 'other';
+export type PaymentType = 'membership' | 'supplement' | 'locker' | 'other';
 export type SupplementCategory =
   | 'protein' | 'creatine' | 'preworkout' | 'bcaa' | 'vitamins' | 'fatburner' | 'other';
 
@@ -282,6 +282,8 @@ export interface MembershipPlan {
   name: string;
   price: number;
   durationDays: number;
+  includesCardio: boolean;
+  includesLocker: boolean;
   isActive: boolean;
   createdAt: string;
 }
@@ -532,6 +534,7 @@ export interface PaymentMonth {
   label: string;
   membership: number;
   supplement: number;
+  locker: number;
   other: number;
   total: number;
   count: number;
@@ -747,6 +750,7 @@ export interface MonthToDate {
   to: string;
   membership: number;
   supplement: number;
+  locker: number;
   other: number;
   total: number;
   /** How many payments make up the total. */
@@ -1124,7 +1128,8 @@ export interface Locker {
   assignedAt: string | null;
   member: {
     id: string; name: string; memberNo: string; phone: string | null;
-    planName: string | null; expiryDate: string | null; daysLeft: number | null;
+    planName: string | null; planIncludesLocker: boolean;
+    expiryDate: string | null; daysLeft: number | null;
   } | null;
   /** Held by somebody with no running membership. */
   holderExpired: boolean;

@@ -16,7 +16,8 @@ import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   Dumbbell, LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
   BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText, Sparkles, Calculator,
-  HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, type LucideIcon,
+  HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, ChevronDown, Settings,
+  type LucideIcon,
 } from 'lucide-react';
 
 interface NavItem {
@@ -86,6 +87,49 @@ const memberNavItems: NavItem[] = [
 /** Account security is everyone's, so it trails whatever list the role gets. */
 const securityNavItem: NavItem = { to: '/security', label: 'Security', icon: ShieldCheck };
 
+/**
+ * How the sidebar folds. Pages that answer the same kind of question sit under
+ * one heading, so twenty-odd links read as a handful of sections.
+ *
+ * Only grouping: which links a person sees is still decided by role and
+ * permission above. A group left with a single visible link renders as that
+ * link alone — a heading over one row is a click for nothing. Anything not
+ * listed here stays at the top level.
+ */
+const NAV_GROUPS: { label: string; icon: LucideIcon; paths: string[] }[] = [
+  { label: 'Members', icon: Users, paths: ['/members', '/inactive', '/referrals', '/lockers'] },
+  { label: 'Payments', icon: CreditCard, paths: ['/payments', '/dues', '/monthly-collection', '/expenses'] },
+  { label: 'Plans', icon: Tag, paths: ['/membership-plans', '/promo-codes', '/plans'] },
+  { label: 'Supplements', icon: FlaskConical, paths: ['/supplements', '/supplement-sales'] },
+  { label: 'Training', icon: Award, paths: ['/trainers', '/classes', '/calculator'] },
+  { label: 'Settings', icon: Settings, paths: ['/team', '/audit-log', '/subscription', '/security'] },
+];
+
+type NavEntry =
+  | { kind: 'link'; item: NavItem }
+  | { kind: 'group'; label: string; icon: LucideIcon; items: NavItem[] };
+
+/** Folds the visible links into groups, each placed where its first link was. */
+const groupNav = (items: NavItem[]): NavEntry[] => {
+  const entries: NavEntry[] = [];
+  const placed = new Set<string>();
+  for (const item of items) {
+    if (placed.has(item.to)) continue;
+    const group = NAV_GROUPS.find(g => g.paths.includes(item.to));
+    const members = group
+      ? group.paths.flatMap(path => items.filter(i => i.to === path))
+      : [];
+    if (!group || members.length < 2) {
+      entries.push({ kind: 'link', item });
+      placed.add(item.to);
+      continue;
+    }
+    members.forEach(m => placed.add(m.to));
+    entries.push({ kind: 'group', label: group.label, icon: group.icon, items: members });
+  }
+  return entries;
+};
+
 export default function Layout({ children }: { children: ReactNode }) {
   const { gym, user, logout, isStaff, isOwner } = useAuth();
   const { t } = useLanguage();
@@ -93,6 +137,14 @@ export default function Layout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Groups opened by hand. The one holding the current page is open regardless,
+  // so landing on a deep link never hides where you are.
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (label: string) => setOpenGroups(prev => {
+    const next = new Set(prev);
+    if (next.has(label)) next.delete(label); else next.add(label);
+    return next;
+  });
 
   // Tapping a nav link should reveal the page, not leave the drawer covering it.
   useEffect(() => { setDrawerOpen(false); }, [pathname]);
@@ -150,6 +202,39 @@ export default function Layout({ children }: { children: ReactNode }) {
     securityNavItem,
   ];
 
+  const renderLink = ({ to, label, icon: Icon }: NavItem) => (
+    <NavLink
+      key={to}
+      to={to}
+      className={({ isActive }) =>
+        `group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+          isActive
+            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-600/25'
+            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-800/80 dark:hover:text-slate-100'
+        }`
+      }
+    >
+      {({ isActive }) => (
+        <>
+          {/* A short rail on the left edge of the active row. The filled
+              pill alone says which page you are on; against a long nav
+              the rail is what you find without reading, because it is
+              the only mark that breaks the column's left margin. */}
+          <span
+            aria-hidden="true"
+            className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full bg-white/80
+              transition-all ${isActive ? 'h-5 opacity-100' : 'h-0 opacity-0'}`}
+          />
+          <Icon
+            size={17}
+            className={`shrink-0 transition-transform ${isActive ? '' : 'group-hover:scale-110'}`}
+          />
+          {t(label)}
+        </>
+      )}
+    </NavLink>
+  );
+
   const sidebar = (
     <>
       {/* Gym Info */}
@@ -198,38 +283,35 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-3 space-y-1 overflow-y-auto">
-        {navItems.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `group relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                isActive
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-sm shadow-blue-600/25'
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-800/80 dark:hover:text-slate-100'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                {/* A short rail on the left edge of the active row. The filled
-                    pill alone says which page you are on; against a long nav
-                    the rail is what you find without reading, because it is
-                    the only mark that breaks the column's left margin. */}
-                <span
-                  aria-hidden="true"
-                  className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full bg-white/80
-                    transition-all ${isActive ? 'h-5 opacity-100' : 'h-0 opacity-0'}`}
-                />
-                <Icon
-                  size={17}
-                  className={`shrink-0 transition-transform ${isActive ? '' : 'group-hover:scale-110'}`}
-                />
-                {t(label)}
-              </>
-            )}
-          </NavLink>
-        ))}
+        {groupNav(navItems).map(entry => {
+          if (entry.kind === 'link') return renderLink(entry.item);
+          const holdsCurrent = entry.items.some(i => pathname.startsWith(i.to));
+          const open = holdsCurrent || openGroups.has(entry.label);
+          const GroupIcon = entry.icon;
+          return (
+            <div key={entry.label}>
+              <button
+                type="button"
+                onClick={() => toggleGroup(entry.label)}
+                aria-expanded={open}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  holdsCurrent
+                    ? 'text-gray-900 dark:text-slate-100'
+                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-800/80 dark:hover:text-slate-100'
+                }`}
+              >
+                <GroupIcon size={17} className="shrink-0" />
+                <span className="flex-1 text-left">{t(entry.label)}</span>
+                <ChevronDown size={15} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+              </button>
+              {open && (
+                <div className="mt-1 ml-4 pl-2 border-l border-gray-100 dark:border-slate-800 space-y-1">
+                  {entry.items.map(renderLink)}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </nav>
 
       {/* Bottom */}

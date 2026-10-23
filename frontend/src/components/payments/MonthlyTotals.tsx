@@ -41,7 +41,7 @@ export default function MonthlyTotals({
               <th className="text-left px-3 py-2 font-semibold text-gray-600 dark:text-slate-300">
                 Month
               </th>
-              {["Membership", "Supplements", "Other"].map((h) => (
+              {["Membership", "Supplements", "Lockers", "Other"].map((h) => (
                 <th
                   key={h}
                   className="text-right px-3 py-2 font-semibold text-gray-600 dark:text-slate-300"
@@ -79,6 +79,9 @@ export default function MonthlyTotals({
                   {m.supplement.toLocaleString()}
                 </td>
                 <td className="px-3 py-2 text-right text-gray-600 dark:text-slate-300 tabular-nums">
+                  {m.locker.toLocaleString()}
+                </td>
+                <td className="px-3 py-2 text-right text-gray-600 dark:text-slate-300 tabular-nums">
                   {m.other.toLocaleString()}
                 </td>
                 <td className="px-3 py-2 text-right font-bold text-gray-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
@@ -92,7 +95,7 @@ export default function MonthlyTotals({
               <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-slate-100">
                 Grand total
               </td>
-              {(["membership", "supplement", "other"] as const).map((k) => (
+              {(["membership", "supplement", "locker", "other"] as const).map((k) => (
                 <td
                   key={k}
                   className="px-3 py-2.5 text-right font-semibold text-gray-700 dark:text-slate-300 tabular-nums"

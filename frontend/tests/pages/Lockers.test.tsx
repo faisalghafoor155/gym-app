@@ -37,11 +37,11 @@ const list: LockerList = {
     locker({ number: '1' }),
     locker({
       number: '2', assignedAt: '2026-09-01T00:00:00Z',
-      member: { id: 'm1', name: 'Ali', memberNo: 'MEM-00001', phone: null, planName: 'Monthly', expiryDate: '2026-12-01', daysLeft: 40 },
+      member: { id: 'm1', name: 'Ali', memberNo: 'MEM-00001', phone: null, planName: 'Monthly', planIncludesLocker: false, expiryDate: '2026-12-01', daysLeft: 40 },
     }),
     locker({
       number: '3', holderExpired: true, assignedAt: '2026-08-01T00:00:00Z',
-      member: { id: 'm2', name: 'Bilal', memberNo: 'MEM-00002', phone: null, planName: 'Monthly', expiryDate: '2026-10-01', daysLeft: -21 },
+      member: { id: 'm2', name: 'Bilal', memberNo: 'MEM-00002', phone: null, planName: 'Monthly', planIncludesLocker: false, expiryDate: '2026-10-01', daysLeft: -21 },
     }),
   ],
   counts: { total: 3, free: 1, taken: 2, expired: 1 },

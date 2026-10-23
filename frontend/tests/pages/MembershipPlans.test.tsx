@@ -39,6 +39,8 @@ const aPlan = (over: Partial<MembershipPlan> = {}): MembershipPlan => ({
   name: 'Monthly',
   price: 3000,
   durationDays: 30,
+  includesCardio: false,
+  includesLocker: false,
   isActive: true,
   createdAt: '2026-01-01T00:00:00.000Z',
   ...over,

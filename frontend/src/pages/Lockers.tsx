@@ -83,6 +83,12 @@ function AssignModal({ locker, onClose, onDone }: { locker: Locker; onClose: () 
   const debounced = useDebounced(query);
   const [results, setResults] = useState<{ id: string; name: string; memberNo: string }[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  // The rent taken at the counter, if any. Left blank, the locker is handed
+  // over free — and a member whose plan includes a locker is never charged,
+  // whatever is typed here; the server checks the plan.
+  const [fee, setFee] = useState('');
+  const [method, setMethod] = useState<'cash' | 'online'>('cash');
+  const [channel, setChannel] = useState<'easypaisa' | 'jazzcash' | 'bank'>('easypaisa');
 
   useEffect(() => {
     const q = debounced.trim();
@@ -97,8 +103,25 @@ function AssignModal({ locker, onClose, onDone }: { locker: Locker; onClose: () 
   const assign = async (memberId: string) => {
     setBusy(memberId);
     try {
-      await api.post(`/lockers/${locker.id}/assign`, { memberId });
-      toast.success(`Locker ${locker.number} assigned`);
+      const amount = Number(fee);
+      const { data } = await api.post<{ coveredByPlan: boolean; feeRecorded: boolean }>(
+        `/lockers/${locker.id}/assign`,
+        {
+          memberId,
+          ...(amount > 0 && {
+            feeAmount: amount,
+            feeMethod: method,
+            ...(method === 'online' && { channel }),
+          }),
+        },
+      );
+      toast.success(
+        data.coveredByPlan
+          ? `Locker ${locker.number} assigned · included in their plan, no fee`
+          : data.feeRecorded
+            ? `Locker ${locker.number} assigned · Rs. ${amount.toLocaleString()} recorded`
+            : `Locker ${locker.number} assigned`,
+      );
       onDone();
     } catch (err) {
       toast.error(apiError(err, 'Could not assign locker'));
@@ -110,6 +133,31 @@ function AssignModal({ locker, onClose, onDone }: { locker: Locker; onClose: () 
   return (
     <Modal title={`Assign locker ${locker.number}`} onClose={onClose}>
       <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <FieldLabel htmlFor="lk-fee">Locker fee (Rs.)</FieldLabel>
+            <input id="lk-fee" type="number" min={0} inputMode="numeric" value={fee}
+              onChange={e => setFee(e.target.value)} placeholder="0 = free" className={inputClass} />
+          </div>
+          <div>
+            <FieldLabel htmlFor="lk-method">Paid by</FieldLabel>
+            <select id="lk-method" value={method === 'cash' ? 'cash' : channel} disabled={!(Number(fee) > 0)}
+              onChange={e => {
+                const v = e.target.value;
+                if (v === 'cash') setMethod('cash');
+                else { setMethod('online'); setChannel(v as typeof channel); }
+              }}
+              className={inputClass}>
+              <option value="cash">Cash</option>
+              <option value="easypaisa">Easypaisa</option>
+              <option value="jazzcash">JazzCash</option>
+              <option value="bank">Bank</option>
+            </select>
+          </div>
+        </div>
+        <p className="text-xs text-gray-400 dark:text-slate-500">
+          Members whose plan includes a locker are not charged.
+        </p>
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <input type="search" autoFocus value={query} onChange={e => setQuery(e.target.value)}

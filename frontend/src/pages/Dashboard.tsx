@@ -261,6 +261,14 @@ export default function Dashboard() {
             </div>
             {/* Only worth a tile when there is something in it — an always-zero
                 box trains the eye to skip the row. */}
+            {revenue.monthToDate.locker > 0 && (
+              <div className="rounded-xl bg-amber-50 dark:bg-amber-500/15 border border-amber-100 dark:border-amber-500/20 px-4 py-3">
+                <p className="text-xs font-medium text-amber-700">Locker rent</p>
+                <p className="text-lg font-bold text-amber-900 mt-0.5">
+                  {money(revenue.monthToDate.locker)}
+                </p>
+              </div>
+            )}
             {revenue.monthToDate.other > 0 && (
               <div className="rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 px-4 py-3">
                 <p className="text-xs font-medium text-gray-600 dark:text-slate-300">Other</p>

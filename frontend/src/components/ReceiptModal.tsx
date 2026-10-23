@@ -18,6 +18,7 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
   const paymentTypeLabel = {
     membership: 'Membership subscription renewal',
     supplement: 'Supplement purchase',
+    locker: 'Locker rent',
     other: 'Other services/products',
   }[payment.type] || 'Gym Payment';
 
