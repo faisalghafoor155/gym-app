@@ -645,7 +645,7 @@ export default function Dashboard() {
         <Card className="p-5">
           <PanelHeader
             icon={PhoneCall}
-            tone="text-red-500"
+            tone="text-orange-500"
             title="Renewal follow-up"
             count={stats.followUpMembers.length}
             to="/members?status=expired"
@@ -655,7 +655,7 @@ export default function Dashboard() {
           </p>
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {stats.followUpMembers.map(m => (
-              <li key={m.id} className="flex items-center justify-between gap-3 p-3 bg-red-50/60 rounded-lg border border-red-100 dark:border-red-500/20">
+              <li key={m.id} className="flex items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-slate-800/60 rounded-lg border border-gray-100 dark:border-slate-700/60">
                 <div className="min-w-0">
                   <p className="font-medium text-gray-900 dark:text-slate-100 text-sm truncate">{m.name}</p>
                   <p className="text-gray-500 dark:text-slate-400 text-xs truncate">
@@ -664,7 +664,7 @@ export default function Dashboard() {
                 </div>
                 <div className="text-right shrink-0 flex items-center gap-2">
                   <div>
-                    <p className="text-red-600 font-semibold text-xs">
+                    <p className="text-orange-600 dark:text-orange-400 font-semibold text-xs">
                       {Math.abs(m.membership.daysLeft)}d ago
                     </p>
                     {m.phone ? (
