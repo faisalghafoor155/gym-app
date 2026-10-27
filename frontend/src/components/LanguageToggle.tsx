@@ -3,7 +3,7 @@ import { focusRing } from './ui';
 
 const OPTIONS: { value: Language; label: string; title: string }[] = [
   { value: 'en', label: 'EN', title: 'English' },
-  { value: 'ur', label: 'اردو', title: 'Urdu' },
+  { value: 'ur', label: 'UR', title: 'Roman Urdu' },
 ];
 
 /** English / Urdu, side by side like the theme toggle, so the current choice

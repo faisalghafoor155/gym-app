@@ -17,7 +17,7 @@ import { Users } from 'lucide-react';
 const Screen = () => (
   <LanguageProvider>
     <LanguageToggle />
-    <PageHeader icon={Users} title="Members" />
+    <PageHeader icon={Users} title="Attendance" />
     <SegmentedControl value="all" onChange={() => {}} options={[
       { value: 'all', label: 'All' },
       { value: 'x', label: 'Something untranslated' },
@@ -32,14 +32,14 @@ beforeEach(() => {
 });
 
 describe('LanguageToggle', () => {
-  it('switches page titles and tabs to Urdu, leaving unknown text in English', async () => {
+  it('switches page titles and tabs to Roman Urdu, leaving unknown text in English', async () => {
     render(<Screen />);
-    expect(screen.getByRole('heading', { name: 'Members' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Attendance' })).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('radio', { name: 'اردو' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'UR' }));
 
-    expect(screen.getByRole('heading', { name: 'ممبرز' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'سب' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Haazri' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Sab' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Something untranslated' })).toBeInTheDocument();
     expect(document.documentElement.lang).toBe('ur');
     expect(document.documentElement.classList.contains('lang-ur')).toBe(true);
@@ -47,11 +47,11 @@ describe('LanguageToggle', () => {
 
   it('remembers the choice on this device', async () => {
     const { unmount } = render(<Screen />);
-    await userEvent.click(screen.getByRole('radio', { name: 'اردو' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'UR' }));
     unmount();
 
     render(<Screen />);
-    expect(screen.getByRole('heading', { name: 'ممبرز' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Haazri' })).toBeInTheDocument();
   });
 
   it('renders English outside the provider instead of throwing', () => {

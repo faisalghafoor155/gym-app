@@ -6,10 +6,23 @@ export type Language = 'en' | 'ur';
 interface LanguageState {
   lang: Language;
   setLang: (lang: Language) => void;
-  /** The Urdu for an English string when Urdu is on and it has one; the
-   *  English otherwise. */
-  t: (english: string) => string;
+  /** The Roman Urdu for an English string when Urdu is on and it has one; the
+   *  English otherwise. `{name}` placeholders are filled from `vars` in either
+   *  language, so a sentence with a number in it is still one dictionary key. */
+  t: (english: string, vars?: TVars) => string;
 }
+
+export type TVars = Record<string, string | number>;
+
+const fill = (text: string, vars?: TVars): string =>
+  vars ? text.replace(/\{(\w+)\}/g, (whole, key: string) => (key in vars ? String(vars[key]) : whole)) : text;
+
+/**
+ * `t` for code outside a component — calculators, data tables, message
+ * builders — which is handed the language rather than reading the context.
+ */
+export const translate = (lang: Language, english: string, vars?: TVars): string =>
+  fill(lang === 'ur' ? UR[english] ?? english : english, vars);
 
 const STORAGE_KEY = 'gym_language';
 
@@ -21,7 +34,7 @@ const STORAGE_KEY = 'gym_language';
 const LanguageContext = createContext<LanguageState>({
   lang: 'en',
   setLang: () => {},
-  t: s => s,
+  t: (s, vars) => fill(s, vars),
 });
 
 const readStored = (): Language => {
@@ -53,7 +66,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     try { localStorage.setItem(STORAGE_KEY, next); } catch { /* the choice just is not remembered */ }
   }, []);
 
-  const t = useCallback((english: string) => (lang === 'ur' ? UR[english] ?? english : english), [lang]);
+  const t = useCallback((english: string, vars?: TVars) => translate(lang, english, vars), [lang]);
 
   const value = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
