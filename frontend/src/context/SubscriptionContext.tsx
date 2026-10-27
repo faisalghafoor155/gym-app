@@ -24,6 +24,17 @@ interface SubscriptionValue {
 
 const SubscriptionContext = createContext<SubscriptionValue | null>(null);
 
+const CACHE_KEY = 'subscription';
+
+const readCached = (): SubscriptionStatus | null => {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? (JSON.parse(raw) as SubscriptionStatus) : null;
+  } catch {
+    return null;
+  }
+};
+
 /**
  * The gym's subscription, fetched once and shared.
  *
@@ -39,18 +50,24 @@ const SubscriptionContext = createContext<SubscriptionValue | null>(null);
  */
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const { isAuth } = useAuth();
-  const [status, setStatus] = useState<SubscriptionStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  // The last answer, so a reload can draw the menu and open the page at once
+  // instead of holding every route behind this request. Plan and limits only —
+  // nothing a shared screen should not show — and the server enforces both
+  // regardless of what the menu believes.
+  const [status, setStatus] = useState<SubscriptionStatus | null>(readCached);
+  const [loading, setLoading] = useState(() => readCached() === null);
 
   const load = useCallback(async (): Promise<void> => {
     if (!isAuth) {
       setStatus(null);
       setLoading(false);
+      try { localStorage.removeItem(CACHE_KEY); } catch { /* nothing to forget */ }
       return;
     }
     try {
       const { data } = await api.get<SubscriptionStatus>('/subscription');
       setStatus(data);
+      try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch { /* still works, just slower */ }
     } catch {
       // Left null rather than reported. A failure here costs the upgrade
       // prompts and the usage bars; the limits themselves are enforced on the

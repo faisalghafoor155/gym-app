@@ -38,7 +38,12 @@ const read = <T,>(key: string): T | null => {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(() => read<SessionUser>('user'));
   const [gym, setGym] = useState<Gym | null>(() => read<Gym>('gym'));
-  const [loading, setLoading] = useState(true);
+  // Someone signed in on this device last time is let straight through while
+  // /auth/me confirms it, rather than every reload waiting a full round trip to
+  // the API before the page may even ask for its data. Nothing is exposed by
+  // it: the server checks the cookie on every request, and a 401 from any of
+  // them sends the browser to /login.
+  const [loading, setLoading] = useState(() => read<SessionUser>('user') === null);
 
   // Only the server can tell whether the cookie is still valid, so every load
   // re-checks. This is also what keeps a revoked account from appearing signed

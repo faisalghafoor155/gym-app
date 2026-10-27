@@ -5,6 +5,7 @@ import {
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useDebounced } from '../hooks/useDebounced';
+import { cachedResponse, cacheResponse } from '../hooks/useFetch';
 import CheckinResultModal, { type CheckinDisplay } from '../components/attendance/CheckinResultModal';
 import GymQrPanel from '../components/attendance/GymQrPanel';
 import type {
@@ -39,6 +40,9 @@ function playBeep() {
 
 type TabType = 'search' | 'scanner' | 'gymqr' | 'fingerprint';
 
+const TODAY_URL = '/attendance/today';
+const FP_STATUS_URL = '/fingerprint/status';
+
 export default function Attendance() {
   const [activeTab, setActiveTab] = useState<TabType>('search');
   const [search, setSearch] = useState('');
@@ -46,8 +50,11 @@ export default function Attendance() {
   /** Results for the current search — never the whole roster. */
   const [members, setMembers] = useState<Member[]>([]);
   const [searching, setSearching] = useState(false);
-  const [todayList, setTodayList] = useState<AttendanceRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [todayList, setTodayList] = useState<AttendanceRecord[]>(
+    () => cachedResponse<AttendanceRecord[]>(TODAY_URL) ?? [],
+  );
+  // A visit earlier this session shows its list at once while it refreshes.
+  const [loading, setLoading] = useState(() => cachedResponse(TODAY_URL) === undefined);
   const [checking, setChecking] = useState<string | null>(null);
 
   // QR Scanner state
@@ -65,12 +72,17 @@ export default function Attendance() {
   const cooldownRef = useRef(false);
 
   // Fingerprint state
-  const [fpStatus, setFpStatus] = useState<FingerprintStatus | null>(null);
+  const [fpStatus, setFpStatus] = useState<FingerprintStatus | null>(
+    () => cachedResponse<FingerprintStatus>(FP_STATUS_URL) ?? null,
+  );
   const [fpScanning, setFpScanning] = useState(false);
   const [fpMessage, setFpMessage] = useState<string | null>(null);
 
   const loadToday = () =>
-    api.get<AttendanceRecord[]>('/attendance/today').then(r => setTodayList(r.data));
+    api.get<AttendanceRecord[]>(TODAY_URL).then(r => {
+      cacheResponse(TODAY_URL, r.data);
+      setTodayList(r.data);
+    });
 
   useEffect(() => {
     Promise.all([
@@ -79,8 +91,11 @@ export default function Attendance() {
       // renders as "not set up", which is the same thing the endpoint would
       // have said, and a gym with no reader should not get an error toast on
       // every visit to a page it uses all day.
-      api.get<FingerprintStatus>('/fingerprint/status')
-        .then(r => setFpStatus(r.data))
+      api.get<FingerprintStatus>(FP_STATUS_URL)
+        .then(r => {
+          cacheResponse(FP_STATUS_URL, r.data);
+          setFpStatus(r.data);
+        })
         .catch(() => setFpStatus(null)),
     ])
       .catch(err => toast.error(apiError(err, 'Could not load attendance')))
