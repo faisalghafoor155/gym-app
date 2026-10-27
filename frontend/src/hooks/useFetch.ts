@@ -18,6 +18,26 @@ interface UseFetchResult<T> {
 }
 
 /**
+ * The last response for each url, kept for the life of the tab.
+ *
+ * The API sits an ocean away from most gyms, so every page used to open on a
+ * spinner for the length of a round trip — including one visited seconds ago.
+ * A revisit now paints what it showed last time at once and refreshes it
+ * quietly, the same dimming a filter change already uses.
+ *
+ * Memory only, never storage: it holds one gym's members and money, so it must
+ * not outlive the session. `clearFetchCache` empties it whenever who is signed
+ * in changes.
+ */
+const cache = new Map<string, unknown>();
+
+export const clearFetchCache = (): void => cache.clear();
+
+/** For pages that fetch by hand rather than through the hook. */
+export const cachedResponse = <T,>(url: string): T | undefined => cache.get(url) as T | undefined;
+export const cacheResponse = (url: string, body: unknown): void => { cache.set(url, body); };
+
+/**
  * Loads `url` and keeps it in step with it.
  *
  * Refetches whenever the url changes — pass a url built from the page's
@@ -32,8 +52,8 @@ interface UseFetchResult<T> {
  * what lets a caller tell "still loading" from "loaded nothing".
  */
 export function useFetch<T>(url: string, errorMessage: string): UseFetchResult<T> {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setDataState] = useState<T | null>(() => (cache.get(url) as T | undefined) ?? null);
+  const [loading, setLoading] = useState(() => !cache.has(url));
   const [refetching, setRefetching] = useState(false);
 
   // Bumped per request. A response is applied only if its ticket is still the
@@ -58,9 +78,11 @@ export function useFetch<T>(url: string, errorMessage: string): UseFetchResult<T
     const mine = ++ticket.current;
     if (quiet) setRefetching(true);
     try {
-      const { data: body } = await api.get<T>(urlRef.current);
+      const requested = urlRef.current;
+      const { data: body } = await api.get<T>(requested);
+      cache.set(requested, body);
       if (mine !== ticket.current) return;
-      setData(body);
+      setDataState(body);
     } catch (err) {
       if (mine !== ticket.current) return;
       toast.error(apiError(err, errorRef.current));
@@ -78,6 +100,8 @@ export function useFetch<T>(url: string, errorMessage: string): UseFetchResult<T
   dataRef.current = data;
 
   useEffect(() => {
+    // A url seen before — a tab switched back to — shows its last rows at once.
+    if (cache.has(url)) setDataState(cache.get(url) as T);
     // The first load shows the spinner; once there are rows on screen a url
     // change dims them instead. Keyed off `data` rather than `loading`, so a
     // url that changes before the first response still reads as a first load.
@@ -87,6 +111,14 @@ export function useFetch<T>(url: string, errorMessage: string): UseFetchResult<T
   // Always quiet: this runs after a save or a delete, and throwing the page
   // back to a full-page spinner over a one-row change reads as a reload.
   const reload = useCallback(() => run(true), [run]);
+
+  // An edit written straight to the page must also reach the cache, or the
+  // next visit would paint the row as it was before the edit.
+  const setData = useCallback((next: T | null) => {
+    if (next === null) cache.delete(urlRef.current);
+    else cache.set(urlRef.current, next);
+    setDataState(next);
+  }, []);
 
   return { data, loading, refetching, reload, setData };
 }

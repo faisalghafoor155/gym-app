@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 /**
@@ -23,7 +23,10 @@ vi.mock('react-hot-toast', () => ({
   default: Object.assign(vi.fn(), { success: vi.fn(), error: toastError }),
 }));
 
-const { useFetch } = await import('../../src/hooks/useFetch');
+const { useFetch, clearFetchCache } = await import('../../src/hooks/useFetch');
+
+// The cache lives for the tab, which here means the whole file.
+beforeEach(() => clearFetchCache());
 
 /** A request whose resolution this test controls. */
 const deferred = <T,>() => {
@@ -165,5 +168,37 @@ describe('useFetch', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.reload).toBe(before);
+  });
+
+  it('paints a revisited url from the cache at once, then refreshes it', async () => {
+    get.mockResolvedValueOnce({ data: ['Ali'] });
+    const first = renderHook(() => useFetch<string[]>('/members', 'nope'));
+    await waitFor(() => expect(first.result.current.loading).toBe(false));
+    first.unmount();
+
+    const fresh = deferred<string[]>();
+    get.mockReturnValueOnce(fresh.promise);
+    const { result } = renderHook(() => useFetch<string[]>('/members', 'nope'));
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data).toEqual(['Ali']);
+    expect(result.current.refetching).toBe(true);
+
+    await act(async () => fresh.resolve({ data: ['Ali', 'Sara'] }));
+    expect(result.current.data).toEqual(['Ali', 'Sara']);
+  });
+
+  it('forgets everything once cleared, so the next account starts blank', async () => {
+    get.mockResolvedValueOnce({ data: ['Ali'] });
+    const first = renderHook(() => useFetch<string[]>('/members', 'nope'));
+    await waitFor(() => expect(first.result.current.loading).toBe(false));
+    first.unmount();
+
+    clearFetchCache();
+    get.mockReturnValueOnce(new Promise(() => {}));
+    const { result } = renderHook(() => useFetch<string[]>('/members', 'nope'));
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toBeNull();
   });
 });

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import api from '../api/client';
+import { clearFetchCache } from '../hooks/useFetch';
 import type { Gym, SessionUser, Role } from '../types';
 
 interface AuthValue {
@@ -54,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('user', JSON.stringify(r.data.user));
       localStorage.setItem('gym', JSON.stringify(r.data.gym));
     } catch {
+      clearFetchCache();
       setUser(null);
       setGym(null);
       localStorage.removeItem('user');
@@ -66,6 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadSession]);
 
   const login: AuthValue['login'] = (userData, gymData) => {
+    // Pages cached for whoever was signed in before must not paint for this one.
+    clearFetchCache();
     localStorage.setItem('user', JSON.stringify(userData));
     localStorage.setItem('gym', JSON.stringify(gymData));
     setUser(userData);
@@ -90,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // call is what revokes the session server-side, so a token captured
     // earlier stops working rather than lasting out its 30 days.
     void api.post('/auth/logout').catch(() => { /* sign out locally regardless */ });
+    clearFetchCache();
     localStorage.removeItem('user');
     localStorage.removeItem('gym');
     setUser(null);

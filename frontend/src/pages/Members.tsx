@@ -20,6 +20,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { openWhatsApp, createExpiryMessage, createGeneralMessage } from '../utils/whatsapp';
 import { useDebounced } from '../hooks/useDebounced';
 import { useFingerprintReader } from '../hooks/useFingerprintReader';
+import { cachedResponse, cacheResponse } from '../hooks/useFetch';
 import type {
   GymSettings, Member, MembershipPlan, MemberCounts, PaginatedMembers, Trainer,
   Paginated,
@@ -101,11 +102,17 @@ const canFreeze = (m: Member): boolean => {
 const freezeDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' });
 
+const PLANS_URL = '/membership-plans?all=true';
+const TRAINERS_URL = '/trainers?all=true';
+const SETTINGS_URL = '/gym-settings';
+
 export default function Members() {
   const { gym } = useAuth();
   const { t } = useLanguage();
   const [members, setMembers] = useState<Member[]>([]);
-  const [plans, setPlans] = useState<MembershipPlan[]>([]);
+  const [plans, setPlans] = useState<MembershipPlan[]>(
+    () => cachedResponse<Paginated<MembershipPlan>>(PLANS_URL)?.data ?? [],
+  );
   const [loading, setLoading] = useState(true);
 
   const handleWhatsApp = (m: Member) => {
@@ -146,12 +153,16 @@ export default function Members() {
   /** The member being edited, or null when the form is registering a new one.
    *  What is typed about them is the modal's business. */
   const [editing, setEditing] = useState<Member | null>(null);
-  const [trainers, setTrainers] = useState<Trainer[]>([]);
+  const [trainers, setTrainers] = useState<Trainer[]>(
+    () => cachedResponse<Paginated<Trainer>>(TRAINERS_URL)?.data ?? [],
+  );
   /** Who can still be given a member, as opposed to who can be filtered by. */
   const activeTrainers = useMemo(() => trainers.filter(t => t.isActive), [trainers]);
   /** The gym's own settings: the default PT rate, and the accounts members are
    *  told to send money to. */
-  const [settings, setSettings] = useState<GymSettings | null>(null);
+  const [settings, setSettings] = useState<GymSettings | null>(
+    () => cachedResponse<GymSettings>(SETTINGS_URL) ?? null,
+  );
   /** The delete alone. The form's own save lives in the form. */
   const [deletingBusy, setDeletingBusy] = useState(false);
   const [search, setSearch] = useState('');
@@ -232,15 +243,20 @@ export default function Members() {
    * current tab entirely, and refetching some later page would leave a hole
    * above whatever came back.
    */
+  const show = (body: PaginatedMembers) => {
+    setMembers(body.data);
+    setCounts(body.counts);
+    setTotal(body.total);
+    setHasMore(body.hasMore);
+    setPage(1);
+  };
+
   const load = useMemo(() => (isStale: () => boolean = () => false) =>
     api.get<PaginatedMembers>(`/members${query}`)
       .then(r => {
+        cacheResponse(`/members${query}`, r.data);
         if (isStale()) return;
-        setMembers(r.data.data);
-        setCounts(r.data.counts);
-        setTotal(r.data.total);
-        setHasMore(r.data.hasMore);
-        setPage(1);
+        show(r.data);
       })
       .catch(err => {
         if (!isStale()) toast.error(apiError(err, 'Could not load members'));
@@ -255,10 +271,19 @@ export default function Members() {
     // search box leaves the previous request in flight, and landing it after
     // this one would put stale rows under the current filters.
     let cancelled = false;
+    // Seen before this session: paint it now, and let the fetch below refresh
+    // it under the usual dimming instead of opening on a spinner.
+    const seen = cachedResponse<PaginatedMembers>(`/members${query}`);
+    if (seen) {
+      show(seen);
+      setLoading(false);
+    }
     setRefetching(true);
     void load(() => cancelled).finally(() => { if (!cancelled) setRefetching(false); });
     return () => { cancelled = true; };
-  }, [load]);
+    // `show` only calls setters; `load` is rebuilt whenever `query` changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load, query]);
 
   /** Appends the next page rather than replacing what is on screen. */
   const loadMore = () => {
@@ -282,8 +307,9 @@ export default function Members() {
   useEffect(() => {
     // The gym's own price list, so the plan picker offers what this gym
     // actually sells rather than three hardcoded durations.
-    void api.get<Paginated<MembershipPlan>>('/membership-plans?all=true')
+    void api.get<Paginated<MembershipPlan>>(PLANS_URL)
       .then(r => {
+        cacheResponse(PLANS_URL, r.data);
         setPlans(r.data.data);
         // The dashboard's "Add Member" shortcut arrives as ?new=1. Opening
         // after the plans land is what lets the form preselect one — both
@@ -304,15 +330,21 @@ export default function Members() {
     // Worth a toast, unlike the settings below: without this the trainer filter
     // and the assign-trainer picker are simply absent, which reads as the gym
     // having no trainers rather than as a failure to load them.
-    void api.get<Paginated<Trainer>>('/trainers?all=true')
-      .then(r => setTrainers(r.data.data))
+    void api.get<Paginated<Trainer>>(TRAINERS_URL)
+      .then(r => {
+        cacheResponse(TRAINERS_URL, r.data);
+        setTrainers(r.data.data);
+      })
       .catch(err => toast.error(apiError(err, 'Could not load trainers')));
 
     // The fee field's placeholder and the account line under the channel
     // picker. A failure is not worth a toast — the form still works, the hints
     // are just missing.
-    void api.get<GymSettings>('/gym-settings')
-      .then(r => setSettings(r.data))
+    void api.get<GymSettings>(SETTINGS_URL)
+      .then(r => {
+        cacheResponse(SETTINGS_URL, r.data);
+        setSettings(r.data);
+      })
       .catch(() => { /* the hints simply say nothing */ });
 
     // Deliberately once on mount: this is a landing hint, not a live binding.
