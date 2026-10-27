@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { Share, X, Smartphone, ArrowDownToLine } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
+import { useLanguage } from '../context/LanguageContext';
+
+/** Renders the `**bold**` spans of a translated step, so the emphasis survives
+ *  translation without splitting the sentence around it. */
+const withBold = (text: string) =>
+  text.split(/\*\*(.+?)\*\*/g).map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : part));
 
 interface InstallButtonProps {
   className?: string;
@@ -10,6 +16,7 @@ interface InstallButtonProps {
 export default function InstallButton({ className = '', variant = 'navbar' }: InstallButtonProps) {
   const { isInstalled, isIOS } = usePWAInstall();
   const [showGuideModal, setShowGuideModal] = useState(false);
+  const { t } = useLanguage();
 
   // If already running inside installed standalone PWA app, hide it
   if (isInstalled) {
@@ -48,11 +55,11 @@ export default function InstallButton({ className = '', variant = 'navbar' }: In
             ? 'p-2 text-xs rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-100'
             : 'px-4 py-2 text-sm rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-500 hover:to-indigo-500 shadow-md shadow-blue-600/30'
         } ${className}`}
-        title="Install app on mobile or desktop"
+        title={t('Install app on mobile or desktop')}
       >
         <Smartphone size={14} className="animate-pulse shrink-0" />
-        <span className="truncate hidden sm:inline">Install App</span>
-        <span className="truncate sm:hidden">Install</span>
+        <span className="truncate hidden sm:inline">{t('Install App')}</span>
+        <span className="truncate sm:hidden">{t('Install')}</span>
       </button>
 
       {/* Guide Modal for Android, iOS & Desktop */}
@@ -61,6 +68,7 @@ export default function InstallButton({ className = '', variant = 'navbar' }: In
           <div className="relative w-full max-w-sm p-6 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 text-center">
             <button
               onClick={() => setShowGuideModal(false)}
+              aria-label={t('Close')}
               className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
             >
               <X size={18} />
@@ -71,7 +79,7 @@ export default function InstallButton({ className = '', variant = 'navbar' }: In
             </div>
 
             <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">
-              {isIOS ? 'Install on iPhone / iPad' : 'Install GymPro App'}
+              {isIOS ? t('Install on iPhone / iPad') : t('Install GymPro App')}
             </h3>
 
             <div className="mt-3 text-left space-y-2.5 bg-gray-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-xs text-gray-600 dark:text-slate-300">
@@ -79,30 +87,30 @@ export default function InstallButton({ className = '', variant = 'navbar' }: In
                 <>
                   <div className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
-                    <p>Safari browser mein neechay <strong>Share button</strong> (square with arrow) par tap karein.</p>
+                    <p>{withBold(t('In Safari, tap the **Share button** (the square with an arrow) at the bottom.'))}</p>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
-                    <p>Neechay scroll karke <strong>"Add to Home Screen"</strong> select karein.</p>
+                    <p>{withBold(t('Scroll down and choose **"Add to Home Screen"**.'))}</p>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
-                    <p>Upar <strong>"Add"</strong> dabayein — app aapke phone mein save ho jayegi!</p>
+                    <p>{withBold(t('Tap **"Add"** at the top — the app is saved on your phone!'))}</p>
                   </div>
                 </>
               ) : (
                 <>
                   <div className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
-                    <p>Mobile Chrome mein upar <strong>3 dots (⋮)</strong> Menu par tap karein.</p>
+                    <p>{withBold(t('In mobile Chrome, tap the **3 dots (⋮)** menu at the top.'))}</p>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
-                    <p>Menu mein se <strong>"Install app"</strong> ya <strong>"Add to Home screen"</strong> select karein.</p>
+                    <p>{withBold(t('From the menu, choose **"Install app"** or **"Add to Home screen"**.'))}</p>
                   </div>
                   <div className="flex items-start gap-2.5">
                     <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
-                    <p><strong>"Install"</strong> par click karein — app direct aapke phone mein install ho jayegi!</p>
+                    <p>{withBold(t('Tap **"Install"** — the app installs straight onto your phone!'))}</p>
                   </div>
                 </>
               )}
@@ -112,7 +120,7 @@ export default function InstallButton({ className = '', variant = 'navbar' }: In
               onClick={() => setShowGuideModal(false)}
               className="mt-5 w-full py-2.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl transition-all shadow-md shadow-blue-600/20 active:scale-95"
             >
-              Samajh Aa Gaya (Got It)
+              {t('Got it')}
             </button>
           </div>
         </div>

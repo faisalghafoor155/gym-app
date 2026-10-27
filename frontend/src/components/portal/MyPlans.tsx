@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Dumbbell, Utensils, Flame } from 'lucide-react';
 import { Card, InlineEmpty, SegmentedControl } from '../ui';
 import type { DailyWorkout, DietMeal, MyProfile } from '../../types';
+import { useLanguage } from '../../context/LanguageContext';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -11,6 +12,7 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
  * opens first, because "what am I doing today" is why a member opens this.
  */
 export default function MyPlans({ plan }: { plan: MyProfile['plan'] }) {
+  const { t } = useLanguage();
   const workout = plan?.workoutPlan;
   const diet = plan?.dietPlan;
   const days = ((workout?.workoutData as { days?: DailyWorkout[] } | undefined)?.days ?? [])
@@ -27,10 +29,10 @@ export default function MyPlans({ plan }: { plan: MyProfile['plan'] }) {
     <div className="space-y-5">
       <Card className="p-5">
         <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-2">
-          <Dumbbell size={16} className="text-blue-600 dark:text-blue-400" /> Workout plan
+          <Dumbbell size={16} className="text-blue-600 dark:text-blue-400" /> {t('Workout plan')}
         </h2>
         {!workout ? (
-          <InlineEmpty message="No workout plan assigned yet. Your trainer sets this up for you." />
+          <InlineEmpty message={t('No workout plan assigned yet. Your trainer sets this up for you.')} />
         ) : (
           <>
             <p className="font-medium text-gray-900 dark:text-slate-100 text-sm">{workout.name}</p>
@@ -42,7 +44,7 @@ export default function MyPlans({ plan }: { plan: MyProfile['plan'] }) {
                 <SegmentedControl
                   value={day}
                   onChange={setDay}
-                  options={days.map(d => ({ value: d.day, label: d.day === todayName ? `${d.day.slice(0, 3)} · Today` : d.day.slice(0, 3) }))}
+                  options={days.map(d => ({ value: d.day, label: d.day === todayName ? t('{day} · Today', { day: t(d.day.slice(0, 3)) }) : t(d.day.slice(0, 3)) }))}
                 />
                 {shown && (
                   <ol className="divide-y divide-gray-100 dark:divide-slate-800 rounded-xl border border-gray-100 dark:border-slate-800">
@@ -53,14 +55,14 @@ export default function MyPlans({ plan }: { plan: MyProfile['plan'] }) {
                           <span className="font-medium text-gray-800 dark:text-slate-200 truncate">{ex.name}</span>
                         </span>
                         <span className="text-xs text-gray-500 dark:text-slate-400 shrink-0">
-                          {ex.sets} × {ex.reps}{ex.weight ? ` · ${ex.weight} kg` : ''}
+                          {ex.sets} × {ex.reps}{ex.weight ? ` · ${t('{weight} kg', { weight: ex.weight })}` : ''}
                         </span>
                       </li>
                     ))}
                   </ol>
                 )}
                 {!days.some(d => d.day === todayName) && (
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Today ({todayName}) is a rest day in your plan.</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500">{t('Today ({day}) is a rest day in your plan.', { day: t(todayName) })}</p>
                 )}
               </div>
             )}
@@ -70,15 +72,15 @@ export default function MyPlans({ plan }: { plan: MyProfile['plan'] }) {
 
       <Card className="p-5">
         <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-2">
-          <Utensils size={16} className="text-green-600 dark:text-green-400" /> Diet plan
+          <Utensils size={16} className="text-green-600 dark:text-green-400" /> {t('Diet plan')}
           {totalCalories > 0 && (
             <span className="ml-auto text-xs font-semibold text-orange-600 dark:text-orange-400 flex items-center gap-1">
-              <Flame size={13} /> {totalCalories.toLocaleString()} kcal / day
+              <Flame size={13} /> {t('{kcal} kcal / day', { kcal: totalCalories.toLocaleString() })}
             </span>
           )}
         </h2>
         {!diet ? (
-          <InlineEmpty message="No diet plan assigned yet. Your trainer sets this up for you." />
+          <InlineEmpty message={t('No diet plan assigned yet. Your trainer sets this up for you.')} />
         ) : (
           <>
             <p className="font-medium text-gray-900 dark:text-slate-100 text-sm">{diet.name}</p>
@@ -89,7 +91,7 @@ export default function MyPlans({ plan }: { plan: MyProfile['plan'] }) {
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {meals.map((meal, i) => (
                   <div key={i} className="rounded-xl border border-gray-100 dark:border-slate-800 p-3">
-                    <h3 className="text-sm font-semibold text-green-700 dark:text-green-400 mb-2">{meal.name}</h3>
+                    <h3 className="text-sm font-semibold text-green-700 dark:text-green-400 mb-2">{t(meal.name)}</h3>
                     <ul className="space-y-1.5 text-xs text-gray-600 dark:text-slate-300">
                       {meal.items.map((item, j) => (
                         <li key={j} className="flex justify-between gap-2">

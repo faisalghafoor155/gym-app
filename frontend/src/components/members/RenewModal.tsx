@@ -5,6 +5,7 @@ import {
 import { Dumbbell, UserCheck, UserX } from 'lucide-react';
 import api, { apiError } from '../../api/client';
 import { useDialog } from '../../hooks/useDialog';
+import { useLanguage } from '../../context/LanguageContext';
 import type { GymSettings, Member, MembershipPlan, PaymentChannel, PaymentMethod, PromoCheck, Trainer } from '../../types';
 import { CHANNELS, CHANNEL_LABELS, accountFor } from '../../utils/paymentChannels';
 import PromoCodeField from './PromoCodeField';
@@ -67,10 +68,11 @@ interface Props {
  * when the modal closes rather than lingering to reappear on the next member.
  */
 export default function RenewModal({ member, plans, trainers, settings, onClose, onRenewed }: Props) {
+  const { t } = useLanguage();
   const ms = member.currentMembership;
 
   const hasTrainer = Boolean(member.trainerId || member.trainer);
-  const trainerName = member.trainer?.name || 'Assigned Trainer';
+  const trainerName = member.trainer?.name || t('Assigned Trainer');
 
   const [includeTrainer, setIncludeTrainer] = useState<boolean>(hasTrainer);
   const [selectedTrainerId, setSelectedTrainerId] = useState<string>(() => {
@@ -110,7 +112,7 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
   const isAddingNewTrainer = !hasTrainer && includeTrainer && Boolean(selectedTrainerId);
   const effectiveTrainerName = hasTrainer
     ? trainerName
-    : trainers?.find(t => t.id === selectedTrainerId)?.name || 'Personal Trainer';
+    : trainers?.find(tr => tr.id === selectedTrainerId)?.name || t('Personal Trainer');
 
   const gymAmount = Number(form.amount) || 0;
   const agreedPrice = Number(form.price) || 0;
@@ -122,11 +124,11 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (gymAmount <= 0) {
-      toast.error('Gym membership plan fee must be greater than zero');
+      toast.error(t('Gym membership plan fee must be greater than zero'));
       return;
     }
     if (agreedPrice > 0 && gymAmount > agreedPrice) {
-      toast.error('The amount paid cannot be more than the agreed price');
+      toast.error(t('The amount paid cannot be more than the agreed price'));
       return;
     }
     setSaving(true);
@@ -154,19 +156,21 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
       });
 
       if (hasTrainer && !includeTrainer) {
-        toast.success(`Membership renewed. Trainer (${trainerName}) removed from card.`);
+        toast.success(t('Membership renewed. Trainer ({trainer}) removed from card.', { trainer: trainerName }));
       } else if (hasTrainer && includeTrainer) {
-        toast.success(`Membership & Trainer renewed (Total: Rs. ${totalAmount.toLocaleString('en-PK')})`);
+        toast.success(t('Membership & Trainer renewed (Total: Rs. {total})', { total: totalAmount.toLocaleString('en-PK') }));
       } else if (isAddingNewTrainer) {
-        toast.success(`Membership renewed & Trainer (${effectiveTrainerName}) assigned (Total: Rs. ${totalAmount.toLocaleString('en-PK')})`);
+        toast.success(t('Membership renewed & Trainer ({trainer}) assigned (Total: Rs. {total})', {
+          trainer: effectiveTrainerName, total: totalAmount.toLocaleString('en-PK'),
+        }));
       } else {
-        toast.success('Membership renewed');
+        toast.success(t('Membership renewed'));
       }
       onRenewed();
     } catch (err) {
       // The modal stays open with its values, so a mistyped amount can be
       // corrected without retyping the rest.
-      toast.error(apiError(err, 'Could not renew membership'));
+      toast.error(apiError(err, t('Could not renew membership')));
     } finally {
       setSaving(false);
     }
@@ -184,7 +188,7 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
       >
         <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
           <h2 id="renew-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
-            Renew membership
+            {t('Renew membership')}
           </h2>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
             {member.name} · {member.memberNo}
@@ -194,28 +198,28 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
         <form onSubmit={e => void handleSubmit(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
           <div className="rounded-lg bg-gray-50 dark:bg-slate-800/60 px-3 py-2.5 space-y-1.5 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-gray-500 dark:text-slate-400">Current plan</span>
+              <span className="text-gray-500 dark:text-slate-400">{t('Current plan')}</span>
               <span className="font-semibold text-gray-800 dark:text-slate-200">{ms.planName}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-500 dark:text-slate-400">Expires</span>
+              <span className="text-gray-500 dark:text-slate-400">{t('Expires')}</span>
               <span className="font-semibold text-gray-800 dark:text-slate-200">
                 {new Date(ms.expiryDate)
                   .toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-gray-500 dark:text-slate-400">Status</span>
+              <span className="text-gray-500 dark:text-slate-400">{t('Status')}</span>
               <span className="font-semibold text-gray-800 dark:text-slate-200">
                 {ms.daysLeft < 0
-                  ? `Expired ${Math.abs(ms.daysLeft)}d ago`
-                  : `${ms.daysLeft}d left`}
+                  ? t('Expired {days}d ago', { days: Math.abs(ms.daysLeft) })
+                  : t('{days}d left', { days: ms.daysLeft })}
               </span>
             </div>
           </div>
 
           <div>
-            <FieldLabel htmlFor="renew-plan" required>Plan</FieldLabel>
+            <FieldLabel htmlFor="renew-plan" required>{t('Plan')}</FieldLabel>
             <select
               id="renew-plan"
               value={form.planId}
@@ -236,11 +240,11 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
                   been retired — renewing what they already hold is not
                   buying something new. */}
               {!plans.some(p => p.id === ms.planId) && (
-                <option value={ms.planId}>{ms.planName} (current)</option>
+                <option value={ms.planId}>{t('{plan} (current)', { plan: ms.planName })}</option>
               )}
               {plans.map(p => (
                 <option key={p.id} value={p.id}>
-                  {p.name} — Rs. {p.price.toLocaleString('en-PK')} / {p.durationDays}d
+                  {p.name} — Rs. {p.price.toLocaleString('en-PK')} / {t('{days}d', { days: p.durationDays })}
                 </option>
               ))}
             </select>
@@ -261,7 +265,7 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <FieldLabel htmlFor="renew-price" required>Agreed price (Rs.)</FieldLabel>
+              <FieldLabel htmlFor="renew-price" required>{t('Agreed price (Rs.)')}</FieldLabel>
               <input
                 id="renew-price"
                 type="number" min={1} step={1} required
@@ -279,7 +283,7 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
               />
             </div>
             <div>
-              <FieldLabel htmlFor="renew-amount" required>Paying now (Rs.)</FieldLabel>
+              <FieldLabel htmlFor="renew-amount" required>{t('Paying now (Rs.)')}</FieldLabel>
               <input
                 id="renew-amount"
                 type="number" min={1} max={agreedPrice || undefined} step={1} required
@@ -289,14 +293,13 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
               />
             </div>
             <p className="col-span-2 text-xs text-gray-400 dark:text-slate-500 -mt-1">
-              Lower the agreed price for a discount. Paying less than it now leaves the rest as a due,
-              which shows on the Pending Dues list and is reminded on WhatsApp.
+              {t('Lower the agreed price for a discount. Paying less than it now leaves the rest as a due, which shows on the Pending Dues list and is reminded on WhatsApp.')}
             </p>
           </div>
 
           <div>
             {/* Two buttons rather than a field, so the label names the pair. */}
-            <FieldLabel id="renew-method-label" required>Paid by</FieldLabel>
+            <FieldLabel id="renew-method-label" required>{t('Paid by')}</FieldLabel>
             <div
               role="group"
               aria-labelledby="renew-method-label"
@@ -315,7 +318,7 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
                       ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700'
                       : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-gray-300'
                   }`}>
-                  <p className="font-semibold text-xs capitalize">{m}</p>
+                  <p className="font-semibold text-xs capitalize">{m === 'cash' ? t('Cash') : t('Online')}</p>
                 </button>
               ))}
             </div>
@@ -324,21 +327,21 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
           {form.method === 'online' && (
             <>
               <div>
-                <FieldLabel htmlFor="renew-channel">Received in</FieldLabel>
+                <FieldLabel htmlFor="renew-channel">{t('Received in')}</FieldLabel>
                 <select
                   id="renew-channel"
                   value={form.channel}
                   onChange={e => setForm(f => ({ ...f, channel: e.target.value as PaymentChannel | '' }))}
                   className={inputClass}
                 >
-                  <option value="">Select account</option>
+                  <option value="">{t('Select account')}</option>
                   {CHANNELS.map(c => (
-                    <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
+                    <option key={c} value={c}>{t(CHANNEL_LABELS[c])}</option>
                   ))}
                 </select>
                 {accountFor(settings, form.channel) && (
                   <div className="mt-2 bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/20 rounded-xl px-3 py-2">
-                    <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">Send to</p>
+                    <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">{t('Send to')}</p>
                     <p className="text-sm font-bold text-blue-700 dark:text-blue-200 break-words">
                       {accountFor(settings, form.channel)}
                     </p>
@@ -346,13 +349,13 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
                 )}
               </div>
               <div>
-                <FieldLabel htmlFor="renew-reference">Transaction ID <span className="font-normal text-gray-400">(optional)</span></FieldLabel>
+                <FieldLabel htmlFor="renew-reference">{t('Transaction ID')} <span className="font-normal text-gray-400">{t('(optional)')}</span></FieldLabel>
                 <input
                   id="renew-reference"
                   type="text" maxLength={100}
                   value={form.reference}
                   onChange={e => setForm(f => ({ ...f, reference: e.target.value }))}
-                  placeholder="e.g. 4429183756"
+                  placeholder={t('e.g. 4429183756')}
                   className={inputClass}
                 />
               </div>
@@ -369,7 +372,7 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider block">
-                      Assigned Personal Trainer
+                      {t('Assigned Personal Trainer')}
                     </span>
                     <h3 className="text-xs font-bold text-gray-900 dark:text-slate-100">
                       {trainerName}
@@ -391,8 +394,8 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
                 >
                   <UserCheck size={16} className={includeTrainer ? 'text-purple-600 mt-0.5' : 'text-gray-400 mt-0.5'} />
                   <div>
-                    <p className="text-xs font-bold text-gray-900 dark:text-slate-100">Renew Trainer</p>
-                    <p className="text-[10px] text-gray-500 dark:text-slate-400">Keep trainer assigned</p>
+                    <p className="text-xs font-bold text-gray-900 dark:text-slate-100">{t('Renew Trainer')}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-slate-400">{t('Keep trainer assigned')}</p>
                   </div>
                 </button>
 
@@ -407,8 +410,8 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
                 >
                   <UserX size={16} className={!includeTrainer ? 'text-rose-600 mt-0.5' : 'text-gray-400 mt-0.5'} />
                   <div>
-                    <p className="text-xs font-bold text-rose-700 dark:text-rose-300">Gym Fee Only</p>
-                    <p className="text-[10px] text-rose-600/80 dark:text-rose-400">Remove trainer</p>
+                    <p className="text-xs font-bold text-rose-700 dark:text-rose-300">{t('Gym Fee Only')}</p>
+                    <p className="text-[10px] text-rose-600/80 dark:text-rose-400">{t('Remove trainer')}</p>
                   </div>
                 </button>
               </div>
@@ -417,9 +420,9 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
               {includeTrainer ? (
                 <div className="space-y-1.5 pt-2 border-t border-purple-100 dark:border-purple-900/40">
                   <div className="flex items-center justify-between">
-                    <FieldLabel htmlFor="renew-pt-fee">Trainer Fee (Rs.)</FieldLabel>
+                    <FieldLabel htmlFor="renew-pt-fee">{t('Trainer Fee (Rs.)')}</FieldLabel>
                     <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
-                      Default: Rs. 10,000 (Adjustable)
+                      {t('Default: Rs. 10,000 (Adjustable)')}
                     </span>
                   </div>
                   <input
@@ -433,12 +436,12 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
                     className={inputClass}
                   />
                   <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                    Aap trainer ki fee manually kam ya ziada kar saktay hain.
+                    {t('You can raise or lower the trainer fee by hand.')}
                   </p>
                 </div>
               ) : (
                 <div className="p-2 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-[11px] text-rose-700 dark:text-rose-300">
-                  ⚠️ Renewal submit hotay hi <strong>{trainerName}</strong> is member ke card/profile se auto-remove ho jayega.
+                  ⚠️ {t("{trainer} will be removed from this member's card as soon as the renewal is saved.", { trainer: trainerName })}
                 </div>
               )}
             </div>
@@ -462,42 +465,42 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
                 />
                 <span className="flex items-center gap-1.5">
                   <Dumbbell size={14} className="text-purple-600" />
-                  + Add Personal Trainer (PT) with this renewal?
+                  {t('+ Add Personal Trainer (PT) with this renewal?')}
                 </span>
               </label>
 
               {includeTrainer && (
                 <div className="space-y-2.5 pt-2.5 border-t border-gray-200 dark:border-slate-700">
                   <div>
-                    <FieldLabel htmlFor="renew-new-trainer">Select Personal Trainer</FieldLabel>
+                    <FieldLabel htmlFor="renew-new-trainer">{t('Select Personal Trainer')}</FieldLabel>
                     <select
                       id="renew-new-trainer"
                       value={selectedTrainerId}
                       onChange={e => {
                         const id = e.target.value;
                         setSelectedTrainerId(id);
-                        const t = trainers.find(item => item.id === id);
-                        if (t?.ptFee != null && Number(t.ptFee) > 0) {
-                          setPtFee(String(t.ptFee));
+                        const tr = trainers.find(item => item.id === id);
+                        if (tr?.ptFee != null && Number(tr.ptFee) > 0) {
+                          setPtFee(String(tr.ptFee));
                         } else {
                           setPtFee('10000');
                         }
                       }}
                       className={inputClass}
                     >
-                      <option value="">Select a trainer</option>
-                      {trainers.map(t => (
-                        <option key={t.id} value={t.id}>
-                          {t.name} ({t.specialization || 'Trainer'})
+                      <option value="">{t('Select a trainer')}</option>
+                      {trainers.map(tr => (
+                        <option key={tr.id} value={tr.id}>
+                          {tr.name} ({tr.specialization || t('Trainer')})
                         </option>
                       ))}
                     </select>
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <FieldLabel htmlFor="renew-new-pt-fee">Trainer Fee (Rs.)</FieldLabel>
+                      <FieldLabel htmlFor="renew-new-pt-fee">{t('Trainer Fee (Rs.)')}</FieldLabel>
                       <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
-                        Default: Rs. 10,000 (Adjustable)
+                        {t('Default: Rs. 10,000 (Adjustable)')}
                       </span>
                     </div>
                     <input
@@ -511,7 +514,7 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
                       className={inputClass}
                     />
                     <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                      Aap trainer ki fee manually kam ya ziada kar saktay hain.
+                      {t('You can raise or lower the trainer fee by hand.')}
                     </p>
                   </div>
                 </div>
@@ -524,14 +527,16 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
               nothing. */}
           {picked && (
             <div className="rounded-lg bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/20 px-3 py-2.5">
-              <p className="text-xs font-semibold text-blue-800">New expiry</p>
+              <p className="text-xs font-semibold text-blue-800">{t('New expiry')}</p>
               <p className="text-sm font-bold text-blue-900 mt-0.5">
                 {previewRenewal(ms.expiryDate, picked.durationDays)}
               </p>
               <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
                 {ms.daysLeft > 0
-                  ? `Starts when the current one ends — their ${ms.daysLeft} remaining day${ms.daysLeft === 1 ? '' : 's'} are kept.`
-                  : 'Starts today.'}
+                  ? ms.daysLeft === 1
+                    ? t('Starts when the current one ends — their {count} remaining day is kept.', { count: ms.daysLeft })
+                    : t('Starts when the current one ends — their {count} remaining days are kept.', { count: ms.daysLeft })
+                  : t('Starts today.')}
               </p>
             </div>
           )}
@@ -539,34 +544,34 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
           {/* Total Fee Summary Card */}
           <div className="rounded-xl bg-gray-50 dark:bg-slate-800/70 border border-gray-200 dark:border-slate-800 p-3 space-y-1.5 text-xs">
             <div className="flex items-center justify-between text-gray-600 dark:text-slate-300">
-              <span>Gym Plan ({picked?.name || ms.planName}):</span>
+              <span>{t('Gym Plan ({plan}):', { plan: picked?.name || ms.planName })}</span>
               <span className="font-semibold text-gray-900 dark:text-slate-100">
                 Rs. {gymAmount.toLocaleString('en-PK')}
               </span>
             </div>
             {(hasTrainer || isAddingNewTrainer) && (
               <div className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-slate-300">Trainer Fee ({effectiveTrainerName}):</span>
+                <span className="text-gray-600 dark:text-slate-300">{t('Trainer Fee ({trainer}):', { trainer: effectiveTrainerName })}</span>
                 {ptFeeNum > 0 ? (
                   <span className="font-semibold text-purple-600 dark:text-purple-400">
                     + Rs. {ptFeeNum.toLocaleString('en-PK')}
                   </span>
                 ) : (
                   <span className="font-semibold text-rose-500 dark:text-rose-400">
-                    Removed (Rs. 0)
+                    {t('Removed (Rs. 0)')}
                   </span>
                 )}
               </div>
             )}
             <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-slate-700 font-bold text-sm">
-              <span className="text-gray-900 dark:text-slate-100">Total Fee Collected:</span>
+              <span className="text-gray-900 dark:text-slate-100">{t('Total Fee Collected:')}</span>
               <span className="text-blue-600 dark:text-blue-400">
                 Rs. {totalAmount.toLocaleString('en-PK')}
               </span>
             </div>
             {balance > 0 && (
               <div className="flex items-center justify-between text-red-600 dark:text-red-400 font-semibold">
-                <span>Balance due later:</span>
+                <span>{t('Balance due later:')}</span>
                 <span>Rs. {balance.toLocaleString('en-PK')}</span>
               </div>
             )}
@@ -575,10 +580,10 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
               className={`flex-1 ${secondaryButton}`}>
-              Cancel
+              {t('Cancel')}
             </button>
             <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
-              {saving ? 'Renewing...' : `Renew (Rs. ${totalAmount.toLocaleString('en-PK')})`}
+              {saving ? t('Renewing...') : t('Renew (Rs. {total})', { total: totalAmount.toLocaleString('en-PK') })}
             </button>
           </div>
         </form>

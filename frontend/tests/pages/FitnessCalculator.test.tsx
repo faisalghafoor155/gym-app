@@ -77,7 +77,7 @@ describe('FitnessCalculator page', () => {
   it('the meal plan splits the food calories across the day', async () => {
     renderPage(<FitnessCalculator />);
     await userEvent.click(await screen.findByText('Auto Meal Plan'));
-    expect(screen.getByText(/Breakfast \(Nashta\)/)).toBeTruthy();
+    expect(screen.getByText('Breakfast')).toBeTruthy();
   });
 });
 

@@ -1,5 +1,6 @@
 import { WifiOff } from 'lucide-react';
 import { useOnline } from '../hooks/useOnline';
+import { useLanguage } from '../context/LanguageContext';
 
 /**
  * Says the app is offline, and — more usefully — that nothing typed will save.
@@ -11,6 +12,7 @@ import { useOnline } from '../hooks/useOnline';
  */
 export default function OfflineBanner() {
   const online = useOnline();
+  const { t } = useLanguage();
   if (online) return null;
 
   return (
@@ -20,7 +22,7 @@ export default function OfflineBanner() {
       className="flex items-center justify-center gap-2 px-4 py-2 text-xs font-medium text-amber-900 bg-amber-100 border-b border-amber-200 dark:text-amber-200 dark:bg-amber-500/15 dark:border-amber-500/25 shrink-0"
     >
       <WifiOff size={14} className="shrink-0" />
-      <span>You're offline — showing the last loaded view. Changes can't be saved.</span>
+      <span>{t("You're offline — showing the last loaded view. Changes can't be saved.")}</span>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
 import { useDebounced } from '../hooks/useDebounced';
 import { downloadFromServer } from '../utils/csv';
 import api, { apiError } from '../api/client';
+import { useLanguage } from '../context/LanguageContext';
 import type {
   MonthlyCollection, MonthlyCollectionRow, UnpaidRow, CollectionView,
 } from '../types';
@@ -42,6 +43,11 @@ const shiftMonth = (key: string, by: number): string => {
 
 const money = (n: number): string => `Rs. ${n.toLocaleString('en-PK')}`;
 
+/** What each payment was for, as written on the receipt line. */
+const TYPE_NAMES: Record<string, string | undefined> = {
+  membership: 'Membership', supplement: 'Supplement', locker: 'Locker', other: 'Other',
+};
+
 const shortDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' });
 
@@ -57,6 +63,7 @@ const shortDate = (iso: string): string =>
  * page and nothing here.
  */
 export default function MonthlyCollection() {
+  const { t } = useLanguage();
   const [month, setMonth] = useState<string>(thisMonth);
   const [search, setSearch] = useState('');
   const [view, setView] = useState<CollectionView>('paid');
@@ -95,11 +102,13 @@ export default function MonthlyCollection() {
         setExpanded(new Set());
       })
       .catch(err => {
-        if (!cancelled) toast.error(apiError(err, 'Could not load the month'));
+        if (!cancelled) toast.error(apiError(err, t('Could not load the month')));
       })
       .finally(() => { if (!cancelled) { setLoading(false); setRefetching(false); } });
     // A slow earlier response must not overwrite a newer one.
     return () => { cancelled = true; };
+    // `t` only words the error toast; a language switch is no reason to refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   // Page one whenever the month, the search or the filter changes: page three
@@ -136,7 +145,7 @@ export default function MonthlyCollection() {
       if (!includeDue) q.set('includeDue', 'false');
       await downloadFromServer(`/api/payments/monthly/export?${q}`);
     } catch (err) {
-      toast.error(apiError(err, 'Could not export the month'));
+      toast.error(apiError(err, t('Could not export the month')));
     } finally {
       setExporting(false);
     }
@@ -152,25 +161,29 @@ export default function MonthlyCollection() {
     <Page>
       <PageHeader
         icon={CalendarRange}
-        title="Monthly Collection"
-        subtitle="Every member's fee record for the month you choose"
+        title={t('Monthly Collection')}
+        subtitle={t("Every member's fee record for the month you choose")}
         action={
           <button
             onClick={() => void handleExport()}
             disabled={exporting || !report || report.total === 0}
             className={secondaryButton}
-            title="Exports the whole month, not just this page"
+            title={t('Exports the whole month, not just this page')}
           >
             <Download size={16} />
             <span className="hidden sm:inline">
-              {exporting ? 'Exporting…' : 'Export month'}
+              {exporting ? t('Exporting…') : t('Export month')}
             </span>
           </button>
         }
       />
 
       <div className="mb-4">
-        <SegmentedControl value={view} onChange={setView} options={VIEWS} />
+        <SegmentedControl
+          value={view}
+          onChange={setView}
+          options={VIEWS.map(v => ({ ...v, label: t(v.label) }))}
+        />
       </div>
 
       {/* Month picker — arrows for the common step, a native input for a jump
@@ -180,7 +193,7 @@ export default function MonthlyCollection() {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setMonth(m => shiftMonth(m, -1))}
-              aria-label="Previous month"
+              aria-label={t('Previous month')}
               className={`p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-slate-400
                 dark:hover:bg-slate-800 transition-colors ${focusRing}`}
             >
@@ -195,13 +208,13 @@ export default function MonthlyCollection() {
                 // falling back keeps the report from asking for no month.
                 if (e.target.value) setMonth(e.target.value);
               }}
-              aria-label="Month"
+              aria-label={t('Month')}
               className={`${inputClass} w-auto`}
             />
             <button
               onClick={() => setMonth(m => shiftMonth(m, 1))}
               disabled={atCurrentMonth}
-              aria-label="Next month"
+              aria-label={t('Next month')}
               className={`p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-slate-400
                 dark:hover:bg-slate-800 transition-colors disabled:opacity-30
                 disabled:cursor-not-allowed ${focusRing}`}
@@ -218,14 +231,14 @@ export default function MonthlyCollection() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search by name, phone or member no."
-              aria-label="Search members"
+              placeholder={t('Search by name, phone or member no.')}
+              aria-label={t('Search members')}
               className={`${inputClass} pl-9 pr-9`}
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                aria-label="Clear search"
+                aria-label={t('Clear search')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300"
               >
                 <X size={15} />
@@ -244,7 +257,7 @@ export default function MonthlyCollection() {
                 onChange={e => setIncludeDue(e.target.checked)}
                 className="w-4 h-4 rounded accent-blue-600"
               />
-              Include due entries
+              {t('Include due entries')}
             </label>
           )}
         </div>
@@ -259,50 +272,50 @@ export default function MonthlyCollection() {
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-5">
               <StatTile
                 icon={AlertCircle}
-                label="Still owed"
+                label={t('Still owed')}
                 value={money(report.shortfallTotal)}
                 tone={report.shortfallTotal > 0 ? 'red' : 'green'}
                 hint={report.label}
               />
               <StatTile
                 icon={Users}
-                label="Members who owe"
+                label={t('Members who owe')}
                 value={report.memberCount}
                 tone={report.memberCount > 0 ? 'yellow' : 'gray'}
               />
               <StatTile
                 icon={Receipt}
-                label="Expected in total"
+                label={t('Expected in total')}
                 value={money(report.expectedTotal)}
                 tone="blue"
-                hint="Across the memberships listed"
+                hint={t('Across the memberships listed')}
               />
             </div>
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
               <StatTile
                 icon={Wallet}
-                label="Collected"
+                label={t('Collected')}
                 value={money(report.collected)}
                 tone="green"
                 hint={report.label}
               />
               <StatTile
                 icon={AlertCircle}
-                label={view === 'all' ? 'Still owed' : 'Due entries'}
+                label={view === 'all' ? t('Still owed') : t('Due entries')}
                 value={money(view === 'all' ? report.shortfallTotal : report.outstanding)}
                 tone={(view === 'all' ? report.shortfallTotal : report.outstanding) > 0 ? 'red' : 'gray'}
               />
               <StatTile
                 icon={Users}
-                label="Members who paid"
+                label={t('Members who paid')}
                 value={report.memberCount}
                 tone="blue"
-                hint={`${report.paymentCount} payment${report.paymentCount === 1 ? '' : 's'}`}
+                hint={t(report.paymentCount === 1 ? '{count} payment' : '{count} payments', { count: report.paymentCount })}
               />
               <StatTile
                 icon={Receipt}
-                label="Average per member"
+                label={t('Average per member')}
                 value={money(
                   // Guarded rather than shown as NaN: an empty month is a real
                   // state, and "Rs. NaN" reads as a broken page.
@@ -322,13 +335,13 @@ export default function MonthlyCollection() {
                   icon={CheckCircle2}
                   title={
                     search
-                      ? 'Nobody matching that search owes anything'
-                      : `Everyone has settled for ${report.label}`
+                      ? t('Nobody matching that search owes anything')
+                      : t('Everyone has settled for {month}', { month: report.label })
                   }
                   hint={
                     search
-                      ? 'Try a different name, phone number or member number.'
-                      : 'Members whose membership ran during this month and who still owe part of the fee would be listed here.'
+                      ? t('Try a different name, phone number or member number.')
+                      : t('Members whose membership ran during this month and who still owe part of the fee would be listed here.')
                   }
                 />
               ) : (
@@ -337,11 +350,11 @@ export default function MonthlyCollection() {
             ) : report.data.length === 0 ? (
               <EmptyState
                 icon={Receipt}
-                title={search ? 'No members match that search' : `Nothing recorded in ${report.label}`}
+                title={search ? t('No members match that search') : t('Nothing recorded in {month}', { month: report.label })}
                 hint={
                   search
-                    ? 'Try a different name, phone number or member number.'
-                    : 'Payments recorded for this month will appear here, one row per member.'
+                    ? t('Try a different name, phone number or member number.')
+                    : t('Payments recorded for this month will appear here, one row per member.')
                 }
               />
             ) : (
@@ -352,12 +365,12 @@ export default function MonthlyCollection() {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 dark:bg-slate-800/60 text-left">
                       <tr className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
-                        <th className="px-4 py-3 font-semibold">Member</th>
-                        <th className="px-4 py-3 font-semibold">Phone</th>
-                        <th className="px-4 py-3 font-semibold text-right">Paid</th>
-                        <th className="px-4 py-3 font-semibold text-right">Unpaid</th>
-                        <th className="px-4 py-3 font-semibold text-center">Entries</th>
-                        <th className="px-4 py-3 font-semibold">Last paid</th>
+                        <th className="px-4 py-3 font-semibold">{t('Member')}</th>
+                        <th className="px-4 py-3 font-semibold">{t('Phone')}</th>
+                        <th className="px-4 py-3 font-semibold text-right">{t('Paid')}</th>
+                        <th className="px-4 py-3 font-semibold text-right">{t('Unpaid')}</th>
+                        <th className="px-4 py-3 font-semibold text-center">{t('Entries')}</th>
+                        <th className="px-4 py-3 font-semibold">{t('Last paid')}</th>
                         <th className="px-4 py-3" />
                       </tr>
                     </thead>
@@ -394,8 +407,7 @@ export default function MonthlyCollection() {
               <div className="mt-6">
                 <h2 className="text-sm font-bold uppercase tracking-wide text-gray-500 dark:text-slate-400 mb-3 flex items-center gap-2">
                   <AlertCircle size={15} className="text-red-500 dark:text-red-400" />
-                  Still owing · {report.unpaid.length} member
-                  {report.unpaid.length === 1 ? '' : 's'}
+                  {t(report.unpaid.length === 1 ? 'Still owing · {count} member' : 'Still owing · {count} members', { count: report.unpaid.length })}
                 </h2>
                 <UnpaidList rows={report.unpaid} />
               </div>
@@ -405,8 +417,12 @@ export default function MonthlyCollection() {
           {view !== 'unpaid' && (report.hasMore || page > 1) && (
             <div className="flex items-center justify-between gap-3 mt-4">
               <p className="text-sm text-gray-500 dark:text-slate-400">
-                Page {report.page} · {report.memberCount} member
-                {report.memberCount === 1 ? '' : 's'} in {report.label}
+                {t(
+                  report.memberCount === 1
+                    ? 'Page {page} · {count} member in {month}'
+                    : 'Page {page} · {count} members in {month}',
+                  { page: report.page, count: report.memberCount, month: report.label },
+                )}
               </p>
               <div className="flex gap-2">
                 <button
@@ -414,14 +430,14 @@ export default function MonthlyCollection() {
                   disabled={page === 1 || refetching}
                   className={secondaryButton}
                 >
-                  <ChevronLeft size={16} /> Previous
+                  <ChevronLeft size={16} /> {t('Previous')}
                 </button>
                 <button
                   onClick={() => setPage(p => p + 1)}
                   disabled={!report.hasMore || refetching}
                   className={secondaryButton}
                 >
-                  Next <ChevronRight size={16} />
+                  {t('Next')} <ChevronRight size={16} />
                 </button>
               </div>
             </div>
@@ -442,6 +458,7 @@ interface RowProps {
 
 /** The receipts behind one member's total, shared by both layouts. */
 function Entries({ row }: { row: MonthlyCollectionRow }) {
+  const { t } = useLanguage();
   return (
     <div className="space-y-1.5">
       {row.payments.map(p => (
@@ -457,9 +474,11 @@ function Entries({ row }: { row: MonthlyCollectionRow }) {
           </span>
           <Badge status={p.status} />
           <Badge status={p.method} />
-          <span className="text-gray-400 dark:text-slate-500 capitalize">{p.type}</span>
+          <span className="text-gray-400 dark:text-slate-500 capitalize">
+            {t(TYPE_NAMES[p.type] ?? p.type)}
+          </span>
           {p.recordedBy && (
-            <span className="text-gray-400 dark:text-slate-500">· by {p.recordedBy.name}</span>
+            <span className="text-gray-400 dark:text-slate-500">· {t('by {name}', { name: p.recordedBy.name })}</span>
           )}
           {p.notes && (
             <span className="text-gray-500 dark:text-slate-400 basis-full truncate" title={p.notes}>
@@ -473,6 +492,7 @@ function Entries({ row }: { row: MonthlyCollectionRow }) {
 }
 
 function MemberRow({ row, open, onToggle }: RowProps) {
+  const { t } = useLanguage();
   return (
     <>
       <tr className="hover:bg-gray-50 dark:hover:bg-slate-800/40 transition-colors">
@@ -499,7 +519,7 @@ function MemberRow({ row, open, onToggle }: RowProps) {
           <button
             onClick={onToggle}
             aria-expanded={open}
-            aria-label={open ? `Hide ${row.name}'s payments` : `Show ${row.name}'s payments`}
+            aria-label={open ? t("Hide {name}'s payments", { name: row.name }) : t("Show {name}'s payments", { name: row.name })}
             className={`p-1.5 rounded-lg text-gray-400 dark:text-slate-500 hover:bg-gray-100
               dark:hover:bg-slate-700 transition-colors ${focusRing}`}
           >
@@ -530,19 +550,20 @@ function MemberRow({ row, open, onToggle }: RowProps) {
  * inferable from the others.
  */
 function UnpaidList({ rows }: { rows: readonly UnpaidRow[] }) {
+  const { t } = useLanguage();
   return (
     <Card className="overflow-hidden">
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-slate-800/60 text-left">
             <tr className="text-xs uppercase tracking-wide text-gray-500 dark:text-slate-400">
-              <th className="px-4 py-3 font-semibold">Member</th>
-              <th className="px-4 py-3 font-semibold">Phone</th>
-              <th className="px-4 py-3 font-semibold">Plan</th>
-              <th className="px-4 py-3 font-semibold">Expires</th>
-              <th className="px-4 py-3 font-semibold text-right">Expected</th>
-              <th className="px-4 py-3 font-semibold text-right">Paid</th>
-              <th className="px-4 py-3 font-semibold text-right">Shortfall</th>
+              <th className="px-4 py-3 font-semibold">{t('Member')}</th>
+              <th className="px-4 py-3 font-semibold">{t('Phone')}</th>
+              <th className="px-4 py-3 font-semibold">{t('Plan')}</th>
+              <th className="px-4 py-3 font-semibold">{t('Expires')}</th>
+              <th className="px-4 py-3 font-semibold text-right">{t('Expected')}</th>
+              <th className="px-4 py-3 font-semibold text-right">{t('Paid')}</th>
+              <th className="px-4 py-3 font-semibold text-right">{t('Shortfall')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
@@ -593,13 +614,13 @@ function UnpaidList({ rows }: { rows: readonly UnpaidRow[] }) {
               <div className="text-right shrink-0">
                 <p className="font-bold text-red-600 dark:text-red-400">{money(r.shortfall)}</p>
                 <p className="text-xs text-gray-400 dark:text-slate-500">
-                  {money(r.paid)} of {money(r.expected)}
+                  {t('{paid} of {expected}', { paid: money(r.paid), expected: money(r.expected) })}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2 mt-2">
               <span className="text-xs text-gray-500 dark:text-slate-400">
-                {r.membership.planName} · expires {shortDate(r.membership.expiryDate)}
+                {r.membership.planName} · {t('expires {date}', { date: shortDate(r.membership.expiryDate) })}
               </span>
               <Badge status={r.membership.status} />
             </div>
@@ -611,6 +632,7 @@ function UnpaidList({ rows }: { rows: readonly UnpaidRow[] }) {
 }
 
 function MemberCard({ row, open, onToggle }: RowProps) {
+  const { t } = useLanguage();
   return (
     <div className="p-4">
       <button
@@ -631,11 +653,11 @@ function MemberCard({ row, open, onToggle }: RowProps) {
           <p className="font-bold text-green-600 dark:text-green-400">{money(row.paid)}</p>
           {row.due > 0 && (
             <p className="text-xs font-semibold text-red-600 dark:text-red-400">
-              {money(row.due)} unpaid
+              {t('{amount} unpaid', { amount: money(row.due) })}
             </p>
           )}
           <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
-            {row.count} entr{row.count === 1 ? 'y' : 'ies'}
+            {t(row.count === 1 ? '{count} entry' : '{count} entries', { count: row.count })}
             <ChevronDown
               size={12}
               className={`inline ml-1 transition-transform ${open ? 'rotate-180' : ''}`}

@@ -6,6 +6,8 @@ import { inputClass, primaryButton } from '../components/ui';
 import api, { apiError } from '../api/client';
 import GoogleSignIn from '../components/GoogleSignIn';
 import InstallButton from '../components/InstallButton';
+import LanguageToggle from '../components/LanguageToggle';
+import { useLanguage } from '../context/LanguageContext';
 import { isTwoFactorChallenge, type AuthResponse, type LoginResponse } from '../types';
 import toast from 'react-hot-toast';
 import { takeAfterLogin } from '../utils/afterLogin';
@@ -19,6 +21,7 @@ export default function Login() {
   const [code, setCode] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   /** A session, or the code step when the account has a second factor. */
   const finish = (data: LoginResponse) => {
@@ -37,7 +40,7 @@ export default function Login() {
       const { data } = await api.post<LoginResponse>('/auth/login', form);
       finish(data);
     } catch (err) {
-      toast.error(apiError(err, 'Login failed'));
+      toast.error(apiError(err, t('Login failed')));
     } finally {
       setLoading(false);
     }
@@ -54,7 +57,7 @@ export default function Login() {
       login(data.user, data.gym);
       navigate(takeAfterLogin() ?? '/dashboard');
     } catch (err) {
-      toast.error(apiError(err, 'Invalid code'));
+      toast.error(apiError(err, t('Invalid code')));
     } finally {
       setLoading(false);
     }
@@ -68,15 +71,18 @@ export default function Login() {
             <Dumbbell className="text-blue-600" size={28} />
             <span className="text-xl font-bold text-gray-900 dark:text-slate-100">GymPro</span>
           </div>
-          <InstallButton variant="navbar" />
+          <div className="flex items-center gap-2">
+            <LanguageToggle />
+            <InstallButton variant="navbar" />
+          </div>
         </div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-1">
-          {challenge ? 'Two-factor check' : 'Welcome back'}
+          {challenge ? t('Two-factor check') : t('Welcome back')}
         </h1>
         <p className="text-gray-500 dark:text-slate-400 text-sm mb-6">
           {challenge
-            ? 'Enter the 6-digit code from your authenticator app, or a backup code'
-            : 'Sign in to your gym dashboard'}
+            ? t('Enter the 6-digit code from your authenticator app, or a backup code')
+            : t('Sign in to your gym dashboard')}
         </p>
 
         {challenge ? (
@@ -84,7 +90,7 @@ export default function Login() {
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                 <ShieldCheck size={14} className="inline-block mr-1 -mt-0.5 text-blue-600" />
-                Authentication code
+                {t('Authentication code')}
               </label>
               <input
                 type="text"
@@ -99,7 +105,7 @@ export default function Login() {
               />
             </div>
             <button type="submit" disabled={loading} className={`w-full ${primaryButton}`}>
-              {loading ? 'Verifying...' : 'Verify & Sign In'}
+              {loading ? t('Verifying...') : t('Verify & Sign In')}
             </button>
             {/* A failed or abandoned challenge goes back to the password step;
                 the token itself expires after 10 minutes regardless. */}
@@ -108,14 +114,14 @@ export default function Login() {
               onClick={() => { setChallenge(null); setCode(''); }}
               className="w-full text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200"
             >
-              Back to sign in
+              {t('Back to sign in')}
             </button>
           </form>
         ) : (
           <>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">{t('Email')}</label>
                 <input
                   type="email"
                   required
@@ -127,9 +133,9 @@ export default function Login() {
               </div>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">Password</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">{t('Password')}</label>
                   <Link to="/forgot-password" className="text-xs text-blue-600 font-medium hover:underline">
-                    Forgot password?
+                    {t('Forgot password?')}
                   </Link>
                 </div>
                 <input
@@ -146,16 +152,16 @@ export default function Login() {
                 disabled={loading}
                 className={`w-full ${primaryButton}`}
               >
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? t('Signing in...') : t('Sign In')}
               </button>
             </form>
 
             <GoogleSignIn onSuccess={finish} />
 
             <p className="text-center text-sm text-gray-500 dark:text-slate-400 mt-4">
-              New gym?{' '}
+              {t('New gym?')}{' '}
               <Link to="/register" className="text-blue-600 font-medium hover:underline">
-                Register here
+                {t('Register here')}
               </Link>
             </p>
           </>

@@ -1,6 +1,7 @@
 /** @format */
 
 import { Card } from "../ui";
+import { useLanguage } from "../../context/LanguageContext";
 import type { PaymentSummary } from "../../types";
 
 export default function MonthlyTotals({
@@ -8,27 +9,32 @@ export default function MonthlyTotals({
 }: {
   summary: PaymentSummary;
 }) {
+  const { t } = useLanguage();
   return (
     <Card className="p-4 sm:p-5 mb-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
         <div>
           <h2 className="font-bold text-gray-900 dark:text-slate-100">
-            Monthly totals
+            {t("Monthly totals")}
           </h2>
           <p className="text-xs text-gray-400 dark:text-slate-500">
-            Settled payments only · last {summary.months} months
+            {t("Settled payments only · last {months} months", {
+              months: summary.months,
+            })}
           </p>
         </div>
         <div className="text-right">
           <p className="text-xs text-gray-400 dark:text-slate-500">
-            This month
+            {t("This month")}
           </p>
           <p className="text-xl font-bold text-gray-900 dark:text-slate-100">
             Rs. {summary.thisMonth.toLocaleString()}
           </p>
           {summary.lastMonth > 0 && (
             <p className="text-xs text-gray-400 dark:text-slate-500">
-              vs Rs. {summary.lastMonth.toLocaleString()} last month
+              {t("vs Rs. {amount} last month", {
+                amount: summary.lastMonth.toLocaleString(),
+              })}
             </p>
           )}
         </div>
@@ -39,18 +45,18 @@ export default function MonthlyTotals({
           <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-800">
             <tr>
               <th className="text-left px-3 py-2 font-semibold text-gray-600 dark:text-slate-300">
-                Month
+                {t("Month")}
               </th>
               {["Membership", "Supplements", "Lockers", "Other"].map((h) => (
                 <th
                   key={h}
                   className="text-right px-3 py-2 font-semibold text-gray-600 dark:text-slate-300"
                 >
-                  {h}
+                  {t(h)}
                 </th>
               ))}
               <th className="text-right px-3 py-2 font-semibold text-gray-600 dark:text-slate-300">
-                Total
+                {t("Total")}
               </th>
             </tr>
           </thead>
@@ -68,7 +74,7 @@ export default function MonthlyTotals({
                   {m.label}
                   {i === summary.byMonth.length - 1 && (
                     <span className="ml-2 text-xs font-normal text-blue-600">
-                      so far
+                      {t("so far")}
                     </span>
                   )}
                 </td>
@@ -93,7 +99,7 @@ export default function MonthlyTotals({
           <tfoot className="border-t-2 border-gray-200 dark:border-slate-800">
             <tr>
               <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-slate-100">
-                Grand total
+                {t("Grand total")}
               </td>
               {(["membership", "supplement", "locker", "other"] as const).map((k) => (
                 <td
@@ -118,9 +124,15 @@ export default function MonthlyTotals({
         // from four months ago is still owed today. Kept out of the totals
         // above: it is a debt the gym is owed, not income it has received.
         <p className="mt-3 text-xs text-gray-500 dark:text-slate-400">
-          Rs. {summary.dueTotal.toLocaleString()} still outstanding across{" "}
-          {summary.dueCount} unpaid{" "}
-          {summary.dueCount === 1 ? "entry" : "entries"}, not counted above.
+          {t(
+            summary.dueCount === 1
+              ? "Rs. {amount} still outstanding across {count} unpaid entry, not counted above."
+              : "Rs. {amount} still outstanding across {count} unpaid entries, not counted above.",
+            {
+              amount: summary.dueTotal.toLocaleString(),
+              count: summary.dueCount,
+            },
+          )}
         </p>
       )}
     </Card>

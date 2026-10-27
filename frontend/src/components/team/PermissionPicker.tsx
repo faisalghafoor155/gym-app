@@ -6,6 +6,7 @@ import {
   getStaffPermissions,
 } from '../../utils/permissions';
 import { FieldLabel, inputClass } from '../ui';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * What each capability is called when the owner is deciding who gets it.
@@ -53,6 +54,7 @@ export default function PermissionPicker({ id, value, onChange }: {
   value: StaffPermission;
   onChange: (permission: StaffPermission) => void;
 }) {
+  const { t } = useLanguage();
   const granted = getStaffPermissions(value);
   const allowed = Object.keys(CAPABILITY_LABELS).filter(
     key => granted[key as keyof typeof granted],
@@ -60,7 +62,7 @@ export default function PermissionPicker({ id, value, onChange }: {
 
   return (
     <div>
-      <FieldLabel htmlFor={id} required>Permission Level</FieldLabel>
+      <FieldLabel htmlFor={id} required>{t('Permission Level')}</FieldLabel>
       <select
         id={id}
         required
@@ -70,13 +72,13 @@ export default function PermissionPicker({ id, value, onChange }: {
       >
         {PERMISSION_ORDER.map(permission => (
           <option key={permission} value={permission}>
-            {getPermissionLabel(permission)}
+            {t(getPermissionLabel(permission))}
           </option>
         ))}
       </select>
 
       <p className="text-xs text-gray-500 dark:text-slate-400 mt-2 leading-relaxed">
-        {getPermissionDescription(value)}
+        {t(getPermissionDescription(value))}
       </p>
 
       <div className="flex flex-wrap gap-1.5 mt-2.5">
@@ -85,7 +87,7 @@ export default function PermissionPicker({ id, value, onChange }: {
             key={key}
             className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 border border-blue-100 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/20"
           >
-            {CAPABILITY_LABELS[key]}
+            {t(CAPABILITY_LABELS[key] ?? key)}
           </span>
         ))}
       </div>

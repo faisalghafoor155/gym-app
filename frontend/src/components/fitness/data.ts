@@ -167,7 +167,7 @@ export const WORKOUT_SPLIT_DAYS: WorkoutSplitDay[] = [
   {
     day: 'Day 1: Chest & Triceps (Heavy Push)',
     tag: 'Upper Body',
-    gamesCount: '5 Games / Exercises',
+    gamesCount: '5 Exercises',
     exercises: [
       {
         name: 'Flat Barbell Bench Press',
@@ -222,12 +222,12 @@ export const WORKOUT_SPLIT_DAYS: WorkoutSplitDay[] = [
         photoMuscle: 'arms',
       },
     ],
-    intensity: 'Heavy Compound Lift. Pre-workout 25 min pehle len!',
+    intensity: 'Heavy compound lifts. Take your pre-workout 25 min before!',
   },
   {
     day: 'Day 2: Back & Biceps (Heavy Pull & Lats)',
     tag: 'Pull Power',
-    gamesCount: '5 Games / Exercises',
+    gamesCount: '5 Exercises',
     exercises: [
       { name: 'Deadlifts (Conventional)', sets: '4 sets', reps: '5-6 reps', tip: 'Spine & trap thickness', photoId: 'deadlift', photoMuscle: 'back' },
       { name: 'Wide Grip Lat Pulldown', sets: '4 sets', reps: '8-10 reps', tip: 'V-Taper back width', photoId: 'lat_pulldown', photoMuscle: 'back' },
@@ -245,12 +245,12 @@ export const WORKOUT_SPLIT_DAYS: WorkoutSplitDay[] = [
       { name: 'Seated Cable Row', sets: '3 sets', reps: '10-12 reps', tip: 'Lats contraction', photoId: 'bent_over_row', photoMuscle: 'back' },
       { name: 'Barbell Bicep Curls', sets: '4 sets', reps: '8-10 reps', tip: 'Bicep peak & mass', photoId: 'bicep_curl', photoMuscle: 'arms' },
     ],
-    intensity: 'High calorie burn day. Post-workout Mass Gainer foran len!',
+    intensity: 'High calorie burn day. Take your Mass Gainer right after the workout!',
   },
   {
     day: 'Day 3: Shoulders & Abs (Boulders & Core)',
     tag: 'Delts & Core',
-    gamesCount: '5 Games / Exercises',
+    gamesCount: '5 Exercises',
     exercises: [
       { name: 'Overhead Barbell Military Press', sets: '4 sets', reps: '6-8 reps', tip: 'Front delt power', photoId: 'overhead_press', photoMuscle: 'shoulders' },
       {
@@ -273,7 +273,7 @@ export const WORKOUT_SPLIT_DAYS: WorkoutSplitDay[] = [
   {
     day: 'Day 4: Legs & Calves (Mass Builder)',
     tag: 'Lower Body',
-    gamesCount: '5 Games / Exercises',
+    gamesCount: '5 Exercises',
     exercises: [
       {
         name: 'Barbell Back Squats',
@@ -291,12 +291,12 @@ export const WORKOUT_SPLIT_DAYS: WorkoutSplitDay[] = [
       { name: 'Leg Extensions', sets: '3 sets', reps: '15 reps (Burnout)', tip: 'Quad separation', photoId: 'leg_press', photoMuscle: 'legs' },
       { name: 'Standing Calf Raises', sets: '4 sets', reps: '15-20 reps', tip: 'Calf muscle volume', photoId: 'barbell_squats', photoMuscle: 'legs' },
     ],
-    intensity: 'Sab se zyada calorie burn hoti ha. Extra water & Mass Gainer zaroor len.',
+    intensity: 'The biggest calorie burn of the week. Make sure to have extra water and your Mass Gainer.',
   },
   {
     day: 'Day 5: Arms Special (Biceps & Triceps Blast)',
     tag: 'Arm Size',
-    gamesCount: '5 Games / Exercises',
+    gamesCount: '5 Exercises',
     exercises: [
       { name: 'Incline Dumbbell Bicep Curls', sets: '3 sets', reps: '10 reps', tip: 'Full bicep stretch', photoId: 'bicep_curl', photoMuscle: 'arms' },
       { name: 'EZ-Bar Skullcrushers', sets: '3 sets', reps: '8-10 reps', tip: 'Tricep long head mass', photoId: 'tricep_pushdown', photoMuscle: 'arms' },

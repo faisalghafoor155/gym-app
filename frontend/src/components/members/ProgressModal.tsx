@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useDialog } from '../../hooks/useDialog';
+import { useLanguage } from '../../context/LanguageContext';
 import ProgressPanel from '../progress/ProgressPanel';
 import type { Member } from '../../types';
 
@@ -10,6 +11,7 @@ import type { Member } from '../../types';
  * a form-width dialog are too small to read.
  */
 export default function ProgressModal({ member, onClose }: { member: Member; onClose: () => void }) {
+  const { t } = useLanguage();
   const ref = useDialog(true, onClose);
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -24,11 +26,11 @@ export default function ProgressModal({ member, onClose }: { member: Member; onC
         <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-slate-800 shrink-0">
           <div>
             <h2 id="progress-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
-              Progress tracking
+              {t('Progress tracking')}
             </h2>
             <p className="text-sm text-gray-500 dark:text-slate-400">{member.name} · {member.memberNo}</p>
           </div>
-          <button onClick={onClose} aria-label="Close" className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 p-1 -mr-1">
+          <button onClick={onClose} aria-label={t('Close')} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 p-1 -mr-1">
             <X size={20} />
           </button>
         </div>

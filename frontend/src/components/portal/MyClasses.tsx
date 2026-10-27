@@ -5,11 +5,18 @@ import api, { apiError } from '../../api/client';
 import { Card, InlineEmpty, Spinner, focusRing, secondaryButton } from '../ui';
 import ConfirmDialog from '../ConfirmDialog';
 import type { MyBooking, MyScheduleSlot, Paginated } from '../../types';
+import { translate, useLanguage, type Language } from '../../context/LanguageContext';
 
-/** A date as the API wants it, and as a day the member reads. */
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+/** A date as the API wants it, and as a day the member reads. In Urdu the
+ *  weekday comes from the dictionary, since the browser's locale names it in
+ *  English. */
 const iso = (d: Date): string => d.toISOString();
-const dayLabel = (d: Date): string =>
-  d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
+const dayLabel = (d: Date, lang: Language): string =>
+  lang === 'ur'
+    ? `${translate(lang, WEEKDAYS[d.getDay()]!)}, ${d.getDate()} ${d.toLocaleDateString('en', { month: 'short' })}`
+    : d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
 
 const isToday = (d: Date): boolean => {
   const today = new Date();
@@ -31,6 +38,7 @@ const atMidnight = (d: Date): Date => {
  * and the server decides which sessions recur on it.
  */
 export default function MyClasses({ onChange }: { onChange?: () => void }) {
+  const { lang, t } = useLanguage();
   const [day, setDay] = useState(() => atMidnight(new Date()));
   const [slots, setSlots] = useState<MyScheduleSlot[] | null>(null);
   const [bookings, setBookings] = useState<MyBooking[]>([]);
@@ -46,12 +54,12 @@ export default function MyClasses({ onChange }: { onChange?: () => void }) {
       setSlots(schedule.data);
       setBookings(mine.data.data);
     } catch (err) {
-      toast.error(apiError(err, 'Could not load classes'));
+      toast.error(apiError(err, t('Could not load classes')));
       // Left as an empty timetable rather than null, so the day still renders
       // its own "nothing on" state instead of spinning for ever.
       setSlots([]);
     }
-  }, [day]);
+  }, [day, t]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -59,13 +67,13 @@ export default function MyClasses({ onChange }: { onChange?: () => void }) {
     setBusy(slot.id);
     try {
       await api.post('/me/bookings', { scheduleId: slot.id, bookingDate: iso(day) });
-      toast.success(`Booked into ${slot.className}`);
+      toast.success(t('Booked into {name}', { name: slot.className }));
       await load();
       onChange?.();
     } catch (err) {
       // The server's message is the useful one — it distinguishes a full class
       // from a lapsed membership, and says to renew in the second case.
-      toast.error(apiError(err, 'Could not book that class'));
+      toast.error(apiError(err, t('Could not book that class')));
     } finally {
       setBusy(null);
     }
@@ -75,12 +83,12 @@ export default function MyClasses({ onChange }: { onChange?: () => void }) {
     setBusy(booking.id);
     try {
       await api.delete(`/me/bookings/${booking.id}`);
-      toast.success('Booking cancelled');
+      toast.success(t('Booking cancelled'));
       setCancelling(null);
       await load();
       onChange?.();
     } catch (err) {
-      toast.error(apiError(err, 'Could not cancel that booking'));
+      toast.error(apiError(err, t('Could not cancel that booking')));
     } finally {
       setBusy(null);
     }
@@ -102,7 +110,7 @@ export default function MyClasses({ onChange }: { onChange?: () => void }) {
       {upcoming.length > 0 && (
         <Card className="p-5">
           <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-            <Calendar size={16} className="text-blue-600" /> Your next classes
+            <Calendar size={16} className="text-blue-600" /> {t('Your next classes')}
           </h2>
           <ul className="space-y-2">
             {upcoming.map(b => (
@@ -124,7 +132,7 @@ export default function MyClasses({ onChange }: { onChange?: () => void }) {
                   disabled={busy === b.id}
                   className={`shrink-0 text-xs font-semibold text-red-600 hover:text-red-700 disabled:opacity-50 ${focusRing} rounded-lg px-2 py-1`}
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
               </li>
             ))}
@@ -136,24 +144,24 @@ export default function MyClasses({ onChange }: { onChange?: () => void }) {
         <div className="flex items-center justify-between gap-3 mb-4">
           <h2 className="font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2 min-w-0">
             <Calendar size={16} className="text-blue-600" />
-            <span className="truncate">{dayLabel(day)}</span>
+            <span className="truncate">{dayLabel(day, lang)}</span>
             {isToday(day) && (
               <span className="text-xs font-medium text-blue-600 dark:text-blue-400 shrink-0">
-                Today
+                {t('Today')}
               </span>
             )}
           </h2>
           <div className="flex gap-1 shrink-0">
             <button
               onClick={() => shiftDay(-1)}
-              aria-label="Previous day"
+              aria-label={t('Previous day')}
               className={`p-1.5 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 ${focusRing}`}
             >
               <ChevronLeft size={16} />
             </button>
             <button
               onClick={() => shiftDay(1)}
-              aria-label="Next day"
+              aria-label={t('Next day')}
               className={`p-1.5 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 ${focusRing}`}
             >
               <ChevronRight size={16} />
@@ -166,7 +174,7 @@ export default function MyClasses({ onChange }: { onChange?: () => void }) {
             <Spinner className="w-6 h-6" />
           </div>
         ) : slots.length === 0 ? (
-          <InlineEmpty message="No classes scheduled for this day." />
+          <InlineEmpty message={t('No classes scheduled for this day.')} />
         ) : (
           <ul className="space-y-3">
             {slots.map(slot => {
@@ -188,13 +196,13 @@ export default function MyClasses({ onChange }: { onChange?: () => void }) {
                       <Users size={11} />
                       {/* What is left, not who is in it: the API counts the
                           others and never names them. */}
-                      {slot.remainingCapacity} of {slot.capacity} places left
+                      {t('{left} of {capacity} places left', { left: slot.remainingCapacity, capacity: slot.capacity })}
                     </p>
                   </div>
 
                   {slot.booked ? (
                     <span className="shrink-0 inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300">
-                      Booked
+                      {t('Booked')}
                     </span>
                   ) : (
                     <button
@@ -202,7 +210,7 @@ export default function MyClasses({ onChange }: { onChange?: () => void }) {
                       disabled={full || busy === slot.id}
                       className={`shrink-0 ${secondaryButton} disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      {busy === slot.id ? 'Booking…' : full ? 'Full' : 'Book'}
+                      {busy === slot.id ? t('Booking…') : full ? t('Full') : t('Book')}
                     </button>
                   )}
                 </li>
@@ -214,9 +222,9 @@ export default function MyClasses({ onChange }: { onChange?: () => void }) {
 
       {cancelling && (
         <ConfirmDialog
-          title="Give up this place?"
-          message={`Cancel your place in ${cancelling.className} on ${new Date(cancelling.bookingDate).toLocaleDateString()}? Someone else can take it.`}
-          confirmLabel="Cancel booking"
+          title={t('Give up this place?')}
+          message={t('Cancel your place in {name} on {date}? Someone else can take it.', { name: cancelling.className, date: new Date(cancelling.bookingDate).toLocaleDateString() })}
+          confirmLabel={t('Cancel booking')}
           tone="danger"
           busy={busy === cancelling.id}
           onConfirm={() => void cancel(cancelling)}

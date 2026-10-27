@@ -1,6 +1,11 @@
 import { useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { translate } from '../context/LanguageContext';
+
+/** Mounted beside the toaster, outside the language provider, so it reads the
+ *  language the provider last wrote onto the page instead of the context. */
+const pageLang = () => (document.documentElement.lang === 'ur' ? 'ur' : 'en');
 
 /**
  * Tells the user a new build is waiting, and reloads only when they say so.
@@ -21,21 +26,24 @@ export default function UpdatePrompt() {
     if (!needRefresh) return;
 
     const id = toast(
-      (t) => (
-        <div className="flex items-center gap-3">
-          <span className="text-sm">A new version is available.</span>
-          <button
-            onClick={() => {
-              toast.dismiss(t.id);
-              // Activates the waiting worker and reloads once it is in charge.
-              void updateServiceWorker(true);
-            }}
-            className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors shrink-0"
-          >
-            Reload
-          </button>
-        </div>
-      ),
+      (t) => {
+        const lang = pageLang();
+        return (
+          <div className="flex items-center gap-3">
+            <span className="text-sm">{translate(lang, 'A new version is available.')}</span>
+            <button
+              onClick={() => {
+                toast.dismiss(t.id);
+                // Activates the waiting worker and reloads once it is in charge.
+                void updateServiceWorker(true);
+              }}
+              className="px-2.5 py-1 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors shrink-0"
+            >
+              {translate(lang, 'Reload')}
+            </button>
+          </div>
+        );
+      },
       // No auto-dismiss: a five-second window is not a choice, and the update
       // is not urgent enough to interrupt anything either.
       { duration: Infinity, id: 'sw-update' },

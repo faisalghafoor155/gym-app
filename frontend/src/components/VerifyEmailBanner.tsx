@@ -3,6 +3,7 @@ import { MailWarning } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 /**
  * Says the account's email has not been confirmed, and offers to send the link
@@ -23,6 +24,7 @@ import { useAuth } from '../context/AuthContext';
  */
 export default function VerifyEmailBanner() {
   const { user, isAuth } = useAuth();
+  const { t } = useLanguage();
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
 
@@ -40,11 +42,11 @@ export default function VerifyEmailBanner() {
       // that only ever reached the container log.
       toast.success(
         data.emailed
-          ? `Confirmation sent to ${user.email}`
-          : 'Email is not set up on this server — ask whoever installed it for the link.',
+          ? t('Confirmation sent to {email}', { email: user.email })
+          : t('Email is not set up on this server — ask whoever installed it for the link.'),
       );
     } catch (err) {
-      toast.error(apiError(err, 'Could not send the confirmation'));
+      toast.error(apiError(err, t('Could not send the confirmation')));
     } finally {
       setSending(false);
     }
@@ -57,8 +59,8 @@ export default function VerifyEmailBanner() {
     >
       <MailWarning size={14} className="shrink-0" />
       <span>
-        <span className="font-semibold">{user.email}</span> is not confirmed yet — a
-        password reset would go here.
+        <span className="font-semibold">{user.email}</span>{' '}
+        {t('is not confirmed yet — a password reset would go here.')}
       </span>
       <button
         type="button"
@@ -66,7 +68,7 @@ export default function VerifyEmailBanner() {
         disabled={sending || sent}
         className="underline underline-offset-2 font-semibold hover:no-underline disabled:opacity-60 disabled:no-underline"
       >
-        {sending ? 'Sending...' : sent ? 'Sent — check your inbox' : 'Send the link again'}
+        {sending ? t('Sending...') : sent ? t('Sent — check your inbox') : t('Send the link again')}
       </button>
     </div>
   );

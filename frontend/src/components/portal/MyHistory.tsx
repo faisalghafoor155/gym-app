@@ -8,6 +8,7 @@ import ReceiptModal from '../ReceiptModal';
 import type {
   Membership, MyPurchase, Paginated, Payment,
 } from '../../types';
+import { useLanguage } from '../../context/LanguageContext';
 
 /** How many rows a section loads at a time. */
 const PAGE_SIZE = 10;
@@ -20,7 +21,8 @@ const PAGE_SIZE = 10;
  * lot. So each loads a page and offers more, rather than fetching a history
  * that could be years long to render five rows of it.
  */
-function usePagedList<T>(url: string, label: string) {
+function usePagedList<T>(url: string, failMessage: string) {
+  const { t } = useLanguage();
   const [rows, setRows] = useState<T[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -34,7 +36,7 @@ function usePagedList<T>(url: string, label: string) {
       setRows(prev => (page === 1 ? data.data : [...prev, ...data.data]));
       setTotal(data.total);
     } catch (err) {
-      toast.error(apiError(err, `Could not load your ${label}`));
+      toast.error(apiError(err, t(failMessage)));
     } finally {
       setLoading(false);
       setMore(false);
@@ -59,11 +61,12 @@ function usePagedList<T>(url: string, label: string) {
 function ShowMore({
   hasMore, busy, left, onClick,
 }: { hasMore: boolean; busy: boolean; left: number; onClick: () => void }) {
+  const { t } = useLanguage();
   if (!hasMore) return null;
   return (
     <div className="flex justify-center pt-3">
       <button onClick={onClick} disabled={busy} className={secondaryButton}>
-        {busy ? 'Loading…' : `Show more · ${left} left`}
+        {busy ? t('Loading…') : t('Show more · {left} left', { left })}
       </button>
     </div>
   );
@@ -71,13 +74,14 @@ function ShowMore({
 
 /** Every membership the member has bought, newest first. */
 export function MyMemberships() {
+  const { t } = useLanguage();
   const { rows, total, loading, more, loadMore, hasMore } =
-    usePagedList<Membership>('/me/memberships', 'membership history');
+    usePagedList<Membership>('/me/memberships', 'Could not load your membership history');
 
   return (
     <Card className="p-5">
       <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-        <History size={16} className="text-blue-600" /> Membership history
+        <History size={16} className="text-blue-600" /> {t('Membership history')}
         {total > 0 && (
           <span className="text-xs font-normal text-gray-400 dark:text-slate-500">
             {total}
@@ -88,7 +92,7 @@ export function MyMemberships() {
       {loading ? (
         <div className="flex justify-center py-6"><Spinner className="w-6 h-6" /></div>
       ) : rows.length === 0 ? (
-        <InlineEmpty message="No memberships recorded yet." />
+        <InlineEmpty message={t('No memberships recorded yet.')} />
       ) : (
         <>
           <ul className="space-y-2">
@@ -125,13 +129,14 @@ export function MyMemberships() {
 
 /** What the member has bought over the counter. */
 export function MyPurchases() {
+  const { t } = useLanguage();
   const { rows, total, loading, more, loadMore, hasMore } =
-    usePagedList<MyPurchase>('/me/purchases', 'purchases');
+    usePagedList<MyPurchase>('/me/purchases', 'Could not load your purchases');
 
   return (
     <Card className="p-5">
       <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-        <ShoppingBag size={16} className="text-blue-600" /> Supplement purchases
+        <ShoppingBag size={16} className="text-blue-600" /> {t('Supplement purchases')}
         {total > 0 && (
           <span className="text-xs font-normal text-gray-400 dark:text-slate-500">
             {total}
@@ -142,7 +147,7 @@ export function MyPurchases() {
       {loading ? (
         <div className="flex justify-center py-6"><Spinner className="w-6 h-6" /></div>
       ) : rows.length === 0 ? (
-        <InlineEmpty message="Nothing bought from the counter yet." />
+        <InlineEmpty message={t('Nothing bought from the counter yet.')} />
       ) : (
         <>
           <ul className="space-y-2">
@@ -197,17 +202,18 @@ export function MyPayments({
    *  of them belongs to the person reading the page. */
   member: { name: string; phone: string | null; memberNo: string };
 }) {
+  const { t } = useLanguage();
   const [receipt, setReceipt] = useState<Payment | null>(null);
 
   return (
     <>
       <Card className="p-5">
         <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-          <Receipt size={16} className="text-blue-600" /> Payment history
+          <Receipt size={16} className="text-blue-600" /> {t('Payment history')}
         </h2>
 
         {payments.length === 0 ? (
-          <InlineEmpty message="No payments recorded yet." />
+          <InlineEmpty message={t('No payments recorded yet.')} />
         ) : (
           <ul className="space-y-2">
             {payments.map(p => (
@@ -232,7 +238,7 @@ export function MyPayments({
                       onClick={() => setReceipt({ ...p, member })}
                       className={secondaryButton}
                     >
-                      Receipt
+                      {t('Receipt')}
                     </button>
                   )}
                 </div>

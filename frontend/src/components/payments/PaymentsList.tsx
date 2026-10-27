@@ -3,6 +3,7 @@
 import { Pencil, Trash2, Receipt } from "lucide-react";
 import Badge from "../Badge";
 import { Card, IconButton } from "../ui";
+import { useLanguage } from "../../context/LanguageContext";
 import { channelLabel } from "../../utils/paymentChannels";
 import type { Payment } from "../../types";
 
@@ -21,6 +22,7 @@ export default function PaymentsList({
   onDelete,
   onReceipt,
 }: Props) {
+  const { t } = useLanguage();
   return (
     <>
       {/* Mobile: cards — an eight-column table cannot fit a phone screen */}
@@ -50,7 +52,7 @@ export default function PaymentsList({
               <Badge status={p.method} />
               {p.channel && (
                 <span className="text-xs font-medium text-gray-500 dark:text-slate-400">
-                  {channelLabel(p.channel)}
+                  {t(channelLabel(p.channel))}
                 </span>
               )}
               <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">
@@ -70,18 +72,18 @@ export default function PaymentsList({
               <div className="flex items-center gap-1 mt-2 -mb-1 -mr-1">
                 {p.recordedBy && (
                   <span className="text-xs text-gray-400 dark:text-slate-500 truncate mr-auto">
-                    by {p.recordedBy.name}
+                    {t("by {name}", { name: p.recordedBy.name })}
                   </span>
                 )}
                 <IconButton
                   icon={Pencil}
-                  label={`Edit payment for ${p.member.name}`}
+                  label={t("Edit payment for {name}", { name: p.member.name })}
                   onClick={() => onEdit(p)}
                 />
                 <IconButton
                   icon={Trash2}
                   tone="red"
-                  label={`Delete payment for ${p.member.name}`}
+                  label={t("Delete payment for {name}", { name: p.member.name })}
                   onClick={() => onDelete(p)}
                 />
               </div>
@@ -108,18 +110,18 @@ export default function PaymentsList({
                     key={h}
                     className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-slate-300"
                   >
-                    {h}
+                    {t(h)}
                   </th>
                 ))}
                 {/* Staff see only their own entries, so "who took this"
                     would tell them nothing they did not already know. */}
                 {isOwner && (
                   <th className="text-left px-4 py-3 font-semibold text-gray-600 dark:text-slate-300">
-                    Taken by
+                    {t("Taken by")}
                   </th>
                 )}
                 <th className="px-4 py-3 w-28 text-right">
-                  <span className="sr-only">Actions</span>
+                  <span className="sr-only">{t("Actions")}</span>
                 </th>
               </tr>
             </thead>
@@ -148,7 +150,7 @@ export default function PaymentsList({
                     <Badge status={p.method} />
                     {p.channel && (
                       <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
-                        {channelLabel(p.channel)}
+                        {t(channelLabel(p.channel))}
                       </p>
                     )}
                   </td>
@@ -175,20 +177,20 @@ export default function PaymentsList({
                     <div className="flex justify-end gap-1">
                       <IconButton
                         icon={Receipt}
-                        label={`Receipt for ${p.member.name}`}
+                        label={t("Receipt for {name}", { name: p.member.name })}
                         onClick={() => onReceipt(p)}
                       />
                       {isOwner && (
                         <>
                           <IconButton
                             icon={Pencil}
-                            label={`Edit payment for ${p.member.name}`}
+                            label={t("Edit payment for {name}", { name: p.member.name })}
                             onClick={() => onEdit(p)}
                           />
                           <IconButton
                             icon={Trash2}
                             tone="red"
-                            label={`Delete payment for ${p.member.name}`}
+                            label={t("Delete payment for {name}", { name: p.member.name })}
                             onClick={() => onDelete(p)}
                           />
                         </>

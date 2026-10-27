@@ -291,7 +291,7 @@ describe('FingerprintEnrollModal — a reader that takes the finger itself', () 
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
     expect(api.post).toHaveBeenCalledWith('/fingerprint/device-enrol/start', { memberId: 'member-1' });
     // The machine's own number is what the desk reads off its screen.
-    expect(await screen.findByText(/ab machine par finger rakhwayein/i)).toBeInTheDocument();
+    expect(await screen.findByText(/place a finger on the machine/i)).toBeInTheDocument();
     expect(screen.getByText('12')).toBeInTheDocument();
   });
 
@@ -302,11 +302,11 @@ describe('FingerprintEnrollModal — a reader that takes the finger itself', () 
     await settled();
 
     await user.click(screen.getByRole('button', { name: /start on the machine/i }));
-    await screen.findByText(/ab machine par finger rakhwayein/i);
+    await screen.findByText(/place a finger on the machine/i);
     // Nothing is stored just because the machine was told to start.
     expect(api.post).toHaveBeenCalledTimes(1);
 
-    await user.click(screen.getByRole('button', { name: /machine ne finger le li/i }));
+    await user.click(screen.getByRole('button', { name: /the machine took the finger/i }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(2));
     expect(api.post.mock.calls[1]![0]).toBe('/fingerprint/device-enrol/confirm');

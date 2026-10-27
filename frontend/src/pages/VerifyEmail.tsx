@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Dumbbell, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageToggle from '../components/LanguageToggle';
 
 /**
  * Where the link in the confirmation email lands.
@@ -18,8 +20,11 @@ export default function VerifyEmail() {
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
   const { user, isAuth, refreshSession } = useAuth();
+  const { t } = useLanguage();
 
   const [state, setState] = useState<'working' | 'done' | 'failed'>('working');
+  // Kept in English and translated where it is shown, so it follows a
+  // language change made after the link was checked.
   const [message, setMessage] = useState('');
 
   // Strict mode mounts effects twice in development. Without this the second
@@ -52,16 +57,19 @@ export default function VerifyEmail() {
   return (
     <div className="min-h-dvh bg-gray-50 dark:bg-slate-800/60 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 w-full max-w-md p-6 sm:p-8">
-        <div className="flex items-center gap-2 mb-8">
-          <Dumbbell className="text-blue-600" size={28} />
-          <span className="text-xl font-bold text-gray-900 dark:text-slate-100">GymPro</span>
+        <div className="flex items-center justify-between gap-2 mb-8">
+          <div className="flex items-center gap-2">
+            <Dumbbell className="text-blue-600" size={28} />
+            <span className="text-xl font-bold text-gray-900 dark:text-slate-100">GymPro</span>
+          </div>
+          <LanguageToggle />
         </div>
 
         {state === 'working' && (
           <div className="text-center py-4" aria-live="polite">
             <Loader2 size={36} className="text-blue-600 mx-auto mb-3 animate-spin" />
             <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">
-              Confirming your email...
+              {t('Confirming your email...')}
             </h1>
           </div>
         )}
@@ -70,18 +78,18 @@ export default function VerifyEmail() {
           <div className="text-center py-4" aria-live="polite">
             <CheckCircle2 size={36} className="text-green-600 mx-auto mb-3" />
             <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-1">
-              Email confirmed
+              {t('Email confirmed')}
             </h1>
             <p className="text-gray-500 dark:text-slate-400 text-sm">
               {user?.email
-                ? `${user.email} is confirmed. A password reset will reach you here.`
-                : 'Thank you — a password reset will reach you at this address.'}
+                ? t('{email} is confirmed. A password reset will reach you here.', { email: user.email })
+                : t('Thank you — a password reset will reach you at this address.')}
             </p>
             <Link
               to={isAuth ? '/dashboard' : '/login'}
               className="inline-block mt-6 text-sm text-blue-600 font-medium hover:underline"
             >
-              {isAuth ? 'Back to the dashboard' : 'Sign in'}
+              {isAuth ? t('Back to the dashboard') : t('Sign in')}
             </Link>
           </div>
         )}
@@ -90,18 +98,17 @@ export default function VerifyEmail() {
           <div className="text-center py-4" aria-live="polite">
             <AlertTriangle size={36} className="text-yellow-500 mx-auto mb-3" />
             <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-1">
-              Could not confirm this link
+              {t('Could not confirm this link')}
             </h1>
-            <p className="text-gray-500 dark:text-slate-400 text-sm">{message}</p>
+            <p className="text-gray-500 dark:text-slate-400 text-sm">{t(message)}</p>
             <p className="text-gray-400 dark:text-slate-500 text-xs mt-3">
-              Nothing is blocked by this — sign in and send yourself a new link from
-              the banner at the top.
+              {t('Nothing is blocked by this — sign in and send yourself a new link from the banner at the top.')}
             </p>
             <Link
               to={isAuth ? '/dashboard' : '/login'}
               className="inline-block mt-6 text-sm text-blue-600 font-medium hover:underline"
             >
-              {isAuth ? 'Back to the dashboard' : 'Sign in'}
+              {isAuth ? t('Back to the dashboard') : t('Sign in')}
             </Link>
           </div>
         )}

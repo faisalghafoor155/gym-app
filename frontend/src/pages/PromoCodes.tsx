@@ -9,6 +9,7 @@ import {
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
+import { useLanguage, type TVars } from '../context/LanguageContext';
 import type { PromoCode, PromoKind } from '../types';
 
 const money = (n: number) => `Rs. ${n.toLocaleString('en-PK')}`;
@@ -23,8 +24,8 @@ const PRESETS: readonly { code: string; description: string; kind: PromoKind; va
   { code: 'EID25', description: 'Eid offer', kind: 'percent', value: 25 },
 ];
 
-const describe = (p: Pick<PromoCode, 'kind' | 'value'>) =>
-  p.kind === 'percent' ? `${p.value}% off` : `${money(p.value)} off`;
+const describe = (p: Pick<PromoCode, 'kind' | 'value'>, t: (s: string, vars?: TVars) => string) =>
+  p.kind === 'percent' ? t('{value}% off', { value: p.value }) : t('{amount} off', { amount: money(p.value) });
 
 /** Live, scheduled, expired, used up or off — the one word that matters. */
 function state(p: PromoCode): { label: string; tone: string } {
@@ -47,6 +48,7 @@ interface Form {
 }
 
 function PromoForm({ promo, onClose, onSaved }: { promo: PromoCode | null; onClose: () => void; onSaved: () => void }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState<Form>(() => promo
     ? {
         code: promo.code, description: promo.description ?? '', kind: promo.kind, value: String(promo.value),
@@ -64,23 +66,23 @@ function PromoForm({ promo, onClose, onSaved }: { promo: PromoCode | null; onClo
     try {
       if (promo) await api.put(`/promo-codes/${promo.id}`, body);
       else await api.post('/promo-codes', body);
-      toast.success(promo ? 'Promo code updated' : 'Promo code created');
+      toast.success(promo ? t('Promo code updated') : t('Promo code created'));
       onSaved();
     } catch (err) {
-      toast.error(apiError(err, 'Could not save promo code'));
+      toast.error(apiError(err, t('Could not save promo code')));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal title={promo ? 'Edit promo code' : 'New promo code'} onClose={onClose}>
+    <Modal title={promo ? t('Edit promo code') : t('New promo code')} onClose={onClose}>
       <form onSubmit={e => void submit(e)} className="space-y-4">
         {!promo && (
           <div className="flex flex-wrap gap-2">
             {PRESETS.map(p => (
               <button key={p.code} type="button"
-                onClick={() => setForm(f => ({ ...f, code: p.code, description: p.description, kind: p.kind, value: String(p.value) }))}
+                onClick={() => setForm(f => ({ ...f, code: p.code, description: t(p.description), kind: p.kind, value: String(p.value) }))}
                 className={`text-xs font-semibold px-2.5 py-1 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 hover:border-blue-400 ${focusRing}`}>
                 {p.code}
               </button>
@@ -89,17 +91,17 @@ function PromoForm({ promo, onClose, onSaved }: { promo: PromoCode | null; onClo
         )}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <FieldLabel htmlFor="promo-code" required>Code</FieldLabel>
+            <FieldLabel htmlFor="promo-code" required>{t('Code')}</FieldLabel>
             <input id="promo-code" required maxLength={40} value={form.code}
               onChange={e => set('code')(e.target.value.toUpperCase().replace(/\s/g, ''))}
               placeholder="EID25" className={`${inputClass} uppercase font-mono`} />
           </div>
           <div>
-            <FieldLabel htmlFor="promo-value" required>{form.kind === 'percent' ? 'Percent off' : 'Rupees off'}</FieldLabel>
+            <FieldLabel htmlFor="promo-value" required>{form.kind === 'percent' ? t('Percent off') : t('Rupees off')}</FieldLabel>
             <div className="flex gap-2">
               <input id="promo-value" type="number" required min={1} max={form.kind === 'percent' ? 100 : undefined} step={1}
                 value={form.value} onChange={e => set('value')(e.target.value)} className={inputClass} />
-              <select aria-label="Discount type" value={form.kind} onChange={e => set('kind')(e.target.value as PromoKind)}
+              <select aria-label={t('Discount type')} value={form.kind} onChange={e => set('kind')(e.target.value as PromoKind)}
                 className={`${inputClass} !w-20`}>
                 <option value="percent">%</option>
                 <option value="fixed">Rs</option>
@@ -108,30 +110,30 @@ function PromoForm({ promo, onClose, onSaved }: { promo: PromoCode | null; onClo
           </div>
         </div>
         <div>
-          <FieldLabel htmlFor="promo-desc">Who it is for</FieldLabel>
+          <FieldLabel htmlFor="promo-desc">{t('Who it is for')}</FieldLabel>
           <input id="promo-desc" maxLength={200} value={form.description}
-            onChange={e => set('description')(e.target.value)} placeholder="e.g. Students with a valid card"
+            onChange={e => set('description')(e.target.value)} placeholder={t('e.g. Students with a valid card')}
             className={inputClass} />
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <FieldLabel htmlFor="promo-from">From</FieldLabel>
+            <FieldLabel htmlFor="promo-from">{t('From')}</FieldLabel>
             <input id="promo-from" type="date" value={form.validFrom} onChange={e => set('validFrom')(e.target.value)} className={inputClass} />
           </div>
           <div>
-            <FieldLabel htmlFor="promo-until">Until</FieldLabel>
+            <FieldLabel htmlFor="promo-until">{t('Until')}</FieldLabel>
             <input id="promo-until" type="date" value={form.validUntil} onChange={e => set('validUntil')(e.target.value)} className={inputClass} />
           </div>
           <div>
-            <FieldLabel htmlFor="promo-max">Max uses</FieldLabel>
+            <FieldLabel htmlFor="promo-max">{t('Max uses')}</FieldLabel>
             <input id="promo-max" type="number" min={1} step={1} value={form.maxUses}
               onChange={e => set('maxUses')(e.target.value)} placeholder="∞" className={inputClass} />
           </div>
         </div>
         <div className="flex gap-3 pt-1">
-          <button type="button" onClick={onClose} className={`flex-1 ${secondaryButton}`}>Cancel</button>
+          <button type="button" onClick={onClose} className={`flex-1 ${secondaryButton}`}>{t('Cancel')}</button>
           <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
-            {saving ? 'Saving…' : promo ? 'Save' : 'Create code'}
+            {saving ? t('Saving…') : promo ? t('Save') : t('Create code')}
           </button>
         </div>
       </form>
@@ -144,7 +146,8 @@ function PromoForm({ promo, onClose, onSaved }: { promo: PromoCode | null; onClo
  * registering or renewing, and the server works out the price.
  */
 export default function PromoCodes() {
-  const { data, loading, refetching, reload } = useFetch<{ data: PromoCode[] }>('/promo-codes', 'Could not load promo codes');
+  const { t } = useLanguage();
+  const { data, loading, refetching, reload } = useFetch<{ data: PromoCode[] }>('/promo-codes', t('Could not load promo codes'));
   const [editing, setEditing] = useState<PromoCode | 'new' | null>(null);
   const [deleting, setDeleting] = useState<PromoCode | null>(null);
   const [busy, setBusy] = useState(false);
@@ -154,7 +157,7 @@ export default function PromoCodes() {
       await api.put(`/promo-codes/${p.id}`, { isActive: !p.isActive });
       await reload();
     } catch (err) {
-      toast.error(apiError(err, 'Could not update promo code'));
+      toast.error(apiError(err, t('Could not update promo code')));
     }
   };
 
@@ -163,32 +166,32 @@ export default function PromoCodes() {
     setBusy(true);
     try {
       const res = await api.delete<{ deactivated?: boolean }>(`/promo-codes/${deleting.id}`);
-      toast.success(res.data?.deactivated ? 'Code has been used, so it was switched off instead' : 'Promo code deleted');
+      toast.success(res.data?.deactivated ? t('Code has been used, so it was switched off instead') : t('Promo code deleted'));
       setDeleting(null);
       await reload();
     } catch (err) {
-      toast.error(apiError(err, 'Could not delete promo code'));
+      toast.error(apiError(err, t('Could not delete promo code')));
     } finally {
       setBusy(false);
     }
   };
 
   if (loading) return <PageLoader />;
-  if (!data) return <LoadFailed title="Could not load promo codes" />;
+  if (!data) return <LoadFailed title={t('Could not load promo codes')} />;
 
   return (
     <Page>
       <PageHeader
         icon={Ticket}
-        title="Discounts & Promo Codes"
-        subtitle="Family, student and seasonal offers, applied at registration and renewal"
-        action={<button onClick={() => setEditing('new')} className={primaryButton}><Plus size={16} /> New code</button>}
+        title={t('Discounts & Promo Codes')}
+        subtitle={t('Family, student and seasonal offers, applied at registration and renewal')}
+        action={<button onClick={() => setEditing('new')} className={primaryButton}><Plus size={16} /> {t('New code')}</button>}
       />
 
       {data.data.length === 0 ? (
-        <EmptyState icon={Ticket} title="No promo codes yet"
-          hint="Create a code like STUDENT or EID25, then type it in the Renew or Add Member form."
-          action={<button onClick={() => setEditing('new')} className={primaryButton}><Plus size={16} /> Create the first code</button>} />
+        <EmptyState icon={Ticket} title={t('No promo codes yet')}
+          hint={t('Create a code like STUDENT or EID25, then type it in the Renew or Add Member form.')}
+          action={<button onClick={() => setEditing('new')} className={primaryButton}><Plus size={16} /> {t('Create the first code')}</button>} />
       ) : (
         <Refetching busy={refetching}>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -199,21 +202,27 @@ export default function PromoCodes() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-mono font-bold text-lg text-gray-900 dark:text-slate-100">{p.code}</p>
-                      <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">{describe(p)}</p>
+                      <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">{describe(p, t)}</p>
                       {p.description && <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{p.description}</p>}
                     </div>
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${s.tone}`}>{s.label}</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${s.tone}`}>{t(s.label)}</span>
                   </div>
                   <div className="mt-3 text-xs text-gray-500 dark:text-slate-400 space-y-0.5">
-                    <p>Used {p.usedCount}{p.maxUses != null ? ` of ${p.maxUses}` : ''} time{p.usedCount === 1 ? '' : 's'} · {money(p.totalDiscount)} given</p>
+                    <p>
+                      {p.maxUses != null
+                        ? t(p.usedCount === 1 ? 'Used {count} of {max} time · {amount} given' : 'Used {count} of {max} times · {amount} given',
+                          { count: p.usedCount, max: p.maxUses, amount: money(p.totalDiscount) })
+                        : t(p.usedCount === 1 ? 'Used {count} time · {amount} given' : 'Used {count} times · {amount} given',
+                          { count: p.usedCount, amount: money(p.totalDiscount) })}
+                    </p>
                     {(p.validFrom || p.validUntil) && (
-                      <p>{p.validFrom ? shortDate(p.validFrom) : 'Now'} → {p.validUntil ? shortDate(p.validUntil) : 'no end'}</p>
+                      <p>{p.validFrom ? shortDate(p.validFrom) : t('Now')} → {p.validUntil ? shortDate(p.validUntil) : t('no end')}</p>
                     )}
                   </div>
                   <div className="flex items-center justify-end gap-1 mt-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-                    <IconButton icon={Power} label={p.isActive ? 'Switch off' : 'Switch on'} tone={p.isActive ? 'yellow' : 'green'} onClick={() => void toggle(p)} />
-                    <IconButton icon={Pencil} label={`Edit ${p.code}`} onClick={() => setEditing(p)} />
-                    <IconButton icon={Trash2} label={`Delete ${p.code}`} tone="red" onClick={() => setDeleting(p)} />
+                    <IconButton icon={Power} label={p.isActive ? t('Switch off') : t('Switch on')} tone={p.isActive ? 'yellow' : 'green'} onClick={() => void toggle(p)} />
+                    <IconButton icon={Pencil} label={t('Edit {name}', { name: p.code })} onClick={() => setEditing(p)} />
+                    <IconButton icon={Trash2} label={t('Delete {name}', { name: p.code })} tone="red" onClick={() => setDeleting(p)} />
                   </div>
                 </Card>
               );
@@ -228,11 +237,11 @@ export default function PromoCodes() {
       )}
       {deleting && (
         <ConfirmDialog
-          title="Delete promo code"
+          title={t('Delete promo code')}
           message={deleting.redemptions > 0
-            ? `${deleting.code} has already been used, so it will be switched off rather than deleted — the memberships it discounted keep their record.`
-            : `Delete ${deleting.code}? This cannot be undone.`}
-          confirmLabel={deleting.redemptions > 0 ? 'Switch off' : 'Delete'}
+            ? t('{code} has already been used, so it will be switched off rather than deleted — the memberships it discounted keep their record.', { code: deleting.code })
+            : t('Delete {code}? This cannot be undone.', { code: deleting.code })}
+          confirmLabel={deleting.redemptions > 0 ? t('Switch off') : t('Delete')}
           busy={busy}
           onConfirm={() => void remove()}
           onCancel={() => setDeleting(null)}

@@ -251,6 +251,7 @@ export function LineChart({ data, height = 140, format = String, gradientId = 'l
    *  both paint whichever gradient rendered last. */
   gradientId?: string;
 }) {
+  const { t } = useLanguage();
   if (data.length === 0) return null;
 
   const max = Math.max(...data.map(d => d.value), 1);
@@ -273,7 +274,7 @@ export function LineChart({ data, height = 140, format = String, gradientId = 'l
           // text-colour class here is what themes the whole chart.
           className="w-full h-full overflow-visible text-blue-600 dark:text-blue-400"
           role="img"
-          aria-label={`Trend over ${data.length} days, peaking at ${format(peak.value)} on ${peak.label}`}
+          aria-label={t('Trend over {days} days, peaking at {value} on {label}', { days: data.length, value: format(peak.value), label: peak.label })}
         >
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -306,10 +307,11 @@ export function LineChart({ data, height = 140, format = String, gradientId = 'l
 /* ----------------------------------------------------------- page states */
 
 export function Spinner({ className = 'w-8 h-8' }: { className?: string }) {
+  const { t } = useLanguage();
   return (
     <div
       role="status"
-      aria-label="Loading"
+      aria-label={t('Loading')}
       className={`${className} border-4 border-blue-600 dark:border-blue-400 border-t-transparent
         dark:border-t-transparent rounded-full animate-spin`}
     />
@@ -357,6 +359,7 @@ export function LoadFailed({ title, hint, onRetry }: {
    *  whole state came from the one request that failed. */
   onRetry?: () => void;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="flex items-center justify-center h-full min-h-[50vh] p-6">
       <div className="text-center">
@@ -369,7 +372,7 @@ export function LoadFailed({ title, hint, onRetry }: {
           onClick={onRetry ?? (() => window.location.reload())}
           className={`mt-5 ${secondaryButton}`}
         >
-          Try again
+          {t('Try again')}
         </button>
       </div>
     </div>

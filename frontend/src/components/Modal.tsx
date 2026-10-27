@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useDialog } from '../hooks/useDialog';
+import { useLanguage } from '../context/LanguageContext';
 
 interface ModalProps {
   title: string;
@@ -10,6 +11,7 @@ interface ModalProps {
 
 export default function Modal({ title, onClose, children }: ModalProps) {
   const ref = useDialog(true, onClose);
+  const { t } = useLanguage();
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -25,7 +27,7 @@ export default function Modal({ title, onClose, children }: ModalProps) {
       >
         <div className="flex items-center justify-between p-5 sm:p-6 border-b border-gray-200 dark:border-slate-800 shrink-0">
           <h2 id="modal-title" className="text-lg font-semibold text-gray-900 dark:text-slate-100">{title}</h2>
-          <button onClick={onClose} aria-label="Close" className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 p-1 -mr-1">
+          <button onClick={onClose} aria-label={t('Close')} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 p-1 -mr-1">
             <X size={20} />
           </button>
         </div>

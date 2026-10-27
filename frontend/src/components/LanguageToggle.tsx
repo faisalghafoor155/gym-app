@@ -9,9 +9,9 @@ const OPTIONS: { value: Language; label: string; title: string }[] = [
 /** English / Urdu, side by side like the theme toggle, so the current choice
  *  is always visible. */
 export default function LanguageToggle() {
-  const { lang, setLang } = useLanguage();
+  const { lang, setLang, t } = useLanguage();
   return (
-    <div role="radiogroup" aria-label="Language"
+    <div role="radiogroup" aria-label={t('Language')}
       className="inline-flex items-center gap-0.5 p-0.5 rounded-lg bg-gray-100 dark:bg-slate-800">
       {OPTIONS.map(o => {
         const active = lang === o.value;

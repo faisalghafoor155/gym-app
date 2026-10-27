@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api, { apiError } from '../api/client';
 import { primaryButton, secondaryButton, focusRing, inputClass } from './ui';
 import { useDialog } from '../hooks/useDialog';
+import { useLanguage } from '../context/LanguageContext';
 import { useFingerprintReader } from '../hooks/useFingerprintReader';
 import type { Member, FingerprintEnrolment } from '../types';
 
@@ -45,6 +46,7 @@ export default function FingerprintEnrollModal({
   /** Called after a successful enrol or removal, so the list can refresh. */
   onChanged: () => void;
 }) {
+  const { t } = useLanguage();
   const ref = useDialog(true, onClose);
   // Asked here rather than taken from the caller: the page's answer is from
   // whenever it loaded, and a reader can be unplugged since. What this dialog
@@ -89,13 +91,13 @@ export default function FingerprintEnrollModal({
 
       toast.success(
         existing
-          ? `${member.name}'s fingerprint updated`
-          : `${member.name} enrolled`,
+          ? t("{name}'s fingerprint updated", { name: member.name })
+          : t('{name} enrolled', { name: member.name }),
       );
       onChanged();
       onClose();
     } catch (err) {
-      setError(apiError(err, 'Could not enrol the fingerprint'));
+      setError(apiError(err, t('Could not enrol the fingerprint')));
     } finally {
       setBusy(false);
     }
@@ -111,7 +113,7 @@ export default function FingerprintEnrollModal({
       );
       setDeviceId(data.deviceUserId);
     } catch (err) {
-      setError(apiError(err, 'Could not start enrolment on the machine'));
+      setError(apiError(err, t('Could not start enrolment on the machine')));
     } finally {
       setBusy(false);
     }
@@ -126,11 +128,13 @@ export default function FingerprintEnrollModal({
         memberId: member.id,
         finger: finger.trim() || undefined,
       });
-      toast.success(existing ? `${member.name}'s fingerprint updated` : `${member.name} enrolled`);
+      toast.success(existing
+        ? t("{name}'s fingerprint updated", { name: member.name })
+        : t('{name} enrolled', { name: member.name }));
       onChanged();
       onClose();
     } catch (err) {
-      setError(apiError(err, 'Could not confirm the enrolment'));
+      setError(apiError(err, t('Could not confirm the enrolment')));
     } finally {
       setBusy(false);
     }
@@ -141,11 +145,11 @@ export default function FingerprintEnrollModal({
     setError(null);
     try {
       await api.delete(`/fingerprint/${member.id}`);
-      toast.success(`${member.name}'s fingerprint removed`);
+      toast.success(t("{name}'s fingerprint removed", { name: member.name }));
       onChanged();
       onClose();
     } catch (err) {
-      setError(apiError(err, 'Could not remove the fingerprint'));
+      setError(apiError(err, t('Could not remove the fingerprint')));
     } finally {
       setBusy(false);
     }
@@ -169,40 +173,39 @@ export default function FingerprintEnrollModal({
             <Fingerprint size={28} className="text-blue-600" />
           </div>
           <h3 id="fingerprint-modal-title" className="font-bold text-gray-900 dark:text-slate-100 text-lg">
-            {existing ? 'Fingerprint enrolled' : 'Enrol fingerprint'}
+            {existing ? t('Fingerprint enrolled') : t('Enrol fingerprint')}
           </h3>
           <p className="text-xs text-gray-500 dark:text-slate-400">
             {member.name} · {member.memberNo}
           </p>
           {justRegistered && (
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
-              Member registered. Take their fingerprint now, or skip and do it
-              later from the members list.
+              {t('Member registered. Take their fingerprint now, or skip and do it later from the members list.')}
             </p>
           )}
         </div>
 
         {loading ? (
           <p className="text-center text-sm text-gray-400 dark:text-slate-500 py-8">
-            Checking reader…
+            {t('Checking reader…')}
           </p>
         ) : !status?.configured ? (
           <div className="text-center py-6">
             <p className="text-sm text-gray-600 dark:text-slate-300 font-medium mb-1">
-              No fingerprint reader is set up
+              {t('No fingerprint reader is set up')}
             </p>
             <p className="text-xs text-gray-400 dark:text-slate-500">
-              Connect a reader before enrolling members.
+              {t('Connect a reader before enrolling members.')}
             </p>
           </div>
         ) : !status.online ? (
           <div className="text-center py-6">
             <AlertCircle size={28} className="text-red-500 mx-auto mb-2" />
             <p className="text-sm text-gray-900 dark:text-slate-100 font-medium mb-1">
-              {status.label} is not responding
+              {t('{reader} is not responding', { reader: status.label })}
             </p>
             <p className="text-xs text-gray-400 dark:text-slate-500">
-              Check that it is powered on and connected.
+              {t('Check that it is powered on and connected.')}
             </p>
           </div>
         ) : (
@@ -212,15 +215,17 @@ export default function FingerprintEnrollModal({
                 <CheckCircle2 size={16} className="text-green-600 shrink-0 mt-0.5" />
                 <div className="text-xs">
                   <p className="font-semibold text-green-800 dark:text-green-300">
-                    Enrolled {new Date(existing.enrolledAt).toLocaleDateString('en-PK', {
-                      day: 'numeric', month: 'short', year: 'numeric',
+                    {t('Enrolled {date}', {
+                      date: new Date(existing.enrolledAt).toLocaleDateString('en-PK', {
+                        day: 'numeric', month: 'short', year: 'numeric',
+                      }),
                     })}
                   </p>
                   {existing.finger && (
                     <p className="text-green-700 dark:text-green-400">{existing.finger}</p>
                   )}
                   <p className="text-green-700/70 dark:text-green-400/70 mt-1">
-                    Scanning again replaces the stored fingerprint.
+                    {t('Scanning again replaces the stored fingerprint.')}
                   </p>
                 </div>
               </div>
@@ -228,18 +233,18 @@ export default function FingerprintEnrollModal({
 
             <div>
               <label htmlFor="fingerprint-finger" className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
-                Which finger <span className="font-normal text-gray-400">(optional)</span>
+                {t('Which finger')} <span className="font-normal text-gray-400">{t('(optional)')}</span>
               </label>
               <input
                 id="fingerprint-finger"
                 value={finger}
                 onChange={e => setFinger(e.target.value)}
-                placeholder="e.g. right thumb"
+                placeholder={t('e.g. right thumb')}
                 maxLength={30}
                 className={inputClass}
               />
               <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5">
-                Noted so the desk can remind the member which finger to use.
+                {t('Noted so the desk can remind the member which finger to use.')}
               </p>
             </div>
 
@@ -262,23 +267,22 @@ export default function FingerprintEnrollModal({
                     className={`w-full ${primaryButton}`}
                   >
                     {busy
-                      ? 'Contacting machine…'
-                      : existing ? 'Start again on the machine' : 'Start on the machine'}
+                      ? t('Contacting machine…')
+                      : existing ? t('Start again on the machine') : t('Start on the machine')}
                   </button>
                   <p className="text-xs text-center text-gray-400 dark:text-slate-500">
-                    {status.label} will open enrolment for this member. The finger is
-                    placed on the machine itself, three times.
+                    {t('{reader} will open enrolment for this member. The finger is placed on the machine itself, three times.', { reader: status.label })}
                   </p>
                 </>
               ) : (
                 <>
                   <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/40 text-sm text-blue-900 dark:text-blue-200 space-y-1">
-                    <p className="font-semibold">Ab machine par finger rakhwayein</p>
+                    <p className="font-semibold">{t('Now have them place a finger on the machine')}</p>
                     <ol className="list-decimal list-inside text-xs space-y-0.5">
-                      <li>Machine par ID <strong>{deviceId}</strong> ({member.name}) ki enrolment khuli hai.</li>
-                      <li>Member same finger <strong>3 baar</strong> rakhe.</li>
-                      <li>Har baar machine screen par right / OK dikhayegi — galat ho to wo dobara mangegi.</li>
-                      <li>Machine "Enrolment OK" dikhaye to neeche Done dabayein.</li>
+                      <li>{t('Enrolment is open on the machine for ID')} <strong>{deviceId}</strong> ({member.name}).</li>
+                      <li>{t('The member places the same finger 3 times.')}</li>
+                      <li>{t('Each time, the machine shows right / OK on its screen — if a scan is wrong it asks again.')}</li>
+                      <li>{t('When the machine shows "Enrolment OK", press Done below.')}</li>
                     </ol>
                   </div>
                   <button
@@ -286,14 +290,14 @@ export default function FingerprintEnrollModal({
                     disabled={busy}
                     className={`w-full ${primaryButton}`}
                   >
-                    {busy ? 'Saving…' : 'Done — machine ne finger le li'}
+                    {busy ? t('Saving…') : t('Done — the machine took the finger')}
                   </button>
                   <button
                     onClick={() => void handleDeviceStart()}
                     disabled={busy}
                     className={`w-full ${secondaryButton}`}
                   >
-                    Machine par dobara shuru karein
+                    {t('Start again on the machine')}
                   </button>
                 </>
               )
@@ -302,7 +306,7 @@ export default function FingerprintEnrollModal({
             {/* One dot per scan: grey until taken, green with a tick once the
                 reader has accepted it. */}
             <ol
-              aria-label="Scan progress"
+              aria-label={t('Scan progress')}
               className="flex items-center justify-center gap-3"
             >
               {Array.from({ length: SCANS_NEEDED }, (_, i) => {
@@ -311,7 +315,9 @@ export default function FingerprintEnrollModal({
                 return (
                   <li
                     key={i}
-                    aria-label={`Scan ${i + 1} ${done ? 'done' : current ? 'in progress' : 'waiting'}`}
+                    aria-label={done
+                      ? t('Scan {n} done', { n: i + 1 })
+                      : current ? t('Scan {n} in progress', { n: i + 1 }) : t('Scan {n} waiting', { n: i + 1 })}
                     className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-colors ${
                       done
                         ? 'bg-green-50 dark:bg-green-950/30 border-green-500 text-green-600'
@@ -329,13 +335,15 @@ export default function FingerprintEnrollModal({
             <p role="status" className="text-sm text-center font-medium text-gray-700 dark:text-slate-300">
               {busy
                 ? scansDone === 0
-                  ? 'Finger reader par rakhein (1 of 3)…'
+                  ? t('Place the finger on the reader (1 of {total})…', { total: SCANS_NEEDED })
                   : scansDone < SCANS_NEEDED
-                    ? `Scan ${scansDone} right ✓ — finger hata kar dobara rakhein (${scansDone + 1} of ${SCANS_NEEDED})…`
-                    : 'Saving…'
+                    ? t('Scan {done} right ✓ — lift the finger and place it again ({next} of {total})…', {
+                        done: scansDone, next: scansDone + 1, total: SCANS_NEEDED,
+                      })
+                    : t('Saving…')
                 : scansDone === SCANS_NEEDED
-                  ? 'All 3 scans right ✓'
-                  : `Same finger ${SCANS_NEEDED} baar rakhna hoga.`}
+                  ? t('All {total} scans right ✓', { total: SCANS_NEEDED })
+                  : t('The same finger goes on {total} times.', { total: SCANS_NEEDED })}
             </p>
 
             <button
@@ -344,13 +352,12 @@ export default function FingerprintEnrollModal({
               className={`w-full ${primaryButton}`}
             >
               {busy
-                ? 'Reading fingerprint…'
-                : existing ? 'Scan again to replace' : 'Scan fingerprint'}
+                ? t('Reading fingerprint…')
+                : existing ? t('Scan again to replace') : t('Scan fingerprint')}
             </button>
 
             <p className="text-xs text-center text-gray-400 dark:text-slate-500">
-              Ask the member to place a finger on the reader and hold it still.
-              Each scan is confirmed here before the next one starts.
+              {t('Ask the member to place a finger on the reader and hold it still. Each scan is confirmed here before the next one starts.')}
             </p>
             </>
             )}
@@ -359,16 +366,16 @@ export default function FingerprintEnrollModal({
 
         <div className="flex gap-2 mt-5 pt-4 border-t border-gray-100 dark:border-slate-800">
           <button onClick={onClose} className={`flex-1 ${secondaryButton}`}>
-            {justRegistered ? 'Skip for now' : 'Close'}
+            {justRegistered ? t('Skip for now') : t('Close')}
           </button>
           {existing && (
             <button
               onClick={() => void handleRemove()}
               disabled={busy}
-              aria-label={`Remove ${member.name}'s fingerprint`}
+              aria-label={t("Remove {name}'s fingerprint", { name: member.name })}
               className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-red-100 dark:border-red-500/20 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors ${focusRing}`}
             >
-              <Trash2 size={13} /> Remove
+              <Trash2 size={13} /> {t('Remove')}
             </button>
           )}
         </div>

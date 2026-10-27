@@ -1,6 +1,7 @@
 import { Printer, X } from 'lucide-react';
 import type { Payment } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { channelLabel } from '../utils/paymentChannels';
 
 interface ReceiptModalProps {
@@ -10,17 +11,18 @@ interface ReceiptModalProps {
 
 export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
   const { gym } = useAuth();
+  const { t } = useLanguage();
 
   const handlePrint = () => {
     window.print();
   };
 
-  const paymentTypeLabel = {
+  const paymentTypeLabel = t({
     membership: 'Membership subscription renewal',
     supplement: 'Supplement purchase',
     locker: 'Locker rent',
     other: 'Other services/products',
-  }[payment.type] || 'Gym Payment';
+  }[payment.type] || 'Gym Payment');
 
   return (
     <div className="receipt-print-root fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/75 print:p-0 print:bg-transparent">
@@ -31,7 +33,7 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
         <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-slate-800 print:hidden">
           <h3 className="font-bold text-gray-900 dark:text-slate-100 flex items-center gap-1.5">
             <Printer size={18} className="text-blue-600" />
-            Receipt / Invoice
+            {t('Receipt / Invoice')}
           </h3>
           <button 
             onClick={onClose}
@@ -58,36 +60,36 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
             )}
             {gym?.phone && (
               <p className="text-xs text-gray-500 dark:text-slate-400 print:text-gray-700">
-                Tel: {gym.phone}
+                {t('Tel: {phone}', { phone: gym.phone })}
               </p>
             )}
             <p className="text-xs text-gray-400 dark:text-slate-500 print:text-gray-600 mt-1">
-              Owner: {gym?.ownerName || 'Gym Management'}
+              {t('Owner: {name}', { name: gym?.ownerName || t('Gym Management') })}
             </p>
             <p className="text-xs text-gray-400 dark:text-slate-500 print:text-gray-600">
-              Receipt ID: <span className="font-mono">{payment.id.split('-')[0]?.toUpperCase() || payment.id}</span>
+              {t('Receipt ID:')} <span className="font-mono">{payment.id.split('-')[0]?.toUpperCase() || payment.id}</span>
             </p>
           </div>
 
           {/* Member Details */}
           <div className="my-5 space-y-1.5 text-sm">
             <div className="flex justify-between">
-              <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">Date:</span>
+              <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">{t('Date:')}</span>
               <span className="font-medium">{new Date(payment.paymentDate).toLocaleDateString('en-PK', { dateStyle: 'medium' })}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">Member:</span>
+              <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">{t('Member:')}</span>
               <span className="font-semibold text-gray-900 dark:text-white print:text-black">{payment.member.name}</span>
             </div>
             {payment.member.memberNo && (
               <div className="flex justify-between">
-                <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">Member No:</span>
+                <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">{t('Member No:')}</span>
                 <span className="font-mono">{payment.member.memberNo}</span>
               </div>
             )}
             {payment.member.phone && (
               <div className="flex justify-between">
-                <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">Phone:</span>
+                <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">{t('Phone:')}</span>
                 <span>{payment.member.phone}</span>
               </div>
             )}
@@ -96,8 +98,8 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
           {/* Payment Item details */}
           <div className="border-t border-b border-gray-100 dark:border-slate-800/80 py-4 my-4">
             <div className="flex justify-between text-sm font-semibold text-gray-900 dark:text-white print:text-black mb-2 pb-2 border-b border-gray-50 dark:border-slate-800/40">
-              <span>Description</span>
-              <span>Total</span>
+              <span>{t('Description')}</span>
+              <span>{t('Total')}</span>
             </div>
             <div className="flex justify-between text-sm">
               <div className="min-w-0 pr-4">
@@ -106,7 +108,7 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
                 </p>
                 {payment.notes && (
                   <p className="text-xs text-gray-400 dark:text-slate-500 print:text-gray-600 mt-0.5 break-all max-w-[250px]">
-                    Note: {payment.notes}
+                    {t('Note: {note}', { note: payment.notes })}
                   </p>
                 )}
               </div>
@@ -119,34 +121,36 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
           {/* Grand Summary */}
           <div className="space-y-2 mt-4 text-sm">
             <div className="flex justify-between text-base font-bold text-gray-900 dark:text-white print:text-black border-b border-dashed border-gray-200 dark:border-slate-800 pb-2">
-              <span>Paid Amount:</span>
+              <span>{t('Paid Amount:')}</span>
               <span className="font-mono">Rs. {payment.amount.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-xs mt-2">
-              <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">Method:</span>
+              <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">{t('Method:')}</span>
               <span className="font-semibold uppercase">
                 {/* The channel is the useful half when there is one: "ONLINE"
                     tells a member nothing they did not already know, whereas
                     "Easypaisa" is what they will look for on their own
                     statement if they ever query this. */}
-                {payment.channel ? channelLabel(payment.channel) : payment.method}
+                {payment.channel
+                  ? t(channelLabel(payment.channel))
+                  : payment.method === 'cash' ? t('Cash') : payment.method === 'online' ? t('Online') : payment.method}
               </span>
             </div>
             {payment.reference && (
               <div className="flex justify-between text-xs">
-                <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">Reference:</span>
+                <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">{t('Reference:')}</span>
                 <span className="font-mono break-all text-right max-w-[60%]">{payment.reference}</span>
               </div>
             )}
             <div className="flex justify-between text-xs">
-              <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">Status:</span>
+              <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">{t('Status:')}</span>
               <span className={`font-semibold uppercase ${payment.status === 'paid' ? 'text-green-600' : 'text-red-500'}`}>
-                {payment.status}
+                {payment.status === 'paid' ? t('Paid') : payment.status === 'due' ? t('Due') : payment.status}
               </span>
             </div>
             {payment.recordedBy && (
               <div className="flex justify-between text-xs">
-                <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">Issued By:</span>
+                <span className="text-gray-400 dark:text-slate-500 print:text-gray-600">{t('Issued By:')}</span>
                 <span>{payment.recordedBy.name}</span>
               </div>
             )}
@@ -154,8 +158,8 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
 
           {/* Thank you note */}
           <div className="text-center text-xs text-gray-400 dark:text-slate-500 print:text-gray-600 mt-8 border-t border-dashed border-gray-100 dark:border-slate-800 pt-4">
-            <p className="font-medium">Thank you for training with us!</p>
-            <p className="opacity-80 mt-0.5">Please keep this receipt for your records.</p>
+            <p className="font-medium">{t('Thank you for training with us!')}</p>
+            <p className="opacity-80 mt-0.5">{t('Please keep this receipt for your records.')}</p>
           </div>
         </div>
 
@@ -166,7 +170,7 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
             onClick={onClose} 
             className="flex-1 px-4 py-2 text-sm font-medium border border-gray-200 dark:border-slate-800 hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-xl transition-colors"
           >
-            Close
+            {t('Close')}
           </button>
           <button 
             type="button" 
@@ -174,7 +178,7 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
             className="flex-1 px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition-colors flex items-center justify-center gap-1.5"
           >
             <Printer size={15} />
-            Print / Save
+            {t('Print / Save')}
           </button>
         </div>
 

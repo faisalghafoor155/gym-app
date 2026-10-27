@@ -6,6 +6,8 @@ import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import type { AuthResponse, Role } from '../types';
 import toast from 'react-hot-toast';
+import LanguageToggle from '../components/LanguageToggle';
+import { useLanguage } from '../context/LanguageContext';
 
 /** What the invite is for, checked before the form is shown so a dead link
  *  says so immediately rather than after somebody picks a password. */
@@ -21,6 +23,7 @@ export default function AcceptInvite() {
   const token = params.get('token') ?? '';
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { t } = useLanguage();
 
   const [invite, setInvite] = useState<InvitePreview | null>(null);
   const [checking, setChecking] = useState(true);
@@ -41,7 +44,7 @@ export default function AcceptInvite() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (password !== confirm) {
-      toast.error('The two passwords do not match');
+      toast.error(t('The two passwords do not match'));
       return;
     }
     setSaving(true);
@@ -49,10 +52,10 @@ export default function AcceptInvite() {
       // Accepting signs them in, so there is no second login prompt.
       const { data } = await api.post<AuthResponse>('/auth/accept-invite', { token, password });
       login(data.user, data.gym);
-      toast.success(`Welcome to ${data.gym.name}`);
+      toast.success(t('Welcome to {gym}', { gym: data.gym.name }));
       navigate(data.user.role === 'member' ? '/my' : '/dashboard');
     } catch (err) {
-      toast.error(apiError(err, 'Could not activate the account'));
+      toast.error(apiError(err, t('Could not activate the account')));
     } finally {
       setSaving(false);
     }
@@ -63,9 +66,12 @@ export default function AcceptInvite() {
   return (
     <div className="min-h-dvh bg-gray-50 dark:bg-slate-800/60 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 w-full max-w-md p-6 sm:p-8">
-        <div className="flex items-center gap-2 mb-8">
-          <Dumbbell className="text-blue-600" size={28} />
-          <span className="text-xl font-bold text-gray-900 dark:text-slate-100">GymPro</span>
+        <div className="flex items-center justify-between gap-2 mb-8">
+          <div className="flex items-center gap-2">
+            <Dumbbell className="text-blue-600" size={28} />
+            <span className="text-xl font-bold text-gray-900 dark:text-slate-100">GymPro</span>
+          </div>
+          <LanguageToggle />
         </div>
 
         {checking ? (
@@ -74,23 +80,22 @@ export default function AcceptInvite() {
           <div className="text-center py-4">
             <AlertTriangle size={36} className="text-yellow-500 mx-auto mb-3" />
             <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-1">
-              This invite is no longer valid
+              {t('This invite is no longer valid')}
             </h1>
             <p className="text-gray-500 dark:text-slate-400 text-sm">
-              Invite links last 48 hours and can be used once. Ask whoever added
-              you to send a new one.
+              {t('Invite links last 48 hours and can be used once. Ask whoever added you to send a new one.')}
             </p>
             <Link to="/login" className="inline-block mt-6 text-sm text-blue-600 font-medium hover:underline">
-              Back to sign in
+              {t('Back to sign in')}
             </Link>
           </div>
         ) : (
           <>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-1">
-              Welcome, {invite.name.split(' ')[0]}
+              {t('Welcome, {name}', { name: invite.name.split(' ')[0] ?? '' })}
             </h1>
             <p className="text-gray-500 dark:text-slate-400 text-sm mb-5">
-              Choose a password to activate your account.
+              {t('Choose a password to activate your account.')}
             </p>
 
             <div className="flex items-center gap-3 bg-blue-50/60 border border-blue-100 dark:border-blue-500/20 rounded-xl p-3 mb-6">
@@ -100,14 +105,14 @@ export default function AcceptInvite() {
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-800 dark:text-slate-200 truncate">{invite.gymName}</p>
                 <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
-                  {invite.role === 'member' ? 'Member' : 'Staff'} · {invite.email}
+                  {invite.role === 'member' ? t('Member') : t('Staff')} · {invite.email}
                 </p>
               </div>
             </div>
 
             <form onSubmit={e => void handleSubmit(e)} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Password</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">{t('Password')}</label>
                 <input
                   type="password"
                   required
@@ -117,11 +122,11 @@ export default function AcceptInvite() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   className={inputClass}
-                  placeholder="Min 8 characters"
+                  placeholder={t('Min 8 characters')}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Confirm password</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">{t('Confirm password')}</label>
                 <input
                   type="password"
                   required
@@ -130,11 +135,11 @@ export default function AcceptInvite() {
                   value={confirm}
                   onChange={e => setConfirm(e.target.value)}
                   className={inputClass}
-                  placeholder="Repeat it"
+                  placeholder={t('Repeat it')}
                 />
               </div>
               <button type="submit" disabled={saving} className={`w-full ${primaryButton}`}>
-                {saving ? 'Activating...' : 'Activate my account'}
+                {saving ? t('Activating...') : t('Activate my account')}
               </button>
             </form>
           </>

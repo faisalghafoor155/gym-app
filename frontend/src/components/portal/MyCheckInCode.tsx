@@ -3,6 +3,7 @@ import { QrCode } from 'lucide-react';
 import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
 import { Card, Spinner } from '../ui';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * The member's own check-in code, to hold up at the desk.
@@ -23,6 +24,7 @@ export default function MyCheckInCode({
   memberNo: string;
   name: string;
 }) {
+  const { t } = useLanguage();
   const [dataUrl, setDataUrl] = useState('');
 
   useEffect(() => {
@@ -34,15 +36,15 @@ export default function MyCheckInCode({
     })
       .then(url => { if (!cancelled) setDataUrl(url); })
       .catch(() => {
-        if (!cancelled) toast.error('Could not generate your check-in code');
+        if (!cancelled) toast.error(t('Could not generate your check-in code'));
       });
     return () => { cancelled = true; };
-  }, [memberId]);
+  }, [memberId, t]);
 
   return (
     <Card className="p-5">
       <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-        <QrCode size={16} className="text-blue-600" /> Your check-in code
+        <QrCode size={16} className="text-blue-600" /> {t('Your check-in code')}
       </h2>
 
       <div className="flex flex-col items-center">
@@ -53,15 +55,14 @@ export default function MyCheckInCode({
             <div className="rounded-2xl bg-white p-3 border border-gray-200">
               <img
                 src={dataUrl}
-                alt={`Check-in code for ${name}`}
+                alt={t('Check-in code for {name}', { name })}
                 className="w-56 h-56"
               />
             </div>
             <p className="mt-3 font-bold text-gray-900 dark:text-slate-100">{name}</p>
             <p className="text-sm text-gray-500 dark:text-slate-400">{memberNo}</p>
             <p className="mt-3 text-xs text-gray-400 dark:text-slate-500 text-center max-w-xs">
-              Show this at the front desk to check in. Your member number works
-              too if the scanner is busy.
+              {t('Show this at the front desk to check in. Your member number works too if the scanner is busy.')}
             </p>
           </>
         ) : (

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Download, Share, X } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 /**
  * Offers to install the app, once.
@@ -61,6 +62,7 @@ export default function InstallBanner() {
   // so re-renders neither drop it nor re-trigger the prompt.
   const deferred = useRef<BeforeInstallPromptEvent | null>(null);
   const [iosHint, setIosHint] = useState(false);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (isStandalone() || wasDismissed()) return;
@@ -130,7 +132,7 @@ export default function InstallBanner() {
   return (
     <div
       role="region"
-      aria-label="Install GymPro"
+      aria-label={t('Install GymPro')}
       className="fixed z-40 bottom-4 inset-x-4 lg:inset-x-auto lg:right-6 lg:bottom-6 lg:w-80 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-xl p-4"
     >
       <div className="flex items-start gap-3">
@@ -140,16 +142,16 @@ export default function InstallBanner() {
             : <Download className="text-white" size={16} />}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-gray-900 dark:text-slate-100">Install GymPro</p>
+          <p className="text-sm font-bold text-gray-900 dark:text-slate-100">{t('Install GymPro')}</p>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-400">
             {iosHint
-              ? 'Tap Share, then "Add to Home Screen".'
-              : 'Add it to your home screen for quicker access.'}
+              ? t('Tap Share, then "Add to Home Screen".')
+              : t('Add it to your home screen for quicker access.')}
           </p>
         </div>
         <button
           onClick={dismiss}
-          aria-label="Dismiss install prompt"
+          aria-label={t('Dismiss install prompt')}
           className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 p-1 -m-1 shrink-0"
         >
           <X size={16} />
@@ -161,7 +163,7 @@ export default function InstallBanner() {
           onClick={dismiss}
           className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-colors"
         >
-          Not now
+          {t('Not now')}
         </button>
         {/* On iOS there is nothing to call, so the only action is the hint above. */}
         {!iosHint && (
@@ -169,7 +171,7 @@ export default function InstallBanner() {
             onClick={install}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors"
           >
-            Install
+            {t('Install')}
           </button>
         )}
       </div>

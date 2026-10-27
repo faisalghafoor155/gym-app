@@ -5,6 +5,7 @@ import {
 import { Dumbbell, UserCheck, UserX, AlertTriangle } from 'lucide-react';
 import api, { apiError } from '../../api/client';
 import { useDialog } from '../../hooks/useDialog';
+import { useLanguage } from '../../context/LanguageContext';
 import type { Member, Trainer } from '../../types';
 import toast from 'react-hot-toast';
 
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function AssignTrainerModal({ member, trainers, onClose, onAssigned }: Props) {
+  const { t } = useLanguage();
   const currentTrainer = member.trainer;
   const hasCurrentTrainer = Boolean(member.trainerId || currentTrainer);
 
@@ -26,8 +28,8 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
 
   // Default to 10,000 as requested, or the trainer's set fee if present
   const [ptFee, setPtFee] = useState<string>(() => {
-    const t = trainers.find(item => item.id === (member.trainerId || currentTrainer?.id));
-    if (t?.ptFee != null && Number(t.ptFee) > 0) return String(t.ptFee);
+    const tr = trainers.find(item => item.id === (member.trainerId || currentTrainer?.id));
+    if (tr?.ptFee != null && Number(tr.ptFee) > 0) return String(tr.ptFee);
     return '10000';
   });
 
@@ -35,13 +37,13 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
   const [saving, setSaving] = useState(false);
   const dialogRef = useDialog(true, onClose);
 
-  const selectedTrainer = trainers.find(t => t.id === selectedTrainerId);
+  const selectedTrainer = trainers.find(tr => tr.id === selectedTrainerId);
 
   const handleSelectTrainer = (id: string) => {
     setSelectedTrainerId(id);
-    const t = trainers.find(item => item.id === id);
-    if (t?.ptFee != null && Number(t.ptFee) > 0) {
-      setPtFee(String(t.ptFee));
+    const tr = trainers.find(item => item.id === id);
+    if (tr?.ptFee != null && Number(tr.ptFee) > 0) {
+      setPtFee(String(tr.ptFee));
     } else {
       setPtFee('10000');
     }
@@ -55,10 +57,10 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
         await api.put(`/members/${member.id}`, {
           trainerId: null,
         });
-        toast.success(`Trainer (${currentTrainer?.name || 'Assigned'}) removed from ${member.name}'s card`);
+        toast.success(t("Trainer ({trainer}) removed from {name}'s card", { trainer: currentTrainer?.name || t('Assigned'), name: member.name }));
       } else {
         if (!selectedTrainerId) {
-          toast.error('Please select a trainer');
+          toast.error(t('Please select a trainer'));
           setSaving(false);
           return;
         }
@@ -70,13 +72,15 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
           ptFeePaid,
         });
 
-        toast.success(`Trainer (${selectedTrainer?.name}) assigned to ${member.name} (Fee: Rs. ${feeNum.toLocaleString('en-PK')})`);
+        toast.success(t('Trainer ({trainer}) assigned to {name} (Fee: Rs. {fee})', {
+          trainer: selectedTrainer?.name ?? '', name: member.name, fee: feeNum.toLocaleString('en-PK'),
+        }));
       }
 
       onAssigned();
       onClose();
     } catch (err) {
-      toast.error(apiError(err, 'Could not update trainer assignment'));
+      toast.error(apiError(err, t('Could not update trainer assignment')));
     } finally {
       setSaving(false);
     }
@@ -99,7 +103,7 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
             </div>
             <div>
               <h2 id="assign-trainer-modal-title" className="text-base font-bold text-gray-900 dark:text-slate-100">
-                {hasCurrentTrainer ? 'Manage Personal Trainer' : 'Add Personal Trainer'}
+                {hasCurrentTrainer ? t('Manage Personal Trainer') : t('Add Personal Trainer')}
               </h2>
               <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
                 {member.name} · {member.memberNo}
@@ -122,7 +126,7 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
                 }`}
               >
                 <UserCheck size={14} />
-                <span>Change Trainer</span>
+                <span>{t('Change Trainer')}</span>
               </button>
               <button
                 type="button"
@@ -134,7 +138,7 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
                 }`}
               >
                 <UserX size={14} />
-                <span>Remove Trainer</span>
+                <span>{t('Remove Trainer')}</span>
               </button>
             </div>
           )}
@@ -143,17 +147,17 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
             <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 space-y-2 text-xs">
               <div className="flex items-center gap-2 text-rose-700 dark:text-rose-300 font-bold">
                 <AlertTriangle size={16} />
-                <span>Trainer Remove Confirmation</span>
+                <span>{t('Remove trainer?')}</span>
               </div>
               <p className="text-rose-800 dark:text-rose-300 leading-relaxed">
-                Kia aap waqai <strong>{currentTrainer?.name}</strong> ko is member ke card/profile se unassign karna chahtay hain? Member ke pas koi trainer assigned nahi rahay ga.
+                {t("Are you sure you want to remove {trainer} from this member's card? The member will have no trainer assigned.", { trainer: currentTrainer?.name ?? '' })}
               </p>
             </div>
           ) : (
             <>
               {/* Select Trainer */}
               <div>
-                <FieldLabel htmlFor="trainer-select" required>Select Personal Trainer</FieldLabel>
+                <FieldLabel htmlFor="trainer-select" required>{t('Select Personal Trainer')}</FieldLabel>
                 <select
                   id="trainer-select"
                   value={selectedTrainerId}
@@ -161,10 +165,10 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
                   className={inputClass}
                   required
                 >
-                  <option value="">Select a trainer</option>
-                  {trainers.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.specialization || 'Trainer'})
+                  <option value="">{t('Select a trainer')}</option>
+                  {trainers.map(tr => (
+                    <option key={tr.id} value={tr.id}>
+                      {tr.name} ({tr.specialization || t('Trainer')})
                     </option>
                   ))}
                 </select>
@@ -173,9 +177,9 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
               {/* Trainer Fee (Default 10,000, Editable) */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <FieldLabel htmlFor="trainer-pt-fee" required>Trainer Fee (Rs.)</FieldLabel>
+                  <FieldLabel htmlFor="trainer-pt-fee" required>{t('Trainer Fee (Rs.)')}</FieldLabel>
                   <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold bg-purple-50 dark:bg-purple-950/40 px-2 py-0.5 rounded-md border border-purple-200 dark:border-purple-800/40">
-                    Default: Rs. 10,000 (Adjustable)
+                    {t('Default: Rs. 10,000 (Adjustable)')}
                   </span>
                 </div>
                 <input
@@ -190,7 +194,7 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
                   required
                 />
                 <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-1">
-                  Aap trainer ki fee manually kam ya ziada kar saktay hain. Enter 0 if free.
+                  {t('You can raise or lower the trainer fee by hand. Enter 0 if free.')}
                 </p>
               </div>
 
@@ -203,12 +207,12 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
                     onChange={e => setPtFeePaid(e.target.checked)}
                     className="w-4 h-4 text-purple-600 rounded"
                   />
-                  <span>Fee Collected Now (Mark as Paid)</span>
+                  <span>{t('Fee Collected Now (Mark as Paid)')}</span>
                 </label>
                 <p className="text-[11px] text-gray-500 dark:text-slate-400 pl-6">
                   {ptFeePaid
-                    ? 'Payment record will be created immediately with status Paid.'
-                    : 'Fee will sit as Due in member balance until settled.'}
+                    ? t('Payment record will be created immediately with status Paid.')
+                    : t('Fee will sit as Due in member balance until settled.')}
                 </p>
               </div>
             </>
@@ -220,7 +224,7 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
               onClick={onClose}
               className={`flex-1 ${secondaryButton}`}
             >
-              Cancel
+              {t('Cancel')}
             </button>
             <button
               type="submit"
@@ -232,10 +236,10 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
               }`}
             >
               {saving
-                ? 'Saving...'
+                ? t('Saving...')
                 : mode === 'remove'
-                ? 'Remove Trainer'
-                : `Assign Trainer (Rs. ${Number(ptFee || 0).toLocaleString('en-PK')})`}
+                ? t('Remove Trainer')
+                : t('Assign Trainer (Rs. {fee})', { fee: Number(ptFee || 0).toLocaleString('en-PK') })}
             </button>
           </div>
         </form>

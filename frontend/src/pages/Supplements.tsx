@@ -11,6 +11,7 @@ import {
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useDialog } from '../hooks/useDialog';
 import { useFetch } from '../hooks/useFetch';
 import { useDebounced } from '../hooks/useDebounced';
@@ -60,6 +61,7 @@ const emptyForm: SupplementForm = {
 };
 
 export default function Supplements() {
+  const { t } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<SupplementForm>(emptyForm);
@@ -111,7 +113,7 @@ export default function Supplements() {
 
   const { data, loading, reload: load } = useFetch<PaginatedSupplements>(
     query,
-    'Could not load supplements',
+    t('Could not load supplements'),
   );
 
   // Null only before the first load lands, which the spinner covers.
@@ -133,7 +135,7 @@ export default function Supplements() {
       const r = await api.get<PaginatedSupplements>(`${query}&page=${next}`);
       setExtra(prev => [...prev, ...r.data.data]);
     } catch (err) {
-      toast.error(apiError(err, 'Could not load more'));
+      toast.error(apiError(err, t('Could not load more')));
     } finally {
       setLoadingMore(false);
     }
@@ -189,15 +191,15 @@ export default function Supplements() {
       };
       if (editing) {
         await api.put(`/supplements/${editing}`, payload);
-        toast.success('Updated');
+        toast.success(t('Updated'));
       } else {
         await api.post('/supplements', payload);
-        toast.success('Supplement added');
+        toast.success(t('Supplement added'));
       }
       setShowModal(false);
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not save the supplement'));
+      toast.error(apiError(err, t('Could not save the supplement')));
     } finally {
       setSaving(false);
     }
@@ -209,17 +211,17 @@ export default function Supplements() {
       const existing = prev.find(item => item.supplementId === s.id);
       if (existing) {
         if (existing.quantity >= s.stock) {
-          toast.error(`Cannot add more. Only ${s.stock} in stock.`);
+          toast.error(t('Cannot add more. Only {count} in stock.', { count: s.stock }));
           return prev;
         }
-        toast.success(`Increased ${s.name} quantity in cart`);
+        toast.success(t('Increased {name} quantity in cart', { name: s.name }));
         return prev.map(item =>
           item.supplementId === s.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      toast.success(`Added ${s.name} to cart`);
+      toast.success(t('Added {name} to cart', { name: s.name }));
       return [...prev, {
         supplementId: s.id,
         name: s.name,
@@ -263,7 +265,7 @@ export default function Supplements() {
         // The sale is already recorded; the chime is a nicety.
       }
 
-      toast.success('POS Cart checked out successfully!');
+      toast.success(t('POS Cart checked out successfully!'));
       setCart([]);
       setCartMemberId('');
       setCartNotes('');
@@ -271,7 +273,7 @@ export default function Supplements() {
       setShowCartDrawer(false);
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Failed to checkout cart'));
+      toast.error(apiError(err, t('Failed to checkout cart')));
     } finally {
       setCheckoutCartLoading(false);
     }
@@ -293,11 +295,11 @@ export default function Supplements() {
         quantity: Number(restockForm.quantity),
         notes: restockForm.notes,
       });
-      toast.success(`Added ${restockForm.quantity} to ${restocking.name}`);
+      toast.success(t('Added {count} to {name}', { count: restockForm.quantity, name: restocking.name }));
       setRestocking(null);
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not restock'));
+      toast.error(apiError(err, t('Could not restock')));
     } finally {
       setSaving(false);
     }
@@ -308,11 +310,11 @@ export default function Supplements() {
     setSaving(true);
     try {
       await api.delete(`/supplements/${deleting.id}`);
-      toast.success('Deleted');
+      toast.success(t('Deleted'));
       setDeleting(null);
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Failed to delete'));
+      toast.error(apiError(err, t('Failed to delete')));
     } finally {
       setSaving(false);
     }
@@ -328,8 +330,8 @@ export default function Supplements() {
     <Page>
       <PageHeader
         icon={FlaskConical}
-        title="Supplements"
-        subtitle="Protein, creatine, pre-workout and the rest of the shelf"
+        title={t('Supplements')}
+        subtitle={t('Protein, creatine, pre-workout and the rest of the shelf')}
         action={
           <div className="flex gap-2">
             {cart.length > 0 && (
@@ -338,19 +340,19 @@ export default function Supplements() {
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-md relative"
               >
                 <ShoppingCart size={16} />
-                <span>Cart ({cart.reduce((total, it) => total + it.quantity, 0)})</span>
+                <span>{t('Cart ({count})', { count: cart.reduce((total, it) => total + it.quantity, 0) })}</span>
               </button>
             )}
             {/* Revenue is the owner's to see — the same rule the API enforces. */}
             {isOwner && (
               <Link to="/supplement-sales" className={secondaryButton}>
                 <BarChart3 size={16} />
-                <span className="hidden sm:inline">Sales</span>
+                <span className="hidden sm:inline">{t('Sales')}</span>
               </Link>
             )}
             <button onClick={openAdd} className={primaryButton}>
               <Plus size={16} />
-              <span className="hidden sm:inline">Add Supplement</span><span className="sm:hidden">Add</span>
+              <span className="hidden sm:inline">{t('Add Supplement')}</span><span className="sm:hidden">{t('Add')}</span>
             </button>
           </div>
         }
@@ -360,20 +362,20 @@ export default function Supplements() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
         {/* Over the whole shelf, not the page: a tile counted from what
             happened to be loaded would climb as you pressed Show more. */}
-        <StatTile icon={Package} tone="blue" label="Total Products" value={counts?.all ?? 0} />
+        <StatTile icon={Package} tone="blue" label={t('Total Products')} value={counts?.all ?? 0} />
         <StatTile
-          icon={ShoppingCart} tone="green" label="Showing"
-          value={`${supplements.length} of ${total}`}
+          icon={ShoppingCart} tone="green" label={t('Showing')}
+          value={t('{shown} of {total}', { shown: supplements.length, total })}
         />
         <StatTile
-          icon={FlaskConical} tone="red" label="Out of Stock"
+          icon={FlaskConical} tone="red" label={t('Out of Stock')}
           value={counts?.outOfStock ?? 0}
         />
         {/* A button as well as a number: the list it opens is the reorder list. */}
         <button type="button" onClick={() => setOnlyLow(v => !v)} aria-pressed={onlyLow}
           className={`text-left rounded-2xl ${onlyLow ? 'ring-2 ring-yellow-400' : ''}`}>
-          <StatTile icon={AlertTriangle} tone="yellow" label={onlyLow ? 'Running low · showing' : 'Running low'}
-            value={counts?.lowStock ?? 0} hint={onlyLow ? 'Tap to show all' : 'Tap to list'} />
+          <StatTile icon={AlertTriangle} tone="yellow" label={onlyLow ? t('Running low · showing') : t('Running low')}
+            value={counts?.lowStock ?? 0} hint={onlyLow ? t('Tap to show all') : t('Tap to list')} />
         </button>
       </div>
 
@@ -385,8 +387,8 @@ export default function Supplements() {
             type="search"
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            placeholder="Search product or description…"
-            aria-label="Search supplements"
+            placeholder={t('Search product or description…')}
+            aria-label={t('Search supplements')}
             className={`${inputClass} pl-9`}
           />
         </div>
@@ -396,7 +398,7 @@ export default function Supplements() {
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${focusRing} ${
               filterCat === 'all' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/60'
             }`}>
-            All ({counts?.all ?? 0})
+            {t('All')} ({counts?.all ?? 0})
           </button>
           {CATEGORIES.map(cat => {
             const count = counts?.byCategory[cat.value] ?? 0;
@@ -407,7 +409,7 @@ export default function Supplements() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors flex items-center gap-1 ${focusRing} ${
                   filterCat === cat.value ? 'bg-gray-900 text-white border-gray-900' : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800/60'
                 }`}>
-                {cat.icon} {cat.label} ({count})
+                {cat.icon} {t(cat.label)} ({count})
               </button>
             );
           })}
@@ -419,25 +421,25 @@ export default function Supplements() {
         filterCat === 'all' && !search ? (
           <EmptyState
             icon={FlaskConical}
-            title="No supplements yet"
-            hint="List what the gym sells — protein, creatine, vitamins — with dosage, price and stock."
+            title={t('No supplements yet')}
+            hint={t('List what the gym sells — protein, creatine, vitamins — with dosage, price and stock.')}
             action={
               <button onClick={openAdd} className={primaryButton}>
-                <Plus size={16} /> Add the first supplement
+                <Plus size={16} /> {t('Add the first supplement')}
               </button>
             }
           />
         ) : (
           <EmptyState
             icon={FlaskConical}
-            title="Nothing matches"
-            hint="Try a different category, or clear the search."
+            title={t('Nothing matches')}
+            hint={t('Try a different category, or clear the search.')}
             action={
               <button
                 onClick={() => { setFilterCat('all'); setSearchInput(''); }}
                 className={secondaryButton}
               >
-                Show all
+                {t('Show all')}
               </button>
             }
           />
@@ -457,13 +459,13 @@ export default function Supplements() {
                     <div className="min-w-0">
                       <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm truncate">{s.name}</h3>
                       <span className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${catInfo.color}`}>
-                        {catInfo.label}
+                        {t(catInfo.label)}
                       </span>
                     </div>
                   </div>
                   <div className="flex gap-0.5 shrink-0">
-                    <IconButton icon={Pencil} label={`Edit ${s.name}`} onClick={() => openEdit(s)} />
-                    <IconButton icon={Trash2} tone="red" label={`Delete ${s.name}`}
+                    <IconButton icon={Pencil} label={t('Edit {name}', { name: s.name })} onClick={() => openEdit(s)} />
+                    <IconButton icon={Trash2} tone="red" label={t('Delete {name}', { name: s.name })}
                       onClick={() => setDeleting(s)} />
                   </div>
                 </div>
@@ -475,19 +477,19 @@ export default function Supplements() {
                 <div className="space-y-1.5">
                   {s.dosage && (
                     <div className="flex justify-between text-xs">
-                      <span className="text-gray-400 dark:text-slate-500">Dosage</span>
+                      <span className="text-gray-400 dark:text-slate-500">{t('Dosage')}</span>
                       <span className="font-semibold text-gray-700 dark:text-slate-300">{s.dosage}</span>
                     </div>
                   )}
                   {s.timing && (
                     <div className="flex justify-between text-xs">
-                      <span className="text-gray-400 dark:text-slate-500">Timing</span>
+                      <span className="text-gray-400 dark:text-slate-500">{t('Timing')}</span>
                       <span className="font-semibold text-gray-700 dark:text-slate-300">{s.timing}</span>
                     </div>
                   )}
                   {s.price && (
                     <div className="flex justify-between text-xs">
-                      <span className="text-gray-400 dark:text-slate-500">Price</span>
+                      <span className="text-gray-400 dark:text-slate-500">{t('Price')}</span>
                       <span className="font-bold text-green-700">Rs. {Number(s.price).toLocaleString()}</span>
                     </div>
                   )}
@@ -495,13 +497,13 @@ export default function Supplements() {
 
                 {/* Stock Badge */}
                 <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between">
-                  <span className="text-xs text-gray-400 dark:text-slate-500">Stock</span>
+                  <span className="text-xs text-gray-400 dark:text-slate-500">{t('Stock')}</span>
                   <span className={`text-xs font-bold px-2 py-1 rounded-lg ${
                     s.stock === 0 ? 'bg-red-100 dark:bg-red-500/15 text-red-700' :
                     lowStock ? 'bg-yellow-100 dark:bg-yellow-500/15 text-yellow-700' :
                     'bg-green-100 dark:bg-green-500/15 text-green-700'
                   }`}>
-                    {s.stock === 0 ? 'Out of stock' : `${s.stock} units`}
+                    {s.stock === 0 ? t('Out of stock') : t('{count} units', { count: s.stock })}
                   </span>
                 </div>
 
@@ -510,8 +512,8 @@ export default function Supplements() {
                     onClick={() => addToCart(s)}
                     disabled={s.stock === 0 || s.price == null}
                     title={
-                      s.stock === 0 ? 'Out of stock'
-                        : s.price == null ? 'Set a price before selling'
+                      s.stock === 0 ? t('Out of stock')
+                        : s.price == null ? t('Set a price before selling')
                         : undefined
                     }
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${focusRing} ${
@@ -520,13 +522,13 @@ export default function Supplements() {
                         : 'bg-emerald-600 text-white hover:bg-emerald-700'
                     }`}
                   >
-                    <Plus size={12} /> Cart
+                    <Plus size={12} /> {t('Cart')}
                   </button>
                   <button
                     onClick={() => openRestock(s)}
                     className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}
                   >
-                    <PackagePlus size={12} /> Stock
+                    <PackagePlus size={12} /> {t('Stock')}
                   </button>
                 </div>
               </Card>
@@ -538,7 +540,7 @@ export default function Supplements() {
       {hasMore && (
         <div className="flex justify-center mt-5">
           <button onClick={showMore} disabled={loadingMore} className={secondaryButton}>
-            {loadingMore ? 'Loading…' : `Show more · ${total - supplements.length} left`}
+            {loadingMore ? t('Loading…') : t('Show more · {count} left', { count: total - supplements.length })}
           </button>
         </div>
       )}
@@ -556,15 +558,15 @@ export default function Supplements() {
           >
             <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
               <h2 id="supplement-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
-                {editing ? 'Edit Supplement' : 'Add Supplement'}
+                {editing ? t('Edit Supplement') : t('Add Supplement')}
               </h2>
             </div>
 
             <form onSubmit={e => void handleSave(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
               <div>
-                <FieldLabel htmlFor="supplements-name" required>Name</FieldLabel>
+                <FieldLabel htmlFor="supplements-name" required>{t('Name')}</FieldLabel>
                 <input id="supplements-name" required value={form.name} onChange={set('name')}
-                  placeholder="e.g. Whey Protein Gold Standard"
+                  placeholder={t('e.g. Whey Protein Gold Standard')}
                   className={inputClass} />
               </div>
 
@@ -572,7 +574,7 @@ export default function Supplements() {
                 {/* A group of buttons, not one control, so the label names the
                     group rather than pointing at a field. `htmlFor` has nothing
                     to point at here. */}
-                <FieldLabel id="supplement-category-label" required>Category</FieldLabel>
+                <FieldLabel id="supplement-category-label" required>{t('Category')}</FieldLabel>
                 <div
                   role="group"
                   aria-labelledby="supplement-category-label"
@@ -588,43 +590,43 @@ export default function Supplements() {
                           : 'border-gray-200 dark:border-slate-800 hover:border-gray-300'
                       }`}>
                       <p className="text-lg">{cat.icon}</p>
-                      <p className="text-xs font-medium text-gray-700 dark:text-slate-300 mt-0.5 leading-tight">{cat.label}</p>
+                      <p className="text-xs font-medium text-gray-700 dark:text-slate-300 mt-0.5 leading-tight">{t(cat.label)}</p>
                     </button>
                   ))}
                 </div>
               </div>
 
               <div>
-                <FieldLabel htmlFor="supplements-description">Description</FieldLabel>
+                <FieldLabel htmlFor="supplements-description">{t('Description')}</FieldLabel>
                 <textarea id="supplements-description" rows={2} value={form.description} onChange={set('description')}
-                  placeholder="Brief description of this supplement..."
+                  placeholder={t('Brief description of this supplement...')}
                   className={`${inputClass} resize-none`} />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <FieldLabel htmlFor="supplements-dosage">Dosage</FieldLabel>
+                  <FieldLabel htmlFor="supplements-dosage">{t('Dosage')}</FieldLabel>
                   <input id="supplements-dosage" value={form.dosage} onChange={set('dosage')}
-                    placeholder="e.g. 1 scoop (30g)"
+                    placeholder={t('e.g. 1 scoop (30g)')}
                     className={inputClass} />
                 </div>
                 <div>
-                  <FieldLabel htmlFor="supplements-timing">Timing</FieldLabel>
+                  <FieldLabel htmlFor="supplements-timing">{t('Timing')}</FieldLabel>
                   <input id="supplements-timing" value={form.timing} onChange={set('timing')}
-                    placeholder="e.g. Post-workout"
+                    placeholder={t('e.g. Post-workout')}
                     className={inputClass} />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <FieldLabel htmlFor="supplements-price-rs">Price (Rs.)</FieldLabel>
+                  <FieldLabel htmlFor="supplements-price-rs">{t('Price (Rs.)')}</FieldLabel>
                   <input id="supplements-price-rs" type="number" min="0" value={form.price} onChange={set('price')}
                     placeholder="3500"
                     className={inputClass} />
                 </div>
                 <div>
-                  <FieldLabel htmlFor="supplements-stock-units">Stock (units)</FieldLabel>
+                  <FieldLabel htmlFor="supplements-stock-units">{t('Stock (units)')}</FieldLabel>
                   <input id="supplements-stock-units" type="number" min="0" value={form.stock} onChange={set('stock')}
                     placeholder="10"
                     className={inputClass} />
@@ -633,13 +635,13 @@ export default function Supplements() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <FieldLabel htmlFor="supplements-cost-rs">Cost price (Rs.)</FieldLabel>
+                  <FieldLabel htmlFor="supplements-cost-rs">{t('Cost price (Rs.)')}</FieldLabel>
                   <input id="supplements-cost-rs" type="number" min="0" value={form.costPrice} onChange={set('costPrice')}
-                    placeholder="What you pay the supplier"
+                    placeholder={t('What you pay the supplier')}
                     className={inputClass} />
                 </div>
                 <div>
-                  <FieldLabel htmlFor="supplements-low-at">Warn when stock is at</FieldLabel>
+                  <FieldLabel htmlFor="supplements-low-at">{t('Warn when stock is at')}</FieldLabel>
                   <input id="supplements-low-at" type="number" min="0" value={form.lowStockAt} onChange={set('lowStockAt')}
                     placeholder="5"
                     className={inputClass} />
@@ -649,19 +651,16 @@ export default function Supplements() {
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)}
                   className={`flex-1 ${secondaryButton}`}>
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
-                  {saving ? 'Saving...' : editing ? 'Update' : 'Add Supplement'}
+                  {saving ? t('Saving...') : editing ? t('Update') : t('Add Supplement')}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
-      {/* Sell */}
-      ) /* Sell modal removed */
 
       {/* Restock */}
       {restocking && (
@@ -676,52 +675,52 @@ export default function Supplements() {
           >
             <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
               <h2 id="restock-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
-                Add stock — {restocking.name}
+                {t('Add stock — {name}', { name: restocking.name })}
               </h2>
-              <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{restocking.stock} in stock now</p>
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">{t('{count} in stock now', { count: restocking.stock })}</p>
             </div>
 
             <form onSubmit={e => void handleRestock(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
               <div>
-                <FieldLabel htmlFor="restock-quantity" required>Units received</FieldLabel>
+                <FieldLabel htmlFor="restock-quantity" required>{t('Units received')}</FieldLabel>
                 <input
                   id="restock-quantity"
                   type="number" min={1} step={1} required
                   value={restockForm.quantity}
                   onChange={e => setRestockForm(f => ({ ...f, quantity: e.target.value }))}
                   className={inputClass}
-                  placeholder="e.g. 12"
+                  placeholder={t('e.g. 12')}
                 />
               </div>
 
               <div>
-                <FieldLabel htmlFor="restock-note">Note</FieldLabel>
+                <FieldLabel htmlFor="restock-note">{t('Note')}</FieldLabel>
                 <input
                   id="restock-note"
                   type="text" maxLength={500}
                   value={restockForm.notes}
                   onChange={e => setRestockForm(f => ({ ...f, notes: e.target.value }))}
                   className={inputClass}
-                  placeholder="Supplier, invoice number…"
+                  placeholder={t('Supplier, invoice number…')}
                 />
-                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5">Recorded in the audit log.</p>
+                <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5">{t('Recorded in the audit log.')}</p>
               </div>
 
               {Number(restockForm.quantity) > 0 && (
                 <div className="rounded-lg bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/20 px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-blue-800">New stock</span>
+                  <span className="text-xs font-semibold text-blue-800">{t('New stock')}</span>
                   <span className="text-lg font-bold text-blue-900">
-                    {restocking.stock + Number(restockForm.quantity)} units
+                    {t('{count} units', { count: restocking.stock + Number(restockForm.quantity) })}
                   </span>
                 </div>
               )}
 
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setRestocking(null)} className={`flex-1 ${secondaryButton}`}>
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
-                  {saving ? 'Adding...' : 'Add stock'}
+                  {saving ? t('Adding...') : t('Add stock')}
                 </button>
               </div>
             </form>
@@ -731,8 +730,8 @@ export default function Supplements() {
 
       {deleting && (
         <ConfirmDialog
-          title="Delete supplement"
-          message={`Delete "${deleting.name}" from the shelf? This cannot be undone.`}
+          title={t('Delete supplement')}
+          message={t('Delete "{name}" from the shelf? This cannot be undone.', { name: deleting.name })}
           busy={saving}
           onConfirm={() => void handleDelete()}
           onCancel={() => setDeleting(null)}
@@ -747,7 +746,7 @@ export default function Supplements() {
             <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between shrink-0">
               <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
                 <ShoppingCart className="text-emerald-600" size={18} />
-                POS Shopping Cart
+                {t('POS Shopping Cart')}
               </h2>
               <button
                 onClick={() => setShowCartDrawer(false)}
@@ -761,7 +760,7 @@ export default function Supplements() {
               {cart.length === 0 ? (
                 <div className="text-center py-12 text-gray-400">
                   <ShoppingCart size={32} className="mx-auto mb-2 text-gray-300" />
-                  <p className="text-sm">Your shopping cart is empty</p>
+                  <p className="text-sm">{t('Your shopping cart is empty')}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -790,7 +789,7 @@ export default function Supplements() {
                         <button
                           onClick={() => {
                             if (item.quantity >= item.maxStock) {
-                              toast.error(`Only ${item.maxStock} in stock`);
+                              toast.error(t('Only {count} in stock', { count: item.maxStock }));
                               return;
                             }
                             setCart(prev =>
@@ -808,11 +807,11 @@ export default function Supplements() {
                         <button
                           onClick={() => {
                             setCart(prev => prev.filter(it => it.supplementId !== item.supplementId));
-                            toast.success('Removed item from cart');
+                            toast.success(t('Removed item from cart'));
                           }}
                           className="ml-2 text-xs text-red-500 hover:text-red-700 font-semibold"
                         >
-                          Remove
+                          {t('Remove')}
                         </button>
                       </div>
                     </div>
@@ -824,20 +823,20 @@ export default function Supplements() {
             {cart.length > 0 && (
               <form onSubmit={handleCartCheckout} className="p-5 border-t border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-900/60 space-y-4 shrink-0">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-400">Cart Subtotal</span>
+                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-400">{t('Cart Subtotal')}</span>
                   <span className="text-xl font-black text-indigo-600">
                     Rs. {cart.reduce((total, item) => total + (item.price * item.quantity), 0).toLocaleString()}
                   </span>
                 </div>
 
                 <div>
-                  <FieldLabel htmlFor="supplements-associate-member-optional">Associate Member (Optional)</FieldLabel>
+                  <FieldLabel htmlFor="supplements-associate-member-optional">{t('Associate Member (Optional)')}</FieldLabel>
                   <select id="supplements-associate-member-optional"
                     value={cartMemberId}
                     onChange={e => setCartMemberId(e.target.value)}
                     className={inputClass}
                   >
-                    <option value="">-- Walk-in Customer --</option>
+                    <option value="">{t('-- Walk-in Customer --')}</option>
                     {members.map(m => (
                       <option key={m.id} value={m.id}>
                         {m.memberNo} · {m.name}
@@ -848,22 +847,22 @@ export default function Supplements() {
 
                 {cartMemberId && (
                   <div>
-                    <FieldLabel htmlFor="supplements-payment-method">Payment Method</FieldLabel>
+                    <FieldLabel htmlFor="supplements-payment-method">{t('Payment Method')}</FieldLabel>
                     <select id="supplements-payment-method"
                       value={cartPaymentMethod}
                       onChange={e => setCartPaymentMethod(e.target.value as 'cash' | 'card')}
                       className={inputClass}
                     >
-                      <option value="cash">Cash</option>
-                      <option value="card">Card / POS Terminal</option>
+                      <option value="cash">{t('Cash')}</option>
+                      <option value="card">{t('Card / POS Terminal')}</option>
                     </select>
                   </div>
                 )}
 
                 <div>
-                  <FieldLabel htmlFor="supplements-sales-notes-comments">Sales Notes / Comments</FieldLabel>
+                  <FieldLabel htmlFor="supplements-sales-notes-comments">{t('Sales Notes / Comments')}</FieldLabel>
                   <input id="supplements-sales-notes-comments"
-                    placeholder="Add discount details, invoice remarks..."
+                    placeholder={t('Add discount details, invoice remarks...')}
                     value={cartNotes}
                     onChange={e => setCartNotes(e.target.value)}
                     className={inputClass}
@@ -876,14 +875,14 @@ export default function Supplements() {
                     onClick={() => setCart([])}
                     className={`flex-1 ${secondaryButton}`}
                   >
-                    Clear Cart
+                    {t('Clear Cart')}
                   </button>
                   <button
                     type="submit"
                     disabled={checkoutCartLoading}
                     className={`flex-1 ${primaryButton}`}
                   >
-                    {checkoutCartLoading ? 'Processing…' : 'Checkout Cart'}
+                    {checkoutCartLoading ? t('Processing…') : t('Checkout Cart')}
                   </button>
                 </div>
               </form>

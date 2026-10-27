@@ -2,6 +2,7 @@ import { BookOpen, Clock } from 'lucide-react';
 import Badge from '../Badge';
 import { Card, EmptyState, DataRow } from '../ui';
 import type { PtSession } from '../../types';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface Props {
   sessions: PtSession[];
@@ -11,12 +12,13 @@ interface Props {
 }
 
 export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid }: Props) {
+  const { t } = useLanguage();
   return (
     sessions.length === 0 ? (
       <EmptyState
         icon={BookOpen}
-        title="No PT sessions booked yet"
-        hint="Click Book PT Session to record training slots."
+        title={t('No PT sessions booked yet')}
+        hint={t('Click Book PT Session to record training slots.')}
       />
     ) : (
       <Card className="overflow-hidden">
@@ -24,14 +26,14 @@ export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid
           <table className="w-full text-sm text-left text-gray-500 dark:text-slate-400">
             <thead className="text-xs uppercase bg-gray-50 dark:bg-slate-800/50 text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800">
               <tr>
-                <th className="px-6 py-4 font-bold">Member</th>
-                <th className="px-6 py-4 font-bold">Trainer</th>
-                <th className="px-6 py-4 font-bold">Date & Time</th>
-                <th className="px-6 py-4 font-bold">Price</th>
-                <th className="px-6 py-4 font-bold">Trainer Comm.</th>
-                <th className="px-6 py-4 font-bold">Status</th>
-                <th className="px-6 py-4 font-bold">Payment</th>
-                <th className="px-6 py-4 font-bold text-right">Actions</th>
+                <th className="px-6 py-4 font-bold">{t('Member')}</th>
+                <th className="px-6 py-4 font-bold">{t('Trainer')}</th>
+                <th className="px-6 py-4 font-bold">{t('Date & Time')}</th>
+                <th className="px-6 py-4 font-bold">{t('Price')}</th>
+                <th className="px-6 py-4 font-bold">{t('Trainer Comm.')}</th>
+                <th className="px-6 py-4 font-bold">{t('Status')}</th>
+                <th className="px-6 py-4 font-bold">{t('Payment')}</th>
+                <th className="px-6 py-4 font-bold text-right">{t('Actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-slate-800/60">
@@ -52,10 +54,10 @@ export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid
                       </span>
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-900 dark:text-slate-200">
-                      Rs. {s.priceCharged.toLocaleString()}
+                      {t('Rs. {amount}', { amount: s.priceCharged.toLocaleString() })}
                     </td>
                     <td className="px-6 py-4 text-indigo-600 dark:text-indigo-400 font-semibold">
-                      Rs. {s.trainerCommission.toLocaleString()}
+                      {t('Rs. {amount}', { amount: s.trainerCommission.toLocaleString() })}
                     </td>
                     <td className="px-6 py-4">
                       <Badge status={s.status} />
@@ -69,7 +71,7 @@ export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid
                         {/* Whose money this is, said out loud: the trainer's
                             commission is tracked separately on the Payouts
                             page, and "Paid" alone read as either. */}
-                        {s.paymentStatus === 'paid' ? 'Member paid' : 'Member unpaid'}
+                        {s.paymentStatus === 'paid' ? t('Member paid') : t('Member unpaid')}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
@@ -79,13 +81,13 @@ export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid
                             onClick={() => onComplete(s.id)}
                             className="px-2.5 py-1 rounded-md text-xs font-semibold bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-950/30 dark:hover:bg-green-950/50 dark:text-green-400"
                           >
-                            Complete
+                            {t('Complete')}
                           </button>
                           <button
                             onClick={() => onCancel(s)}
                             className="px-2.5 py-1 rounded-md text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/30 dark:hover:bg-red-950/50 dark:text-red-400"
                           >
-                            Cancel
+                            {t('Cancel')}
                           </button>
                         </>
                       )}
@@ -94,7 +96,7 @@ export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid
                           onClick={() => onMarkPaid(s.id)}
                           className="px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:hover:bg-indigo-950/50 dark:text-indigo-400"
                         >
-                          Member paid
+                          {t('Member paid')}
                         </button>
                       )}
                     </td>
@@ -118,7 +120,7 @@ export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid
                       {s.member.name}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
-                      with {s.trainer.name}
+                      {t('with {name}', { name: s.trainer.name })}
                     </p>
                   </div>
                   <Badge status={s.status} />
@@ -129,11 +131,11 @@ export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid
                   {sessionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
                 <div className="space-y-1.5">
-                  <DataRow label="Price" value={`Rs. ${s.priceCharged.toLocaleString()}`} />
-                  <DataRow label="Trainer commission" value={`Rs. ${s.trainerCommission.toLocaleString()}`} />
+                  <DataRow label={t('Price')} value={t('Rs. {amount}', { amount: s.priceCharged.toLocaleString() })} />
+                  <DataRow label={t('Trainer commission')} value={t('Rs. {amount}', { amount: s.trainerCommission.toLocaleString() })} />
                   <DataRow
-                    label="Payment"
-                    value={s.paymentStatus === 'paid' ? 'Member paid' : 'Member unpaid'}
+                    label={t('Payment')}
+                    value={s.paymentStatus === 'paid' ? t('Member paid') : t('Member unpaid')}
                   />
                 </div>
                 {(s.status === 'scheduled' || s.paymentStatus === 'unpaid') && (
@@ -144,13 +146,13 @@ export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid
                           onClick={() => onComplete(s.id)}
                           className="flex-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-950/30 dark:hover:bg-green-950/50 dark:text-green-400"
                         >
-                          Complete
+                          {t('Complete')}
                         </button>
                         <button
                           onClick={() => onCancel(s)}
                           className="flex-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/30 dark:hover:bg-red-950/50 dark:text-red-400"
                         >
-                          Cancel
+                          {t('Cancel')}
                         </button>
                       </>
                     )}
@@ -159,7 +161,7 @@ export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid
                         onClick={() => onMarkPaid(s.id)}
                         className="flex-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:hover:bg-indigo-950/50 dark:text-indigo-400"
                       >
-                        Member paid
+                        {t('Member paid')}
                       </button>
                     )}
                   </div>

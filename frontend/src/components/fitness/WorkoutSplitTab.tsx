@@ -2,6 +2,7 @@ import { Dumbbell, Award, Activity, CheckCircle2, ChevronRight, Calendar, Layers
 import { Card, FieldLabel, inputClass } from '../ui';
 import { WORKOUT_SPLIT_DAYS, type Muscle, type MacroResult, type OneRmResult } from './data';
 import { WORKOUT_GAMES_PHOTOS } from './ExercisePhotoModal';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface WorkoutSplitTabProps {
   exercise: string;
@@ -46,6 +47,7 @@ export default function WorkoutSplitTab({
   macros,
   oneRm,
 }: WorkoutSplitTabProps) {
+  const { lang, t } = useLanguage();
   return (
     <div className="space-y-6">
       {/* Top Split Header */}
@@ -57,13 +59,13 @@ export default function WorkoutSplitTab({
             </div>
             <div>
               <span className="text-xs text-blue-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                <Layers size={14} /> 5-Day Hypertrophy & Mass Split Routine
+                <Layers size={14} /> {t('5-Day Hypertrophy & Mass Split Routine')}
               </span>
               <h2 className="text-xl font-black mt-1">
-                Kitna Workout & Kitni Games (Exercises) Lagani Hain?
+                {t('How Much Workout & How Many Exercises?')}
               </h2>
               <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                Agar aap Mass Gainer (Anabolic/Serious Mass), Pre-Workout aur Creatine le rahe hain to body ko high protein aur energy milti ha. Is energy ko muscle me tabdeel karne ke liye neeche diya gaya 5-Day Workout Split follow karein:
+                {t('If you are taking a Mass Gainer (Anabolic/Serious Mass), Pre-Workout and Creatine, your body gets plenty of protein and energy. To turn that energy into muscle, follow the 5-day workout split below:')}
               </p>
             </div>
           </div>
@@ -79,7 +81,7 @@ export default function WorkoutSplitTab({
               className="px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 shadow-md shadow-blue-500/20"
             >
               <ImageIcon size={16} />
-              <span>🖼️ Sab Games Ki Photos Dekhein</span>
+              <span>{t('🖼️ See Photos of All Exercises')}</span>
             </button>
             <button
               type="button"
@@ -91,11 +93,11 @@ export default function WorkoutSplitTab({
               className="px-3 py-2.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 text-slate-200 transition flex items-center gap-1.5 border border-white/15"
             >
               <Compass size={14} />
-              <span>Angles Guide</span>
+              <span>{t('Angles Guide')}</span>
             </button>
             <div className="bg-white/10 px-3.5 py-2 rounded-xl text-center">
-              <span className="text-[10px] text-blue-200 uppercase block font-semibold">Volume Standard</span>
-              <span className="text-sm font-black text-white">5 Games · 16-18 Sets/Day</span>
+              <span className="text-[10px] text-blue-200 uppercase block font-semibold">{t('Volume Standard')}</span>
+              <span className="text-sm font-black text-white">{t('5 Exercises · 16-18 Sets/Day')}</span>
             </div>
           </div>
         </div>
@@ -110,10 +112,10 @@ export default function WorkoutSplitTab({
             </div>
             <div>
               <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm flex items-center gap-1.5">
-                <span>🖼️ Game Select Karein — Real Photo & Lagane Ka Tareeqa</span>
+                <span>{t('🖼️ Pick an Exercise — Real Photo & How to Do It')}</span>
               </h3>
               <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                Kisi bhi game par click karein, us ki asali photo aur sahi form foran samnay aa jaye gi!
+                {t('Click any exercise to instantly see its real photo and correct form!')}
               </p>
             </div>
           </div>
@@ -122,7 +124,7 @@ export default function WorkoutSplitTab({
             onClick={() => setShowPhotoModal(true)}
             className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1 shrink-0 self-start sm:self-auto"
           >
-            <span>Gallery Full-Screen</span>
+            <span>{t('Full-Screen Gallery')}</span>
             <ChevronRight size={14} />
           </button>
         </div>
@@ -131,11 +133,11 @@ export default function WorkoutSplitTab({
         <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-gray-100 dark:bg-slate-800/80 border border-gray-200 dark:border-slate-700">
           {(
             [
-              { key: 'chest', label: '🔥 Chest (Seena)' },
-              { key: 'back', label: '🛡️ Back (Peeth)' },
-              { key: 'shoulders', label: '⚡ Shoulders (Kandhay)' },
-              { key: 'legs', label: '🦵 Legs (Taangein)' },
-              { key: 'arms', label: '💪 Arms (Baazu)' },
+              { key: 'chest', label: '🔥 Chest' },
+              { key: 'back', label: '🛡️ Back' },
+              { key: 'shoulders', label: '⚡ Shoulders' },
+              { key: 'legs', label: '🦵 Legs' },
+              { key: 'arms', label: '💪 Arms' },
             ] as const
           ).map(tab => (
             <button
@@ -152,7 +154,7 @@ export default function WorkoutSplitTab({
                   : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
               }`}
             >
-              {tab.label}
+              {t(tab.label)}
             </button>
           ))}
         </div>
@@ -171,7 +173,7 @@ export default function WorkoutSplitTab({
               }`}
             >
               <Dumbbell size={12} className="shrink-0" />
-              <span>{ex.name}</span>
+              <span>{t(ex.name)}</span>
             </button>
           ))}
         </div>
@@ -187,13 +189,13 @@ export default function WorkoutSplitTab({
               >
                 <img
                   src={activePhotoEx.image}
-                  alt={activePhotoEx.name}
+                  alt={t(activePhotoEx.name)}
                   className="w-full h-48 sm:h-56 object-cover group-hover:scale-105 transition duration-300 select-none"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent flex items-end p-2.5">
                   <span className="text-[11px] font-bold text-white flex items-center gap-1">
                     <ImageIcon size={13} className="text-blue-400" />
-                    <span>Click karein — Full Screen Photo Dekhein</span>
+                    <span>{t('Click to see the full-screen photo')}</span>
                   </span>
                 </div>
               </div>
@@ -202,28 +204,28 @@ export default function WorkoutSplitTab({
                 <div>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                      {activePhotoEx.muscleUrdu}
+                      {lang === 'ur' ? activePhotoEx.muscleUrdu : activePhotoEx.muscleLabel}
                     </span>
                     <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                      {activePhotoEx.sets} · {activePhotoEx.reps}
+                      {t(activePhotoEx.sets)} · {t(activePhotoEx.reps)}
                     </span>
                   </div>
                   <h4 className="text-base font-black text-gray-900 dark:text-slate-100 mt-1">
-                    {activePhotoEx.name}
+                    {t(activePhotoEx.name)}
                   </h4>
                   <p className="text-xs text-gray-700 dark:text-slate-300 mt-1 leading-relaxed">
-                    <strong>Kaise Lagani Hai:</strong> {activePhotoEx.howToUrdu}
+                    <strong>{t('How to Do It:')}</strong> {lang === 'ur' ? activePhotoEx.howToUrdu : activePhotoEx.howTo}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
                   <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 text-emerald-950 dark:text-emerald-200">
-                    <strong className="block text-emerald-700 dark:text-emerald-400 font-bold mb-0.5">✓ Sahi Tareeqa:</strong>
-                    {activePhotoEx.goodFormTips[0]}
+                    <strong className="block text-emerald-700 dark:text-emerald-400 font-bold mb-0.5">{t('✓ Correct Form:')}</strong>
+                    {t(activePhotoEx.goodFormTips[0] ?? '')}
                   </div>
                   <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/30 text-rose-950 dark:text-rose-200">
-                    <strong className="block text-rose-700 dark:text-rose-400 font-bold mb-0.5">✗ Ghalti Se Bachen:</strong>
-                    {activePhotoEx.mistakesToAvoid[0]}
+                    <strong className="block text-rose-700 dark:text-rose-400 font-bold mb-0.5">{t('✗ Avoid This Mistake:')}</strong>
+                    {t(activePhotoEx.mistakesToAvoid[0] ?? '')}
                   </div>
                 </div>
 
@@ -234,7 +236,7 @@ export default function WorkoutSplitTab({
                     className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 shadow-xs"
                   >
                     <ImageIcon size={13} />
-                    <span>Badi Pic & Mukammal Form Dekhein</span>
+                    <span>{t('See Big Photo & Full Form')}</span>
                   </button>
                 </div>
               </div>
@@ -251,12 +253,12 @@ export default function WorkoutSplitTab({
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div>
                   <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                    {d.tag}
+                    {t(d.tag)}
                   </span>
-                  <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm mt-0.5">{d.day}</h3>
+                  <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm mt-0.5">{t(d.day)}</h3>
                 </div>
                 <span className="text-xs font-bold text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg shrink-0">
-                  {d.gamesCount}
+                  {t(d.gamesCount)}
                 </span>
               </div>
 
@@ -274,11 +276,11 @@ export default function WorkoutSplitTab({
                     className="p-2.5 rounded-xl bg-gray-50 dark:bg-slate-800/60 text-xs border border-transparent hover:border-blue-500/30 hover:bg-blue-50/30 dark:hover:bg-slate-800 transition cursor-pointer group"
                   >
                     <div className="flex items-center justify-between font-semibold text-gray-900 dark:text-slate-100">
-                      <span className="group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">{exIdx + 1}. {ex.name}</span>
+                      <span className="group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">{exIdx + 1}. {t(ex.name)}</span>
                       <span className="text-blue-600 dark:text-blue-400 font-bold">{ex.sets}</span>
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-slate-500 mt-1">
-                      <span>{ex.tip}</span>
+                      <span>{t(ex.tip)}</span>
                       <span>{ex.reps}</span>
                     </div>
                     <div className="mt-2 pt-1.5 border-t border-gray-100 dark:border-slate-800/80 flex items-center justify-between">
@@ -298,7 +300,7 @@ export default function WorkoutSplitTab({
                         className="text-[10px] font-bold text-white bg-blue-600 hover:bg-blue-700 px-2 py-0.5 rounded-lg transition flex items-center gap-1 shadow-xs"
                       >
                         <ImageIcon size={11} />
-                        <span>🖼️ Pic Dekhein</span>
+                        <span>{t('🖼️ See Photo')}</span>
                       </button>
                     </div>
                   </div>
@@ -307,7 +309,7 @@ export default function WorkoutSplitTab({
             </div>
 
             <div className="mt-4 pt-3 border-t border-gray-100 dark:border-slate-800 text-[11px] font-medium text-blue-700 dark:text-blue-300">
-              💡 {d.intensity}
+              💡 {t(d.intensity)}
             </div>
           </Card>
         ))}
@@ -316,27 +318,27 @@ export default function WorkoutSplitTab({
         <Card className="p-5 border-t-4 border-t-emerald-500 flex flex-col justify-between bg-emerald-50/20 dark:bg-emerald-500/5">
           <div>
             <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase mb-2">
-              <Calendar size={16} /> Day 6 & 7: Rest & Muscle Growth
+              <Calendar size={16} /> {t('Day 6 & 7: Rest & Muscle Growth')}
             </div>
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm">
-              Rest Day Protocol (Recovery)
+              {t('Rest Day Protocol (Recovery)')}
             </h3>
             <p className="text-xs text-gray-600 dark:text-slate-400 mt-2 leading-relaxed">
-              Gym me muscle break hota ha, muscle banta tab ha jab aap sote hain aur khate hain!
+              {t('Muscle breaks down in the gym; it grows when you sleep and eat!')}
             </p>
 
             <ul className="space-y-2 text-xs text-gray-700 dark:text-slate-300 mt-4">
               <li className="flex items-center gap-2">
                 <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-                <span>7-8 Ghantay ki gehri neend laazmi len.</span>
+                <span>{t('Always get 7-8 hours of deep sleep.')}</span>
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-                <span>Creatine 5g rest day par b nashte ke baad len.</span>
+                <span>{t('Take 5g of creatine after breakfast on rest days too.')}</span>
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-                <span>Protein intake ({macros.proteinGrams}g) rest day par b kam na karein.</span>
+                <span>{t('Do not cut your protein intake ({protein}g) on rest days either.', { protein: macros.proteinGrams })}</span>
               </li>
             </ul>
           </div>
@@ -349,33 +351,33 @@ export default function WorkoutSplitTab({
           <div className="flex items-center gap-2">
             <Award size={20} className="text-amber-500" />
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-base">
-              1RM Strength Calculator (Games K Working Weights)
+              {t('1RM Strength Calculator (Working Weights for Each Exercise)')}
             </h3>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 font-semibold">
             <Activity size={15} />
-            <span>BW Ratio: {oneRm.bwRatio}x ({oneRm.strengthLevel})</span>
+            <span>{t('BW Ratio: {ratio}x ({level})', { ratio: oneRm.bwRatio, level: t(oneRm.strengthLevel) })}</span>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <FieldLabel htmlFor={exerciseSelectId}>Target Game / Lift</FieldLabel>
+            <FieldLabel htmlFor={exerciseSelectId}>{t('Target Exercise / Lift')}</FieldLabel>
             <select
               id={exerciseSelectId}
               value={exercise}
               onChange={e => setExercise(e.target.value)}
               className={inputClass}
             >
-              <option value="bench_press">Flat Barbell Bench Press (Chest)</option>
-              <option value="squat">Barbell Back Squat (Legs)</option>
-              <option value="deadlift">Conventional Deadlift (Back)</option>
-              <option value="overhead_press">Overhead Military Press (Shoulders)</option>
+              <option value="bench_press">{t('Flat Barbell Bench Press (Chest)')}</option>
+              <option value="squat">{t('Barbell Back Squat (Legs)')}</option>
+              <option value="deadlift">{t('Conventional Deadlift (Back)')}</option>
+              <option value="overhead_press">{t('Overhead Military Press (Shoulders)')}</option>
             </select>
           </div>
 
           <div>
-            <FieldLabel htmlFor={liftWeightInputId}>Weight Lifted (kg)</FieldLabel>
+            <FieldLabel htmlFor={liftWeightInputId}>{t('Weight Lifted (kg)')}</FieldLabel>
             <input
               id={liftWeightInputId}
               type="number"
@@ -389,7 +391,7 @@ export default function WorkoutSplitTab({
           </div>
 
           <div>
-            <FieldLabel htmlFor={liftRepsInputId}>Completed Reps (1-12)</FieldLabel>
+            <FieldLabel htmlFor={liftRepsInputId}>{t('Completed Reps (1-12)')}</FieldLabel>
             <input
               id={liftRepsInputId}
               type="number"
@@ -406,29 +408,29 @@ export default function WorkoutSplitTab({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
           <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20">
             <div className="flex justify-between items-center text-xs text-rose-700 dark:text-rose-400 font-bold uppercase">
-              <span>Power & Strength</span>
+              <span>{t('Power & Strength')}</span>
               <span>85% 1RM</span>
             </div>
             <p className="text-2xl font-black text-rose-900 dark:text-rose-200 mt-1">{oneRm.strengthSet.weight} kg</p>
-            <p className="text-[11px] text-rose-700 dark:text-rose-300 mt-0.5">{oneRm.strengthSet.reps} (Rest 3 mins)</p>
+            <p className="text-[11px] text-rose-700 dark:text-rose-300 mt-0.5">{oneRm.strengthSet.reps} {t('(Rest 3 mins)')}</p>
           </div>
 
           <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20">
             <div className="flex justify-between items-center text-xs text-blue-700 dark:text-blue-400 font-bold uppercase">
-              <span>Muscle Hypertrophy</span>
+              <span>{t('Muscle Hypertrophy')}</span>
               <span>72% 1RM</span>
             </div>
             <p className="text-2xl font-black text-blue-900 dark:text-blue-200 mt-1">{oneRm.hypertrophySet.weight} kg</p>
-            <p className="text-[11px] text-blue-700 dark:text-blue-300 mt-0.5">{oneRm.hypertrophySet.reps} (Optimal Size)</p>
+            <p className="text-[11px] text-blue-700 dark:text-blue-300 mt-0.5">{oneRm.hypertrophySet.reps} {t('(Optimal Size)')}</p>
           </div>
 
           <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20">
             <div className="flex justify-between items-center text-xs text-emerald-700 dark:text-emerald-400 font-bold uppercase">
-              <span>Burnout / Pump</span>
+              <span>{t('Burnout / Pump')}</span>
               <span>55% 1RM</span>
             </div>
             <p className="text-2xl font-black text-emerald-900 dark:text-emerald-200 mt-1">{oneRm.enduranceSet.weight} kg</p>
-            <p className="text-[11px] text-emerald-700 dark:text-emerald-300 mt-0.5">{oneRm.enduranceSet.reps} (Fast blood flow)</p>
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-300 mt-0.5">{oneRm.enduranceSet.reps} {t('(Fast blood flow)')}</p>
           </div>
         </div>
       </Card>

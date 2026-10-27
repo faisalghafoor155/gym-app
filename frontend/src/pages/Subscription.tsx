@@ -19,6 +19,7 @@ import {
   type PlanLimits,
 } from '../utils/entitlements';
 import type { LimitStatus, GymPlan } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 const LIMIT_ORDER: (keyof PlanLimits)[] = ['members', 'staff', 'trainers', 'classes'];
 const FEATURE_ORDER: (keyof PlanFeatures)[] = [
@@ -28,6 +29,7 @@ const FEATURE_ORDER: (keyof PlanFeatures)[] = [
   'onlinePayments',
 ];
 
+/** In English; translated where they are drawn. */
 const PLAN_DESCRIPTIONS: Record<GymPlan, string> = {
   free: 'Free trial to test features with up to 50 members.',
   basic: 'Perfect for small gyms with up to 200 active members.',
@@ -39,6 +41,7 @@ const PLAN_DESCRIPTIONS: Record<GymPlan, string> = {
  * One limit as a bar, or as a count when the tier does not cap it.
  */
 function LimitBar({ label, status }: { label: string; status: LimitStatus }) {
+  const { t } = useLanguage();
   const fill = fillOf(status.limit, status.used);
   const full = isAtLimit(status.limit, status.used);
   const near = isNearLimit(status.limit, status.used);
@@ -61,7 +64,7 @@ function LimitBar({ label, status }: { label: string; status: LimitStatus }) {
           {status.used.toLocaleString()}
           <span className="text-gray-400 dark:text-slate-500 font-medium">
             {' / '}
-            {showLimit(status.limit)}
+            {t(showLimit(status.limit))}
           </span>
         </span>
       </div>
@@ -88,8 +91,7 @@ function LimitBar({ label, status }: { label: string; status: LimitStatus }) {
 
       {full && (
         <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-          At the limit — nothing more can be added until a place is freed or the
-          plan changes.
+          {t('At the limit — nothing more can be added until a place is freed or the plan changes.')}
         </p>
       )}
     </div>
@@ -97,6 +99,7 @@ function LimitBar({ label, status }: { label: string; status: LimitStatus }) {
 }
 
 export default function Subscription() {
+  const { t } = useLanguage();
   const { status, loading, reload } = useSubscription();
   const { isOwner } = useAuth();
   const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<GymPlan | null>(null);
@@ -108,8 +111,8 @@ export default function Subscription() {
     return (
       <Page>
         <LoadFailed
-          title="Could not load the plan"
-          hint="The limits still apply — this page just could not read them."
+          title={t('Could not load the plan')}
+          hint={t('The limits still apply — this page just could not read them.')}
           onRetry={() => void reload()}
         />
       </Page>
@@ -121,7 +124,7 @@ export default function Subscription() {
     setSubscribing(true);
     try {
       await api.post('/billing/subscribe', { plan });
-      toast.success(`Invoice issued for ${status.plans.find(p => p.plan === plan)?.label}! Pay below to activate.`);
+      toast.success(t('Invoice issued for {plan}! Pay below to activate.', { plan: status.plans.find(p => p.plan === plan)?.label ?? plan }));
       setSelectedPlanForUpgrade(null);
       await reload();
       // Scroll to billing section
@@ -130,7 +133,7 @@ export default function Subscription() {
         billingEl.scrollIntoView({ behavior: 'smooth' });
       }
     } catch (err: unknown) {
-      const msg = apiError(err, 'Could not start subscription');
+      const msg = apiError(err, t('Could not start subscription'));
       if (msg.includes('already has a subscription')) {
         setSelectedPlanForUpgrade(null);
         setSupportModalOpen(true);
@@ -153,8 +156,8 @@ export default function Subscription() {
     <Page>
       <PageHeader
         icon={CreditCard}
-        title="Plan & Usage"
-        subtitle="Manage your gym's subscription tier, member limits, and billing"
+        title={t('Plan & Usage')}
+        subtitle={t("Manage your gym's subscription tier, member limits, and billing")}
       />
 
       {/* Super Admin Management Panel (Visible to Platform Owner) */}
@@ -182,11 +185,11 @@ export default function Subscription() {
                   {status.planLabel}
                 </h2>
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-100 dark:border-emerald-500/20">
-                  Active
+                  {t('Active')}
                 </span>
               </div>
               <p className="text-xs text-gray-500 dark:text-slate-400">
-                {PLAN_DESCRIPTIONS[status.plan] ?? 'Your current subscription plan'}
+                {t(PLAN_DESCRIPTIONS[status.plan] ?? 'Your current subscription plan')}
               </p>
             </div>
           </div>
@@ -196,7 +199,7 @@ export default function Subscription() {
           {LIMIT_ORDER.map(key => (
             <LimitBar
               key={key}
-              label={LIMIT_LABELS[key]}
+              label={t(LIMIT_LABELS[key])}
               status={status.limits[key]}
             />
           ))}
@@ -206,10 +209,10 @@ export default function Subscription() {
       {/* All Available Plans Grid */}
       <div className="mb-4">
         <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
-          Available Subscription Plans
+          {t('Available Subscription Plans')}
         </h2>
         <p className="text-xs text-gray-500 dark:text-slate-400">
-          Select a 200, 400, or Unlimited member plan tailored for your gym's growth.
+          {t("Select a 200, 400, or Unlimited member plan tailored for your gym's growth.")}
         </p>
       </div>
 
@@ -232,7 +235,7 @@ export default function Subscription() {
             >
               {isGrowth && !isCurrent && (
                 <span className="absolute -top-2.5 right-4 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white uppercase tracking-wider">
-                  Popular
+                  {t('Popular')}
                 </span>
               )}
 
@@ -243,7 +246,7 @@ export default function Subscription() {
                   </h3>
                   {isCurrent && (
                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-500/20">
-                      Current
+                      {t('Current')}
                     </span>
                   )}
                 </div>
@@ -255,20 +258,20 @@ export default function Subscription() {
                   </span>
                   {p.plan !== 'free' && (
                     <span className="text-xs text-gray-500 dark:text-slate-400 ml-1">
-                      /month
+                      {t('/month')}
                     </span>
                   )}
                 </div>
 
                 <p className="text-xs text-gray-500 dark:text-slate-400 mb-4 min-h-[32px]">
-                  {PLAN_DESCRIPTIONS[p.plan]}
+                  {t(PLAN_DESCRIPTIONS[p.plan])}
                 </p>
 
                 {/* Member Limit Highlight */}
                 <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800 mb-4 flex items-center justify-between">
-                  <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Capacity</span>
+                  <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">{t('Capacity')}</span>
                   <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
-                    {p.limits.members === null ? 'Unlimited Members' : `${p.limits.members} Members`}
+                    {p.limits.members === null ? t('Unlimited Members') : t('{count} Members', { count: p.limits.members })}
                   </span>
                 </div>
 
@@ -277,10 +280,10 @@ export default function Subscription() {
                   {LIMIT_ORDER.filter(k => k !== 'members').map(key => (
                     <div key={key} className="flex justify-between">
                       <dt className="text-gray-400 dark:text-slate-500">
-                        {LIMIT_LABELS[key]}
+                        {t(LIMIT_LABELS[key])}
                       </dt>
                       <dd className="font-semibold text-gray-700 dark:text-slate-300">
-                        {showLimit(p.limits[key])}
+                        {t(showLimit(p.limits[key]))}
                       </dd>
                     </div>
                   ))}
@@ -302,7 +305,7 @@ export default function Subscription() {
                             : 'text-gray-400 dark:text-slate-500'
                         }
                       >
-                        {FEATURE_LABELS[key]}
+                        {t(FEATURE_LABELS[key])}
                       </span>
                     </div>
                   ))}
@@ -318,14 +321,14 @@ export default function Subscription() {
                       className="w-full py-2 px-3 rounded-xl text-xs font-semibold bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-slate-500 cursor-not-allowed flex items-center justify-center gap-1.5"
                     >
                       <Check size={14} />
-                      Current Plan
+                      {t('Current Plan')}
                     </button>
                   ) : p.plan === 'free' ? (
                     <button
                       disabled
                       className="w-full py-2 px-3 rounded-xl text-xs font-medium bg-gray-50 dark:bg-slate-800/40 text-gray-400 dark:text-slate-500 cursor-not-allowed text-center"
                     >
-                      Trial Tier
+                      {t('Trial Tier')}
                     </button>
                   ) : (
                     <button
@@ -337,7 +340,9 @@ export default function Subscription() {
                           : 'bg-gray-900 hover:bg-black text-white dark:bg-slate-700 dark:hover:bg-slate-600'
                       }`}
                     >
-                      Select {p.limits.members ? `${p.limits.members} Members` : 'Unlimited'}
+                      {p.limits.members
+                        ? t('Select {count} Members', { count: p.limits.members })
+                        : t('Select Unlimited')}
                     </button>
                   )}
                 </div>
@@ -351,10 +356,10 @@ export default function Subscription() {
       <div className="mt-8 p-4 rounded-2xl bg-gray-50 dark:bg-slate-800/40 border border-gray-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="text-center sm:text-left">
           <h4 className="text-sm font-bold text-gray-900 dark:text-slate-200">
-            Need a custom capacity or plan adjustment?
+            {t('Need a custom capacity or plan adjustment?')}
           </h4>
           <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-            Our team can arrange custom limits, multi-branch gyms, or manual bank payment invoices.
+            {t('Our team can arrange custom limits, multi-branch gyms, or manual bank payment invoices.')}
           </p>
         </div>
         <button
@@ -363,7 +368,7 @@ export default function Subscription() {
           className="shrink-0 px-4 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 flex items-center gap-1.5 shadow-sm"
         >
           <MessageCircle size={14} className="text-emerald-500" />
-          Contact Support / WhatsApp
+          {t('Contact Support / WhatsApp')}
         </button>
       </div>
 
@@ -371,34 +376,36 @@ export default function Subscription() {
       {selectedPlanForUpgrade && selectedPlanDetails && (
         <Modal
           onClose={() => setSelectedPlanForUpgrade(null)}
-          title={`Subscribe to ${selectedPlanDetails.label}`}
+          title={t('Subscribe to {plan}', { plan: selectedPlanDetails.label })}
         >
           <div className="space-y-4">
             <p className="text-sm text-gray-600 dark:text-slate-300">
-              You are selecting the <strong>{selectedPlanDetails.label}</strong> for your gym.
+              {t('You are selecting the')} <strong>{selectedPlanDetails.label}</strong> {t('for your gym.')}
             </p>
 
             <div className="p-4 rounded-xl bg-blue-50/60 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 space-y-2 text-xs">
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-slate-400">Member Limit:</span>
+                <span className="text-gray-500 dark:text-slate-400">{t('Member Limit:')}</span>
                 <span className="font-bold text-gray-900 dark:text-slate-100">
-                  {selectedPlanDetails.limits.members === null ? 'Unlimited' : `${selectedPlanDetails.limits.members} active members`}
+                  {selectedPlanDetails.limits.members === null
+                    ? t('Unlimited')
+                    : t('{count} active members', { count: selectedPlanDetails.limits.members })}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-slate-400">Monthly Subscription:</span>
+                <span className="text-gray-500 dark:text-slate-400">{t('Monthly Subscription:')}</span>
                 <span className="font-black text-blue-600 dark:text-blue-400">
-                  {getPriceDisplay(selectedPlanDetails.plan, selectedPlanDetails.price)} / month
+                  {getPriceDisplay(selectedPlanDetails.plan, selectedPlanDetails.price)} {t('/ month')}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-slate-400">Billing Cycle:</span>
-                <span className="font-medium text-gray-900 dark:text-slate-100">Every 30 days</span>
+                <span className="text-gray-500 dark:text-slate-400">{t('Billing Cycle:')}</span>
+                <span className="font-medium text-gray-900 dark:text-slate-100">{t('Every 30 days')}</span>
               </div>
             </div>
 
             <p className="text-xs text-gray-500 dark:text-slate-400">
-              Clicking below will issue your official subscription invoice. You can then settle it instantly via JazzCash, EasyPaisa, or direct Bank Transfer.
+              {t('Clicking below will issue your official subscription invoice. You can then settle it instantly via JazzCash, EasyPaisa, or direct Bank Transfer.')}
             </p>
 
             <div className="flex justify-end gap-2 pt-2">
@@ -408,7 +415,7 @@ export default function Subscription() {
                 className={secondaryButton}
                 disabled={subscribing}
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="button"
@@ -416,7 +423,7 @@ export default function Subscription() {
                 disabled={subscribing}
                 className={primaryButton}
               >
-                {subscribing ? 'Generating Invoice...' : 'Confirm & Proceed to Payment'}
+                {subscribing ? t('Generating Invoice...') : t('Confirm & Proceed to Payment')}
               </button>
             </div>
           </div>
@@ -427,22 +434,22 @@ export default function Subscription() {
       {supportModalOpen && (
         <Modal
           onClose={() => setSupportModalOpen(false)}
-          title="Plan Change & Support"
+          title={t('Plan Change & Support')}
         >
           <div className="space-y-4">
             <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
               <AlertCircle size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <p className="text-xs text-amber-800 dark:text-amber-300">
-                To switch between paid tiers mid-term, our support team will prorate your existing days so your previously paid amount is completely preserved.
+                {t('To switch between paid tiers mid-term, our support team will prorate your existing days so your previously paid amount is completely preserved.')}
               </p>
             </div>
 
             <p className="text-sm text-gray-600 dark:text-slate-300">
-              You can reach out to our gym support hotline or WhatsApp with your Gym ID:
+              {t('You can reach out to our gym support hotline or WhatsApp with your Gym ID:')}
             </p>
 
             <div className="p-3 rounded-lg bg-gray-100 dark:bg-slate-800 text-xs font-mono text-gray-800 dark:text-slate-200 break-all select-all">
-              Gym Name: {status.planLabel} · Current Plan
+              {t('Gym Name:')} {status.planLabel} · {t('Current Plan')}
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
@@ -451,7 +458,7 @@ export default function Subscription() {
                 onClick={() => setSupportModalOpen(false)}
                 className={secondaryButton}
               >
-                Close
+                {t('Close')}
               </button>
               <a
                 href="https://wa.me/923001234567?text=Hi%2C%20I%20would%20like%20to%20upgrade%20my%20gym%20plan"
@@ -460,7 +467,7 @@ export default function Subscription() {
                 className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-sm"
               >
                 <MessageCircle size={14} />
-                Open WhatsApp
+                {t('Open WhatsApp')}
               </a>
             </div>
           </div>

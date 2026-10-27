@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, AlertTriangle, XCircle, Clock, CalendarX2, Phone, Wallet } from 'lucide-react';
+import { useLanguage, type TVars } from '../../context/LanguageContext';
 
 import type { CheckinFee, Membership } from '../../types';
 
@@ -44,8 +45,6 @@ const asDate = (iso: string): string =>
     day: 'numeric', month: 'short', year: 'numeric',
   });
 
-const days = (n: number): string => `${n} day${n === 1 ? '' : 's'}`;
-
 const rs = (n: number): string => `Rs. ${n.toLocaleString()}`;
 
 /**
@@ -59,42 +58,49 @@ type Tone = 'ok' | 'warn' | 'bad';
 
 const readStanding = (
   membership: Membership | null,
+  t: (english: string, vars?: TVars) => string,
 ): { tone: Tone; headline: string; detail: string | null } => {
   if (!membership) {
     return {
       tone: 'bad',
-      headline: 'No membership',
-      detail: 'Nothing on file — sell them one before they train.',
+      headline: t('No membership'),
+      detail: t('Nothing on file — sell them one before they train.'),
     };
   }
   if (membership.status === 'expired') {
     const ago = Math.abs(membership.daysLeft);
     return {
       tone: 'bad',
-      headline: 'Membership expired',
+      headline: t('Membership expired'),
       detail: ago === 0
-        ? 'Ran out today. Take the renewal now.'
-        : `Ran out ${days(ago)} ago. Take the renewal now.`,
+        ? t('Ran out today. Take the renewal now.')
+        : ago === 1
+          ? t('Ran out {count} day ago. Take the renewal now.', { count: ago })
+          : t('Ran out {count} days ago. Take the renewal now.', { count: ago }),
     };
   }
   if (membership.status === 'suspended') {
     return {
       tone: 'warn',
-      headline: 'Membership suspended',
-      detail: 'On hold — resume it before they train.',
+      headline: t('Membership suspended'),
+      detail: t('On hold — resume it before they train.'),
     };
   }
   if (membership.status === 'expiring') {
+    const count = membership.daysLeft;
     return {
       tone: 'warn',
-      headline: `Expires in ${days(membership.daysLeft)}`,
-      detail: 'Worth asking for the renewal while they are here.',
+      headline: count === 1
+        ? t('Expires in {count} day', { count })
+        : t('Expires in {count} days', { count }),
+      detail: t('Worth asking for the renewal while they are here.'),
     };
   }
+  const count = membership.daysLeft;
   return {
     tone: 'ok',
-    headline: 'Membership active',
-    detail: `${days(membership.daysLeft)} left.`,
+    headline: t('Membership active'),
+    detail: count === 1 ? t('{count} day left.', { count }) : t('{count} days left.', { count }),
   };
 };
 
@@ -124,8 +130,9 @@ const TONES: Record<Tone, {
 export default function CheckinResultModal(
   { result, onClose }: { result: CheckinDisplay; onClose: () => void },
 ) {
+  const { t } = useLanguage();
   const { name, memberNo, phone, photo, membership, fee, alreadyCheckedIn } = result;
-  const { tone, headline, detail } = readStanding(membership);
+  const { tone, headline, detail } = readStanding(membership, t);
   const { panel, badge, text, Icon } = TONES[tone];
 
   // Kept in a ref so restarting the countdown for a new member does not
@@ -195,8 +202,8 @@ export default function CheckinResultModal(
               )}
               <p className="text-sm font-semibold text-gray-700 dark:text-slate-300 mt-1 flex items-center gap-1.5">
                 {alreadyCheckedIn
-                  ? <><Clock size={14} /> Already checked in today</>
-                  : <><CheckCircle2 size={14} className="text-green-600" /> Checked in</>}
+                  ? <><Clock size={14} /> {t('Already checked in today')}</>
+                  : <><CheckCircle2 size={14} className="text-green-600" /> {t('Checked in')}</>}
               </p>
             </div>
           </div>
@@ -211,12 +218,12 @@ export default function CheckinResultModal(
             )}
             {membership && (
               <dl className="mt-3 pt-3 border-t border-current/15 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                <dt className="text-gray-600 dark:text-slate-400">Plan</dt>
+                <dt className="text-gray-600 dark:text-slate-400">{t('Plan')}</dt>
                 <dd className="font-semibold text-gray-900 dark:text-slate-100 text-right truncate">
                   {membership.planName}
                 </dd>
                 <dt className="text-gray-600 dark:text-slate-400 flex items-center gap-1.5">
-                  <CalendarX2 size={13} /> Expiry
+                  <CalendarX2 size={13} /> {t('Expiry')}
                 </dt>
                 <dd className="font-semibold text-gray-900 dark:text-slate-100 text-right">
                   {asDate(membership.expiryDate)}
@@ -225,20 +232,20 @@ export default function CheckinResultModal(
                 {fee && fee.amount > 0 && (
                   <>
                     <dt className="text-gray-600 dark:text-slate-400 flex items-center gap-1.5">
-                      <Wallet size={13} /> Fee
+                      <Wallet size={13} /> {t('Fee')}
                     </dt>
                     <dd className="font-semibold text-gray-900 dark:text-slate-100 text-right">
                       {rs(fee.amount)}
                     </dd>
-                    <dt className="text-gray-600 dark:text-slate-400">Paid</dt>
+                    <dt className="text-gray-600 dark:text-slate-400">{t('Paid')}</dt>
                     <dd className="font-semibold text-gray-900 dark:text-slate-100 text-right">
                       {rs(fee.paid)}
                     </dd>
-                    <dt className="text-gray-600 dark:text-slate-400">Balance due</dt>
+                    <dt className="text-gray-600 dark:text-slate-400">{t('Balance due')}</dt>
                     <dd className={`font-bold text-right ${
                       fee.balance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-700 dark:text-green-400'
                     }`}>
-                      {fee.balance > 0 ? rs(fee.balance) : 'Fully paid'}
+                      {fee.balance > 0 ? rs(fee.balance) : t('Fully paid')}
                     </dd>
                   </>
                 )}
@@ -250,7 +257,7 @@ export default function CheckinResultModal(
             onClick={onClose}
             className="mt-5 w-full py-2.5 rounded-xl font-semibold bg-gray-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:opacity-90 transition-opacity"
           >
-            Next member
+            {t('Next member')}
           </button>
         </div>
       </div>

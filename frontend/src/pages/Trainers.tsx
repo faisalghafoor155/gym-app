@@ -11,6 +11,7 @@ import type {
   Paginated,
 } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { hasPermission } from '../utils/permissions';
 import {
   emptyTrainerForm, emptyPtForm, type TrainerForm, type PtSessionForm, type TabType,
@@ -24,6 +25,7 @@ import PtSessionModal from '../components/trainers/PtSessionModal';
 
 export default function Trainers() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const canViewPayouts = hasPermission(user?.role || null, user?.staffPermission, 'canViewPayments');
   const canManagePayouts = hasPermission(user?.role || null, user?.staffPermission, 'canManagePayments');
 
@@ -85,7 +87,7 @@ export default function Trainers() {
         setPayouts(pRes.data.data);
       }
     } catch (err) {
-      if (!isStale()) toast.error(apiError(err, 'Failed to fetch data'));
+      if (!isStale()) toast.error(apiError(err, t('Failed to fetch data')));
     } finally {
       if (!isStale()) setLoading(false);
     }
@@ -113,17 +115,17 @@ export default function Trainers() {
       };
       if (editingTrainerId) {
         await api.put(`/trainers/${editingTrainerId}`, payload);
-        toast.success('Trainer updated');
+        toast.success(t('Trainer updated'));
       } else {
         await api.post('/trainers', payload);
-        toast.success('Trainer added successfully');
+        toast.success(t('Trainer added successfully'));
       }
       setShowTrainerModal(false);
       setTrainerForm(emptyTrainerForm);
       setEditingTrainerId(null);
       await loadData();
     } catch (err) {
-      toast.error(apiError(err, 'Error saving trainer'));
+      toast.error(apiError(err, t('Error saving trainer')));
     } finally {
       setSaving(false);
     }
@@ -134,11 +136,11 @@ export default function Trainers() {
     setSaving(true);
     try {
       await api.delete(`/trainers/${deactivatingTrainer.id}`);
-      toast.success('Trainer deactivated successfully');
+      toast.success(t('Trainer deactivated successfully'));
       setDeactivatingTrainer(null);
       await loadData();
     } catch (err) {
-      toast.error(apiError(err, 'Failed to deactivate trainer'));
+      toast.error(apiError(err, t('Failed to deactivate trainer')));
     } finally {
       setSaving(false);
     }
@@ -149,12 +151,12 @@ export default function Trainers() {
     setSaving(true);
     try {
       await api.post('/pt-sessions', ptForm);
-      toast.success('PT Session logged successfully');
+      toast.success(t('PT Session logged successfully'));
       setShowPtModal(false);
       setPtForm(emptyPtForm());
       await loadData();
     } catch (err) {
-      toast.error(apiError(err, 'Error logging session'));
+      toast.error(apiError(err, t('Error logging session')));
     } finally {
       setSaving(false);
     }
@@ -163,20 +165,20 @@ export default function Trainers() {
   const updateSessionStatus = async (sessionId: string, status: 'completed' | 'cancelled') => {
     try {
       await api.put(`/pt-sessions/${sessionId}`, { status });
-      toast.success('Session status updated');
+      toast.success(t('Session status updated'));
       await loadData();
     } catch (err) {
-      toast.error(apiError(err, 'Failed to update session'));
+      toast.error(apiError(err, t('Failed to update session')));
     }
   };
 
   const updateSessionPayment = async (sessionId: string, paymentStatus: 'paid') => {
     try {
       await api.put(`/pt-sessions/${sessionId}`, { paymentStatus });
-      toast.success('Session marked as paid (payment logged)');
+      toast.success(t('Session marked as paid (payment logged)'));
       await loadData();
     } catch (err) {
-      toast.error(apiError(err, 'Failed to update payment status'));
+      toast.error(apiError(err, t('Failed to update payment status')));
     }
   };
 
@@ -185,11 +187,11 @@ export default function Trainers() {
     setSaving(true);
     try {
       await api.post(`/payouts/${payingOut.trainerId}/pay`);
-      toast.success('Trainer payout marked as paid');
+      toast.success(t('Trainer payout marked as paid'));
       setPayingOut(null);
       await loadData();
     } catch (err) {
-      toast.error(apiError(err, 'Failed to process trainer payout'));
+      toast.error(apiError(err, t('Failed to process trainer payout')));
     } finally {
       setSaving(false);
     }
@@ -202,7 +204,7 @@ export default function Trainers() {
       <PageHeader
         icon={Award}
         title="Personal Training & Staff"
-        subtitle="Manage personal trainers, schedule 1-on-1 PT sessions, and track payouts."
+        subtitle={t('Manage personal trainers, schedule 1-on-1 PT sessions, and track payouts.')}
         action={
           activeTab === 'trainers' ? (
             <button
@@ -213,7 +215,7 @@ export default function Trainers() {
               }}
               className={primaryButton}
             >
-              <Plus size={16} /> Add Trainer
+              <Plus size={16} /> {t('Add Trainer')}
             </button>
           ) : (
             <button
@@ -223,7 +225,7 @@ export default function Trainers() {
               }}
               className={primaryButton}
             >
-              <Plus size={16} /> Book PT Session
+              <Plus size={16} /> {t('Book PT Session')}
             </button>
           )
         }
@@ -252,18 +254,18 @@ export default function Trainers() {
             setTrainerForm(emptyTrainerForm);
             setShowTrainerModal(true);
           }}
-          onEdit={t => {
-            setEditingTrainerId(t.id);
+          onEdit={tr => {
+            setEditingTrainerId(tr.id);
             setTrainerForm({
-              name: t.name,
-              phone: t.phone || '',
-              specialization: t.specialization || '',
-              commissionPercentage: t.commissionPercentage,
+              name: tr.name,
+              phone: tr.phone || '',
+              specialization: tr.specialization || '',
+              commissionPercentage: tr.commissionPercentage,
               // Null becomes the empty field that means "use the gym
               // default"; a stored 0 becomes "0", because charging
               // nothing is a real choice and must not read back as
               // an unset field.
-              ptFee: t.ptFee === null ? '' : String(t.ptFee),
+              ptFee: tr.ptFee === null ? '' : String(tr.ptFee),
             });
             setShowTrainerModal(true);
           }}
@@ -323,9 +325,9 @@ export default function Trainers() {
       {/* Confirm Deactivate Dialog */}
       {!!deactivatingTrainer && (
         <ConfirmDialog
-          title="Deactivate Trainer"
-          message={`Are you sure you want to deactivate trainer ${deactivatingTrainer.name}? They will no longer be available for assigning new members or scheduling sessions, but all historical commissions will remain intact.`}
-          confirmLabel="Deactivate"
+          title={t('Deactivate Trainer')}
+          message={t('Are you sure you want to deactivate trainer {name}? They will no longer be available for assigning new members or scheduling sessions, but all historical commissions will remain intact.', { name: deactivatingTrainer.name })}
+          confirmLabel={t('Deactivate')}
           onConfirm={handleDeactivate}
           onCancel={() => setDeactivatingTrainer(null)}
           busy={saving}
@@ -337,9 +339,9 @@ export default function Trainers() {
           the question — this is the last point at which a misclick is free. */}
       {!!payingOut && (
         <ConfirmDialog
-          title="Clear unpaid commission"
-          message={`Mark Rs. ${payingOut.unpaidCommission.toLocaleString()} as paid to ${payingOut.trainerName}? This records the payout against every completed session they are still owed for, and cannot be undone from this page.`}
-          confirmLabel="Mark as paid"
+          title={t('Clear unpaid commission')}
+          message={t('Mark Rs. {amount} as paid to {name}? This records the payout against every completed session they are still owed for, and cannot be undone from this page.', { amount: payingOut.unpaidCommission.toLocaleString(), name: payingOut.trainerName })}
+          confirmLabel={t('Mark as paid')}
           onConfirm={() => void payTrainer()}
           onCancel={() => setPayingOut(null)}
           busy={saving}
@@ -349,9 +351,13 @@ export default function Trainers() {
 
       {!!cancellingSession && (
         <ConfirmDialog
-          title="Cancel PT session"
-          message={`Cancel ${cancellingSession.member.name}'s session with ${cancellingSession.trainer.name} on ${new Date(cancellingSession.sessionDate).toLocaleDateString()}? The trainer earns no commission for a cancelled session.`}
-          confirmLabel="Cancel session"
+          title={t('Cancel PT session')}
+          message={t("Cancel {member}'s session with {trainer} on {date}? The trainer earns no commission for a cancelled session.", {
+            member: cancellingSession.member.name,
+            trainer: cancellingSession.trainer.name,
+            date: new Date(cancellingSession.sessionDate).toLocaleDateString(),
+          })}
+          confirmLabel={t('Cancel session')}
           onConfirm={() => {
             void updateSessionStatus(cancellingSession.id, 'cancelled');
             setCancellingSession(null);

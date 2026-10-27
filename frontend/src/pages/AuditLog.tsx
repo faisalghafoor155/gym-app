@@ -9,6 +9,7 @@ import {
 import api, { apiError } from '../api/client';
 import type { AuditLog, Paginated } from '../types';
 import toast from 'react-hot-toast';
+import { translate, useLanguage, type Language } from '../context/LanguageContext';
 
 /**
  * The trail: who did what, and when.
@@ -59,7 +60,7 @@ const verbTone = (action: string): string => {
 
 /** `member.create` → `Member created`. The stored form is a dotted verb, which
  *  is right for a column and wrong for a page. */
-const readableAction = (action: string): string => {
+const readableAction = (action: string, lang: Language): string => {
   const [entity = '', verb = ''] = action.split('.');
   const spaced = (s: string) => s.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
   const past: Record<string, string> = {
@@ -70,7 +71,7 @@ const readableAction = (action: string): string => {
     checkoutCart: 'cart checked out', initiated: 'initiated',
   };
   const head = spaced(entity);
-  return `${head.charAt(0).toUpperCase()}${head.slice(1)} ${past[verb] ?? spaced(verb)}`;
+  return `${translate(lang, `${head.charAt(0).toUpperCase()}${head.slice(1)}`)} ${translate(lang, past[verb] ?? spaced(verb))}`;
 };
 
 /** Field names come from the database, so `expiryDate` needs spacing out. */
@@ -84,9 +85,9 @@ const readableField = (key: string): string =>
  * `2026-09-18T00:00:00.000Z` in a list of changes is noise rather than
  * information.
  */
-const readableValue = (value: unknown): string => {
+const readableValue = (value: unknown, lang: Language): string => {
   if (value === null || value === undefined) return '—';
-  if (typeof value === 'boolean') return value ? 'yes' : 'no';
+  if (typeof value === 'boolean') return translate(lang, value ? 'yes' : 'no');
   if (typeof value === 'string') {
     const isoDate = /^\d{4}-\d{2}-\d{2}T[\d:.]+Z?$/.test(value);
     if (isoDate) {
@@ -120,6 +121,7 @@ const timestamp = (iso: string): string =>
   });
 
 export default function AuditLogPage() {
+  const { lang, t } = useLanguage();
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -159,12 +161,14 @@ export default function AuditLogPage() {
         setExpanded(new Set());
       })
       .catch(err => {
-        if (!cancelled) toast.error(apiError(err, 'Could not load the audit log'));
+        if (!cancelled) toast.error(apiError(err, translate(lang, 'Could not load the audit log')));
       })
       .finally(() => {
         if (!cancelled) { setLoading(false); setRefetching(false); }
       });
     return () => { cancelled = true; };
+    // `lang` only words the error; a language change is no reason to refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   /** Appends the next page rather than replacing what is on screen. */
@@ -177,7 +181,7 @@ export default function AuditLogPage() {
         setHasMore(r.data.hasMore);
         setPage(next);
       })
-      .catch(err => toast.error(apiError(err, 'Could not load more')))
+      .catch(err => toast.error(apiError(err, t('Could not load more'))))
       .finally(() => setLoadingMore(false));
   };
 
@@ -198,7 +202,7 @@ export default function AuditLogPage() {
       <PageHeader
         icon={ScrollText}
         title="Audit Log"
-        subtitle={`${total.toLocaleString()} recorded ${total === 1 ? 'action' : 'actions'}`}
+        subtitle={t(total === 1 ? '{count} recorded action' : '{count} recorded actions', { count: total.toLocaleString() })}
       />
 
       <Card className="p-3 sm:p-4 mb-5">
@@ -206,12 +210,12 @@ export default function AuditLogPage() {
           <select
             value={entity}
             onChange={e => setEntity(e.target.value)}
-            aria-label="Filter by what was acted on"
+            aria-label={t('Filter by what was acted on')}
             className={`${inputClass} sm:w-auto`}
           >
-            <option value="">Everything</option>
+            <option value="">{t('Everything')}</option>
             {ENTITIES.map(e => (
-              <option key={e} value={e}>{readableField(e)}</option>
+              <option key={e} value={e}>{t(readableField(e))}</option>
             ))}
           </select>
 
@@ -221,23 +225,23 @@ export default function AuditLogPage() {
               value={from}
               max={to || undefined}
               onChange={e => setFrom(e.target.value)}
-              aria-label="From date"
+              aria-label={t('From date')}
               className={`${inputClass} w-auto`}
             />
-            <span className="text-xs text-gray-400 dark:text-slate-500">to</span>
+            <span className="text-xs text-gray-400 dark:text-slate-500">{t('to')}</span>
             <input
               type="date"
               value={to}
               min={from || undefined}
               onChange={e => setTo(e.target.value)}
-              aria-label="To date"
+              aria-label={t('To date')}
               className={`${inputClass} w-auto`}
             />
           </div>
 
           {hasFilters && (
             <button onClick={clearFilters} className={`${secondaryButton} sm:ml-auto`}>
-              <X size={14} /> Clear
+              <X size={14} /> {t('Clear')}
             </button>
           )}
         </div>
@@ -246,13 +250,13 @@ export default function AuditLogPage() {
       {logs.length === 0 ? (
         <EmptyState
           icon={hasFilters ? Filter : ScrollText}
-          title={hasFilters ? 'Nothing matches those filters' : 'Nothing recorded yet'}
+          title={hasFilters ? t('Nothing matches those filters') : t('Nothing recorded yet')}
           hint={hasFilters
-            ? 'Try a wider date range, or clear the filters.'
-            : 'Actions that change members, money or staff are recorded here as they happen.'}
+            ? t('Try a wider date range, or clear the filters.')
+            : t('Actions that change members, money or staff are recorded here as they happen.')}
           {...(hasFilters && {
             action: (
-              <button onClick={clearFilters} className={secondaryButton}>Clear filters</button>
+              <button onClick={clearFilters} className={secondaryButton}>{t('Clear filters')}</button>
             ),
           })}
         />
@@ -268,7 +272,7 @@ export default function AuditLogPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`px-2 py-0.5 rounded-md text-xs font-semibold ${verbTone(log.action)}`}>
-                          {readableAction(log.action)}
+                          {readableAction(log.action, lang)}
                         </span>
                         {log.entityLabel && (
                           <span className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
@@ -281,7 +285,7 @@ export default function AuditLogPage() {
                         <span className="inline-flex items-center gap-1">
                           <UserCog size={12} />
                           {log.actorName}
-                          <span className="text-gray-400 dark:text-slate-500">({log.actorRole})</span>
+                          <span className="text-gray-400 dark:text-slate-500">({t(log.actorRole)})</span>
                         </span>
                         <span>{timestamp(log.createdAt)}</span>
                       </div>
@@ -299,10 +303,10 @@ export default function AuditLogPage() {
                       <button
                         onClick={() => toggle(log.id)}
                         aria-expanded={isOpen}
-                        aria-label={`${isOpen ? 'Hide' : 'Show'} what changed for ${log.entityLabel ?? log.action}`}
+                        aria-label={t(isOpen ? 'Hide what changed for {item}' : 'Show what changed for {item}', { item: log.entityLabel ?? log.action })}
                         className={`shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 transition-colors ${focusRing}`}
                       >
-                        {fields.length} {fields.length === 1 ? 'field' : 'fields'}
+                        {t(fields.length === 1 ? '{count} field' : '{count} fields', { count: fields.length })}
                         <ChevronDown
                           size={12}
                           className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -316,7 +320,7 @@ export default function AuditLogPage() {
                       {fields.map(({ key, before, after }) => (
                         <div key={key} className="flex flex-wrap items-baseline gap-x-2 text-xs">
                           <span className="text-gray-500 dark:text-slate-400 min-w-32">
-                            {readableField(key)}
+                            {t(readableField(key))}
                           </span>
                           {/* An update shows both sides; a create or delete has
                               only one, and an arrow from nothing reads as a
@@ -324,16 +328,16 @@ export default function AuditLogPage() {
                           {before !== undefined && after !== undefined ? (
                             <>
                               <span className="text-gray-400 dark:text-slate-500 line-through break-all">
-                                {readableValue(before)}
+                                {readableValue(before, lang)}
                               </span>
                               <span className="text-gray-400 dark:text-slate-500">→</span>
                               <span className="font-medium text-gray-800 dark:text-slate-200 break-all">
-                                {readableValue(after)}
+                                {readableValue(after, lang)}
                               </span>
                             </>
                           ) : (
                             <span className="font-medium text-gray-800 dark:text-slate-200 break-all">
-                              {readableValue(after ?? before)}
+                              {readableValue(after ?? before, lang)}
                             </span>
                           )}
                         </div>
@@ -350,7 +354,7 @@ export default function AuditLogPage() {
       {hasMore && (
         <div className="flex justify-center mt-5">
           <button onClick={loadMore} disabled={loadingMore} className={secondaryButton}>
-            {loadingMore ? 'Loading…' : `Show more · ${total - logs.length} left`}
+            {loadingMore ? t('Loading…') : t('Show more · {count} left', { count: total - logs.length })}
           </button>
         </div>
       )}

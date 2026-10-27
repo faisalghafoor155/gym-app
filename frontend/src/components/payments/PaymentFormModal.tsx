@@ -2,6 +2,7 @@
 
 import type { ChangeEvent, Dispatch, FormEvent, SetStateAction } from "react";
 import Modal from "../Modal";
+import { useLanguage } from "../../context/LanguageContext";
 import { FieldLabel, inputClass, primaryButton, secondaryButton } from "../ui";
 import {
   CHANNELS,
@@ -38,6 +39,7 @@ export default function PaymentFormModal({
   onClose,
   onSubmit,
 }: Props) {
+  const { t } = useLanguage();
   const set =
     (k: keyof PaymentForm) =>
     (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -51,7 +53,7 @@ export default function PaymentFormModal({
 
   return (
     <Modal
-      title={editing ? "Edit Payment" : "Record Payment"}
+      title={editing ? t("Edit Payment") : t("Record Payment")}
       onClose={onClose}
     >
       <form onSubmit={onSubmit} className="space-y-4">
@@ -60,7 +62,7 @@ export default function PaymentFormModal({
               editing there is no control to name — the member is shown as
               text — and a label pointing at nothing is inert rather than
               wrong. */}
-          <FieldLabel htmlFor="payments-member" required>Member</FieldLabel>
+          <FieldLabel htmlFor="payments-member" required>{t("Member")}</FieldLabel>
           {editing ? (
             // Reassigning a payment is a delete and a re-entry, so the trail
             // shows both. Shown read-only rather than hidden.
@@ -83,7 +85,7 @@ export default function PaymentFormModal({
               }
               className={inputClass}
             >
-              <option value="">Select member...</option>
+              <option value="">{t("Select member...")}</option>
               {members.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -94,21 +96,21 @@ export default function PaymentFormModal({
           )}
           {!editing && members.length === 0 && (
             <p className="text-xs text-yellow-700 mt-1.5">
-              No members yet — add a member before recording a payment.
+              {t("No members yet — add a member before recording a payment.")}
             </p>
           )}
         </div>
 
         <div>
-          <FieldLabel htmlFor="payments-for">For</FieldLabel>
+          <FieldLabel htmlFor="payments-for">{t("For")}</FieldLabel>
           <select id="payments-for"
             value={form.type}
             onChange={set("type")}
             className={inputClass}
           >
-            {(Object.keys(TYPE_LABELS) as PaymentType[]).map((t) => (
-              <option key={t} value={t}>
-                {TYPE_LABELS[t]}
+            {(Object.keys(TYPE_LABELS) as PaymentType[]).map((type) => (
+              <option key={type} value={type}>
+                {t(TYPE_LABELS[type])}
               </option>
             ))}
           </select>
@@ -119,7 +121,7 @@ export default function PaymentFormModal({
             before that. */}
         {form.type === "membership" && formMember && (
           <div>
-            <FieldLabel htmlFor="payments-membership">Membership</FieldLabel>
+            <FieldLabel htmlFor="payments-membership">{t("Membership")}</FieldLabel>
             {formMember.currentMembership ? (
               <select
                 id="payments-membership"
@@ -127,12 +129,12 @@ export default function PaymentFormModal({
                 onChange={set("membershipId")}
                 className={inputClass}
               >
-                <option value="">Not linked to a membership</option>
+                <option value="">{t("Not linked to a membership")}</option>
                 <option value={formMember.currentMembership.id}>
                   {formMember.currentMembership.planName}
                   {" · Rs. "}
                   {formMember.currentMembership.pricePaid.toLocaleString()}
-                  {" · expires "}
+                  {` · ${t("expires")} `}
                   {new Date(
                     formMember.currentMembership.expiryDate,
                   ).toLocaleDateString("en-PK", {
@@ -144,19 +146,20 @@ export default function PaymentFormModal({
               </select>
             ) : (
               <p className="px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 text-sm text-gray-500 dark:text-slate-400">
-                This member has no membership to link to.
+                {t("This member has no membership to link to.")}
               </p>
             )}
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5">
-              Linking is what lets the app tell a paid-up membership from an
-              unpaid one.
+              {t(
+                "Linking is what lets the app tell a paid-up membership from an unpaid one.",
+              )}
             </p>
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <FieldLabel htmlFor="payments-amount-rs" required>Amount (Rs.)</FieldLabel>
+            <FieldLabel htmlFor="payments-amount-rs" required>{t("Amount (Rs.)")}</FieldLabel>
             <input id="payments-amount-rs"
               type="number"
               required
@@ -169,7 +172,7 @@ export default function PaymentFormModal({
             />
           </div>
           <div>
-            <FieldLabel htmlFor="payments-date" required>Date</FieldLabel>
+            <FieldLabel htmlFor="payments-date" required>{t("Date")}</FieldLabel>
             <input id="payments-date"
               type="date"
               required
@@ -183,7 +186,7 @@ export default function PaymentFormModal({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <FieldLabel htmlFor="payments-method">Method</FieldLabel>
+            <FieldLabel htmlFor="payments-method">{t("Method")}</FieldLabel>
             <select id="payments-method"
               value={form.method}
               onChange={(e) => {
@@ -199,19 +202,19 @@ export default function PaymentFormModal({
               }}
               className={inputClass}
             >
-              <option value="cash">Cash</option>
-              <option value="online">Online</option>
+              <option value="cash">{t("Cash")}</option>
+              <option value="online">{t("Online")}</option>
             </select>
           </div>
           <div>
-            <FieldLabel htmlFor="payments-status">Status</FieldLabel>
+            <FieldLabel htmlFor="payments-status">{t("Status")}</FieldLabel>
             <select id="payments-status"
               value={form.status}
               onChange={set("status")}
               className={inputClass}
             >
-              <option value="paid">Paid</option>
-              <option value="due">Due</option>
+              <option value="paid">{t("Paid")}</option>
+              <option value="due">{t("Due")}</option>
             </select>
           </div>
         </div>
@@ -224,16 +227,16 @@ export default function PaymentFormModal({
           // can read is a channel picked wrong.
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <FieldLabel htmlFor="payments-received-in">Received in</FieldLabel>
+              <FieldLabel htmlFor="payments-received-in">{t("Received in")}</FieldLabel>
               <select id="payments-received-in"
                 value={form.channel}
                 onChange={set("channel")}
                 className={inputClass}
               >
-                <option value="">Select account</option>
+                <option value="">{t("Select account")}</option>
                 {CHANNELS.map((c) => (
                   <option key={c} value={c}>
-                    {CHANNEL_LABELS[c]}
+                    {t(CHANNEL_LABELS[c])}
                   </option>
                 ))}
               </select>
@@ -244,13 +247,13 @@ export default function PaymentFormModal({
               )}
             </div>
             <div>
-              <FieldLabel htmlFor="payments-transaction-id">Transaction ID</FieldLabel>
+              <FieldLabel htmlFor="payments-transaction-id">{t("Transaction ID")}</FieldLabel>
               <input id="payments-transaction-id"
                 type="text"
                 maxLength={100}
                 value={form.reference}
                 onChange={set("reference")}
-                placeholder="Optional"
+                placeholder={t("Optional")}
                 className={inputClass}
               />
             </div>
@@ -258,14 +261,14 @@ export default function PaymentFormModal({
         )}
 
         <div>
-          <FieldLabel htmlFor="payments-notes">Notes</FieldLabel>
+          <FieldLabel htmlFor="payments-notes">{t("Notes")}</FieldLabel>
           <input id="payments-notes"
             type="text"
             maxLength={500}
             value={form.notes}
             onChange={set("notes")}
             className={inputClass}
-            placeholder="Optional note..."
+            placeholder={t("Optional note...")}
           />
         </div>
 
@@ -275,14 +278,18 @@ export default function PaymentFormModal({
             onClick={() => onClose()}
             className={`flex-1 ${secondaryButton}`}
           >
-            Cancel
+            {t("Cancel")}
           </button>
           <button
             type="submit"
             disabled={saving}
             className={`flex-1 ${primaryButton}`}
           >
-            {saving ? "Saving..." : editing ? "Save changes" : "Record"}
+            {saving
+              ? t("Saving...")
+              : editing
+                ? t("Save changes")
+                : t("Record")}
           </button>
         </div>
       </form>

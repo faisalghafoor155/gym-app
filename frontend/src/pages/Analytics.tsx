@@ -1,6 +1,7 @@
 import { TrendingUp, Users, CalendarCheck, BarChart3, Clock } from 'lucide-react';
 import { Page, PageHeader, Card, StatTile, PageLoader, BarChart, LineChart } from '../components/ui';
 import { useFetch } from '../hooks/useFetch';
+import { useLanguage } from '../context/LanguageContext';
 
 interface AnalyticsData {
   dailyTrends: { date: string; count: number }[];
@@ -13,9 +14,10 @@ interface AnalyticsData {
 }
 
 export default function Analytics() {
+  const { t } = useLanguage();
   const { data: analytics, loading } = useFetch<AnalyticsData>(
     '/analytics/attendance',
-    'Could not load attendance analytics',
+    t('Could not load attendance analytics'),
   );
 
   if (loading) return <PageLoader />;
@@ -24,7 +26,7 @@ export default function Analytics() {
     return (
       <Page>
         <div className="text-center py-10">
-          <p className="text-gray-500">Failed to load analytics data.</p>
+          <p className="text-gray-500">{t('Failed to load analytics data.')}</p>
         </div>
       </Page>
     );
@@ -49,7 +51,7 @@ export default function Analytics() {
       <PageHeader
         icon={BarChart3}
         title="Attendance Analytics"
-        subtitle="Visual statistics of daily attendance and peak hours check-in times"
+        subtitle={t('Visual statistics of daily attendance and peak hours check-in times')}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
@@ -58,21 +60,21 @@ export default function Analytics() {
           tone="blue"
           label="Active Members"
           value={analytics.stats.activeMembers.toLocaleString()}
-          hint="Members currently enrolled and active"
+          hint={t('Members currently enrolled and active')}
         />
         <StatTile
           icon={CalendarCheck}
           tone="green"
           label="Today's Checkins"
           value={analytics.stats.todayCheckins.toLocaleString()}
-          hint="Checked-in today"
+          hint={t('Checked-in today')}
         />
         <StatTile
           icon={TrendingUp}
           tone="purple"
           label="Attendance Rate"
           value={`${analytics.stats.attendanceRate}%`}
-          hint="Active members attending today"
+          hint={t('Active members attending today')}
         />
       </div>
 
@@ -81,10 +83,10 @@ export default function Analytics() {
         <Card className="p-5">
           <h3 className="font-semibold text-gray-900 dark:text-slate-100 text-sm mb-4 flex items-center gap-2">
             <TrendingUp size={16} className="text-blue-600" />
-            Check-ins Trend (Last 30 Days)
+            {t('Check-ins Trend (Last 30 Days)')}
           </h3>
           {dailyTrendsChartData.length === 0 ? (
-            <p className="text-sm text-gray-400 italic text-center py-10">No attendance records in the last 30 days</p>
+            <p className="text-sm text-gray-400 italic text-center py-10">{t('No attendance records in the last 30 days')}</p>
           ) : (
             <div className="h-64 flex flex-col justify-end pt-5">
               <LineChart data={dailyTrendsChartData} height={200} />
@@ -96,10 +98,10 @@ export default function Analytics() {
         <Card className="p-5">
           <h3 className="font-semibold text-gray-900 dark:text-slate-100 text-sm mb-4 flex items-center gap-2">
             <Clock size={16} className="text-indigo-600" />
-            Peak Check-in Hours
+            {t('Peak Check-in Hours')}
           </h3>
           {peakHoursChartData.length === 0 ? (
-            <p className="text-sm text-gray-400 italic text-center py-10">No check-in hour logs recorded yet</p>
+            <p className="text-sm text-gray-400 italic text-center py-10">{t('No check-in hour logs recorded yet')}</p>
           ) : (
             <div className="pt-5">
               <BarChart data={peakHoursChartData} height={200} />

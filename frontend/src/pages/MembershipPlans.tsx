@@ -12,6 +12,7 @@ import { useFetch } from '../hooks/useFetch';
 import { useDialog } from '../hooks/useDialog';
 import type { MembershipPlan, Paginated } from '../types';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../context/LanguageContext';
 
 interface PlanForm {
   name: string;
@@ -25,7 +26,8 @@ const emptyForm: PlanForm = {
   name: '', price: '', durationDays: '30', includesCardio: false, includesLocker: false,
 };
 
-/** What a plan covers beyond the gym floor, as the toggles and badges show it. */
+/** What a plan covers beyond the gym floor, as the toggles and badges show it.
+ *  Labels are the English; they are translated where they are drawn. */
 const INCLUSIONS = [
   { key: 'includesCardio', label: 'Cardio' },
   { key: 'includesLocker', label: 'Locker' },
@@ -47,6 +49,7 @@ function describeDuration(days: number): string | null {
 }
 
 export default function MembershipPlans() {
+  const { t } = useLanguage();
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<PlanForm>(emptyForm);
@@ -61,7 +64,7 @@ export default function MembershipPlans() {
   // toggle reveals have to already be here for it to reveal them.
   const { data, loading, reload: load } = useFetch<Paginated<MembershipPlan>>(
     '/membership-plans?includeInactive=true&all=true',
-    'Could not load membership plans',
+    t('Could not load membership plans'),
   );
   // Null only before the first load lands, which the spinner covers.
   const plans = data?.data ?? [];
@@ -95,15 +98,15 @@ export default function MembershipPlans() {
       };
       if (editing) {
         await api.put(`/membership-plans/${editing}`, payload);
-        toast.success('Plan updated');
+        toast.success(t('Plan updated'));
       } else {
         await api.post('/membership-plans', payload);
-        toast.success('Plan added');
+        toast.success(t('Plan added'));
       }
       setShowModal(false);
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not save the plan'));
+      toast.error(apiError(err, t('Could not save the plan')));
     } finally {
       setSaving(false);
     }
@@ -116,11 +119,11 @@ export default function MembershipPlans() {
     setSaving(true);
     try {
       await api.delete(`/membership-plans/${retiring.id}`);
-      toast.success(`"${retiring.name}" is no longer offered`);
+      toast.success(t('"{name}" is no longer offered', { name: retiring.name }));
       setRetiring(null);
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not retire the plan'));
+      toast.error(apiError(err, t('Could not retire the plan')));
     } finally {
       setSaving(false);
     }
@@ -129,10 +132,10 @@ export default function MembershipPlans() {
   const handleRestore = async (p: MembershipPlan) => {
     try {
       await api.put(`/membership-plans/${p.id}`, { isActive: true });
-      toast.success(`"${p.name}" is being offered again`);
+      toast.success(t('"{name}" is being offered again', { name: p.name }));
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not restore the plan'));
+      toast.error(apiError(err, t('Could not restore the plan')));
     }
   };
 
@@ -155,18 +158,18 @@ export default function MembershipPlans() {
             </h3>
             {!p.isActive && (
               <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 dark:text-slate-400 bg-gray-200 dark:bg-slate-700 px-2 py-0.5 rounded-full mt-1">
-                <EyeOff size={10} /> Not offered
+                <EyeOff size={10} /> {t('Not offered')}
               </span>
             )}
           </div>
         </div>
         <div className="flex gap-0.5 shrink-0">
-          <IconButton icon={Pencil} label={`Edit ${p.name}`} onClick={() => openEdit(p)} />
+          <IconButton icon={Pencil} label={t('Edit {name}', { name: p.name })} onClick={() => openEdit(p)} />
           {p.isActive ? (
-            <IconButton icon={Archive} tone="red" label={`Stop offering ${p.name}`}
+            <IconButton icon={Archive} tone="red" label={t('Stop offering {name}', { name: p.name })}
               onClick={() => setRetiring(p)} />
           ) : (
-            <IconButton icon={RotateCcw} tone="green" label={`Offer ${p.name} again`}
+            <IconButton icon={RotateCcw} tone="green" label={t('Offer {name} again', { name: p.name })}
               onClick={() => void handleRestore(p)} />
           )}
         </div>
@@ -175,19 +178,19 @@ export default function MembershipPlans() {
       <div className="space-y-2">
         <DataRow
           icon={Wallet}
-          label="Price"
+          label={t('Price')}
           value={p.price === 0
-            ? <span className="text-yellow-700">Not set</span>
+            ? <span className="text-yellow-700">{t('Not set')}</span>
             : `Rs. ${p.price.toLocaleString()}`}
         />
         <DataRow
           icon={CalendarRange}
-          label="Duration"
+          label={t('Duration')}
           value={
             <>
-              {p.durationDays} days
+              {t('{days} days', { days: p.durationDays })}
               {describeDuration(p.durationDays) && (
-                <span className="text-gray-400 dark:text-slate-500 font-normal"> · {describeDuration(p.durationDays)}</span>
+                <span className="text-gray-400 dark:text-slate-500 font-normal"> · {t(describeDuration(p.durationDays)!)}</span>
               )}
             </>
           }
@@ -195,11 +198,11 @@ export default function MembershipPlans() {
       </div>
       <div className="flex flex-wrap gap-1.5 mt-3">
         <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-300">
-          Gym
+          {t('Gym')}
         </span>
         {INCLUSIONS.filter(i => p[i.key]).map(i => (
           <span key={i.key} className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
-            {i.label}
+            {t(i.label)}
           </span>
         ))}
       </div>
@@ -210,12 +213,12 @@ export default function MembershipPlans() {
     <Page>
       <PageHeader
         icon={Tag}
-        title="Membership Plans"
-        subtitle="What this gym sells — price and how long it runs for"
+        title={t('Membership Plans')}
+        subtitle={t('What this gym sells — price and how long it runs for')}
         action={
           <button onClick={openAdd} className={primaryButton}>
             <Plus size={16} />
-            <span className="hidden sm:inline">Add Plan</span><span className="sm:hidden">Add</span>
+            <span className="hidden sm:inline">{t('Add Plan')}</span><span className="sm:hidden">{t('Add')}</span>
           </button>
         }
       />
@@ -226,8 +229,9 @@ export default function MembershipPlans() {
         <div className="bg-yellow-50 dark:bg-yellow-500/15 border border-yellow-200 dark:border-yellow-500/20 rounded-xl px-4 py-3 mb-5 flex items-start gap-2.5">
           <Wallet size={16} className="text-yellow-600 shrink-0 mt-0.5" />
           <p className="text-sm text-yellow-800">
-            {unpriced === 1 ? 'One plan has' : `${unpriced} plans have`} no price set.
-            Members signed up on {unpriced === 1 ? 'it' : 'them'} will be recorded as paying Rs. 0.
+            {unpriced === 1
+              ? t('One plan has no price set. Members signed up on it will be recorded as paying Rs. 0.')
+              : t('{count} plans have no price set. Members signed up on them will be recorded as paying Rs. 0.', { count: unpriced })}
           </p>
         </div>
       )}
@@ -236,11 +240,11 @@ export default function MembershipPlans() {
       {active.length === 0 && retired.length === 0 ? (
         <EmptyState
           icon={Tag}
-          title="No membership plans yet"
-          hint="Add a plan before signing members up — a membership needs one."
+          title={t('No membership plans yet')}
+          hint={t('Add a plan before signing members up — a membership needs one.')}
           action={
             <button onClick={openAdd} className={primaryButton}>
-              <Plus size={16} /> Add the first plan
+              <Plus size={16} /> {t('Add the first plan')}
             </button>
           }
         />
@@ -253,8 +257,8 @@ export default function MembershipPlans() {
           {active.length === 0 && (
             <EmptyState
               icon={Tag}
-              title="No plans are being offered"
-              hint="Add one, or bring a retired plan back below."
+              title={t('No plans are being offered')}
+              hint={t('Add one, or bring a retired plan back below.')}
             />
           )}
 
@@ -266,7 +270,9 @@ export default function MembershipPlans() {
                 className={`text-sm font-semibold text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 flex items-center gap-2 transition-colors rounded-lg px-1 py-0.5 ${focusRing}`}
               >
                 <EyeOff size={14} />
-                {showRetired ? 'Hide' : 'Show'} retired plans ({retired.length})
+                {showRetired
+                  ? t('Hide retired plans ({count})', { count: retired.length })
+                  : t('Show retired plans ({count})', { count: retired.length })}
               </button>
               {showRetired && (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mt-4">
@@ -291,33 +297,33 @@ export default function MembershipPlans() {
           >
             <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
               <h2 id="plan-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
-                {editing ? 'Edit Plan' : 'Add Membership Plan'}
+                {editing ? t('Edit Plan') : t('Add Membership Plan')}
               </h2>
               <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
                 {editing
-                  ? 'Members already on this plan keep what they paid'
-                  : 'Name it, price it, and say how many days it runs'}
+                  ? t('Members already on this plan keep what they paid')
+                  : t('Name it, price it, and say how many days it runs')}
               </p>
             </div>
 
             <form onSubmit={e => void handleSave(e)} className="p-5 sm:p-6 space-y-4 overflow-y-auto">
               <div>
                 <label htmlFor="plan-name" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
-                  Plan Name *
+                  {t('Plan Name')} *
                 </label>
                 <input
                   id="plan-name"
                   required
                   value={form.name}
                   onChange={e => set('name')(e.target.value)}
-                  placeholder="Monthly"
+                  placeholder={t('Monthly')}
                   className={inputClass}
                 />
               </div>
 
               <div>
                 <label htmlFor="plan-price" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
-                  Price (Rs.)
+                  {t('Price (Rs.)')}
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 text-sm font-medium">Rs.</span>
@@ -336,7 +342,7 @@ export default function MembershipPlans() {
 
               <div>
                 <label htmlFor="plan-duration" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
-                  Duration (days) *
+                  {t('Duration (days)')} *
                 </label>
                 <div className="grid grid-cols-4 gap-2 mb-2">
                   {DURATION_PRESETS.map(d => (
@@ -348,8 +354,8 @@ export default function MembershipPlans() {
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700'
                           : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-gray-300'
                       }`}>
-                      <p className="font-semibold text-xs">{d.days}d</p>
-                      <p className="text-xs opacity-60 mt-0.5">{d.label}</p>
+                      <p className="font-semibold text-xs">{t('{days}d', { days: d.days })}</p>
+                      <p className="text-xs opacity-60 mt-0.5">{t(d.label)}</p>
                     </button>
                   ))}
                 </div>
@@ -366,13 +372,13 @@ export default function MembershipPlans() {
                 {/* Days, not months: "31 Jan + 1 month" has no single right
                     answer, "31 Jan + 30 days" has exactly one. */}
                 <p className="text-xs text-gray-400 dark:text-slate-500 mt-1.5">
-                  Expiry is counted in days from the start date.
+                  {t('Expiry is counted in days from the start date.')}
                 </p>
               </div>
 
               <fieldset>
                 <legend className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
-                  Included
+                  {t('Included')}
                 </legend>
                 <div className="flex flex-wrap gap-4">
                   {INCLUSIONS.map(i => (
@@ -383,7 +389,7 @@ export default function MembershipPlans() {
                         onChange={e => setForm(f => ({ ...f, [i.key]: e.target.checked }))}
                         className="h-4 w-4 rounded border-gray-300 text-blue-600"
                       />
-                      {i.label}
+                      {t(i.label)}
                     </label>
                   ))}
                 </div>
@@ -392,10 +398,10 @@ export default function MembershipPlans() {
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)}
                   className={`flex-1 ${secondaryButton}`}>
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
-                  {saving ? 'Saving...' : editing ? 'Update Plan' : 'Add Plan'}
+                  {saving ? t('Saving...') : editing ? t('Update Plan') : t('Add Plan')}
                 </button>
               </div>
             </form>
@@ -405,9 +411,9 @@ export default function MembershipPlans() {
 
       {retiring && (
         <ConfirmDialog
-          title="Stop offering this plan"
-          message={`Stop offering "${retiring.name}"? Members already on it keep it and their history is untouched — it just disappears from the list when signing someone up.`}
-          confirmLabel="Stop offering"
+          title={t('Stop offering this plan')}
+          message={t('Stop offering "{name}"? Members already on it keep it and their history is untouched — it just disappears from the list when signing someone up.', { name: retiring.name })}
+          confirmLabel={t('Stop offering')}
           busy={saving}
           onConfirm={() => void handleRetire()}
           onCancel={() => setRetiring(null)}

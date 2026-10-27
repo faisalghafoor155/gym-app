@@ -1,5 +1,6 @@
 import { Sparkles, Zap, Bot, Package, Clock, ShieldAlert, Dumbbell as WorkoutIcon } from 'lucide-react';
 import { Card, FieldLabel, inputClass } from '../ui';
+import { useLanguage } from '../../context/LanguageContext';
 import type { MacroResult, GainerProfile, CalcTab } from './data';
 
 interface SupplementsTabProps {
@@ -39,6 +40,8 @@ export default function SupplementsTab({
   handleAskAi,
   setTab,
 }: SupplementsTabProps) {
+  const { t } = useLanguage();
+  const gainerName = t(gainer.name);
   return (
     <div className="space-y-6">
       {/* Top Gainer Banner */}
@@ -50,13 +53,13 @@ export default function SupplementsTab({
             </div>
             <div>
               <span className="text-xs text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                <Zap size={14} /> Custom Supplement Stack & Diet Adjustment
+                <Zap size={14} /> {t('Custom Supplement Stack & Diet Adjustment')}
               </span>
               <h2 className="text-xl font-black mt-1">
-                {gainer.name} Stack Guide ({weightKg} kg Lifter)
+                {t('{gainer} Stack Guide ({weight} kg Lifter)', { gainer: gainerName, weight: weightKg })}
               </h2>
               <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
-                {gainer.features}
+                {t(gainer.features)}
               </p>
             </div>
           </div>
@@ -68,7 +71,7 @@ export default function SupplementsTab({
               className="px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 shadow"
             >
               <WorkoutIcon size={14} />
-              <span>View 5-Day Games Routine</span>
+              <span>{t('View 5-Day Workout Routine')}</span>
             </button>
           </div>
         </div>
@@ -77,7 +80,7 @@ export default function SupplementsTab({
       {/* Gainer Configurator */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-5 space-y-3">
-          <FieldLabel>Select Gainer / Protein</FieldLabel>
+          <FieldLabel>{t('Select Gainer / Protein')}</FieldLabel>
           <select
             value={selectedGainer}
             onChange={e => setSelectedGainer(e.target.value)}
@@ -88,15 +91,15 @@ export default function SupplementsTab({
             <option value="carnivor_mass">MuscleMeds Carnivor Beef Mass</option>
             <option value="super_mass">Dymatize Super Mass Gainer</option>
             <option value="whey_gold">ON Whey Gold Standard / ISO-100</option>
-            <option value="none">None (Natural Food Only)</option>
+            <option value="none">{t('None (Natural Food Only)')}</option>
           </select>
           <div className="text-xs text-gray-500 dark:text-slate-400 pt-1">
-            <strong>Best for:</strong> {gainer.bestFor}
+            <strong>{t('Best for:')}</strong> {t(gainer.bestFor)}
           </div>
         </Card>
 
         <Card className="p-5 space-y-3">
-          <FieldLabel>Daily Serving Dose</FieldLabel>
+          <FieldLabel>{t('Daily Serving Dose')}</FieldLabel>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -107,7 +110,7 @@ export default function SupplementsTab({
                   : 'border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-300'
               }`}
             >
-              Half Serving (Recommended)
+              {t('Half Serving (Recommended)')}
             </button>
             <button
               type="button"
@@ -118,16 +121,16 @@ export default function SupplementsTab({
                   : 'border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-300'
               }`}
             >
-              Full Serving (Heavy Bulk)
+              {t('Full Serving (Heavy Bulk)')}
             </button>
           </div>
           <p className="text-[11px] text-gray-400 dark:text-slate-500">
-            Half serving lene se pet par charbi nahi charhti aur dabba b 1 mahina chalta ha.
+            {t('A half serving keeps fat off your belly, and a tub lasts a whole month.')}
           </p>
         </Card>
 
         <Card className="p-5 space-y-3">
-          <FieldLabel>Additional Stacks</FieldLabel>
+          <FieldLabel>{t('Additional Stacks')}</FieldLabel>
           <div className="space-y-2">
             <label className="flex items-center gap-2.5 text-xs font-semibold text-gray-700 dark:text-slate-300 cursor-pointer">
               <input
@@ -136,7 +139,7 @@ export default function SupplementsTab({
                 onChange={e => setTakingPreworkout(e.target.checked)}
                 className="w-4 h-4 text-blue-600 rounded"
               />
-              <span>Pre-Workout (C4 / Psychotic / Curse)</span>
+              <span>{t('Pre-Workout (C4 / Psychotic / Curse)')}</span>
             </label>
             <label className="flex items-center gap-2.5 text-xs font-semibold text-gray-700 dark:text-slate-300 cursor-pointer">
               <input
@@ -145,7 +148,7 @@ export default function SupplementsTab({
                 onChange={e => setTakingCreatine(e.target.checked)}
                 className="w-4 h-4 text-blue-600 rounded"
               />
-              <span>Creatine Monohydrate (5g Daily)</span>
+              <span>{t('Creatine Monohydrate (5g Daily)')}</span>
             </label>
           </div>
         </Card>
@@ -159,10 +162,10 @@ export default function SupplementsTab({
           </div>
           <div>
             <h4 className="text-xs font-bold text-purple-950 dark:text-purple-200">
-              Want Live AI Protocol for {gainer.name} Stack?
+              {t('Want a Live AI Protocol for the {gainer} Stack?', { gainer: gainerName })}
             </h4>
             <p className="text-[11px] text-purple-700 dark:text-purple-300">
-              AI Coach will analyze dosages, digestion safety, and belly-fat prevention specifically for your {weightKg}kg bodyweight.
+              {t('The AI Coach will analyze dosages, digestion safety and belly-fat prevention specifically for your {weight}kg bodyweight.', { weight: weightKg })}
             </p>
           </div>
         </div>
@@ -170,12 +173,12 @@ export default function SupplementsTab({
           type="button"
           onClick={() => {
             setTab('ai_advisor');
-            void handleAskAi(undefined, `Mujhe ${gainer.name} ${takingCreatine ? '+ Creatine 5g' : ''} ${takingPreworkout ? '+ Pre-workout' : ''} stack ke sath ${weightKg}kg wazan par pet charbi se bachne aur fast muscle gain ka protocol batayein.`);
+            void handleAskAi(undefined, t('Give me a protocol for avoiding belly fat and gaining muscle fast at {weight}kg bodyweight with a {gainer} {creatine} {preworkout} stack.', { gainer: gainerName, creatine: takingCreatine ? '+ Creatine 5g' : '', preworkout: takingPreworkout ? '+ Pre-workout' : '', weight: weightKg }));
           }}
           className="px-4 py-2 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white transition flex items-center gap-1.5 shrink-0 shadow-sm"
         >
           <Sparkles size={14} />
-          <span>Ask AI About This Stack</span>
+          <span>{t('Ask AI About This Stack')}</span>
         </button>
       </div>
 
@@ -185,46 +188,46 @@ export default function SupplementsTab({
         <Card className="p-5 border-t-4 border-t-amber-500 space-y-4">
           <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <Clock size={18} className="text-amber-600 dark:text-amber-400" />
-            Stack Ki Timing & Schedule (Kab Kia Lena Ha)
+            {t('Stack Timing & Schedule (What to Take When)')}
           </h3>
 
           <div className="space-y-3 text-xs">
             <div className="p-3.5 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800">
               <strong className="text-amber-700 dark:text-amber-300 block mb-1">
-                1. Subah Nashte K 2 Ghantay Baad (11:00 AM):
+                {t('1. Two Hours After Breakfast (11:00 AM):')}
               </strong>
               <p className="text-gray-700 dark:text-slate-300 leading-relaxed">
-                Agar aap {gainer.name} le rahe hain to 1 scoop (half serving) 350ml taaza doodh ya paani me mix kar ke len. Is se body ko dopahar tak continuous amino acids aur calories milti rehti hain.
+                {t('If you are taking {gainer}, mix 1 scoop (half serving) in 350ml of fresh milk or water. This keeps a steady supply of amino acids and calories going until lunch.', { gainer: gainerName })}
               </p>
             </div>
 
             {takingPreworkout && (
               <div className="p-3.5 rounded-xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20">
                 <strong className="text-purple-700 dark:text-purple-300 block mb-1">
-                  2. Workout Se 25 Minute Pehle (Pre-Workout Timing):
+                  {t('2. 25 Minutes Before the Workout (Pre-Workout Timing):')}
                 </strong>
                 <p className="text-gray-700 dark:text-slate-300 leading-relaxed">
-                  1 Scoop Pre-workout (C4 / Psychotic / Curse) 200ml thanday paani me piyein. Khana khane ke kam az kam 1.5 ghantay baad lein taake blood flow muscles ki taraf jaye aur maximum pump miley.
+                  {t('Drink 1 scoop of pre-workout (C4 / Psychotic / Curse) in 200ml of cold water. Take it at least 1.5 hours after a meal so blood flows to the muscles and you get the maximum pump.')}
                 </p>
               </div>
             )}
 
             <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20">
               <strong className="text-emerald-700 dark:text-emerald-300 block mb-1">
-                3. Workout K Foran Baad (Anabolic Window - Golden Time):
+                {t('3. Right After the Workout (Anabolic Window - Golden Time):')}
               </strong>
               <p className="text-gray-700 dark:text-slate-300 leading-relaxed">
-                Workout k 20-30 min k andar 1 Scoop {gainer.name} {takingCreatine ? '+ 5g Creatine Monohydrate' : ''} thanday paani me shaker me shake kar k foran pee lein. Yeh muscle breakdown ko foran roktay hain.
+                {t('Within 20-30 min of the workout, shake 1 scoop of {gainer} {creatine} with cold water and drink it straight away. This stops muscle breakdown right away.', { gainer: gainerName, creatine: takingCreatine ? '+ 5g Creatine Monohydrate' : '' })}
               </p>
             </div>
 
             {takingCreatine && (
               <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20">
                 <strong className="text-blue-700 dark:text-blue-300 block mb-1">
-                  4. Creatine 5g Rule:
+                  {t('4. Creatine 5g Rule:')}
                 </strong>
                 <p className="text-gray-700 dark:text-slate-300 leading-relaxed">
-                  Creatine rozana 5 gram lena zaroori ha, chahay rest day ho ya gym day. Rest day par nashtay ke baad paani me ghol kar pee lein. Loading phase ki zaroorat nahi.
+                  {t('Take 5 grams of creatine every day, rest day or gym day. On rest days, dissolve it in water after breakfast. No loading phase is needed.')}
                 </p>
               </div>
             )}
@@ -235,28 +238,30 @@ export default function SupplementsTab({
         <Card className="p-5 border-t-4 border-t-rose-500 space-y-4">
           <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <ShieldAlert size={18} className="text-rose-600 dark:text-rose-400" />
-            Gainer K Sath Diet Kesi Honi Chaiye? (Pet Na Nikle)
+            {t('What Should Your Diet Be With a Gainer? (No Belly Fat)')}
           </h3>
 
           <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-xs text-rose-900 dark:text-rose-300">
-            <strong className="block font-bold mb-1">⚠️ Sab Se Badi Galti Jo Pakistani Lifters Kartay Hain:</strong>
-            Gainer me pehle hi <strong>{gainerCalories} calories</strong> mojood hain. Agar aap iske sath ghar ka tail/ghee se bhara salan, parathay aur meetha b khayenge to surplus 3500+ par chala jayega aur <strong>muscles ke bajaye pet aur side ki charbi</strong> nikal aayegi!
+            <strong className="block font-bold mb-1">⚠️ {t('The Biggest Mistake Pakistani Lifters Make:')}</strong>
+            <strong>{t('The gainer already has {calories} calories.', { calories: gainerCalories })}</strong>{' '}
+            {t('If you also eat oily, ghee-heavy curries, parathas and sweets at home, your surplus goes past 3500+ and instead of muscle you will gain belly and side fat!')}
           </div>
 
           <div className="space-y-2 text-xs">
             <div className="p-3 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800">
-              <strong className="text-gray-900 dark:text-slate-100 block mb-0.5">Khane Se Sirf Clean Calories Lein:</strong>
-              Aap ko baqi din ke khano se sirf <strong>{foodCaloriesNeeded} kcal</strong> aur <strong>{foodProteinNeeded}g protein</strong> lena ha. Roti sukhi khayein, chawal ublay hue lein, aur anday/chicken shamil karein.
+              <strong className="text-gray-900 dark:text-slate-100 block mb-0.5">{t('Take Only Clean Calories From Food:')}</strong>
+              {t('From the rest of the day\'s meals you only need {calories} kcal and {protein}g protein.', { calories: foodCaloriesNeeded, protein: foodProteinNeeded })}{' '}
+              {t('Eat plain roti, boiled rice, and add eggs/chicken.')}
             </div>
 
             <div className="p-3 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800">
-              <strong className="text-gray-900 dark:text-slate-100 block mb-0.5">Water Target ({macros.waterLiters} Liters):</strong>
-              Creatine aur Mass Gainer dono muscles me paani pull kartay hain. Agar aap kam paani piyenge to digestion kharab hogi aur acne/pimples b ho saktay hain. Rozana kam az kam {macros.waterLiters} Liter paani laazmi ha!
+              <strong className="text-gray-900 dark:text-slate-100 block mb-0.5">{t('Water Target ({liters} Liters):', { liters: macros.waterLiters })}</strong>
+              {t('Creatine and a mass gainer both pull water into the muscles. If you drink too little, your digestion suffers and you can get acne/pimples. At least {liters} liters of water a day is a must!', { liters: macros.waterLiters })}
             </div>
 
             <div className="p-3 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800">
-              <strong className="text-gray-900 dark:text-slate-100 block mb-0.5">Hafte Me 1-2 Din 15 Minute Cardio:</strong>
-              Treadmill par 10-15 minute incline walk karein taake dil mazboot rahay aur extra calories fat me store na hon.
+              <strong className="text-gray-900 dark:text-slate-100 block mb-0.5">{t('15 Minutes of Cardio 1-2 Days a Week:')}</strong>
+              {t('Do a 10-15 minute incline walk on the treadmill to keep your heart strong and stop extra calories being stored as fat.')}
             </div>
           </div>
         </Card>

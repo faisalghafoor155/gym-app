@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import api, { apiError } from '../api/client';
 import type { LoginResponse } from '../types';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../context/LanguageContext';
 
 const CLIENT_ID = import.meta.env['VITE_GOOGLE_CLIENT_ID'] as string | undefined;
 const SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
@@ -37,6 +38,10 @@ export default function GoogleSignIn({ onSuccess }: { onSuccess: (data: LoginRes
   const ref = useRef<HTMLDivElement>(null);
   const onSuccessRef = useRef(onSuccess);
   onSuccessRef.current = onSuccess;
+  const { t } = useLanguage();
+  // Read from the callback Google holds on to, so it follows a language change.
+  const tRef = useRef(t);
+  tRef.current = t;
 
   useEffect(() => {
     if (!CLIENT_ID) return;
@@ -52,7 +57,7 @@ export default function GoogleSignIn({ onSuccess }: { onSuccess: (data: LoginRes
           callback: (response) => {
             api.post<LoginResponse>('/auth/google', { credential: response.credential })
               .then(r => onSuccessRef.current(r.data))
-              .catch(err => toast.error(apiError(err, 'Google sign-in failed')));
+              .catch(err => toast.error(apiError(err, tRef.current('Google sign-in failed'))));
           },
         });
         google.accounts.id.renderButton(ref.current, {
@@ -70,7 +75,7 @@ export default function GoogleSignIn({ onSuccess }: { onSuccess: (data: LoginRes
     <div className="mt-5">
       <div className="flex items-center gap-3 mb-4">
         <span className="h-px bg-gray-200 dark:bg-slate-700 flex-1" />
-        <span className="text-xs text-gray-400 dark:text-slate-500">or</span>
+        <span className="text-xs text-gray-400 dark:text-slate-500">{t('or')}</span>
         <span className="h-px bg-gray-200 dark:bg-slate-700 flex-1" />
       </div>
       <div ref={ref} className="flex justify-center" />

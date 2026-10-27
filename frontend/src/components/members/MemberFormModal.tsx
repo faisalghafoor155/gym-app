@@ -7,6 +7,7 @@ import {
 import type { AxiosError } from 'axios';
 import api, { apiError } from '../../api/client';
 import { useDialog } from '../../hooks/useDialog';
+import { useLanguage } from '../../context/LanguageContext';
 import type {
   Gender, GymSettings, Member, MembershipPlan, PaymentChannel, PaymentMethod, PromoCheck, Trainer,
 } from '../../types';
@@ -157,6 +158,7 @@ interface Props {
 export default function MemberFormModal({
   member, plans, trainers, settings, fingerprintReady = false, onClose, onSaved,
 }: Props) {
+  const { t } = useLanguage();
   const editing = member?.id ?? null;
   /** On by default: when a reader is there, taking the finger is the normal
    *  end of registering somebody. */
@@ -252,10 +254,10 @@ export default function MemberFormModal({
    * API bills another.
    */
   const ptFeePlaceholder = (() => {
-    const trainer = trainers.find(t => t.id === form.trainerId);
+    const trainer = trainers.find(tr => tr.id === form.trainerId);
     const rate = trainer?.ptFee ?? gymPtFee;
-    if (rate === null || rate === undefined) return 'Usual rate';
-    return rate === 0 ? 'No charge' : `Usual rate — ${rate.toLocaleString('en-PK')}`;
+    if (rate === null || rate === undefined) return t('Usual rate');
+    return rate === 0 ? t('No charge') : t('Usual rate — {rate}', { rate: rate.toLocaleString('en-PK') });
   })();
 
   /**
@@ -266,7 +268,7 @@ export default function MemberFormModal({
   const trainerCharge = (() => {
     if (!form.trainerId) return null;
     if (form.ptFee.trim() !== '') return Number(form.ptFee) || 0;
-    const rate = trainers.find(t => t.id === form.trainerId)?.ptFee ?? gymPtFee;
+    const rate = trainers.find(tr => tr.id === form.trainerId)?.ptFee ?? gymPtFee;
     return rate ?? null;
   })();
   const gymFeeNow = Number(form.feeAmount) > 0 ? Number(form.feeAmount) : 0;
@@ -280,7 +282,7 @@ export default function MemberFormModal({
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { toast.error('Photo must be under 2MB'); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error(t('Photo must be under 2MB')); return; }
     const reader = new FileReader();
     reader.onload = (ev) => set('photo')(ev.target?.result as string);
     reader.readAsDataURL(file);
@@ -314,7 +316,7 @@ export default function MemberFormModal({
       };
       if (editing) {
         await api.put(`/members/${editing}`, payload);
-        toast.success('Member updated');
+        toast.success(t('Member updated'));
         onSaved(null, false);
       } else {
         // A plan sells the membership in the same call; without one the member
@@ -335,7 +337,7 @@ export default function MemberFormModal({
             }),
           }),
         });
-        toast.success('Member added successfully');
+        toast.success(t('Member added successfully'));
         // The created member goes back to the page: enrolment needs an id that
         // did not exist until this call returned, and offering the scan is the
         // page's decision rather than the form's.
@@ -350,7 +352,7 @@ export default function MemberFormModal({
         setDuplicate(conflict);
         toast.error(conflict.message);
       } else {
-        toast.error(apiError(err, 'Error saving member'));
+        toast.error(apiError(err, t('Error saving member')));
       }
     } finally {
       setSaving(false);
@@ -369,10 +371,10 @@ export default function MemberFormModal({
       >
         <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-800 shrink-0">
           <h2 id="member-modal-title" className="text-lg font-bold text-gray-900 dark:text-slate-100">
-            {editing ? 'Edit Member' : 'Add New Member'}
+            {editing ? t('Edit Member') : t('Add New Member')}
           </h2>
           <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
-            {editing ? 'Update member details' : 'Fill in details — expiry auto-calculated'}
+            {editing ? t('Update member details') : t('Fill in details — expiry auto-calculated')}
           </p>
         </div>
 
@@ -384,7 +386,7 @@ export default function MemberFormModal({
               className="w-20 h-20 rounded-2xl bg-linear-to-br from-blue-500 to-indigo-600 flex items-center justify-center cursor-pointer overflow-hidden relative group"
             >
               {form.photo
-                ? <img src={form.photo} alt="preview" className="w-full h-full object-cover" />
+                ? <img src={form.photo} alt={t('preview')} className="w-full h-full object-cover" />
                 : <span className="text-white font-bold text-lg">
                     {form.name ? getInitials(form.name) : <Camera size={24} className="text-white/70" />}
                   </span>
@@ -396,21 +398,21 @@ export default function MemberFormModal({
             <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
             <button type="button" onClick={() => photoRef.current?.click()}
               className="text-xs text-blue-600 font-medium hover:underline">
-              {form.photo ? 'Change photo' : 'Upload photo (optional)'}
+              {form.photo ? t('Change photo') : t('Upload photo (optional)')}
             </button>
           </div>
 
-          <Section title="Personal details">
+          <Section title={t('Personal details')}>
           {/* Name */}
           <div>
-            <label htmlFor="member-name" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Full Name *</label>
+            <label htmlFor="member-name" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">{t('Full Name *')}</label>
             <input
               id="member-name"
               required
               value={form.name}
               onChange={e => setChecked('name')(e.target.value)}
               onBlur={() => void checkDuplicate(form)}
-              placeholder="Ahmed Khan"
+              placeholder={t('Ahmed Khan')}
               aria-invalid={duplicate?.field === 'name'}
               // Points at the warning below, so a screen reader reads why the
               // field is marked invalid rather than only that it is.
@@ -426,7 +428,7 @@ export default function MemberFormModal({
 
           {/* Phone */}
           <div>
-            <label htmlFor="member-phone" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Phone</label>
+            <label htmlFor="member-phone" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">{t('Phone')}</label>
             <input
               id="member-phone"
               type="tel"
@@ -450,17 +452,17 @@ export default function MemberFormModal({
           {/* Gender + Date of birth */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label htmlFor="member-gender" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Gender</label>
+              <label htmlFor="member-gender" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">{t('Gender')}</label>
               <select
                 id="member-gender"
                 value={form.gender}
                 onChange={e => set('gender')(e.target.value as Gender | '')}
                 className={inputClass}
               >
-                <option value="">Not specified</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
+                <option value="">{t('Not specified')}</option>
+                <option value="male">{t('Male')}</option>
+                <option value="female">{t('Female')}</option>
+                <option value="other">{t('Other')}</option>
               </select>
             </div>
             {/* Asked at registration as well as on an edit: it is what the
@@ -468,7 +470,7 @@ export default function MemberFormModal({
                 on, and a member registered without one is never wished. Still
                 optional — and half of the name+DOB duplicate rule. */}
             <div>
-              <label htmlFor="member-dob" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Date of Birth</label>
+              <label htmlFor="member-dob" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">{t('Date of Birth')}</label>
               <input
                 id="member-dob"
                 type="date"
@@ -478,50 +480,50 @@ export default function MemberFormModal({
                 onBlur={() => void checkDuplicate(form)}
                 className={inputClass}
               />
-              <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">For birthday wishes (optional)</p>
+              <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">{t('For birthday wishes (optional)')}</p>
             </div>
           </div>
 
           {/* Emergency contact — asked at registration; the full address is
               only kept on an edit. */}
           <div>
-            <label htmlFor="member-emergency" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Emergency Contact</label>
+            <label htmlFor="member-emergency" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">{t('Emergency Contact')}</label>
             <input
               id="member-emergency"
               value={form.emergencyContact}
               onChange={e => set('emergencyContact')(e.target.value)}
-              placeholder="Brother — 03009876543"
+              placeholder={t('Brother — 03009876543')}
               className={inputClass}
             />
           </div>
 
           {editing && (
             <div>
-              <label htmlFor="member-address" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Address</label>
+              <label htmlFor="member-address" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">{t('Address')}</label>
               <input
                 id="member-address"
                 value={form.address}
                 onChange={e => set('address')(e.target.value)}
-                placeholder="House 12, Street 4, Lahore"
+                placeholder={t('House 12, Street 4, Lahore')}
                 className={inputClass}
               />
             </div>
           )}
           </Section>
 
-          <Section title="Personal trainer">
+          <Section title={t('Personal trainer')}>
           {/* Personal Trainer Selection */}
           <div>
-            <label htmlFor="member-trainer" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Personal Trainer (PT)</label>
+            <label htmlFor="member-trainer" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">{t('Personal Trainer (PT)')}</label>
             <select
               id="member-trainer"
               value={form.trainerId}
               onChange={e => set('trainerId')(e.target.value)}
               className={inputClass}
             >
-              <option value="">No trainer assigned</option>
-              {trainers.map(t => (
-                <option key={t.id} value={t.id}>{t.name} ({t.specialization || 'General'})</option>
+              <option value="">{t('No trainer assigned')}</option>
+              {trainers.map(tr => (
+                <option key={tr.id} value={tr.id}>{tr.name} ({tr.specialization || t('General')})</option>
               ))}
             </select>
           </div>
@@ -533,7 +535,7 @@ export default function MemberFormModal({
           {form.trainerId && form.trainerId !== originalTrainerId && (
             <div>
               <label htmlFor="member-ptfee" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
-                Trainer Fee (Rs.)
+                {t('Trainer Fee (Rs.)')}
               </label>
               <input
                 id="member-ptfee"
@@ -547,8 +549,7 @@ export default function MemberFormModal({
                 className={inputClass}
               />
               <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-                Charged once. Leave blank for the usual rate, or type what you
-                agreed — enter 0 to charge nothing.
+                {t('Charged once. Leave blank for the usual rate, or type what you agreed — enter 0 to charge nothing.')}
               </p>
 
               <label className="flex items-start gap-2.5 mt-3 cursor-pointer">
@@ -559,14 +560,14 @@ export default function MemberFormModal({
                   className="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 shrink-0"
                 />
                 <span className="text-sm text-gray-700 dark:text-slate-300">
-                  Fee collected now
+                  {t('Fee collected now')}
                   <span className="block text-xs text-gray-400 dark:text-slate-500">
                     {/* Unticked is the safe default: recording money that never
                         arrived is worse than leaving a real payment to be settled
                         on the Payments page. */}
                     {form.ptFeePaid
-                      ? 'Recorded as paid — it will not show as outstanding.'
-                      : 'Left as a due for the member to settle later.'}
+                      ? t('Recorded as paid — it will not show as outstanding.')
+                      : t('Left as a due for the member to settle later.')}
                   </span>
                 </span>
               </label>
@@ -587,11 +588,11 @@ export default function MemberFormModal({
                 className="mt-0.5 w-4 h-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 shrink-0"
               />
               <span className="text-sm text-gray-700 dark:text-slate-300">
-                No WhatsApp messages
+                {t('No WhatsApp messages')}
                 <span className="block text-xs text-gray-400 dark:text-slate-500">
                   {form.whatsappOptOut
-                    ? 'Renewal reminders and receipts will not be sent to them on WhatsApp.'
-                    : 'Tick if the member has asked not to be messaged. Email is unaffected.'}
+                    ? t('Renewal reminders and receipts will not be sent to them on WhatsApp.')
+                    : t('Tick if the member has asked not to be messaged. Email is unaffected.')}
                 </span>
               </span>
             </label>
@@ -600,15 +601,14 @@ export default function MemberFormModal({
           {/* Membership — only when registering. Changing what an existing
               member bought is its own action, not a profile edit. */}
           {!editing && (
-            <Section title="Membership & fee">
+            <Section title={t('Membership & fee')}>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Membership Plan</label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">{t('Membership Plan')}</label>
                 {plans.length === 0 ? (
                   <p className="text-xs text-gray-400 dark:text-slate-500 bg-gray-50 dark:bg-slate-800/60 rounded-xl px-3 py-3">
-                    No plans set up yet — register the member now and give them
-                    a membership later, or{' '}
+                    {t('No plans set up yet — register the member now and give them a membership later, or')}{' '}
                     <Link to="/membership-plans" className="text-blue-600 font-medium hover:underline">
-                      add a plan first
+                      {t('add a plan first')}
                     </Link>.
                   </p>
                 ) : (
@@ -620,8 +620,8 @@ export default function MemberFormModal({
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700'
                           : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-gray-300'
                       }`}>
-                      <p className="font-semibold text-xs">None</p>
-                      <p className="text-xs opacity-60 mt-0.5">Add later</p>
+                      <p className="font-semibold text-xs">{t('None')}</p>
+                      <p className="text-xs opacity-60 mt-0.5">{t('Add later')}</p>
                     </button>
                     {plans.map(p => (
                       <button key={p.id} type="button"
@@ -633,7 +633,7 @@ export default function MemberFormModal({
                         }`}>
                         <p className="font-semibold text-xs truncate">{p.name}</p>
                         <p className="text-xs opacity-60 mt-0.5">
-                          {p.durationDays}d · Rs. {p.price.toLocaleString()}
+                          {t('{days}d', { days: p.durationDays })} · Rs. {p.price.toLocaleString()}
                         </p>
                       </button>
                     ))}
@@ -658,7 +658,7 @@ export default function MemberFormModal({
 
               {form.planId && (
                 <div>
-                  <label htmlFor="member-start" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">Start Date *</label>
+                  <label htmlFor="member-start" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">{t('Start Date *')}</label>
                   <input
                     id="member-start"
                     type="date"
@@ -676,7 +676,7 @@ export default function MemberFormModal({
                 <div className="bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/20 rounded-xl p-3 flex items-center gap-2">
                   <Calendar size={15} className="text-blue-600 shrink-0" />
                   <div>
-                    <p className="text-xs font-semibold text-blue-800">Auto-calculated expiry</p>
+                    <p className="text-xs font-semibold text-blue-800">{t('Auto-calculated expiry')}</p>
                     <p className="text-sm font-bold text-blue-700">
                       {new Date(expiryPreview).toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>
@@ -691,7 +691,7 @@ export default function MemberFormModal({
               <div className="space-y-3">
                 <div>
                   <label htmlFor="member-fee" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
-                    Gym Fee Collected (Rs.)
+                    {t('Gym Fee Collected (Rs.)')}
                   </label>
                   <input
                     id="member-fee"
@@ -702,15 +702,15 @@ export default function MemberFormModal({
                     onChange={e => set('feeAmount')(e.target.value)}
                     placeholder={
                       selectedPlan
-                        ? `Plan price — ${selectedPlan.price.toLocaleString('en-PK')}`
-                        : 'Leave blank if nothing was paid yet'
+                        ? t('Plan price — {price}', { price: selectedPlan.price.toLocaleString('en-PK') })
+                        : t('Leave blank if nothing was paid yet')
                     }
                     className={inputClass}
                   />
                   <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
                     {settings && settings.joiningFee > 0
-                      ? `Fixed joining fee of Rs. ${settings.joiningFee.toLocaleString('en-PK')} is filled in for every new member — change it here for this member if needed, or clear it to take no payment.`
-                      : 'Leave blank to register without taking payment.'}
+                      ? t('Fixed joining fee of Rs. {fee} is filled in for every new member — change it here for this member if needed, or clear it to take no payment.', { fee: settings.joiningFee.toLocaleString('en-PK') })
+                      : t('Leave blank to register without taking payment.')}
                   </p>
                 </div>
 
@@ -720,7 +720,7 @@ export default function MemberFormModal({
                   <>
                     <div>
                       {/* A pair of buttons, so the label names the group. */}
-                      <FieldLabel id="member-fee-method-label">Paid by</FieldLabel>
+                      <FieldLabel id="member-fee-method-label">{t('Paid by')}</FieldLabel>
                       <div
                         role="group"
                         aria-labelledby="member-fee-method-label"
@@ -739,7 +739,7 @@ export default function MemberFormModal({
                                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/15 text-blue-700'
                                 : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-gray-300'
                             }`}>
-                            <p className="font-semibold text-xs capitalize">{m}</p>
+                            <p className="font-semibold text-xs capitalize">{m === 'cash' ? t('Cash') : t('Online')}</p>
                           </button>
                         ))}
                       </div>
@@ -749,7 +749,7 @@ export default function MemberFormModal({
                       <>
                         <div>
                           <label htmlFor="member-fee-channel" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
-                            Received in
+                            {t('Received in')}
                           </label>
                           <select
                             id="member-fee-channel"
@@ -757,9 +757,9 @@ export default function MemberFormModal({
                             onChange={e => set('feeChannel')(e.target.value as PaymentChannel | '')}
                             className={inputClass}
                           >
-                            <option value="">Select account</option>
+                            <option value="">{t('Select account')}</option>
                             {CHANNELS.map(c => (
-                              <option key={c} value={c}>{CHANNEL_LABELS[c]}</option>
+                              <option key={c} value={c}>{t(CHANNEL_LABELS[c])}</option>
                             ))}
                           </select>
                           {/* What the front desk reads out to the member.
@@ -767,7 +767,7 @@ export default function MemberFormModal({
                               channel's details in Settings. */}
                           {accountFor(settings, form.feeChannel) && (
                             <div className="mt-2 bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/20 rounded-xl px-3 py-2">
-                              <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">Send to</p>
+                              <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">{t('Send to')}</p>
                               <p className="text-sm font-bold text-blue-700 dark:text-blue-200 break-words">
                                 {accountFor(settings, form.feeChannel)}
                               </p>
@@ -775,20 +775,20 @@ export default function MemberFormModal({
                           )}
                           {form.feeChannel && !accountFor(settings, form.feeChannel) && (
                             <p className="mt-1.5 text-xs text-gray-400 dark:text-slate-500">
-                              No account saved for this — the owner can add one in Team &rsaquo; Gym Settings.
+                              {t('No account saved for this — the owner can add one in Team › Gym Settings.')}
                             </p>
                           )}
                         </div>
 
                         <div>
                           <label htmlFor="member-fee-ref" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">
-                            Transaction ID <span className="font-normal text-gray-400">(optional)</span>
+                            {t('Transaction ID')} <span className="font-normal text-gray-400">{t('(optional)')}</span>
                           </label>
                           <input
                             id="member-fee-ref"
                             value={form.feeReference}
                             onChange={e => set('feeReference')(e.target.value)}
-                            placeholder="e.g. 4429183756"
+                            placeholder={t('e.g. 4429183756')}
                             className={inputClass}
                           />
                         </div>
@@ -805,31 +805,31 @@ export default function MemberFormModal({
                   handed over. */}
               {(gymFeeNow > 0 || (trainerCharge ?? 0) > 0) && (
                 <div
-                  aria-label="Fee breakdown"
+                  aria-label={t('Fee breakdown')}
                   className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 text-sm space-y-1.5"
                 >
                   <div className="flex justify-between text-gray-600 dark:text-slate-300">
-                    <span>Gym fee</span>
+                    <span>{t('Gym fee')}</span>
                     <span className="font-semibold">Rs. {gymFeeNow.toLocaleString('en-PK')}</span>
                   </div>
                   {trainerCharge !== null && trainerCharge > 0 && (
                     <div className="flex justify-between text-gray-600 dark:text-slate-300">
                       <span>
-                        Trainer fee{' '}
+                        {t('Trainer fee')}{' '}
                         <span className="text-xs text-gray-400 dark:text-slate-500">
-                          ({form.ptFeePaid ? 'received now' : 'left as due'})
+                          ({form.ptFeePaid ? t('received now') : t('left as due')})
                         </span>
                       </span>
                       <span className="font-semibold">Rs. {trainerCharge.toLocaleString('en-PK')}</span>
                     </div>
                   )}
                   <div className="flex justify-between border-t border-gray-100 dark:border-slate-800 pt-1.5 font-bold text-gray-900 dark:text-slate-100">
-                    <span>Received now</span>
+                    <span>{t('Received now')}</span>
                     <span>Rs. {(gymFeeNow + trainerNow).toLocaleString('en-PK')}</span>
                   </div>
                   {trainerCharge !== null && trainerCharge > 0 && (
                     <p className="text-xs text-gray-400 dark:text-slate-500">
-                      Don&apos;t include the trainer fee in the gym fee above — it is added on its own.
+                      {t("Don't include the trainer fee in the gym fee above — it is added on its own.")}
                     </p>
                   )}
                 </div>
@@ -856,10 +856,10 @@ export default function MemberFormModal({
               />
               <Fingerprint size={18} className="shrink-0 text-blue-600 dark:text-blue-400" />
               <span className="text-gray-700 dark:text-slate-300">
-                <span className="block text-sm font-semibold">Add fingerprint</span>
+                <span className="block text-sm font-semibold">{t('Add fingerprint')}</span>
                 {fingerprintReady
-                  ? 'Member save hote hi scan screen khulegi — same finger 3 baar rakhna hoga, har scan ke baad "right" dikhega.'
-                  : 'Koi fingerprint reader set up nahi hai. Reader connect hone ke baad members list se add kar sakte hain.'}
+                  ? t('The scan screen opens as soon as the member is saved — the same finger goes on 3 times, with a tick after each scan.')
+                  : t('No fingerprint reader is set up. Once one is connected, you can add it from the members list.')}
               </span>
             </label>
           )}
@@ -867,10 +867,10 @@ export default function MemberFormModal({
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
               className={`flex-1 ${secondaryButton}`}>
-              Cancel
+              {t('Cancel')}
             </button>
             <button type="submit" disabled={saving || duplicate !== null} className={`flex-1 ${primaryButton}`}>
-              {saving ? 'Saving...' : editing ? 'Update Member' : 'Add Member'}
+              {saving ? t('Saving...') : editing ? t('Update Member') : t('Add Member')}
             </button>
           </div>
         </form>

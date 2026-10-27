@@ -7,6 +7,7 @@ import {
   Page, PageHeader, Card, IconTile, Spinner,
   inputClass, primaryButton, secondaryButton, dangerButton,
 } from '../components/ui';
+import { useLanguage } from '../context/LanguageContext';
 
 interface TwoFactorStatus {
   enabled: boolean;
@@ -27,6 +28,7 @@ interface TwoFactorSetup {
  * their own accounts.
  */
 export default function Security() {
+  const { t } = useLanguage();
   const [status, setStatus] = useState<TwoFactorStatus | null>(null);
   const [setup, setSetup] = useState<TwoFactorSetup | null>(null);
   const [code, setCode] = useState('');
@@ -44,9 +46,9 @@ export default function Security() {
   const load = () => {
     api.get<TwoFactorStatus>('/auth/two-factor/status')
       .then(r => setStatus(r.data))
-      .catch(err => toast.error(apiError(err, 'Could not load security settings')));
+      .catch(err => toast.error(apiError(err, t('Could not load security settings'))));
   };
-  useEffect(load, []);
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const beginSetup = async () => {
     setBusy(true);
@@ -55,7 +57,7 @@ export default function Security() {
       setSetup(data);
       setCode('');
     } catch (err) {
-      toast.error(apiError(err, 'Could not start 2FA setup'));
+      toast.error(apiError(err, t('Could not start 2FA setup')));
     } finally {
       setBusy(false);
     }
@@ -70,11 +72,11 @@ export default function Security() {
       // hashes, and sending them along is what ties this exact set to the
       // account being enabled.
       await api.post('/auth/two-factor/verify-setup', { code: code.trim() });
-      toast.success('Two-factor authentication enabled');
+      toast.success(t('Two-factor authentication enabled'));
       setSetup(null);
       load();
     } catch (err) {
-      toast.error(apiError(err, 'Invalid code'));
+      toast.error(apiError(err, t('Invalid code')));
     } finally {
       setBusy(false);
     }
@@ -86,14 +88,14 @@ export default function Security() {
       // The password travels in the body, so `delete` needs the config form —
       // axios has no (url, body) overload for it.
       await api.delete('/auth/two-factor', { data: { password: disablePassword } });
-      toast.success('Two-factor authentication disabled');
+      toast.success(t('Two-factor authentication disabled'));
       setConfirmDisable(false);
       setDisablePassword('');
       load();
     } catch (err) {
       // The field is kept, not cleared: a mistyped password should cost one
       // character, not the whole entry.
-      toast.error(apiError(err, 'Could not disable 2FA'));
+      toast.error(apiError(err, t('Could not disable 2FA')));
     } finally {
       setBusy(false);
     }
@@ -101,8 +103,8 @@ export default function Security() {
 
   const copyCodes = (codes: string[]) => {
     void navigator.clipboard.writeText(codes.join('\n'))
-      .then(() => toast.success('Backup codes copied'))
-      .catch(() => toast.error('Copy failed — select and copy them manually'));
+      .then(() => toast.success(t('Backup codes copied')))
+      .catch(() => toast.error(t('Copy failed — select and copy them manually')));
   };
 
   /**
@@ -125,7 +127,7 @@ export default function Security() {
       load();
     } catch (err) {
       // The field survives a wrong password, same as disabling.
-      toast.error(apiError(err, 'Could not generate new backup codes'));
+      toast.error(apiError(err, t('Could not generate new backup codes')));
     } finally {
       setBusy(false);
     }
@@ -136,7 +138,7 @@ export default function Security() {
       <PageHeader
         icon={ShieldCheck}
         title="Security"
-        subtitle="Two-factor authentication for your account"
+        subtitle={t('Two-factor authentication for your account')}
       />
 
       <Card className="p-5 sm:p-6 max-w-xl">
@@ -147,12 +149,12 @@ export default function Security() {
             <IconTile icon={status.enabled ? ShieldCheck : ShieldOff} tone={status.enabled ? 'green' : 'gray'} />
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-gray-900 dark:text-slate-100">
-                Two-factor authentication is {status.enabled ? 'on' : 'off'}
+                {status.enabled ? t('Two-factor authentication is on') : t('Two-factor authentication is off')}
               </p>
               <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                 {status.enabled
-                  ? 'Signing in asks for a code from your authenticator app after the password.'
-                  : 'After your password, signing in will also ask for a code from an authenticator app.'}
+                  ? t('Signing in asks for a code from your authenticator app after the password.')
+                  : t('After your password, signing in will also ask for a code from an authenticator app.')}
               </p>
               {status.enabled && (
                 // Amber below three: the count is the only warning before
@@ -164,23 +166,24 @@ export default function Security() {
                     : 'text-gray-400 dark:text-slate-500'
                 }`}>
                   <KeyRound size={12} />
-                  {status.remainingBackupCodes} backup {status.remainingBackupCodes === 1 ? 'code' : 'codes'} left
-                  {status.remainingBackupCodes <= 2 && ' — generate a new set'}
+                  {t(status.remainingBackupCodes === 1 ? '{count} backup code left' : '{count} backup codes left',
+                    { count: status.remainingBackupCodes })}
+                  {status.remainingBackupCodes <= 2 && ` ${t('— generate a new set')}`}
                 </p>
               )}
               <div className="mt-4 flex flex-wrap gap-2">
                 {status.enabled ? (
                   <>
                     <button onClick={() => setConfirmRegenerate(true)} className={secondaryButton}>
-                      <RefreshCw size={14} /> New backup codes
+                      <RefreshCw size={14} /> {t('New backup codes')}
                     </button>
                     <button onClick={() => setConfirmDisable(true)} className={dangerButton}>
-                      Disable 2FA
+                      {t('Disable 2FA')}
                     </button>
                   </>
                 ) : (
                   <button onClick={beginSetup} disabled={busy} className={primaryButton}>
-                    Enable Two-Factor Authentication
+                    {t('Enable Two-Factor Authentication')}
                   </button>
                 )}
               </div>
@@ -190,17 +193,17 @@ export default function Security() {
       </Card>
 
       {setup && (
-        <Modal title="Set up two-factor authentication" onClose={() => setSetup(null)}>
+        <Modal title={t('Set up two-factor authentication')} onClose={() => setSetup(null)}>
           <div className="space-y-5">
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                1. Scan with your authenticator app
+                {t('1. Scan with your authenticator app')}
               </p>
               <div className="flex justify-center bg-white rounded-xl p-3 border border-gray-200 dark:border-slate-700">
-                <img src={setup.qrCode} alt="2FA QR code" className="w-44 h-44" />
+                <img src={setup.qrCode} alt={t('2FA QR code')} className="w-44 h-44" />
               </div>
               <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
-                Cannot scan? Enter this key manually:{' '}
+                {t('Cannot scan? Enter this key manually:')}{' '}
                 <code className="font-mono text-gray-600 dark:text-slate-300 break-all">{setup.secret}</code>
               </p>
             </div>
@@ -208,10 +211,10 @@ export default function Security() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                  2. Save your backup codes
+                  {t('2. Save your backup codes')}
                 </p>
                 <button onClick={() => copyCodes(setup.backupCodes)} className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1">
-                  <Copy size={12} /> Copy
+                  <Copy size={12} /> {t('Copy')}
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-1.5 bg-gray-50 dark:bg-slate-800/60 rounded-xl p-3">
@@ -220,14 +223,14 @@ export default function Security() {
                 ))}
               </div>
               <p className="text-xs text-gray-400 dark:text-slate-500 mt-2">
-                Each works once, in place of the authenticator code. They are shown only now.
+                {t('Each works once, in place of the authenticator code. They are shown only now.')}
               </p>
             </div>
 
             <form onSubmit={finishSetup} className="space-y-3">
               <div>
                 <p className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-1.5">
-                  3. Enter the 6-digit code to confirm
+                  {t('3. Enter the 6-digit code to confirm')}
                 </p>
                 <input
                   type="text"
@@ -246,10 +249,10 @@ export default function Security() {
               </div>
               <div className="flex gap-2 justify-end">
                 <button type="button" onClick={() => setSetup(null)} className={secondaryButton}>
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button type="submit" disabled={busy || code.length !== 6} className={primaryButton}>
-                  {busy ? 'Verifying...' : 'Verify & Enable'}
+                  {busy ? t('Verifying...') : t('Verify & Enable')}
                 </button>
               </div>
             </form>
@@ -259,21 +262,19 @@ export default function Security() {
 
       {confirmRegenerate && (
         <Modal
-          title="Generate new backup codes?"
+          title={t('Generate new backup codes?')}
           onClose={() => { setConfirmRegenerate(false); setRegeneratePassword(''); }}
         >
           <form onSubmit={e => { e.preventDefault(); void regenerate(); }}>
             <p className="text-sm text-gray-600 dark:text-slate-300">
-              You will get eight fresh codes and the ones you have now will stop
-              working. Your authenticator app is unaffected — the secret does not
-              change, so there is nothing to re-scan.
+              {t('You will get eight fresh codes and the ones you have now will stop working. Your authenticator app is unaffected — the secret does not change, so there is nothing to re-scan.')}
             </p>
             <div className="mt-4">
               <label
                 htmlFor="regenerate-2fa-password"
                 className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1"
               >
-                Confirm your password
+                {t('Confirm your password')}
               </label>
               <input
                 id="regenerate-2fa-password"
@@ -286,8 +287,7 @@ export default function Security() {
                 className={inputClass}
               />
               <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
-                Asked for because these codes bypass the second factor — a stolen
-                session must not be able to issue itself a set.
+                {t('Asked for because these codes bypass the second factor — a stolen session must not be able to issue itself a set.')}
               </p>
             </div>
             <div className="flex gap-2 justify-end mt-5">
@@ -296,14 +296,14 @@ export default function Security() {
                 onClick={() => { setConfirmRegenerate(false); setRegeneratePassword(''); }}
                 className={secondaryButton}
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="submit"
                 disabled={busy || !regeneratePassword}
                 className={primaryButton}
               >
-                {busy ? 'Generating...' : 'Generate new codes'}
+                {busy ? t('Generating...') : t('Generate new codes')}
               </button>
             </div>
           </form>
@@ -314,17 +314,17 @@ export default function Security() {
         // Not dismissable by accident: the old codes are already dead, so
         // closing this without saving these is the one path that leaves the
         // account worse off than before it was asked.
-        <Modal title="Your new backup codes" onClose={() => setFreshCodes(null)}>
+        <Modal title={t('Your new backup codes')} onClose={() => setFreshCodes(null)}>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                Save these now
+                {t('Save these now')}
               </p>
               <button
                 onClick={() => copyCodes(freshCodes)}
                 className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center gap-1"
               >
-                <Copy size={12} /> Copy
+                <Copy size={12} /> {t('Copy')}
               </button>
             </div>
             <div className="grid grid-cols-2 gap-1.5 bg-gray-50 dark:bg-slate-800/60 rounded-xl p-3">
@@ -333,12 +333,11 @@ export default function Security() {
               ))}
             </div>
             <p className="text-xs text-gray-400 dark:text-slate-500">
-              Each works once, in place of the authenticator code. Your previous
-              codes no longer work, and these are shown only now.
+              {t('Each works once, in place of the authenticator code. Your previous codes no longer work, and these are shown only now.')}
             </p>
             <div className="flex justify-end">
               <button onClick={() => setFreshCodes(null)} className={primaryButton}>
-                I have saved them
+                {t('I have saved them')}
               </button>
             </div>
           </div>
@@ -347,22 +346,21 @@ export default function Security() {
 
       {confirmDisable && (
         <Modal
-          title="Disable two-factor authentication?"
+          title={t('Disable two-factor authentication?')}
           onClose={() => { setConfirmDisable(false); setDisablePassword(''); }}
         >
           <form
             onSubmit={e => { e.preventDefault(); void disable(); }}
           >
             <p className="text-sm text-gray-600 dark:text-slate-300">
-              Signing in will need only the password again. Turn this off only if you are
-              switching authenticator apps — you can set it up again right after.
+              {t('Signing in will need only the password again. Turn this off only if you are switching authenticator apps — you can set it up again right after.')}
             </p>
             <div className="mt-4">
               <label
                 htmlFor="disable-2fa-password"
                 className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1"
               >
-                Confirm your password
+                {t('Confirm your password')}
               </label>
               <input
                 id="disable-2fa-password"
@@ -375,8 +373,7 @@ export default function Security() {
                 className={inputClass}
               />
               <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
-                Asked for because a stolen session should not be able to remove the
-                protection that stops it being used.
+                {t('Asked for because a stolen session should not be able to remove the protection that stops it being used.')}
               </p>
             </div>
             <div className="flex gap-2 justify-end mt-5">
@@ -385,14 +382,14 @@ export default function Security() {
                 onClick={() => { setConfirmDisable(false); setDisablePassword(''); }}
                 className={secondaryButton}
               >
-                Keep it on
+                {t('Keep it on')}
               </button>
               <button
                 type="submit"
                 disabled={busy || !disablePassword}
                 className={dangerButton}
               >
-                {busy ? 'Disabling...' : 'Disable 2FA'}
+                {busy ? t('Disabling...') : t('Disable 2FA')}
               </button>
             </div>
           </form>

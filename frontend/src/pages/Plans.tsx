@@ -10,9 +10,12 @@ import {
 import api, { apiError } from '../api/client';
 import type { Plan, Member, Paginated, WorkoutExercise, DailyWorkout, DietItem, DietMeal } from '../types';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../context/LanguageContext';
 
 type Tab = 'workout' | 'diet';
 
+// Labels, days and meal names are the English, which is also what a plan
+// stores; they are translated where they are drawn.
 const TABS = [
   { value: 'workout' as const, label: 'Workout' },
   { value: 'diet' as const, label: 'Diet' },
@@ -22,6 +25,7 @@ const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 
 
 export default function Plans() {
+  const { t } = useLanguage();
   const [tab, setTab] = useState<Tab>('workout');
   const [workoutPlans, setWorkoutPlans] = useState<Plan[]>([]);
   const [dietPlans, setDietPlans] = useState<Plan[]>([]);
@@ -57,11 +61,11 @@ export default function Plans() {
     setDeletingBusy(true);
     try {
       await api.delete(`/plans/${tab}/${deleting.id}`);
-      toast.success('Plan deleted');
+      toast.success(t('Plan deleted'));
       setDeleting(null);
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not delete plan'));
+      toast.error(apiError(err, t('Could not delete plan')));
     } finally {
       setDeletingBusy(false);
     }
@@ -73,7 +77,7 @@ export default function Plans() {
       api.get<Plan[]>('/plans/diet').then(r => setDietPlans(r.data)),
       api.get<Paginated<Member>>('/members?all=true').then(r => setMembers(r.data.data)),
     ])
-      .catch(err => toast.error(apiError(err, 'Could not load plans')))
+      .catch(err => toast.error(apiError(err, t('Could not load plans'))))
       .finally(() => setLoading(false));
 
   useEffect(() => { void load(); }, []);
@@ -95,7 +99,7 @@ export default function Plans() {
       };
 
       await api.post(`/plans/${tab}`, payload);
-      toast.success('Plan created successfully');
+      toast.success(t('Plan created successfully'));
       setShowCreate(false);
       setName('');
       setDescription('');
@@ -108,7 +112,7 @@ export default function Plans() {
       ]);
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not create the plan'));
+      toast.error(apiError(err, t('Could not create the plan')));
     } finally {
       setSaving(false);
     }
@@ -171,7 +175,7 @@ export default function Plans() {
   const handleAssign = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!assignForm.workoutPlanId && !assignForm.dietPlanId) {
-      toast.error('Pick a workout plan, a diet plan, or both');
+      toast.error(t('Pick a workout plan, a diet plan, or both'));
       return;
     }
     setSaving(true);
@@ -181,11 +185,11 @@ export default function Plans() {
         ...(assignForm.workoutPlanId && { workoutPlanId: assignForm.workoutPlanId }),
         ...(assignForm.dietPlanId && { dietPlanId: assignForm.dietPlanId }),
       });
-      toast.success('Plans assigned to member');
+      toast.success(t('Plans assigned to member'));
       setShowAssign(false);
       setAssignForm({ memberId: '', workoutPlanId: '', dietPlanId: '' });
     } catch (err) {
-      toast.error(apiError(err, 'Could not assign the plan'));
+      toast.error(apiError(err, t('Could not assign the plan')));
     } finally {
       setSaving(false);
     }
@@ -197,22 +201,22 @@ export default function Plans() {
     <Page>
       <PageHeader
         icon={ClipboardList}
-        title="Plans"
-        subtitle="What members train to and eat by"
+        title={t('Plans')}
+        subtitle={t('What members train to and eat by')}
         action={
           <div className="flex gap-2">
-            <Link to="/calculator" className={secondaryButton} title="Open Fitness & Diet Calculator">
+            <Link to="/calculator" className={secondaryButton} title={t('Open Fitness & Diet Calculator')}>
               <Calculator size={15} className="text-blue-600 dark:text-blue-400" />
-              <span className="hidden sm:inline">Calculator</span>
+              <span className="hidden sm:inline">{t('Calculator')}</span>
             </Link>
             <button onClick={() => setShowAssign(true)} className={secondaryButton}>
               <UserPlus size={15} />
-              <span className="hidden sm:inline">Assign to Member</span>
-              <span className="sm:hidden">Assign</span>
+              <span className="hidden sm:inline">{t('Assign to Member')}</span>
+              <span className="sm:hidden">{t('Assign')}</span>
             </button>
             <button onClick={() => setShowCreate(true)} className={primaryButton}>
               <Plus size={16} />
-              <span className="hidden sm:inline">New Plan</span><span className="sm:hidden">New</span>
+              <span className="hidden sm:inline">{t('New Plan')}</span><span className="sm:hidden">{t('New')}</span>
             </button>
           </div>
         }
@@ -223,8 +227,8 @@ export default function Plans() {
           value={tab}
           onChange={setTab}
           options={[
-            { ...TABS[0]!, count: workoutPlans.length },
-            { ...TABS[1]!, count: dietPlans.length },
+            { ...TABS[0]!, label: t(TABS[0]!.label), count: workoutPlans.length },
+            { ...TABS[1]!, label: t(TABS[1]!.label), count: dietPlans.length },
           ]}
         />
       </div>
@@ -232,13 +236,13 @@ export default function Plans() {
       {plans.length === 0 ? (
         <EmptyState
           icon={TabIcon}
-          title={`No ${tab} plans yet`}
+          title={tab === 'workout' ? t('No workout plans yet') : t('No diet plans yet')}
           hint={tab === 'workout'
-            ? 'Write the routines your trainers hand out, then assign them to members.'
-            : 'Write the meal plans your trainers hand out, then assign them to members.'}
+            ? t('Write the routines your trainers hand out, then assign them to members.')
+            : t('Write the meal plans your trainers hand out, then assign them to members.')}
           action={
             <button onClick={() => setShowCreate(true)} className={primaryButton}>
-              <Plus size={16} /> Create a {tab} plan
+              <Plus size={16} /> {tab === 'workout' ? t('Create a workout plan') : t('Create a diet plan')}
             </button>
           }
         />
@@ -267,15 +271,15 @@ export default function Plans() {
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => setDeleting(p)}
-                      aria-label={`Delete ${p.name}`}
-                      title="Delete plan"
+                      aria-label={t('Delete {name}', { name: p.name })}
+                      title={t('Delete plan')}
                       className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
                     >
                       <Trash size={16} />
                     </button>
                     <button
                       onClick={() => setExpandedPlan(isExpanded ? null : p.id)}
-                      aria-label={isExpanded ? 'Collapse plan' : 'Expand plan'}
+                      aria-label={isExpanded ? t('Collapse plan') : t('Expand plan')}
                       className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-slate-200"
                     >
                       {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
@@ -289,7 +293,7 @@ export default function Plans() {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {wData.days.map((wd, i) => (
                           <div key={i} className="p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
-                            <h4 className="font-semibold text-sm text-blue-600 dark:text-blue-400 mb-2">{wd.day}</h4>
+                            <h4 className="font-semibold text-sm text-blue-600 dark:text-blue-400 mb-2">{t(wd.day)}</h4>
                             <ul className="space-y-1.5 text-xs text-gray-600 dark:text-slate-300">
                               {wd.exercises.map((ex, j) => (
                                 <li key={j} className="flex justify-between">
@@ -305,7 +309,7 @@ export default function Plans() {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {dData.meals.map((meal, i) => (
                           <div key={i} className="p-3 bg-gray-50 dark:bg-slate-900 rounded-lg">
-                            <h4 className="font-semibold text-sm text-green-600 dark:text-green-400 mb-2">{meal.name}</h4>
+                            <h4 className="font-semibold text-sm text-green-600 dark:text-green-400 mb-2">{t(meal.name)}</h4>
                             <ul className="space-y-1.5 text-xs text-gray-600 dark:text-slate-300">
                               {meal.items.map((item, j) => (
                                 <li key={j} className="flex justify-between">
@@ -318,13 +322,13 @@ export default function Plans() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-gray-400 italic">No structured data attached to this plan</p>
+                      <p className="text-xs text-gray-400 italic">{t('No structured data attached to this plan')}</p>
                     )}
                   </div>
                 )}
 
                 <p className="text-xs text-gray-400 dark:text-slate-500 mt-4 pt-3 border-t border-gray-100 dark:border-slate-800">
-                  Added {new Date(p.createdAt).toLocaleDateString()}
+                  {t('Added {date}', { date: new Date(p.createdAt).toLocaleDateString() })}
                 </p>
               </Card>
             );
@@ -333,35 +337,35 @@ export default function Plans() {
       )}
 
       {showCreate && (
-        <Modal title={`Create ${tab === 'workout' ? 'Workout' : 'Diet'} Plan`} onClose={() => setShowCreate(false)}>
+        <Modal title={tab === 'workout' ? t('Create Workout Plan') : t('Create Diet Plan')} onClose={() => setShowCreate(false)}>
           <form onSubmit={e => void handleCreate(e)} className="space-y-4 max-h-[80vh] overflow-y-auto pr-2">
             <div>
-              <FieldLabel htmlFor="plans-plan-name" required>Plan Name</FieldLabel>
+              <FieldLabel htmlFor="plans-plan-name" required>{t('Plan Name')}</FieldLabel>
               <input id="plans-plan-name" required value={name} onChange={e => setName(e.target.value)}
-                className={inputClass} placeholder="e.g. Beginner Weight Loss" />
+                className={inputClass} placeholder={t('e.g. Beginner Weight Loss')} />
             </div>
             <div>
-              <FieldLabel htmlFor="plans-description">Description</FieldLabel>
+              <FieldLabel htmlFor="plans-description">{t('Description')}</FieldLabel>
               <input id="plans-description" value={description}
                 onChange={e => setDescription(e.target.value)}
                 className={inputClass}
-                placeholder="e.g. 3-day split, High Protein diet..." />
+                placeholder={t('e.g. 3-day split, High Protein diet...')} />
             </div>
 
             {/* Structured Workouts Builder */}
             {tab === 'workout' && (
               <div className="space-y-4 pt-2">
-                <FieldLabel>Routines by Day</FieldLabel>
+                <FieldLabel>{t('Routines by Day')}</FieldLabel>
                 {dailyWorkouts.map((dw, dayIdx) => (
                   <div key={dw.day} className="border border-gray-200 dark:border-slate-800 rounded-lg p-3 space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="font-semibold text-sm text-gray-700 dark:text-slate-300">{dw.day}</span>
+                      <span className="font-semibold text-sm text-gray-700 dark:text-slate-300">{t(dw.day)}</span>
                       <button
                         type="button"
                         onClick={() => addExercise(dayIdx)}
                         className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1 hover:underline"
                       >
-                        <Plus size={14} /> Add Exercise
+                        <Plus size={14} /> {t('Add Exercise')}
                       </button>
                     </div>
 
@@ -372,7 +376,7 @@ export default function Plans() {
                           value={ex.name}
                           onChange={e => updateExercise(dayIdx, exIdx, 'name', e.target.value)}
                           className={`${inputClass} col-span-5 text-xs py-1`}
-                          placeholder="Exercise Name"
+                          placeholder={t('Exercise Name')}
                         />
                         <input
                           required
@@ -380,24 +384,25 @@ export default function Plans() {
                           value={ex.sets}
                           onChange={e => updateExercise(dayIdx, exIdx, 'sets', parseInt(e.target.value) || 0)}
                           className={`${inputClass} col-span-2 text-xs py-1`}
-                          placeholder="Sets"
+                          placeholder={t('Sets')}
                         />
                         <input
                           required
                           value={ex.reps}
                           onChange={e => updateExercise(dayIdx, exIdx, 'reps', e.target.value)}
                           className={`${inputClass} col-span-2 text-xs py-1`}
-                          placeholder="Reps"
+                          placeholder={t('Reps')}
                         />
                         <input
                           value={ex.weight}
                           onChange={e => updateExercise(dayIdx, exIdx, 'weight', e.target.value)}
                           className={`${inputClass} col-span-2 text-xs py-1`}
-                          placeholder="Wt (kg)"
+                          placeholder={t('Wt (kg)')}
                         />
                         <button
                           type="button"
                           onClick={() => removeExercise(dayIdx, exIdx)}
+                          aria-label={t('Remove exercise')}
                           className="col-span-1 text-red-500 hover:text-red-700 p-1 flex justify-center"
                         >
                           <Trash size={14} />
@@ -412,17 +417,17 @@ export default function Plans() {
             {/* Structured Diet Builder */}
             {tab === 'diet' && (
               <div className="space-y-4 pt-2">
-                <FieldLabel>Meals Planner</FieldLabel>
+                <FieldLabel>{t('Meals Planner')}</FieldLabel>
                 {dietMeals.map((meal, mealIdx) => (
                   <div key={meal.name} className="border border-gray-200 dark:border-slate-800 rounded-lg p-3 space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="font-semibold text-sm text-gray-700 dark:text-slate-300">{meal.name}</span>
+                      <span className="font-semibold text-sm text-gray-700 dark:text-slate-300">{t(meal.name)}</span>
                       <button
                         type="button"
                         onClick={() => addDietItem(mealIdx)}
                         className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 hover:underline"
                       >
-                        <Plus size={14} /> Add Food Item
+                        <Plus size={14} /> {t('Add Food Item')}
                       </button>
                     </div>
 
@@ -433,14 +438,14 @@ export default function Plans() {
                           value={item.name}
                           onChange={e => updateDietItem(mealIdx, itemIdx, 'name', e.target.value)}
                           className={`${inputClass} col-span-5 text-xs py-1`}
-                          placeholder="Food Item"
+                          placeholder={t('Food Item')}
                         />
                         <input
                           required
                           value={item.amount}
                           onChange={e => updateDietItem(mealIdx, itemIdx, 'amount', e.target.value)}
                           className={`${inputClass} col-span-4 text-xs py-1`}
-                          placeholder="e.g. 100g, 2 eggs"
+                          placeholder={t('e.g. 100g, 2 eggs')}
                         />
                         <input
                           required
@@ -453,6 +458,7 @@ export default function Plans() {
                         <button
                           type="button"
                           onClick={() => removeDietItem(mealIdx, itemIdx)}
+                          aria-label={t('Remove food item')}
                           className="col-span-1 text-red-500 hover:text-red-700 p-1 flex justify-center"
                         >
                           <Trash size={14} />
@@ -467,10 +473,10 @@ export default function Plans() {
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowCreate(false)}
                 className={`flex-1 ${secondaryButton}`}>
-                Cancel
+                {t('Cancel')}
               </button>
               <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
-                {saving ? 'Creating...' : 'Create Plan'}
+                {saving ? t('Creating...') : t('Create Plan')}
               </button>
             </div>
           </form>
@@ -478,14 +484,14 @@ export default function Plans() {
       )}
 
       {showAssign && (
-        <Modal title="Assign Plan to Member" onClose={() => setShowAssign(false)}>
+        <Modal title={t('Assign Plan to Member')} onClose={() => setShowAssign(false)}>
           <form onSubmit={e => void handleAssign(e)} className="space-y-4">
             <div>
-              <FieldLabel htmlFor="plans-member" required>Member</FieldLabel>
+              <FieldLabel htmlFor="plans-member" required>{t('Member')}</FieldLabel>
               <select id="plans-member" required value={assignForm.memberId}
                 onChange={e => setAssignForm(f => ({ ...f, memberId: e.target.value }))}
                 className={inputClass}>
-                <option value="">Select member...</option>
+                <option value="">{t('Select member...')}</option>
                 {members.map(m => (
                   <option key={m.id} value={m.id}>
                     {m.name}{m.phone ? ` · ${m.phone}` : ''}
@@ -494,35 +500,35 @@ export default function Plans() {
               </select>
               {members.length === 0 && (
                 <p className="text-xs text-yellow-700 mt-1.5">
-                  No members yet — add a member before assigning a plan.
+                  {t('No members yet — add a member before assigning a plan.')}
                 </p>
               )}
             </div>
             <div>
-              <FieldLabel htmlFor="plans-workout-plan">Workout Plan</FieldLabel>
+              <FieldLabel htmlFor="plans-workout-plan">{t('Workout Plan')}</FieldLabel>
               <select id="plans-workout-plan" value={assignForm.workoutPlanId}
                 onChange={e => setAssignForm(f => ({ ...f, workoutPlanId: e.target.value }))}
                 className={inputClass}>
-                <option value="">None</option>
+                <option value="">{t('None')}</option>
                 {workoutPlans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div>
-              <FieldLabel htmlFor="plans-diet-plan">Diet Plan</FieldLabel>
+              <FieldLabel htmlFor="plans-diet-plan">{t('Diet Plan')}</FieldLabel>
               <select id="plans-diet-plan" value={assignForm.dietPlanId}
                 onChange={e => setAssignForm(f => ({ ...f, dietPlanId: e.target.value }))}
                 className={inputClass}>
-                <option value="">None</option>
+                <option value="">{t('None')}</option>
                 {dietPlans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowAssign(false)}
                 className={`flex-1 ${secondaryButton}`}>
-                Cancel
+                {t('Cancel')}
               </button>
               <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>
-                {saving ? 'Assigning...' : 'Assign'}
+                {saving ? t('Assigning...') : t('Assign')}
               </button>
             </div>
           </form>
@@ -530,8 +536,8 @@ export default function Plans() {
       )}
       {deleting && (
         <ConfirmDialog
-          title="Delete plan"
-          message={`Delete "${deleting.name}"? Members it was assigned to will no longer see it in their portal.`}
+          title={t('Delete plan')}
+          message={t('Delete "{name}"? Members it was assigned to will no longer see it in their portal.', { name: deleting.name })}
           busy={deletingBusy}
           onConfirm={() => void handleDelete()}
           onCancel={() => setDeleting(null)}

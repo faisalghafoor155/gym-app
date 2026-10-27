@@ -7,6 +7,7 @@ import {
 } from '../components/ui';
 import { useFetch } from '../hooks/useFetch';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { openWhatsApp, createMissYouMessage } from '../utils/whatsapp';
 import type { InactiveMember } from '../types';
 
@@ -22,23 +23,24 @@ type Choice = (typeof CHOICES)[number];
  */
 export default function InactiveMembers() {
   const { gym } = useAuth();
+  const { t } = useLanguage();
   const [choice, setChoice] = useState<Choice>('default');
   const { data, loading, refetching } = useFetch<{ days: number; defaultDays: number; data: InactiveMember[] }>(
-    `/attendance/inactive${choice === 'default' ? '' : `?days=${choice}`}`, 'Could not load inactive members',
+    `/attendance/inactive${choice === 'default' ? '' : `?days=${choice}`}`, t('Could not load inactive members'),
   );
 
   const message = (m: InactiveMember) => {
-    if (!m.phone) { toast.error('No phone number recorded for this member'); return; }
+    if (!m.phone) { toast.error(t('No phone number recorded for this member')); return; }
     openWhatsApp(m.phone, createMissYouMessage(m.name, gym?.name, m.daysAway));
   };
 
   if (loading) return <PageLoader />;
-  if (!data) return <LoadFailed title="Could not load inactive members" />;
+  if (!data) return <LoadFailed title={t('Could not load inactive members')} />;
 
   return (
     <Page>
-      <PageHeader icon={UserX} title="Inactive Members"
-        subtitle={`Active memberships with no check-in for ${data.days}+ days`} />
+      <PageHeader icon={UserX} title={t('Inactive Members')}
+        subtitle={t('Active memberships with no check-in for {days}+ days', { days: data.days })} />
 
       <div className="mb-4">
         <SegmentedControl<Choice>
@@ -46,14 +48,16 @@ export default function InactiveMembers() {
           onChange={setChoice}
           options={CHOICES.map(c => ({
             value: c,
-            label: c === 'default' ? `${data.defaultDays} days (default)` : `${c} days`,
+            label: c === 'default'
+              ? t('{days} days (default)', { days: data.defaultDays })
+              : t('{days} days', { days: c }),
           }))}
         />
       </div>
 
       {data.data.length === 0 ? (
-        <EmptyState icon={UserX} title="Everyone is coming in"
-          hint={`No member with a running membership has been away for ${data.days} days or more.`} />
+        <EmptyState icon={UserX} title={t('Everyone is coming in')}
+          hint={t('No member with a running membership has been away for {days} days or more.', { days: data.days })} />
       ) : (
         <Refetching busy={refetching}>
           <Card className="p-2 sm:p-4">
@@ -65,20 +69,20 @@ export default function InactiveMembers() {
                       {m.name} <span className="text-xs font-medium text-gray-400">{m.memberNo}</span>
                     </p>
                     <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1">
-                      <Phone size={11} /> {m.phone || 'No phone'} · {m.planName} · {m.daysLeft}d left
+                      <Phone size={11} /> {m.phone || t('No phone')} · {m.planName} · {t('{days}d left', { days: m.daysLeft })}
                     </p>
                   </div>
                   <div className="text-left sm:text-right shrink-0">
                     <p className={`text-sm font-bold ${m.daysAway >= 21 ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-400'}`}>
-                      {m.daysAway} days away
+                      {t('{days} days away', { days: m.daysAway })}
                     </p>
                     <p className="text-xs text-gray-400">
-                      {m.lastVisit ? `Last visit ${shortDate(m.lastVisit)}` : 'Never checked in'}
+                      {m.lastVisit ? t('Last visit {date}', { date: shortDate(m.lastVisit) }) : t('Never checked in')}
                     </p>
                   </div>
                   {m.phone && (
                     <button onClick={() => message(m)} className={`${secondaryButton} !py-1.5 !px-3 text-emerald-600 shrink-0`}>
-                      <MessageCircle size={14} /> We miss you
+                      <MessageCircle size={14} /> {t('We miss you')}
                     </button>
                   )}
                 </li>

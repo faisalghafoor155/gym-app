@@ -202,6 +202,11 @@ export default function Layout({ children }: { children: ReactNode }) {
     securityNavItem,
   ];
 
+  // The breadcrumb names the page by its sidebar label, so it follows the
+  // language along with the sidebar.
+  const currentNav = [...staffNavItems, ...ownerNavItems, ...memberNavItems, securityNavItem]
+    .find(i => i.to === pathname);
+
   const renderLink = ({ to, label, icon: Icon }: NavItem) => (
     <NavLink
       key={to}
@@ -250,9 +255,9 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <p className="font-extrabold text-gray-900 dark:text-slate-100 text-sm leading-tight truncate font-heading">{gym?.name || 'GymPro'}</p>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" title="System Online" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" title={t('System Online')} />
             </div>
-            <p className="text-xs text-gray-400 dark:text-slate-500 truncate mt-0.5">{gym?.ownerName || 'Fitness Portal'}</p>
+            <p className="text-xs text-gray-400 dark:text-slate-500 truncate mt-0.5">{gym?.ownerName || t('Fitness Portal')}</p>
           </div>
         </div>
 
@@ -350,12 +355,12 @@ export default function Layout({ children }: { children: ReactNode }) {
             ref={drawerRef}
             role="dialog"
             aria-modal="true"
-            aria-label="Navigation menu"
+            aria-label={t('Navigation menu')}
             className="relative flex flex-col w-72 max-w-[85vw] h-full bg-white dark:bg-slate-900 shadow-2xl z-10"
           >
             <button
               onClick={() => setDrawerOpen(false)}
-              aria-label="Close navigation menu"
+              aria-label={t('Close navigation menu')}
               className="absolute top-4 right-4 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
             >
               <X size={20} />
@@ -380,7 +385,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={() => setDrawerOpen(true)}
-              aria-label="Open navigation menu"
+              aria-label={t('Open navigation menu')}
               className="lg:hidden text-gray-600 dark:text-slate-300 hover:text-gray-900 dark:hover:text-slate-100 p-1.5 -ml-1 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors shrink-0"
             >
               <Menu size={20} />
@@ -397,7 +402,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <p className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm truncate font-heading">{gym?.name || 'GymPro'}</p>
                 {pathname === '/members' && (
                   <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/15 px-1.5 py-0.5 rounded-md shrink-0">
-                    Members
+                    {t('Members')}
                   </span>
                 )}
               </div>
@@ -406,13 +411,13 @@ export default function Layout({ children }: { children: ReactNode }) {
             <div className="hidden lg:flex items-center gap-2.5 text-xs">
               <div className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-200/70 dark:border-emerald-800/40 font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
-                <span>Online</span>
+                <span>{t('Online')}</span>
               </div>
               <span className="text-slate-300 dark:text-slate-700">/</span>
               <span className="font-semibold text-slate-700 dark:text-slate-200">{gym?.name || 'GymPro'}</span>
               <span className="text-slate-300 dark:text-slate-700">/</span>
               <span className="text-slate-500 dark:text-slate-400 font-medium capitalize">
-                {pathname.replace('/', '').replace(/-/g, ' ') || 'Dashboard'}
+                {currentNav ? t(currentNav.label) : pathname.replace('/', '').replace(/-/g, ' ') || t('Dashboard')}
               </span>
             </div>
           </div>
@@ -440,7 +445,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
         {/* Mobile Bottom Navigation Bar for Instant 1-Tap Switching */}
         <nav
-          aria-label="Mobile navigation"
+          aria-label={t('Mobile navigation')}
           className="mobile-bottom-nav lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-2 py-1.5 flex items-center justify-around pb-[max(0.5rem,env(safe-area-inset-bottom))]"
         >
           {isStaff ? (
@@ -460,7 +465,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
                       <LayoutDashboard size={18} />
                     </div>
-                    <span className="mt-0.5 tracking-tight">Dashboard</span>
+                    <span className="mt-0.5 tracking-tight">{t('Dashboard')}</span>
                   </>
                 )}
               </NavLink>
@@ -480,7 +485,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
                       <Users size={18} />
                     </div>
-                    <span className="mt-0.5 tracking-tight">Members</span>
+                    <span className="mt-0.5 tracking-tight">{t('Members')}</span>
                   </>
                 )}
               </NavLink>
@@ -500,7 +505,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
                       <CalendarCheck size={18} />
                     </div>
-                    <span className="mt-0.5 tracking-tight">Check-in</span>
+                    <span className="mt-0.5 tracking-tight">{t('Check-in')}</span>
                   </>
                 )}
               </NavLink>
@@ -520,7 +525,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
                       <CreditCard size={18} />
                     </div>
-                    <span className="mt-0.5 tracking-tight">Payments</span>
+                    <span className="mt-0.5 tracking-tight">{t('Payments')}</span>
                   </>
                 )}
               </NavLink>
@@ -533,7 +538,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <div className="p-1 rounded-lg">
                   <Menu size={18} />
                 </div>
-                <span className="mt-0.5 tracking-tight">More</span>
+                <span className="mt-0.5 tracking-tight">{t('More')}</span>
               </button>
             </>
           ) : (
@@ -553,7 +558,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
                       <User size={18} />
                     </div>
-                    <span className="mt-0.5 tracking-tight">My Pass</span>
+                    <span className="mt-0.5 tracking-tight">{t('My Pass')}</span>
                   </>
                 )}
               </NavLink>
@@ -573,7 +578,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
                       <Calculator size={18} />
                     </div>
-                    <span className="mt-0.5 tracking-tight">Fitness</span>
+                    <span className="mt-0.5 tracking-tight">{t('Fitness')}</span>
                   </>
                 )}
               </NavLink>
@@ -593,7 +598,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                     <div className={`p-1 rounded-lg transition-transform ${isActive ? 'bg-blue-50 dark:bg-blue-500/15 scale-110 text-blue-600 dark:text-blue-400' : ''}`}>
                       <ShieldCheck size={18} />
                     </div>
-                    <span className="mt-0.5 tracking-tight">Security</span>
+                    <span className="mt-0.5 tracking-tight">{t('Security')}</span>
                   </>
                 )}
               </NavLink>
@@ -606,7 +611,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <div className="p-1 rounded-lg">
                   <Menu size={18} />
                 </div>
-                <span className="mt-0.5 tracking-tight">More</span>
+                <span className="mt-0.5 tracking-tight">{t('More')}</span>
               </button>
             </>
           )}

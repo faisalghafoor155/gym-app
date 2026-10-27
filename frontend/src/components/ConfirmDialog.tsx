@@ -1,5 +1,6 @@
 import Modal from './Modal';
 import { dangerButton, secondaryButton, primaryButton } from './ui';
+import { useLanguage } from '../context/LanguageContext';
 
 interface ConfirmDialogProps {
   title: string;
@@ -18,14 +19,15 @@ interface ConfirmDialogProps {
  * the whole tab. Focus trapping and Escape come from Modal.
  */
 export default function ConfirmDialog({
-  title, message, confirmLabel = 'Delete', tone = 'danger', busy, onConfirm, onCancel,
+  title, message, confirmLabel, tone = 'danger', busy, onConfirm, onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useLanguage();
   return (
     <Modal title={title} onClose={onCancel}>
       <p className="text-sm text-gray-600 dark:text-slate-300">{message}</p>
       <div className="flex gap-3 pt-5">
         <button type="button" onClick={onCancel} className={`flex-1 ${secondaryButton}`}>
-          Cancel
+          {t('Cancel')}
         </button>
         <button
           type="button"
@@ -34,7 +36,7 @@ export default function ConfirmDialog({
           onClick={onConfirm}
           className={`flex-1 ${tone === 'danger' ? dangerButton : primaryButton}`}
         >
-          {busy ? 'Working...' : confirmLabel}
+          {busy ? t('Working...') : confirmLabel ?? t('Delete')}
         </button>
       </div>
     </Modal>

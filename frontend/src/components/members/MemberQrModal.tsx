@@ -2,6 +2,7 @@ import { useEffect, useState, type MouseEvent } from 'react';
 import { CreditCard } from 'lucide-react';
 import { primaryButton, secondaryButton } from '../ui';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { printIdCard } from '../../utils/idCard';
 import { useDialog } from '../../hooks/useDialog';
 import type { Member } from '../../types';
@@ -28,6 +29,7 @@ interface Props {
  */
 export default function MemberQrModal({ member, onClose }: Props) {
   const { gym } = useAuth();
+  const { t } = useLanguage();
   const [dataUrl, setDataUrl] = useState('');
   // Wired up only once there is something to render: until then this component
   // returns null, so there is no container for the trap to hold focus in.
@@ -43,13 +45,13 @@ export default function MemberQrModal({ member, onClose }: Props) {
       .then(url => { if (!cancelled) setDataUrl(url); })
       .catch(() => {
         if (cancelled) return;
-        toast.error('Failed to generate QR code');
+        toast.error(t('Failed to generate QR code'));
         // Nothing to show and no way to get it, so the modal closes rather
         // than sitting there empty.
         onClose();
       });
     return () => { cancelled = true; };
-  }, [member.id, onClose]);
+  }, [member.id, onClose, t]);
 
   if (!dataUrl) return null;
 
@@ -71,24 +73,24 @@ export default function MemberQrModal({ member, onClose }: Props) {
           }
         </div>
         <h3 id="qr-modal-title" className="font-bold text-gray-900 dark:text-slate-100 text-lg">{member.name}</h3>
-        <p className="text-xs text-gray-500 dark:text-slate-400 mb-5">{member.memberNo} · {member.phone || 'No phone'}</p>
+        <p className="text-xs text-gray-500 dark:text-slate-400 mb-5">{member.memberNo} · {member.phone || t('No phone')}</p>
         <div className="bg-white p-3 rounded-xl inline-block shadow-sm border border-gray-100">
-          <img src={dataUrl} alt={`QR Code for ${member.name}`} className="w-56 h-56" />
+          <img src={dataUrl} alt={t('QR Code for {name}', { name: member.name })} className="w-56 h-56" />
         </div>
-        <p className="text-xs text-gray-400 dark:text-slate-500 mt-4">Scan this code at the front desk for instant check-in</p>
+        <p className="text-xs text-gray-400 dark:text-slate-500 mt-4">{t('Scan this code at the front desk for instant check-in')}</p>
         <div className="mt-4 flex gap-2">
           <button onClick={onClose} className={`flex-1 ${secondaryButton}`}>
-            Close
+            {t('Close')}
           </button>
           <button
             onClick={() => {
               if (!printIdCard(member, dataUrl, { name: gym?.name ?? 'GymPro', logo: gym?.logo })) {
-                toast.error('Allow pop-ups for this site to print the card');
+                toast.error(t('Allow pop-ups for this site to print the card'));
               }
             }}
             className={`flex-1 ${primaryButton}`}
           >
-            <CreditCard size={15} /> Print ID card
+            <CreditCard size={15} /> {t('Print ID card')}
           </button>
         </div>
       </div>

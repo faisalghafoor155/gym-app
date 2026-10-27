@@ -25,6 +25,7 @@ const GYM_IMAGES = [
   'https://images.unsplash.com/photo-1549060279-7e168fcee0c2?w=800&q=80',
 ];
 
+/** English; each is translated where it is shown. */
 const MOTIVATIONAL_QUOTES = [
   "Push yourself, because no one else is going to do it for you.",
   "Success starts with self-discipline.",
@@ -75,10 +76,11 @@ function QuickAction({ to, icon: Icon, label }: {
 function PanelHeader({ icon: Icon, tone, title, count, to }: {
   icon: typeof Users; tone: string; title: string; count?: number; to?: string;
 }) {
+  const { t } = useLanguage();
   return (
     <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2 text-sm">
       <Icon size={16} className={tone} />
-      {title}
+      {t(title)}
       {count !== undefined && count > 0 && (
         <span className="bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 text-xs font-semibold px-2 py-0.5 rounded-full">
           {count}
@@ -86,7 +88,7 @@ function PanelHeader({ icon: Icon, tone, title, count, to }: {
       )}
       {to && (
         <Link to={to} className={`ml-auto text-xs font-medium text-blue-600 hover:underline flex items-center gap-1 ${focusRing}`}>
-          View all <ArrowRight size={12} />
+          {t('View all')} <ArrowRight size={12} />
         </Link>
       )}
     </h2>
@@ -97,10 +99,11 @@ export default function Dashboard() {
   const [imgIndex] = useState(() => Math.floor(Math.random() * GYM_IMAGES.length));
   const [quoteIndex] = useState(() => Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length));
   const { gym, isOwner } = useAuth();
+  const { t } = useLanguage();
 
   const { data: stats, loading } = useFetch<DashboardStats>(
     '/dashboard',
-    'Could not load the dashboard',
+    t('Could not load the dashboard'),
   );
 
   if (loading) return <PageLoader />;
@@ -110,8 +113,8 @@ export default function Dashboard() {
   if (!stats) {
     return (
       <LoadFailed
-        title="Could not load the dashboard"
-        hint="The server did not answer. Check the connection and try again."
+        title={t('Could not load the dashboard')}
+        hint={t('The server did not answer. Check the connection and try again.')}
       />
     );
   }
@@ -136,7 +139,7 @@ export default function Dashboard() {
       <div className="relative rounded-3xl overflow-hidden h-44 sm:h-52 shadow-md ring-1 ring-black/5 dark:ring-white/10 group">
         <img
           src={GYM_IMAGES[imgIndex]}
-          alt="Gym"
+          alt={t('Gym')}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-black/20" />
@@ -144,19 +147,19 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 mb-1.5">
             <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/30 text-[11px] font-bold uppercase tracking-wider backdrop-blur-md">
               <Zap size={12} className="fill-yellow-400" />
-              Gym Dashboard
+              {t('Gym Dashboard')}
             </span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-extrabold text-white leading-tight pr-24 sm:pr-0 font-heading tracking-tight drop-shadow-sm">
             {gym?.name || 'GymPro'}
           </h1>
           <p className="text-white/80 text-xs sm:text-sm mt-1.5 italic max-w-lg line-clamp-2 drop-shadow-sm font-medium">
-            "{MOTIVATIONAL_QUOTES[quoteIndex]}"
+            "{t(MOTIVATIONAL_QUOTES[quoteIndex] ?? '')}"
           </p>
         </div>
         <div className="absolute top-4 right-4 sm:top-5 sm:right-6 bg-white/10 backdrop-blur-md rounded-2xl px-3.5 py-2 text-right border border-white/20 max-w-[45%] sm:max-w-none shadow-sm">
-          <p className="text-white/60 text-[11px] font-medium uppercase tracking-wider">Owner</p>
-          <p className="text-white font-bold text-xs sm:text-sm truncate font-heading">{gym?.ownerName || 'Admin'}</p>
+          <p className="text-white/60 text-[11px] font-medium uppercase tracking-wider">{t('Owner')}</p>
+          <p className="text-white font-bold text-xs sm:text-sm truncate font-heading">{gym?.ownerName || t('Admin')}</p>
         </div>
       </div>
 
@@ -165,11 +168,11 @@ export default function Dashboard() {
       {!hasMembers ? (
         <EmptyState
           icon={UserPlus}
-          title="No members yet"
-          hint="Register the first member and this dashboard fills in: revenue, check-ins, renewals and everything expiring."
+          title={t('No members yet')}
+          hint={t('Register the first member and this dashboard fills in: revenue, check-ins, renewals and everything expiring.')}
           action={
             <Link to="/members?new=1" className={primaryButton}>
-              <UserPlus size={16} /> Add the first member
+              <UserPlus size={16} /> {t('Add the first member')}
             </Link>
           }
         />
@@ -198,7 +201,7 @@ export default function Dashboard() {
           label="Today's Check-ins"
           value={stats.todayAttendance}
           tone="yellow"
-          hint={stats.peakHour !== null ? `Busiest ${hourLabel(stats.peakHour)}` : undefined}
+          hint={stats.peakHour !== null ? t('Busiest {hour}', { hour: hourLabel(stats.peakHour) }) : undefined}
         />
         {revenue ? (
           <StatTile
@@ -208,7 +211,7 @@ export default function Dashboard() {
             tone="purple"
             hint={revenueGrowth === null
               ? undefined
-              : `${revenueGrowth >= 0 ? '+' : ''}${revenueGrowth}% vs last month`}
+              : t('{change}% vs last month', { change: `${revenueGrowth >= 0 ? '+' : ''}${revenueGrowth}` })}
           />
         ) : (
           // Named for what it counts. "Payments Due" read as a number of
@@ -230,7 +233,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-2">
               <Wallet size={16} className="text-purple-600" />
               <h2 className="font-semibold text-gray-900 dark:text-slate-100 text-sm">
-                This month so far
+                {t('This month so far')}
               </h2>
             </div>
             <span className="text-xs text-gray-400 dark:text-slate-500">
@@ -242,19 +245,19 @@ export default function Dashboard() {
                 day: 'numeric', month: 'short', year: 'numeric',
               })}
               {' · '}
-              {revenue.monthToDate.count} payment{revenue.monthToDate.count === 1 ? '' : 's'}
+              {t(revenue.monthToDate.count === 1 ? '{count} payment' : '{count} payments', { count: revenue.monthToDate.count })}
             </span>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="rounded-xl bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/20 px-4 py-3">
-              <p className="text-xs font-medium text-blue-700">Membership fees</p>
+              <p className="text-xs font-medium text-blue-700">{t('Membership fees')}</p>
               <p className="text-lg font-bold text-blue-900 mt-0.5">
                 {money(revenue.monthToDate.membership)}
               </p>
             </div>
             <div className="rounded-xl bg-green-50 dark:bg-green-500/15 border border-green-100 dark:border-green-500/20 px-4 py-3">
-              <p className="text-xs font-medium text-green-700">Supplement sales</p>
+              <p className="text-xs font-medium text-green-700">{t('Supplement sales')}</p>
               <p className="text-lg font-bold text-green-900 mt-0.5">
                 {money(revenue.monthToDate.supplement)}
               </p>
@@ -263,7 +266,7 @@ export default function Dashboard() {
                 box trains the eye to skip the row. */}
             {revenue.monthToDate.locker > 0 && (
               <div className="rounded-xl bg-amber-50 dark:bg-amber-500/15 border border-amber-100 dark:border-amber-500/20 px-4 py-3">
-                <p className="text-xs font-medium text-amber-700">Locker rent</p>
+                <p className="text-xs font-medium text-amber-700">{t('Locker rent')}</p>
                 <p className="text-lg font-bold text-amber-900 mt-0.5">
                   {money(revenue.monthToDate.locker)}
                 </p>
@@ -271,14 +274,14 @@ export default function Dashboard() {
             )}
             {revenue.monthToDate.other > 0 && (
               <div className="rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 px-4 py-3">
-                <p className="text-xs font-medium text-gray-600 dark:text-slate-300">Other</p>
+                <p className="text-xs font-medium text-gray-600 dark:text-slate-300">{t('Other')}</p>
                 <p className="text-lg font-bold text-gray-900 dark:text-slate-100 mt-0.5">
                   {money(revenue.monthToDate.other)}
                 </p>
               </div>
             )}
             <div className="rounded-xl bg-purple-600 px-4 py-3 col-span-2 lg:col-span-1 lg:ml-auto lg:w-full">
-              <p className="text-xs font-medium text-purple-100">Grand total</p>
+              <p className="text-xs font-medium text-purple-100">{t('Grand total')}</p>
               <p className="text-xl font-bold text-white mt-0.5">
                 {money(revenue.monthToDate.total)}
               </p>
@@ -292,13 +295,13 @@ export default function Dashboard() {
           {(revenue.expensesThisMonth > 0 || revenue.thisMonth > 0) && (
             <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-gray-100 dark:border-slate-800">
               <div className="rounded-xl bg-red-50 dark:bg-red-500/15 border border-red-100 dark:border-red-500/20 px-4 py-3">
-                <p className="text-xs font-medium text-red-700 dark:text-red-300">Expenses</p>
+                <p className="text-xs font-medium text-red-700 dark:text-red-300">{t('Expenses')}</p>
                 <p className="text-lg font-bold text-red-900 dark:text-red-200 mt-0.5">
                   {money(revenue.expensesThisMonth)}
                 </p>
                 {revenue.expensesThisMonth === 0 && (
                   <p className="text-[11px] text-red-600/70 dark:text-red-300/70 mt-0.5">
-                    None recorded yet
+                    {t('None recorded yet')}
                   </p>
                 )}
               </div>
@@ -314,7 +317,7 @@ export default function Dashboard() {
                     ? 'text-emerald-700 dark:text-emerald-300'
                     : 'text-amber-700 dark:text-amber-300'
                 }`}>
-                  {revenue.profitThisMonth >= 0 ? 'Profit' : 'Loss'}
+                  {revenue.profitThisMonth >= 0 ? t('Profit') : t('Loss')}
                 </p>
                 <p className={`text-lg font-bold mt-0.5 ${
                   revenue.profitThisMonth >= 0
@@ -329,9 +332,10 @@ export default function Dashboard() {
 
           {revenue.dueTotal > 0 && (
             <p className="text-xs text-gray-500 dark:text-slate-400 mt-3">
-              Not counted above: <span className="font-semibold text-red-600 dark:text-red-400">
+              {t('Not counted above:')} <span className="font-semibold text-red-600 dark:text-red-400">
                 {money(revenue.dueTotal)}
-              </span> in entries marked due, across all time.
+              </span>{' '}
+              {t('in entries marked due, across all time.')}
             </p>
           )}
         </Card>
@@ -347,22 +351,22 @@ export default function Dashboard() {
             <div className="flex items-center gap-2">
               <Users size={16} className="text-blue-600 dark:text-blue-400" />
               <h2 className="font-semibold text-gray-900 dark:text-slate-100 text-sm">
-                This month's fees
+                {t("This month's fees")}
               </h2>
             </div>
             <Link
               to="/monthly-collection"
               className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
             >
-              See the full list →
+              {t('See the full list')} →
             </Link>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="rounded-xl bg-green-50 dark:bg-green-500/15 border border-green-100 dark:border-green-500/20 px-4 py-3">
-              <p className="text-xs font-medium text-green-700 dark:text-green-300">Paid</p>
+              <p className="text-xs font-medium text-green-700 dark:text-green-300">{t('Paid')}</p>
               <p className="text-lg font-bold text-gray-900 dark:text-slate-100 mt-0.5">
-                {collection.settled} member{collection.settled === 1 ? '' : 's'}
+                {t(collection.settled === 1 ? '{count} member' : '{count} members', { count: collection.settled })}
               </p>
               <p className="text-xs text-gray-500 dark:text-slate-400">{money(collection.collected)}</p>
             </div>
@@ -377,26 +381,26 @@ export default function Dashboard() {
                   ? 'text-red-700 dark:text-red-300'
                   : 'text-gray-600 dark:text-slate-300'
               }`}>
-                Still to pay
+                {t('Still to pay')}
               </p>
               <p className="text-lg font-bold text-gray-900 dark:text-slate-100 mt-0.5">
-                {collection.pending} member{collection.pending === 1 ? '' : 's'}
+                {t(collection.pending === 1 ? '{count} member' : '{count} members', { count: collection.pending })}
               </p>
               <p className="text-xs text-gray-500 dark:text-slate-400">{money(collection.shortfall)}</p>
             </div>
 
             <div className="rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 px-4 py-3">
-              <p className="text-xs font-medium text-gray-600 dark:text-slate-300">Expected</p>
+              <p className="text-xs font-medium text-gray-600 dark:text-slate-300">{t('Expected')}</p>
               <p className="text-lg font-bold text-gray-900 dark:text-slate-100 mt-0.5">
                 {money(collection.expected)}
               </p>
               <p className="text-xs text-gray-500 dark:text-slate-400">
-                from {collection.settled + collection.pending} members
+                {t('from {count} members', { count: collection.settled + collection.pending })}
               </p>
             </div>
 
             <div className="rounded-xl bg-blue-600 px-4 py-3">
-              <p className="text-xs font-medium text-blue-100">Collected</p>
+              <p className="text-xs font-medium text-blue-100">{t('Collected')}</p>
               <p className="text-xl font-bold text-white mt-0.5">{collectedPercent}%</p>
               <div className="w-full bg-blue-500/40 rounded-full h-1.5 mt-2 overflow-hidden">
                 <div
@@ -414,10 +418,10 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <TrendingUp size={16} className="text-blue-600" />
-              <h2 className="font-semibold text-gray-900 dark:text-slate-100 text-sm">Membership Health</h2>
+              <h2 className="font-semibold text-gray-900 dark:text-slate-100 text-sm">{t('Membership Health')}</h2>
             </div>
             <span className="text-xs text-gray-400 dark:text-slate-500">
-              {Math.round((stats.activeMembers / stats.totalMembers) * 100)}% active
+              {t('{percent}% active', { percent: Math.round((stats.activeMembers / stats.totalMembers) * 100) })}
             </span>
           </div>
           <div className="w-full bg-gray-100 dark:bg-slate-800 rounded-full h-3 overflow-hidden flex gap-0.5">
@@ -440,16 +444,16 @@ export default function Dashboard() {
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-2.5">
             <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Active
+              <span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> {t('Active')}
             </span>
             <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" /> Expiring soon
+              <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" /> {t('Expiring soon')}
             </span>
             <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> Expired
+              <span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> {t('Expired')}
             </span>
             <span className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" /> Lapsed
+              <span className="w-2 h-2 rounded-full bg-slate-400 inline-block" /> {t('Lapsed')}
               <span className="text-gray-400 dark:text-slate-500">({stats.lapsedMembers})</span>
             </span>
           </div>
@@ -464,7 +468,7 @@ export default function Dashboard() {
               <div className="flex items-start justify-between mb-4 gap-3">
                 <h2 className="font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2 text-sm">
                   <Wallet size={16} className="text-purple-600" />
-                  Revenue
+                  {t('Revenue')}
                 </h2>
                 {revenueGrowth !== null && (
                   <span className={`flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
@@ -484,11 +488,11 @@ export default function Dashboard() {
               }))} format={shortMoney} />
               <div className="flex gap-4 mt-4 pt-4 border-t border-gray-100 dark:border-slate-800">
                 <div>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Collected this month</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500">{t('Collected this month')}</p>
                   <p className="font-bold text-gray-900 dark:text-slate-100">{money(revenue.thisMonth)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Outstanding dues</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500">{t('Outstanding dues')}</p>
                   <p className="font-bold text-red-600">{money(revenue.dueTotal)}</p>
                 </div>
               </div>
@@ -500,11 +504,11 @@ export default function Dashboard() {
             <div className="flex items-start justify-between mb-4 gap-3">
               <h2 className="font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2 text-sm">
                 <CalendarCheck size={16} className="text-blue-600" />
-                Check-ins · last 30 days
+                {t('Check-ins · last 30 days')}
               </h2>
               {stats.peakHour !== null && (
                 <span className="flex items-center gap-1 text-xs text-gray-500 dark:text-slate-400 bg-gray-50 dark:bg-slate-800/60 px-2 py-0.5 rounded-full">
-                  <Clock size={12} /> Peak {hourLabel(stats.peakHour)}
+                  <Clock size={12} /> {t('Peak {hour}', { hour: hourLabel(stats.peakHour) })}
                 </span>
               )}
             </div>
@@ -516,7 +520,7 @@ export default function Dashboard() {
               }))}
             />
             <p className="text-xs text-gray-400 dark:text-slate-500 mt-3 pt-3 border-t border-gray-100 dark:border-slate-800">
-              {stats.attendanceByDay.reduce((s, d) => s + d.count, 0)} check-ins in the last 30 days
+              {t('{count} check-ins in the last 30 days', { count: stats.attendanceByDay.reduce((s, d) => s + d.count, 0) })}
             </p>
           </Card>
       </div>
@@ -530,7 +534,7 @@ export default function Dashboard() {
             {stats.recentMembers.length === 0 ? (
               <div className="text-center py-8">
                 <Users size={32} className="text-gray-300 dark:text-slate-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-400 dark:text-slate-500">No members yet</p>
+                <p className="text-sm text-gray-400 dark:text-slate-500">{t('No members yet')}</p>
               </div>
             ) : (
               <>
@@ -541,7 +545,7 @@ export default function Dashboard() {
                       <div className="min-w-0">
                         <p className="font-medium text-gray-900 dark:text-slate-100 text-sm truncate">{m.name}</p>
                         <p className="text-xs text-gray-500 dark:text-slate-400">
-                          {m.currentMembership?.planName ?? 'No membership'}
+                          {m.currentMembership?.planName ?? t('No membership')}
                         </p>
                       </div>
                       {m.currentMembership && <Badge status={m.currentMembership.status} />}
@@ -553,9 +557,9 @@ export default function Dashboard() {
                 <table className="w-full text-sm hidden sm:table">
                   <thead>
                     <tr className="text-left text-gray-400 dark:text-slate-500 border-b border-gray-100 dark:border-slate-800">
-                      <th className="pb-2 font-medium text-xs uppercase tracking-wider">Name</th>
-                      <th className="pb-2 font-medium text-xs uppercase tracking-wider">Plan</th>
-                      <th className="pb-2 font-medium text-xs uppercase tracking-wider">Status</th>
+                      <th className="pb-2 font-medium text-xs uppercase tracking-wider">{t('Name')}</th>
+                      <th className="pb-2 font-medium text-xs uppercase tracking-wider">{t('Plan')}</th>
+                      <th className="pb-2 font-medium text-xs uppercase tracking-wider">{t('Status')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
@@ -568,7 +572,7 @@ export default function Dashboard() {
                         <td className="py-3">
                           {m.currentMembership
                             ? <Badge status={m.currentMembership.status} />
-                            : <span className="text-gray-400 dark:text-slate-500 text-xs">No membership</span>}
+                            : <span className="text-gray-400 dark:text-slate-500 text-xs">{t('No membership')}</span>}
                         </td>
                       </tr>
                     ))}
@@ -582,7 +586,7 @@ export default function Dashboard() {
           <Card className="p-5">
             <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2 text-sm">
               <AlertTriangle size={16} className="text-yellow-500" />
-              Expiring Soon
+              {t('Expiring Soon')}
               {stats.expiringMembers.length > 0 && (
                 <span className="ml-auto bg-yellow-100 dark:bg-yellow-500/15 text-yellow-700 text-xs font-semibold px-2 py-0.5 rounded-full">
                   {stats.expiringMembers.length}
@@ -592,7 +596,7 @@ export default function Dashboard() {
             {stats.expiringMembers.length === 0 ? (
               <div className="text-center py-8">
                 <Trophy size={32} className="text-gray-300 dark:text-slate-600 mx-auto mb-2" />
-                <p className="text-sm text-gray-400 dark:text-slate-500">No memberships expiring in 7 days</p>
+                <p className="text-sm text-gray-400 dark:text-slate-500">{t('No memberships expiring in 7 days')}</p>
               </div>
             ) : (
               <ul className="space-y-3">
@@ -600,14 +604,14 @@ export default function Dashboard() {
                   <li key={m.id} className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-500/15 rounded-lg border border-yellow-100 dark:border-yellow-500/20">
                     <div>
                       <p className="font-medium text-gray-900 dark:text-slate-100 text-sm">{m.name}</p>
-                      <p className="text-gray-500 dark:text-slate-400 text-xs">{m.memberNo} · {m.phone || 'No phone'}</p>
+                      <p className="text-gray-500 dark:text-slate-400 text-xs">{m.memberNo} · {m.phone || t('No phone')}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         {/* daysLeft is counted server-side from midnight, so it
                             does not drift with the hour the page is open. */}
                         <p className="text-yellow-700 font-semibold text-sm">
-                          {m.membership.daysLeft === 0 ? 'Today!' : `${m.membership.daysLeft}d left`}
+                          {m.membership.daysLeft === 0 ? t('Today!') : t('{days}d left', { days: m.membership.daysLeft })}
                         </p>
                         <p className="text-gray-400 dark:text-slate-500 text-xs">
                           {new Date(m.membership.expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}
@@ -625,11 +629,11 @@ export default function Dashboard() {
                             });
                             openWhatsApp(m.phone, text);
                           }}
-                          title={`WhatsApp reminder to ${m.name}`}
+                          title={t('WhatsApp reminder to {name}', { name: m.name })}
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors shrink-0"
                         >
                           <MessageCircle size={13} />
-                          <span>WhatsApp</span>
+                          <span>{t('WhatsApp')}</span>
                         </button>
                       )}
                     </div>
@@ -651,7 +655,7 @@ export default function Dashboard() {
             to="/members?status=expired"
           />
           <p className="text-xs text-gray-400 dark:text-slate-500 -mt-2 mb-4">
-            Expired within the last 60 days — still worth a call.
+            {t('Expired within the last 60 days — still worth a call.')}
           </p>
           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {stats.followUpMembers.map(m => (
@@ -665,7 +669,7 @@ export default function Dashboard() {
                 <div className="text-right shrink-0 flex items-center gap-2">
                   <div>
                     <p className="text-orange-600 dark:text-orange-400 font-semibold text-xs">
-                      {Math.abs(m.membership.daysLeft)}d ago
+                      {t('{days}d ago', { days: Math.abs(m.membership.daysLeft) })}
                     </p>
                     {m.phone ? (
                       <a
@@ -675,7 +679,7 @@ export default function Dashboard() {
                         <PhoneCall size={10} /> {m.phone}
                       </a>
                     ) : (
-                      <p className="text-xs text-gray-400 dark:text-slate-500">No phone</p>
+                      <p className="text-xs text-gray-400 dark:text-slate-500">{t('No phone')}</p>
                     )}
                   </div>
                   {m.phone && (
@@ -690,7 +694,7 @@ export default function Dashboard() {
                         });
                         openWhatsApp(m.phone, text);
                       }}
-                      title={`Send WhatsApp message to ${m.name}`}
+                      title={t('Send WhatsApp message to {name}', { name: m.name })}
                       className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-700/40 transition-colors"
                     >
                       <MessageCircle size={13} />
@@ -715,10 +719,10 @@ export default function Dashboard() {
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">
-              {stats.lapsedMembers} lapsed {stats.lapsedMembers === 1 ? 'member' : 'members'}
+              {t(stats.lapsedMembers === 1 ? '{count} lapsed member' : '{count} lapsed members', { count: stats.lapsedMembers })}
             </p>
             <p className="text-xs text-gray-400 dark:text-slate-500">
-              Expired more than 60 days ago and marked inactive.
+              {t('Expired more than 60 days ago and marked inactive.')}
             </p>
           </div>
           <ArrowRight size={16} className="ml-auto text-gray-300 dark:text-slate-600 shrink-0" />

@@ -6,6 +6,7 @@ import ExerciseAnglesModal from '../components/fitness/ExerciseAnglesModal';
 import ExercisePhotoModal from '../components/fitness/ExercisePhotoModal';
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import type { Measurement } from '../types';
 import toast from 'react-hot-toast';
 import {
@@ -21,6 +22,7 @@ import AiAdvisorTab from '../components/fitness/AiAdvisorTab';
 import MealPlanTab from '../components/fitness/MealPlanTab';
 
 export default function FitnessCalculator() {
+  const { lang, t } = useLanguage();
   const [tab, setTab] = useState<CalcTab>('diet');
 
   // Input states for Diet & Calorie Calculator
@@ -78,20 +80,23 @@ export default function FitnessCalculator() {
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [customApiKey, setCustomApiKey] = useState(() => localStorage.getItem('gym_gemini_api_key') || '');
   const [tempApiKey, setTempApiKey] = useState(() => localStorage.getItem('gym_gemini_api_key') || '');
+  // The starter answers are English dictionary keys, shown through t() in the
+  // feed, so they follow the language toggle; the coach's own replies pass
+  // through t() unchanged.
   const [aiAnswers, setAiAnswers] = useState<AiAnswer[]>([
     {
-      question: 'Anabolic Mass ya Serious Mass k sath pet (belly fat) nikalne se kaise bachein?',
-      answer: 'Bohat ahem sawal! Mass Gainer me 1000+ calories hoti hain. Agar aap uske sath ghar me 4-4 parathay aur meetha bhi khayenge to calorie surplus zyadah hone se pet nikal aayega. Iska behtareen hal ha: Gainer ki "Half Serving" (1 scoop) lein, junk food band karein, aur gym me heavy compound exercises (Squats, Deadlifts, Bench Press) karein taake calories muscle me lagien!',
+      question: 'How do I avoid belly fat while taking Anabolic Mass or Serious Mass?',
+      answer: 'Very important question! A mass gainer has 1000+ calories. If you also eat 4 parathas and sweets at home, the calorie surplus gets too big and you gain belly fat. The best fix: take a "Half Serving" (1 scoop) of the gainer, stop junk food, and do heavy compound exercises in the gym (Squats, Deadlifts, Bench Press) so the calories go into muscle!',
       tag: 'Mass Gainer',
     },
     {
-      question: 'Pre-workout aur Creatine dono ek sath le saktay hain?',
-      answer: 'Jee haan! Pre-workout workout se 20-30 minute pehle focus aur pump ke liye lia jata ha, jabke Creatine 5g rozana muscles ki ATP energy aur taqat barhata ha. Creatine aap pre-workout me mix kar ke b le saktay hain ya workout ke foran baad gainer ke sath b le saktay hain.',
+      question: 'Can I take pre-workout and creatine together?',
+      answer: 'Yes! Pre-workout is taken 20-30 minutes before the workout for focus and pump, while 5g of creatine daily increases your muscles\' ATP energy and strength. You can mix creatine into your pre-workout, or take it with your gainer right after the workout.',
       tag: 'Stack',
     },
     {
-      question: 'Mass gainer lene se liver ya kidney par bojh parta ha?',
-      answer: 'Mass gainer sirf carbs aur milk protein ka powder ha. Agar aap rozana 3.5 se 4 Liter paani piyenge to digestion bilkul saaf rahegi aur kidney par koi bojh nahi parega. Kam paani peenay se dehydration aur kabz (constipation) ho sakti ha.',
+      question: 'Does a mass gainer put strain on the liver or kidneys?',
+      answer: 'A mass gainer is just a powder of carbs and milk protein. If you drink 3.5 to 4 liters of water a day, your digestion stays clean and there is no strain on the kidneys. Drinking too little water can cause dehydration and constipation.',
       tag: 'Hydration',
     },
   ]);
@@ -117,20 +122,20 @@ export default function FitnessCalculator() {
   const aiGuidance = getAiDietGuidance({
     goal, selectedGainer, dietPreference, weightKg, macros, takingPreworkout, takingCreatine,
     gainer, gainerCalories, gainerProtein, gainerCarbs, foodCaloriesNeeded, foodProteinNeeded,
-  });
+  }, lang);
 
   const mealDistribution = buildMealDistribution({
     macros, selectedGainer, aiGuidance, gainer, gainerCalories, gainerProtein, gainerCarbs,
     foodCaloriesNeeded, foodProteinNeeded,
-  });
+  }, lang);
 
 
   const QUICK_PROMPTS = [
-    { label: '📋 Full Pakistani Diet Plan', prompt: `Mere ${weightKg}kg wazan aur ${goal.replace('_', ' ')} target ke mutabiq subah se raat tak ka Mukammal Pakistani Desi Diet Plan banao.` },
-    { label: '🥩 Anabolic Mass Belly Fat Guide', prompt: 'Anabolic Mass ya Serious Mass k sath pet (belly fat) charhe bina lean muscle kaise banayein?' },
-    { label: '⚡ Creatine & Hydration Timing', prompt: 'Creatine Monohydrate 5g kis waqt lena chahiye aur kitna paani peena zaroori ha?' },
-    { label: '🔥 Pre-Workout Guidelines', prompt: 'Pre-workout (C4/Psychotic) lene ka sahi tareeqa aur precautions kia hain?' },
-    { label: '🏋️ 5-Day Workout Games Routine', prompt: '5-Day Hypertrophy split me daily kitni games aur kitne heavy sets lagane chahiye?' },
+    { label: t('📋 Full Pakistani Diet Plan'), prompt: t('Make me a complete Pakistani desi diet plan from morning to night for my {weight}kg weight and {goal} target.', { weight: weightKg, goal: goal.replace('_', ' ') }) },
+    { label: t('🥩 Anabolic Mass Belly Fat Guide'), prompt: t('How do I build lean muscle with Anabolic Mass or Serious Mass without gaining belly fat?') },
+    { label: t('⚡ Creatine & Hydration Timing'), prompt: t('When should I take 5g of Creatine Monohydrate, and how much water do I need to drink?') },
+    { label: t('🔥 Pre-Workout Guidelines'), prompt: t('What is the right way to take pre-workout (C4/Psychotic), and what precautions should I take?') },
+    { label: t('🏋️ 5-Day Workout Routine'), prompt: t('In a 5-day hypertrophy split, how many exercises and how many heavy sets should I do each day?') },
   ];
 
   const handleAskAi = async (e?: React.FormEvent, customQuestion?: string) => {
@@ -142,6 +147,7 @@ export default function FitnessCalculator() {
     try {
       const res = await api.post<{ reply: string }>('/ai/chat', {
         message: query.trim(),
+        lang,
         context: {
           gender,
           weightKg: Number(weightKg) || 70,
@@ -172,10 +178,10 @@ export default function FitnessCalculator() {
           ...prev,
         ]);
         if (!customQuestion) setUserQuery('');
-        toast.success('AI Coach answered your question!');
+        toast.success(t('AI Coach answered your question!'));
       }
     } catch (err: unknown) {
-      toast.error(apiError(err, 'AI Coach se rabta nahi ho saka. Dobara koshish karein.'));
+      toast.error(apiError(err, t('Could not reach the AI Coach. Please try again.')));
     } finally {
       setLoadingAi(false);
     }
@@ -186,10 +192,10 @@ export default function FitnessCalculator() {
     setCustomApiKey(trimmed);
     if (trimmed) {
       localStorage.setItem('gym_gemini_api_key', trimmed);
-      toast.success('Gemini API Key browser me save ho gai ha!');
+      toast.success(t('Gemini API key saved in this browser!'));
     } else {
       localStorage.removeItem('gym_gemini_api_key');
-      toast.success('Gym App Default AI Engine active ha.');
+      toast.success(t('The Gym App default AI engine is active.'));
     }
     setShowApiKeyModal(false);
   };
@@ -197,64 +203,64 @@ export default function FitnessCalculator() {
   const handleCopyAnswer = (text: string, idx: number) => {
     void navigator.clipboard.writeText(text);
     setCopiedAnswerIdx(idx);
-    toast.success('AI advice copied to clipboard!');
+    toast.success(t('AI advice copied to clipboard!'));
     setTimeout(() => setCopiedAnswerIdx(null), 2000);
   };
 
   const handleClearAiChat = () => {
-    if (window.confirm('Kia aap AI chat history clear karna chahtay hain?')) {
+    if (window.confirm(t('Do you want to clear the AI chat history?'))) {
       setAiAnswers([]);
-      toast.success('Chat history cleared');
+      toast.success(t('Chat history cleared'));
     }
   };
 
   const handleCopyDietSummary = () => {
-    const summary = `🏋️‍♂️ AI FITNESS & DIET PLAN 🏋️‍♂️
-Profile: ${gender.toUpperCase()} | Weight: ${weightKg} kg | Height: ${heightCm} cm | Age: ${age}
-Goal: ${goal.replace('_', ' ').toUpperCase()} | Gainer/Stack: ${gainer.name}
+    const summary = `🏋️‍♂️ ${t('AI FITNESS & DIET PLAN')} 🏋️‍♂️
+${t('Profile: {gender} | Weight: {weight} kg | Height: {height} cm | Age: {age}', { gender: t(gender === 'male' ? 'Male' : 'Female').toUpperCase(), weight: weightKg, height: heightCm, age })}
+${t('Goal: {goal} | Gainer/Stack: {gainer}', { goal: goal.replace('_', ' ').toUpperCase(), gainer: t(gainer.name) })}
 
-🔥 DAILY TARGETS:
-- Total Calories: ${macros.targetCalories} kcal (From Food: ${foodCaloriesNeeded} kcal | From Gainer: ${gainerCalories} kcal)
-- Total Protein: ${macros.proteinGrams}g (${macros.proteinRatio}g per kg body weight)
-- Daily Water Target: ${macros.waterLiters} Liters/day
+🔥 ${t('DAILY TARGETS:')}
+- ${t('Total Calories: {calories} kcal (From Food: {food} kcal | From Gainer: {gainer} kcal)', { calories: macros.targetCalories, food: foodCaloriesNeeded, gainer: gainerCalories })}
+- ${t('Total Protein: {protein}g ({ratio}g per kg body weight)', { protein: macros.proteinGrams, ratio: macros.proteinRatio })}
+- ${t('Daily Water Target: {liters} Liters/day', { liters: macros.waterLiters })}
 
-💊 SUPPLEMENT STACK TIMINGS:
+💊 ${t('SUPPLEMENT STACK TIMINGS:')}
 ${aiGuidance.supplements.map(s => `- ${s}`).join('\n')}
 
-🍽️ MEAL PLAN:
-${mealDistribution.map(m => `• ${m.name}: ${m.calories} kcal (Protein: ${m.protein}g) -> ${m.foodIdea}`).join('\n')}
+🍽️ ${t('MEAL PLAN:')}
+${mealDistribution.map(m => `• ${t('{meal}: {calories} kcal (Protein: {protein}g) -> {food}', { meal: m.name, calories: m.calories, protein: m.protein, food: m.foodIdea })}`).join('\n')}
 
-Generated via Gym App Fitness & AI Calculator`;
+${t('Generated via Gym App Fitness & AI Calculator')}`;
 
     void navigator.clipboard.writeText(summary);
     setCopiedPlan(true);
-    toast.success('Complete Plan copied to clipboard!');
+    toast.success(t('Complete Plan copied to clipboard!'));
     setTimeout(() => setCopiedPlan(false), 2500);
   };
 
   const TABS = [
-    { value: 'diet' as const, label: 'Calories & Diet' },
-    { value: 'supplements_routine' as const, label: '💊 Mass Gainer & Stack' },
-    { value: 'workout_split' as const, label: '🏋️‍♂️ Workout & Games' },
-    { value: 'ai_advisor' as const, label: '✨ AI Nutrition Coach' },
-    { value: 'meal_plan' as const, label: 'Auto Meal Plan' },
+    { value: 'diet' as const, label: t('Calories & Diet') },
+    { value: 'supplements_routine' as const, label: t('💊 Mass Gainer & Stack') },
+    { value: 'workout_split' as const, label: t('🏋️‍♂️ Workout & Games') },
+    { value: 'ai_advisor' as const, label: t('✨ AI Nutrition Coach') },
+    { value: 'meal_plan' as const, label: t('Auto Meal Plan') },
   ];
 
   return (
     <Page>
       <PageHeader
         icon={Calculator}
-        title="Fitness, Mass Gainer & Workout Calculator"
-        subtitle="Automatic calorie engine with Anabolic Mass, Serious Mass & Carnivor integration + Workout games guide"
+        title={t('Fitness, Mass Gainer & Workout Calculator')}
+        subtitle={t('Automatic calorie engine with Anabolic Mass, Serious Mass & Carnivor integration + workout guide')}
       />
 
       {latestWeighIn && (
         <div className="mb-4 rounded-xl px-4 py-2.5 bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/20 text-sm text-blue-800 dark:text-blue-200 flex items-center gap-2">
           <Activity size={15} className="shrink-0" />
           <span>
-            Using your latest weigh-in: <strong>{latestWeighIn.weightKg} kg</strong> on{' '}
-            {new Date(latestWeighIn.measuredOn).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}.
-            The AI coach also sees your progress history.
+            {t('Using your latest weigh-in:')} <strong>{latestWeighIn.weightKg} kg</strong>{' '}
+            {t('on {date}.', { date: new Date(latestWeighIn.measuredOn).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' }) })}{' '}
+            {t('The AI coach also sees your progress history.')}
           </span>
         </div>
       )}
@@ -271,7 +277,7 @@ Generated via Gym App Fitness & AI Calculator`;
               className={secondaryButton}
             >
               {copiedPlan ? <Check size={16} className="text-emerald-600" /> : <Copy size={16} />}
-              <span>{copiedPlan ? 'Copied!' : 'Copy Summary'}</span>
+              <span>{copiedPlan ? t('Copied!') : t('Copy Summary')}</span>
             </button>
           </div>
         </div>
@@ -406,19 +412,19 @@ Generated via Gym App Fitness & AI Calculator`;
 
       {/* Gemini API Key Configuration Modal */}
       {showApiKeyModal && (
-        <Modal title="AI Engine & Gemini API Configuration" onClose={() => setShowApiKeyModal(false)}>
+        <Modal title={t('AI Engine & Gemini API Configuration')} onClose={() => setShowApiKeyModal(false)}>
           <div className="space-y-4 text-xs">
             <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/40 text-purple-950 dark:text-purple-200">
-              <strong className="block font-bold mb-1">⚡ Automatic AI Active by Default</strong>
+              <strong className="block font-bold mb-1">⚡ {t('Automatic AI Active by Default')}</strong>
               <p className="text-purple-800 dark:text-purple-300 leading-relaxed">
-                Gym App backend incorporates our comprehensive sports nutrition AI engine out of the box with zero setup needed!
+                {t('The Gym App backend includes our sports nutrition AI engine out of the box, with no setup needed!')}
               </p>
             </div>
 
             <div>
-              <FieldLabel>Custom Google Gemini API Key (Optional)</FieldLabel>
+              <FieldLabel>{t('Custom Google Gemini API Key (Optional)')}</FieldLabel>
               <p className="text-[11px] text-gray-500 dark:text-slate-400 mb-2">
-                If you have a Google AI Studio key (`AIza...`), you can paste it here to run directly on Google Gemini Flash:
+                {t('If you have a Google AI Studio key (AIza...), you can paste it here to run directly on Google Gemini Flash:')}
               </p>
               <input
                 type="password"
@@ -438,7 +444,7 @@ Generated via Gym App Fitness & AI Calculator`;
                 }}
                 className="text-xs text-rose-600 hover:underline font-medium"
               >
-                Clear Custom Key
+                {t('Clear Custom Key')}
               </button>
               <div className="flex gap-2">
                 <button
@@ -446,14 +452,14 @@ Generated via Gym App Fitness & AI Calculator`;
                   onClick={() => setShowApiKeyModal(false)}
                   className={secondaryButton}
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveApiKey}
                   className="px-4 py-2 rounded-xl font-bold bg-purple-600 hover:bg-purple-700 text-white transition text-xs"
                 >
-                  Save Preference
+                  {t('Save Preference')}
                 </button>
               </div>
             </div>

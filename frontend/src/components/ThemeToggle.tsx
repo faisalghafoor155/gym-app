@@ -1,6 +1,7 @@
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { useTheme, type ThemePreference } from '../context/ThemeContext';
 import { focusRing } from './ui';
+import { useLanguage } from '../context/LanguageContext';
 
 const OPTIONS: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Light', icon: Sun },
@@ -17,23 +18,25 @@ const OPTIONS: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
  */
 export default function ThemeToggle() {
   const { theme, setTheme } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <div
       role="radiogroup"
-      aria-label="Colour theme"
+      aria-label={t('Colour theme')}
       className="inline-flex items-center gap-0.5 p-0.5 rounded-lg bg-gray-100 dark:bg-slate-800"
     >
       {OPTIONS.map(({ value, label, icon: Icon }) => {
         const active = theme === value;
+        const text = t(label);
         return (
           <button
             key={value}
             type="button"
             role="radio"
             aria-checked={active}
-            aria-label={label}
-            title={label}
+            aria-label={text}
+            title={text}
             onClick={() => setTheme(value)}
             className={`p-1.5 rounded-md transition-colors ${focusRing} ${
               active

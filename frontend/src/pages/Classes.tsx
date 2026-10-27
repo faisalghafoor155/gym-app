@@ -11,6 +11,7 @@ import toast from 'react-hot-toast';
 import type {
   Class, ClassSchedule, ClassBooking, Member, Trainer, Paginated,
 } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 
 interface ClassForm {
   name: string;
@@ -57,6 +58,7 @@ type TabType = 'schedule' | 'classes' | 'bookings';
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 export default function Classes() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<TabType>('schedule');
   const [classes, setClasses] = useState<Class[]>([]);
   const [schedules, setSchedules] = useState<ClassSchedule[]>([]);
@@ -112,7 +114,7 @@ export default function Classes() {
         setBookings(bRes.data.data);
       }
     } catch (err) {
-      if (!isStale()) toast.error(apiError(err, 'Failed to fetch data'));
+      if (!isStale()) toast.error(apiError(err, t('Failed to fetch data')));
     } finally {
       if (!isStale()) setLoading(false);
     }
@@ -134,12 +136,12 @@ export default function Classes() {
     setSaving(true);
     try {
       await api.post('/classes', classForm);
-      toast.success('Class program added successfully');
+      toast.success(t('Class program added successfully'));
       setShowClassModal(false);
       setClassForm(emptyClassForm);
       await loadData();
     } catch (err) {
-      toast.error(apiError(err, 'Error saving class'));
+      toast.error(apiError(err, t('Error saving class')));
     } finally {
       setSaving(false);
     }
@@ -150,12 +152,12 @@ export default function Classes() {
     setSaving(true);
     try {
       await api.post('/classes/schedules', scheduleForm);
-      toast.success('Weekly slot scheduled successfully');
+      toast.success(t('Weekly slot scheduled successfully'));
       setShowScheduleModal(false);
       setScheduleForm(emptyScheduleForm());
       await loadData();
     } catch (err) {
-      toast.error(apiError(err, 'Error scheduling slot'));
+      toast.error(apiError(err, t('Error scheduling slot')));
     } finally {
       setSaving(false);
     }
@@ -166,11 +168,11 @@ export default function Classes() {
     setSaving(true);
     try {
       await api.delete(`/classes/schedules/${deactivatingSchedule.id}`);
-      toast.success('Schedule slot deleted');
+      toast.success(t('Schedule slot deleted'));
       setDeactivatingSchedule(null);
       await loadData();
     } catch (err) {
-      toast.error(apiError(err, 'Failed to delete schedule'));
+      toast.error(apiError(err, t('Failed to delete schedule')));
     } finally {
       setSaving(false);
     }
@@ -181,12 +183,12 @@ export default function Classes() {
     setSaving(true);
     try {
       await api.post('/class-bookings', bookingForm);
-      toast.success('Slot booked successfully');
+      toast.success(t('Slot booked successfully'));
       setShowBookingModal(false);
       setBookingForm(emptyBookingForm());
       await loadData();
     } catch (err) {
-      toast.error(apiError(err, 'Error booking class slot'));
+      toast.error(apiError(err, t('Error booking class slot')));
     } finally {
       setSaving(false);
     }
@@ -195,10 +197,12 @@ export default function Classes() {
   const updateBookingStatus = async (bookingId: string, status: 'attended' | 'cancelled') => {
     try {
       await api.put(`/class-bookings/${bookingId}`, { status });
-      toast.success(`Booking status updated to ${status}`);
+      toast.success(status === 'attended'
+        ? t('Booking status updated to attended')
+        : t('Booking status updated to cancelled'));
       await loadData();
     } catch (err) {
-      toast.error(apiError(err, 'Failed to update booking status'));
+      toast.error(apiError(err, t('Failed to update booking status')));
     }
   };
 
@@ -218,7 +222,7 @@ export default function Classes() {
       <PageHeader
         icon={Calendar}
         title="Group Classes & Schedule"
-        subtitle="Manage group classes, weekly repeating slot timetables, and seat reservations."
+        subtitle={t('Manage group classes, weekly repeating slot timetables, and seat reservations.')}
         action={
           activeTab === 'classes' ? (
             <div className="flex gap-2">
@@ -229,7 +233,7 @@ export default function Classes() {
                 }}
                 className={secondaryButton}
               >
-                <Plus size={16} /> Create Class
+                <Plus size={16} /> {t('Create Class')}
               </button>
               <button
                 onClick={() => {
@@ -238,7 +242,7 @@ export default function Classes() {
                 }}
                 className={primaryButton}
               >
-                <Plus size={16} /> Add Schedule Slot
+                <Plus size={16} /> {t('Add Schedule Slot')}
               </button>
             </div>
           ) : (
@@ -249,7 +253,7 @@ export default function Classes() {
               }}
               className={primaryButton}
             >
-              <Plus size={16} /> Book Class Slot
+              <Plus size={16} /> {t('Book Class Slot')}
             </button>
           )
         }
@@ -271,7 +275,7 @@ export default function Classes() {
         {(activeTab === 'schedule' || activeTab === 'bookings') && (
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-gray-500 dark:text-slate-400 flex items-center gap-1">
-              <Calendar size={14} /> Selected Date:
+              <Calendar size={14} /> {t('Selected Date:')}
             </span>
             <input
               type="date"
@@ -288,13 +292,13 @@ export default function Classes() {
         schedules.length === 0 ? (
           <EmptyState
             icon={Clock}
-            title="No scheduled classes for this date"
-            hint="Switch to the Programs Directory to schedule class timetable slots."
+            title={t('No scheduled classes for this date')}
+            hint={t('Switch to the Programs Directory to schedule class timetable slots.')}
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {schedules.map(s => {
-              const dayName = DAYS[s.dayOfWeek];
+              const dayName = t(DAYS[s.dayOfWeek]!);
               return (
                 <Card key={s.id} className="p-5 flex flex-col justify-between hover:shadow-md transition-shadow">
                   <div>
@@ -302,7 +306,7 @@ export default function Classes() {
                       <div>
                         <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg">{s.className}</h3>
                         <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 max-w-xs truncate">
-                          {s.classDescription || 'No description'}
+                          {s.classDescription || t('No description')}
                         </p>
                       </div>
                       <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400">
@@ -315,12 +319,12 @@ export default function Classes() {
                         <span className="text-gray-400"><Clock size={14} /></span> {s.startTime} - {s.endTime}
                       </p>
                       <p className="flex items-center gap-2">
-                        <span className="text-gray-400"><User size={14} /></span> Instructor: {s.trainer?.name || 'Assigned Staff'}
+                        <span className="text-gray-400"><User size={14} /></span> {t('Instructor: {name}', { name: s.trainer?.name || t('Assigned Staff') })}
                       </p>
                       <div className="flex items-center justify-between mt-4 p-2 bg-gray-50 dark:bg-slate-800/60 rounded-lg">
-                        <span className="text-xs font-semibold flex items-center gap-1"><Users size={12} /> Seats booked</span>
+                        <span className="text-xs font-semibold flex items-center gap-1"><Users size={12} /> {t('Seats booked')}</span>
                         <span className={`font-bold text-xs ${s.remainingCapacity === 0 ? 'text-red-600' : 'text-green-700'}`}>
-                          {s.bookingsCount} / {s.capacity} ({s.remainingCapacity} left)
+                          {t('{booked} / {capacity} ({left} left)', { booked: s.bookingsCount, capacity: s.capacity, left: s.remainingCapacity })}
                         </span>
                       </div>
                     </div>
@@ -336,7 +340,7 @@ export default function Classes() {
                           : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/20 dark:text-indigo-400'
                       }`}
                     >
-                      {s.remainingCapacity === 0 ? 'Class Full' : 'Book Seat'}
+                      {s.remainingCapacity === 0 ? t('Class Full') : t('Book Seat')}
                     </button>
                     <button
                       onClick={() => setDeactivatingSchedule(s)}
@@ -357,8 +361,8 @@ export default function Classes() {
         classes.length === 0 ? (
           <EmptyState
             icon={BookOpen}
-            title="No class programs registered"
-            hint="Create programs like Yoga or Zumba to map them to timeslots."
+            title={t('No class programs registered')}
+            hint={t('Create programs like Yoga or Zumba to map them to timeslots.')}
             action={
               <button
                 onClick={() => {
@@ -367,7 +371,7 @@ export default function Classes() {
                 }}
                 className={primaryButton}
               >
-                Create first class
+                {t('Create first class')}
               </button>
             }
           />
@@ -378,11 +382,11 @@ export default function Classes() {
                 <div>
                   <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg">{c.name}</h3>
                   <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
-                    {c.description || 'No description provided.'}
+                    {c.description || t('No description provided.')}
                   </p>
                 </div>
                 <div className="mt-5 text-xs text-gray-400">
-                  Registered on: {new Date(c.createdAt).toLocaleDateString()}
+                  {t('Registered on: {date}', { date: new Date(c.createdAt).toLocaleDateString() })}
                 </div>
               </Card>
             ))}
@@ -395,8 +399,8 @@ export default function Classes() {
         bookings.length === 0 ? (
           <EmptyState
             icon={Users}
-            title="No bookings logged for this date"
-            hint="Book seats for members inside schedules or click Book Class Slot."
+            title={t('No bookings logged for this date')}
+            hint={t('Book seats for members inside schedules or click Book Class Slot.')}
           />
         ) : (
           <Card className="overflow-hidden">
@@ -404,11 +408,11 @@ export default function Classes() {
               <table className="w-full text-sm text-left text-gray-500 dark:text-slate-400">
                 <thead className="text-xs uppercase bg-gray-50 dark:bg-slate-800/50 text-gray-700 dark:text-slate-300 border-b border-gray-100 dark:border-slate-800">
                   <tr>
-                    <th className="px-6 py-4 font-bold">Member</th>
-                    <th className="px-6 py-4 font-bold">Class Program</th>
-                    <th className="px-6 py-4 font-bold">Scheduled Time</th>
-                    <th className="px-6 py-4 font-bold">Status</th>
-                    <th className="px-6 py-4 font-bold text-right">Actions</th>
+                    <th className="px-6 py-4 font-bold">{t('Member')}</th>
+                    <th className="px-6 py-4 font-bold">{t('Class Program')}</th>
+                    <th className="px-6 py-4 font-bold">{t('Scheduled Time')}</th>
+                    <th className="px-6 py-4 font-bold">{t('Status')}</th>
+                    <th className="px-6 py-4 font-bold text-right">{t('Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-800/60">
@@ -423,7 +427,7 @@ export default function Classes() {
                       <td className="px-6 py-4">
                         <span className="flex items-center gap-1">
                           <Clock size={13} className="text-gray-400" />
-                          {b.schedule.startTime} - {b.schedule.endTime} ({DAYS[b.schedule.dayOfWeek]})
+                          {b.schedule.startTime} - {b.schedule.endTime} ({t(DAYS[b.schedule.dayOfWeek]!)})
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -436,13 +440,13 @@ export default function Classes() {
                               onClick={() => updateBookingStatus(b.id, 'attended')}
                               className="px-2.5 py-1 rounded-md text-xs font-semibold bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-950/30 dark:hover:bg-green-950/50 dark:text-green-400"
                             >
-                              Attended
+                              {t('Attended')}
                             </button>
                             <button
                               onClick={() => setCancellingBooking(b)}
                               className="px-2.5 py-1 rounded-md text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/30 dark:hover:bg-red-950/50 dark:text-red-400"
                             >
-                              Cancel Booking
+                              {t('Cancel Booking')}
                             </button>
                           </>
                         )}
@@ -471,7 +475,7 @@ export default function Classes() {
                   </div>
                   <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
                     <Clock size={12} className="text-gray-400" />
-                    {b.schedule.startTime} - {b.schedule.endTime} ({DAYS[b.schedule.dayOfWeek]})
+                    {b.schedule.startTime} - {b.schedule.endTime} ({t(DAYS[b.schedule.dayOfWeek]!)})
                   </p>
                   {b.status === 'booked' && (
                     <div className="flex gap-2 pt-0.5">
@@ -479,13 +483,13 @@ export default function Classes() {
                         onClick={() => updateBookingStatus(b.id, 'attended')}
                         className="flex-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-green-50 hover:bg-green-100 text-green-700 dark:bg-green-950/30 dark:hover:bg-green-950/50 dark:text-green-400"
                       >
-                        Attended
+                        {t('Attended')}
                       </button>
                       <button
                         onClick={() => setCancellingBooking(b)}
                         className="flex-1 px-2.5 py-2 rounded-lg text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 dark:bg-red-950/30 dark:hover:bg-red-950/50 dark:text-red-400"
                       >
-                        Cancel Booking
+                        {t('Cancel Booking')}
                       </button>
                     </div>
                   )}
@@ -500,25 +504,25 @@ export default function Classes() {
       {showClassModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
           <Card className="w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-4">Create Class Program</h3>
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-4">{t('Create Class Program')}</h3>
             <form onSubmit={handleClassSave} className="space-y-4">
               <div>
-                <FieldLabel htmlFor="classes-class-name">Class Name</FieldLabel>
+                <FieldLabel htmlFor="classes-class-name">{t('Class Name')}</FieldLabel>
                 <input id="classes-class-name"
                   required
                   value={classForm.name}
                   onChange={e => setClassForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g. Yoga Vinyasa Flow"
+                  placeholder={t('e.g. Yoga Vinyasa Flow')}
                   className={inputClass}
                 />
               </div>
 
               <div>
-                <FieldLabel htmlFor="classes-description">Description</FieldLabel>
+                <FieldLabel htmlFor="classes-description">{t('Description')}</FieldLabel>
                 <textarea id="classes-description"
                   value={classForm.description}
                   onChange={e => setClassForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Describe focus, target skills, level requirements..."
+                  placeholder={t('Describe focus, target skills, level requirements...')}
                   rows={4}
                   className={inputClass}
                 />
@@ -530,14 +534,14 @@ export default function Classes() {
                   onClick={() => setShowClassModal(false)}
                   className={secondaryButton}
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className={primaryButton}
                 >
-                  {saving ? 'Creating…' : 'Create Class'}
+                  {saving ? t('Creating…') : t('Create Class')}
                 </button>
               </div>
             </form>
@@ -549,17 +553,17 @@ export default function Classes() {
       {showScheduleModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
           <Card className="w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-4">Add Weekly Schedule Slot</h3>
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-4">{t('Add Weekly Schedule Slot')}</h3>
             <form onSubmit={handleScheduleSave} className="space-y-4">
               <div>
-                <FieldLabel htmlFor="classes-select-class-program">Select Class Program</FieldLabel>
+                <FieldLabel htmlFor="classes-select-class-program">{t('Select Class Program')}</FieldLabel>
                 <select id="classes-select-class-program"
                   required
                   value={scheduleForm.classId}
                   onChange={e => setScheduleForm(prev => ({ ...prev, classId: e.target.value }))}
                   className={inputClass}
                 >
-                  <option value="">-- Choose Class --</option>
+                  <option value="">{t('-- Choose Class --')}</option>
                   {classes.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
@@ -567,35 +571,35 @@ export default function Classes() {
               </div>
 
               <div>
-                <FieldLabel htmlFor="classes-instructor-trainer">Instructor (Trainer)</FieldLabel>
+                <FieldLabel htmlFor="classes-instructor-trainer">{t('Instructor (Trainer)')}</FieldLabel>
                 <select id="classes-instructor-trainer"
                   value={scheduleForm.trainerId}
                   onChange={e => setScheduleForm(prev => ({ ...prev, trainerId: e.target.value }))}
                   className={inputClass}
                 >
-                  <option value="">No specific instructor</option>
-                  {trainers.map(t => (
-                    <option key={t.id} value={t.id}>{t.name} ({t.specialization || 'Fitness'})</option>
+                  <option value="">{t('No specific instructor')}</option>
+                  {trainers.map(tr => (
+                    <option key={tr.id} value={tr.id}>{tr.name} ({tr.specialization || t('Fitness')})</option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <FieldLabel htmlFor="classes-day-of-the-week">Day of the Week</FieldLabel>
+                <FieldLabel htmlFor="classes-day-of-the-week">{t('Day of the Week')}</FieldLabel>
                 <select id="classes-day-of-the-week"
                   value={scheduleForm.dayOfWeek}
                   onChange={e => setScheduleForm(prev => ({ ...prev, dayOfWeek: Number(e.target.value) }))}
                   className={inputClass}
                 >
                   {DAYS.map((d, i) => (
-                    <option key={i} value={i}>{d}</option>
+                    <option key={i} value={i}>{t(d)}</option>
                   ))}
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <FieldLabel htmlFor="classes-start-time">Start Time</FieldLabel>
+                  <FieldLabel htmlFor="classes-start-time">{t('Start Time')}</FieldLabel>
                   <input id="classes-start-time"
                     required
                     type="time"
@@ -605,7 +609,7 @@ export default function Classes() {
                   />
                 </div>
                 <div>
-                  <FieldLabel htmlFor="classes-end-time">End Time</FieldLabel>
+                  <FieldLabel htmlFor="classes-end-time">{t('End Time')}</FieldLabel>
                   <input id="classes-end-time"
                     required
                     type="time"
@@ -617,7 +621,7 @@ export default function Classes() {
               </div>
 
               <div>
-                <FieldLabel htmlFor="classes-booking-capacity-seats">Booking Capacity (Seats)</FieldLabel>
+                <FieldLabel htmlFor="classes-booking-capacity-seats">{t('Booking Capacity (Seats)')}</FieldLabel>
                 <input id="classes-booking-capacity-seats"
                   required
                   type="number"
@@ -634,14 +638,14 @@ export default function Classes() {
                   onClick={() => setShowScheduleModal(false)}
                   className={secondaryButton}
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className={primaryButton}
                 >
-                  {saving ? 'Scheduling…' : 'Schedule Slot'}
+                  {saving ? t('Scheduling…') : t('Schedule Slot')}
                 </button>
               </div>
             </form>
@@ -653,17 +657,17 @@ export default function Classes() {
       {showBookingModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
           <Card className="w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-4">Book Group Class Slot</h3>
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-4">{t('Book Group Class Slot')}</h3>
             <form onSubmit={handleBookingSave} className="space-y-4">
               <div>
-                <FieldLabel htmlFor="classes-select-member">Select Member</FieldLabel>
+                <FieldLabel htmlFor="classes-select-member">{t('Select Member')}</FieldLabel>
                 <select id="classes-select-member"
                   required
                   value={bookingForm.memberId}
                   onChange={e => setBookingForm(prev => ({ ...prev, memberId: e.target.value }))}
                   className={inputClass}
                 >
-                  <option value="">-- Choose Member --</option>
+                  <option value="">{t('-- Choose Member --')}</option>
                   {members.map(m => (
                     <option key={m.id} value={m.id}>{m.name} ({m.memberNo})</option>
                   ))}
@@ -671,24 +675,26 @@ export default function Classes() {
               </div>
 
               <div>
-                <FieldLabel htmlFor="classes-select-schedule-slot">Select Schedule Slot</FieldLabel>
+                <FieldLabel htmlFor="classes-select-schedule-slot">{t('Select Schedule Slot')}</FieldLabel>
                 <select id="classes-select-schedule-slot"
                   required
                   value={bookingForm.scheduleId}
                   onChange={e => setBookingForm(prev => ({ ...prev, scheduleId: e.target.value }))}
                   className={inputClass}
                 >
-                  <option value="">-- Choose Schedule Slot --</option>
+                  <option value="">{t('-- Choose Schedule Slot --')}</option>
                   {schedules.map(s => (
                     <option key={s.id} value={s.id}>
-                      {s.className} on {DAYS[s.dayOfWeek]} at {s.startTime} ({s.remainingCapacity} seats left)
+                      {t('{name} on {day} at {time} ({left} seats left)', {
+                        name: s.className, day: t(DAYS[s.dayOfWeek]!), time: s.startTime, left: s.remainingCapacity,
+                      })}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <FieldLabel htmlFor="classes-booking-target-date">Booking Target Date</FieldLabel>
+                <FieldLabel htmlFor="classes-booking-target-date">{t('Booking Target Date')}</FieldLabel>
                 <input id="classes-booking-target-date"
                   required
                   type="date"
@@ -704,14 +710,14 @@ export default function Classes() {
                   onClick={() => setShowBookingModal(false)}
                   className={secondaryButton}
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
                   className={primaryButton}
                 >
-                  {saving ? 'Booking…' : 'Book Session'}
+                  {saving ? t('Booking…') : t('Book Session')}
                 </button>
               </div>
             </form>
@@ -722,9 +728,9 @@ export default function Classes() {
       {/* Confirm Deactivate Schedule Dialog */}
       {!!deactivatingSchedule && (
         <ConfirmDialog
-          title="Delete Schedule Slot"
-          message={`Are you sure you want to remove this weekly scheduled slot for class "${deactivatingSchedule.className}"? Members will no longer be able to book this slot, but historical bookings will remain preserved.`}
-          confirmLabel="Delete"
+          title={t('Delete Schedule Slot')}
+          message={t('Are you sure you want to remove this weekly scheduled slot for class "{name}"? Members will no longer be able to book this slot, but historical bookings will remain preserved.', { name: deactivatingSchedule.className })}
+          confirmLabel={t('Delete')}
           onConfirm={handleDeactivateSchedule}
           onCancel={() => setDeactivatingSchedule(null)}
           busy={saving}
@@ -734,9 +740,13 @@ export default function Classes() {
 
       {!!cancellingBooking && (
         <ConfirmDialog
-          title="Cancel booking"
-          message={`Cancel ${cancellingBooking.member.name}'s booking for ${cancellingBooking.schedule.className} at ${cancellingBooking.schedule.startTime}? The slot is freed for another member.`}
-          confirmLabel="Cancel booking"
+          title={t('Cancel booking')}
+          message={t("Cancel {member}'s booking for {name} at {time}? The slot is freed for another member.", {
+            member: cancellingBooking.member.name,
+            name: cancellingBooking.schedule.className,
+            time: cancellingBooking.schedule.startTime,
+          })}
+          confirmLabel={t('Cancel booking')}
           onConfirm={() => {
             void updateBookingStatus(cancellingBooking.id, 'cancelled');
             setCancellingBooking(null);

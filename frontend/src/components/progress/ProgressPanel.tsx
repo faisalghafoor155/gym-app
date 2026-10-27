@@ -9,6 +9,7 @@ import ConfirmDialog from '../ConfirmDialog';
 import api, { apiError } from '../../api/client';
 import { useFetch } from '../../hooks/useFetch';
 import type { Measurement } from '../../types';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * A member's weigh-ins: a trend chart, before/after photos, the history, and
@@ -70,11 +71,12 @@ async function downscale(file: File, maxSide = 1080): Promise<string> {
  * whole point.
  */
 function TrendChart({ points, unit }: { points: { label: string; value: number }[]; unit: string }) {
+  const { t } = useLanguage();
   if (points.length < 2) {
     return (
       <InlineEmpty message={points.length === 1
-        ? 'One entry so far — log another to see the trend.'
-        : 'Nothing logged for this measurement yet.'} />
+        ? t('One entry so far — log another to see the trend.')
+        : t('Nothing logged for this measurement yet.')} />
     );
   }
   const values = points.map(p => p.value);
@@ -101,7 +103,7 @@ function TrendChart({ points, unit }: { points: { label: string; value: number }
           change === 0 ? 'text-gray-500 dark:text-slate-400'
             : change < 0 ? 'text-blue-600 dark:text-blue-400' : 'text-purple-600 dark:text-purple-400'
         }`}>
-          {change > 0 ? '+' : ''}{change} {unit} since {first.label}
+          {t('{change} {unit} since {date}', { change: `${change > 0 ? '+' : ''}${change}`, unit, date: first.label })}
         </p>
       </div>
       <div className="relative h-36">
@@ -110,7 +112,9 @@ function TrendChart({ points, unit }: { points: { label: string; value: number }
           preserveAspectRatio="none"
           className="w-full h-full overflow-visible text-blue-600 dark:text-blue-400"
           role="img"
-          aria-label={`From ${first.value} ${unit} on ${first.label} to ${last.value} ${unit} on ${last.label}`}
+          aria-label={t('From {from} {unit} on {fromDate} to {to} {unit} on {toDate}', {
+            from: first.value, fromDate: first.label, to: last.value, toDate: last.label, unit,
+          })}
         >
           <path
             d={line} fill="none" stroke="currentColor" strokeWidth="2"
@@ -142,6 +146,7 @@ const emptyForm = (): FormState => ({
 });
 
 function LogForm({ url, onSaved, onCancel }: { url: string; onSaved: () => void; onCancel: () => void }) {
+  const { t } = useLanguage();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
@@ -154,7 +159,7 @@ function LogForm({ url, onSaved, onCancel }: { url: string; onSaved: () => void;
       const photo = await downscale(file);
       setForm(f => ({ ...f, photo }));
     } catch {
-      toast.error('Could not read that image');
+      toast.error(t('Could not read that image'));
     }
   };
 
@@ -162,7 +167,7 @@ function LogForm({ url, onSaved, onCancel }: { url: string; onSaved: () => void;
     e.preventDefault();
     const hasAny = METRICS.some(m => form[m.value].trim() !== '') || form.photo;
     if (!hasAny) {
-      toast.error('Enter at least one measurement or add a photo');
+      toast.error(t('Enter at least one measurement or add a photo'));
       return;
     }
     setSaving(true);
@@ -173,10 +178,10 @@ function LogForm({ url, onSaved, onCancel }: { url: string; onSaved: () => void;
         photo: form.photo || undefined,
         notes: form.notes.trim() || undefined,
       });
-      toast.success('Progress saved');
+      toast.success(t('Progress saved'));
       onSaved();
     } catch (err) {
-      toast.error(apiError(err, 'Could not save measurement'));
+      toast.error(apiError(err, t('Could not save measurement')));
     } finally {
       setSaving(false);
     }
@@ -186,7 +191,7 @@ function LogForm({ url, onSaved, onCancel }: { url: string; onSaved: () => void;
     <form onSubmit={e => void submit(e)} className="space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="col-span-2 sm:col-span-1">
-          <FieldLabel htmlFor="m-date">Date</FieldLabel>
+          <FieldLabel htmlFor="m-date">{t('Date')}</FieldLabel>
           <input
             id="m-date" type="date" max={today()} value={form.measuredOn}
             onChange={e => setForm(f => ({ ...f, measuredOn: e.target.value }))}
@@ -195,7 +200,7 @@ function LogForm({ url, onSaved, onCancel }: { url: string; onSaved: () => void;
         </div>
         {METRICS.map(m => (
           <div key={m.value}>
-            <FieldLabel htmlFor={`m-${m.value}`}>{m.label} ({m.unit})</FieldLabel>
+            <FieldLabel htmlFor={`m-${m.value}`}>{t(m.label)} ({m.unit})</FieldLabel>
             <input
               id={`m-${m.value}`} type="number" inputMode="decimal" step="0.1" min="0" max={m.max}
               value={form[m.value]}
@@ -208,22 +213,22 @@ function LogForm({ url, onSaved, onCancel }: { url: string; onSaved: () => void;
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1">
-          <FieldLabel htmlFor="m-notes">Notes</FieldLabel>
+          <FieldLabel htmlFor="m-notes">{t('Notes')}</FieldLabel>
           <input
             id="m-notes" type="text" maxLength={500} value={form.notes}
             onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-            placeholder="e.g. after Ramadan, started cutting"
+            placeholder={t('e.g. after Ramadan, started cutting')}
             className={inputClass}
           />
         </div>
         <div className="shrink-0">
-          <FieldLabel>Progress photo</FieldLabel>
+          <FieldLabel>{t('Progress photo')}</FieldLabel>
           <div className="flex items-center gap-2">
             {form.photo && (
               <div className="relative w-11 h-11">
-                <img src={form.photo} alt="Progress preview" className="w-11 h-11 rounded-lg object-cover" />
+                <img src={form.photo} alt={t('Progress preview')} className="w-11 h-11 rounded-lg object-cover" />
                 <button
-                  type="button" aria-label="Remove photo"
+                  type="button" aria-label={t('Remove photo')}
                   onClick={() => setForm(f => ({ ...f, photo: '' }))}
                   className="absolute -top-1.5 -right-1.5 bg-gray-800 text-white rounded-full p-0.5"
                 >
@@ -233,16 +238,16 @@ function LogForm({ url, onSaved, onCancel }: { url: string; onSaved: () => void;
             )}
             <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={e => void handlePhoto(e)} />
             <button type="button" onClick={() => photoRef.current?.click()} className={secondaryButton}>
-              <Camera size={14} /> {form.photo ? 'Change' : 'Add photo'}
+              <Camera size={14} /> {form.photo ? t('Change') : t('Add photo')}
             </button>
           </div>
         </div>
       </div>
 
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className={secondaryButton}>Cancel</button>
+        <button type="button" onClick={onCancel} className={secondaryButton}>{t('Cancel')}</button>
         <button type="submit" disabled={saving} className={primaryButton}>
-          {saving ? 'Saving…' : 'Save entry'}
+          {saving ? t('Saving…') : t('Save entry')}
         </button>
       </div>
     </form>
@@ -259,7 +264,8 @@ interface Props {
 }
 
 export default function ProgressPanel({ url, canDelete, canAdd = true }: Props) {
-  const { data, loading, reload } = useFetch<{ data: Measurement[] }>(url, 'Could not load progress');
+  const { t } = useLanguage();
+  const { data, loading, reload } = useFetch<{ data: Measurement[] }>(url, t('Could not load progress'));
   const [metric, setMetric] = useState<Metric>('weightKg');
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState<Measurement | null>(null);
@@ -287,11 +293,11 @@ export default function ProgressPanel({ url, canDelete, canAdd = true }: Props) 
     setBusy(true);
     try {
       await api.delete(`${url}/${deleting.id}`);
-      toast.success('Entry removed');
+      toast.success(t('Entry removed'));
       setDeleting(null);
       await reload();
     } catch (err) {
-      toast.error(apiError(err, 'Could not remove entry'));
+      toast.error(apiError(err, t('Could not remove entry')));
     } finally {
       setBusy(false);
     }
@@ -306,11 +312,11 @@ export default function ProgressPanel({ url, canDelete, canAdd = true }: Props) 
       <Card className="p-5">
         <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
           <h2 className="font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-            <Activity size={16} className="text-blue-600 dark:text-blue-400" /> Progress
+            <Activity size={16} className="text-blue-600 dark:text-blue-400" /> {t('Progress')}
           </h2>
           {canAdd && !adding && (
             <button onClick={() => setAdding(true)} className={primaryButton}>
-              <Plus size={15} /> Log measurements
+              <Plus size={15} /> {t('Log measurements')}
             </button>
           )}
         </div>
@@ -326,7 +332,7 @@ export default function ProgressPanel({ url, canDelete, canAdd = true }: Props) 
         )}
 
         {rows.length === 0 ? (
-          <InlineEmpty message="No measurements yet. Log weight, body fat or a tape measurement to start tracking progress." />
+          <InlineEmpty message={t('No measurements yet. Log weight, body fat or a tape measurement to start tracking progress.')} />
         ) : (
           <>
             {offered.length > 1 && (
@@ -334,7 +340,7 @@ export default function ProgressPanel({ url, canDelete, canAdd = true }: Props) 
                 <SegmentedControl
                   value={metric}
                   onChange={setMetric}
-                  options={offered.map(m => ({ value: m.value, label: m.label }))}
+                  options={offered.map(m => ({ value: m.value, label: t(m.label) }))}
                 />
               </div>
             )}
@@ -346,21 +352,21 @@ export default function ProgressPanel({ url, canDelete, canAdd = true }: Props) 
       {before && (
         <Card className="p-5">
           <h2 className="font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2 mb-4">
-            <Camera size={16} className="text-blue-600 dark:text-blue-400" /> Before &amp; after
+            <Camera size={16} className="text-blue-600 dark:text-blue-400" /> {t('Before & after')}
           </h2>
           <div className="grid grid-cols-2 gap-3">
             {[before, after].map((r, i) => r ? (
               <figure key={r.id}>
-                <img src={r.photo!} alt={`${i === 0 ? 'Before' : 'After'} — ${longDate(r.measuredOn)}`}
+                <img src={r.photo!} alt={`${i === 0 ? t('Before') : t('After')} — ${longDate(r.measuredOn)}`}
                   className="w-full aspect-[3/4] object-cover rounded-xl bg-gray-100 dark:bg-slate-800" />
                 <figcaption className="text-xs text-gray-500 dark:text-slate-400 mt-1.5 text-center">
-                  <strong>{i === 0 ? 'Before' : 'Latest'}</strong> · {longDate(r.measuredOn)}
-                  {r.weightKg != null && ` · ${r.weightKg} kg`}
+                  <strong>{i === 0 ? t('Before') : t('Latest')}</strong> · {longDate(r.measuredOn)}
+                  {r.weightKg != null && ` · ${t('{weight} kg', { weight: r.weightKg })}`}
                 </figcaption>
               </figure>
             ) : (
               <div key="pending" className="aspect-[3/4] rounded-xl border-2 border-dashed border-gray-200 dark:border-slate-700 flex items-center justify-center text-xs text-gray-400 dark:text-slate-500 text-center p-4">
-                Add another photo later to compare
+                {t('Add another photo later to compare')}
               </div>
             ))}
           </div>
@@ -370,12 +376,12 @@ export default function ProgressPanel({ url, canDelete, canAdd = true }: Props) 
       {rows.length > 0 && (
         <Card className="p-5">
           <h2 className="font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2 mb-3">
-            <Ruler size={16} className="text-blue-600 dark:text-blue-400" /> History
+            <Ruler size={16} className="text-blue-600 dark:text-blue-400" /> {t('History')}
           </h2>
           <ul className="divide-y divide-gray-100 dark:divide-slate-800">
             {rows.map(r => {
               const values = METRICS.filter(m => r[m.value] != null)
-                .map(m => `${m.label} ${r[m.value]}${m.unit === '%' ? '%' : ` ${m.unit}`}`);
+                .map(m => `${t(m.label)} ${r[m.value]}${m.unit === '%' ? '%' : ` ${m.unit}`}`);
               return (
                 <li key={r.id} className="py-3 flex items-start gap-3">
                   {r.photo
@@ -383,14 +389,14 @@ export default function ProgressPanel({ url, canDelete, canAdd = true }: Props) 
                     : <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-slate-800 flex items-center justify-center shrink-0 text-gray-400"><Scale size={16} /></div>}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-gray-800 dark:text-slate-200">{longDate(r.measuredOn)}</p>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">{values.join(' · ') || 'Photo only'}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">{values.join(' · ') || t('Photo only')}</p>
                     {r.notes && <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5 italic">{r.notes}</p>}
                     {r.recordedBy && (
-                      <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5">by {r.recordedBy.name}</p>
+                      <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5">{t('by {name}', { name: r.recordedBy.name })}</p>
                     )}
                   </div>
                   {canDelete(r) && (
-                    <IconButton icon={Trash2} label="Remove entry" tone="red" onClick={() => setDeleting(r)} />
+                    <IconButton icon={Trash2} label={t('Remove entry')} tone="red" onClick={() => setDeleting(r)} />
                   )}
                 </li>
               );
@@ -401,8 +407,8 @@ export default function ProgressPanel({ url, canDelete, canAdd = true }: Props) 
 
       {deleting && (
         <ConfirmDialog
-          title="Remove entry"
-          message={`Remove the measurements from ${longDate(deleting.measuredOn)}? This cannot be undone.`}
+          title={t('Remove entry')}
+          message={t('Remove the measurements from {date}? This cannot be undone.', { date: longDate(deleting.measuredOn) })}
           busy={busy}
           onConfirm={() => void remove()}
           onCancel={() => setDeleting(null)}

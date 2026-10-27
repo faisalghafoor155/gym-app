@@ -42,6 +42,7 @@ import { useDebounced } from "../hooks/useDebounced";
 import { downloadFromServer } from "../utils/csv";
 import api, { apiError } from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import type {
   Payment,
   Member,
@@ -55,6 +56,7 @@ import toast from "react-hot-toast";
 
 export default function Payments() {
   const { isOwner } = useAuth();
+  const { t } = useLanguage();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [summary, setSummary] = useState<PaymentSummary | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -120,7 +122,7 @@ export default function Payments() {
         setPage(1);
       })
       .catch((err) => {
-        if (!cancelled) toast.error(apiError(err, "Could not load payments"));
+        if (!cancelled) toast.error(apiError(err, t("Could not load payments")));
       })
       .finally(() => {
         if (!cancelled) {
@@ -132,6 +134,8 @@ export default function Payments() {
     return () => {
       cancelled = true;
     };
+    // `t` only words the error toast; a language switch is no reason to refetch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   /**
@@ -150,7 +154,7 @@ export default function Payments() {
         setPage(next);
       })
       .catch((err) =>
-        toast.error(apiError(err, "Could not load more payments")),
+        toast.error(apiError(err, t("Could not load more payments"))),
       )
       .finally(() => setLoadingMore(false));
   };
@@ -190,9 +194,10 @@ export default function Payments() {
         .get<PaymentSummary>(`/payments/summary?months=${SUMMARY_MONTHS}`)
         .then((r) => setSummary(r.data))
         .catch((err) =>
-          toast.error(apiError(err, "Could not load the monthly totals")),
+          toast.error(apiError(err, t("Could not load the monthly totals"))),
         );
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [isOwner],
   );
 
@@ -236,7 +241,7 @@ export default function Payments() {
           setHasMore(r.data.hasMore);
           setPage(1);
         })
-        .catch((err) => toast.error(apiError(err, "Could not load payments"))),
+        .catch((err) => toast.error(apiError(err, t("Could not load payments")))),
       loadSummary(),
     ]);
 
@@ -289,10 +294,10 @@ export default function Payments() {
         // and moving money between members should be a delete and a re-entry.
         const { memberId: _memberId, ...editable } = payload;
         await api.put(`/payments/${editing.id}`, editable);
-        toast.success("Payment updated");
+        toast.success(t("Payment updated"));
       } else {
         await api.post("/payments", payload);
-        toast.success("Payment recorded");
+        toast.success(t("Payment recorded"));
       }
       setShowModal(false);
       setEditing(null);
@@ -301,7 +306,7 @@ export default function Payments() {
     } catch (err) {
       // The modal stays open with its values intact, so a rejected save is one
       // correction away from succeeding.
-      toast.error(apiError(err, "Could not save the payment"));
+      toast.error(apiError(err, t("Could not save the payment")));
     } finally {
       setSaving(false);
     }
@@ -312,11 +317,11 @@ export default function Payments() {
     setSaving(true);
     try {
       await api.delete(`/payments/${deleting.id}`);
-      toast.success("Payment deleted");
+      toast.success(t("Payment deleted"));
       setDeleting(null);
       await reload();
     } catch (err) {
-      toast.error(apiError(err, "Could not delete the payment"));
+      toast.error(apiError(err, t("Could not delete the payment")));
     } finally {
       setSaving(false);
     }
@@ -349,10 +354,14 @@ export default function Payments() {
       if (to) params.append("to", to);
 
       await downloadFromServer(`/api/payments/export/csv?${params}`);
-      toast.success(`Exported ${total} payment${total === 1 ? "" : "s"}`);
+      toast.success(
+        t(total === 1 ? "Exported {count} payment" : "Exported {count} payments", {
+          count: total,
+        }),
+      );
     } catch (err) {
       console.error("Export failed:", err);
-      toast.error(err instanceof Error ? err.message : "Failed to export CSV");
+      toast.error(err instanceof Error ? err.message : t("Failed to export CSV"));
     } finally {
       setExporting(false);
     }
@@ -366,17 +375,17 @@ export default function Payments() {
     <Page>
       <PageHeader
         icon={CreditCard}
-        title="Payments"
+        title={t("Payments")}
         subtitle={
           isOwner
-            ? "What the gym has taken, and what is still owed"
-            : "Fees you have recorded, and who still owes"
+            ? t("What the gym has taken, and what is still owed")
+            : t("Fees you have recorded, and who still owes")
         }
         action={
           <button onClick={openAdd} className={primaryButton}>
             <Plus size={16} />
-            <span className="hidden sm:inline">Record Payment</span>
-            <span className="sm:hidden">Record</span>
+            <span className="hidden sm:inline">{t("Record Payment")}</span>
+            <span className="sm:hidden">{t("Record")}</span>
           </button>
         }
       />
@@ -385,23 +394,23 @@ export default function Payments() {
         <StatTile
           icon={Wallet}
           tone="green"
-          label="Collected"
+          label={t("Collected")}
           value={`Rs. ${collected.toLocaleString()}`}
-          hint={hasFilters ? "matching filters" : undefined}
+          hint={hasFilters ? t("matching filters") : undefined}
         />
         <StatTile
           icon={AlertCircle}
           tone="red"
-          label="Outstanding"
+          label={t("Outstanding")}
           value={`Rs. ${outstanding.toLocaleString()}`}
-          hint={hasFilters ? "matching filters" : undefined}
+          hint={hasFilters ? t("matching filters") : undefined}
         />
         <StatTile
           icon={Receipt}
           tone="blue"
-          label="Payments"
+          label={t("Payments")}
           value={total}
-          hint={hasFilters ? "matching filters" : undefined}
+          hint={hasFilters ? t("matching filters") : undefined}
         />
       </div>
 
@@ -424,7 +433,7 @@ export default function Payments() {
           <SegmentedControl
             value={filter}
             onChange={setFilter}
-            options={FILTERS}
+            options={FILTERS.map((f) => ({ ...f, label: t(f.label) }))}
           />
 
           <div className="relative flex-1 min-w-50">
@@ -436,8 +445,8 @@ export default function Payments() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search member, phone or member no..."
-              aria-label="Search payments"
+              placeholder={t("Search member, phone or member no...")}
+              aria-label={t("Search payments")}
               className={`${inputClass} pl-9`}
             />
           </div>
@@ -448,25 +457,25 @@ export default function Payments() {
               value={from}
               max={to || undefined}
               onChange={(e) => setFrom(e.target.value)}
-              aria-label="From date"
+              aria-label={t("From date")}
               className={`${inputClass} w-auto`}
             />
             <span className="text-gray-400 dark:text-slate-500 text-sm">
-              to
+              {t("to")}
             </span>
             <input
               type="date"
               value={to}
               min={from || undefined}
               onChange={(e) => setTo(e.target.value)}
-              aria-label="To date"
+              aria-label={t("To date")}
               className={`${inputClass} w-auto`}
             />
           </div>
 
           {hasFilters && (
             <button onClick={clearFilters} className={secondaryButton}>
-              <X size={14} /> Clear
+              <X size={14} /> {t("Clear")}
             </button>
           )}
 
@@ -474,11 +483,11 @@ export default function Payments() {
             onClick={() => void handleExport()}
             disabled={exporting}
             className={`${secondaryButton} ml-auto`}
-            title="Exports every payment matching these filters, not just this page"
+            title={t("Exports every payment matching these filters, not just this page")}
           >
             <Download size={14} />{" "}
             <span className="hidden sm:inline">
-              {exporting ? "Exporting…" : "Export CSV"}
+              {exporting ? t("Exporting…") : t("Export CSV")}
             </span>
           </button>
         </div>
@@ -488,11 +497,11 @@ export default function Payments() {
         hasFilters ? (
           <EmptyState
             icon={Search}
-            title="No payments match these filters"
-            hint="Try a different date range, status or search term."
+            title={t("No payments match these filters")}
+            hint={t("Try a different date range, status or search term.")}
             action={
               <button onClick={clearFilters} className={secondaryButton}>
-                <X size={14} /> Clear filters
+                <X size={14} /> {t("Clear filters")}
               </button>
             }
           />
@@ -501,17 +510,17 @@ export default function Payments() {
             icon={Receipt}
             title={
               isOwner
-                ? "No payments recorded yet"
-                : "You have not recorded any payments yet"
+                ? t("No payments recorded yet")
+                : t("You have not recorded any payments yet")
             }
             hint={
               isOwner
-                ? "Every fee a member pays is logged here, so the books and the renewal list stay honest."
-                : "Fees you take are logged here. The gym’s full books are the owner’s to see."
+                ? t("Every fee a member pays is logged here, so the books and the renewal list stay honest.")
+                : t("Fees you take are logged here. The gym’s full books are the owner’s to see.")
             }
             action={
               <button onClick={openAdd} className={primaryButton}>
-                <Plus size={16} /> Record the first payment
+                <Plus size={16} /> {t("Record the first payment")}
               </button>
             }
           />
@@ -534,8 +543,10 @@ export default function Payments() {
                 className={secondaryButton}
               >
                 {loadingMore
-                  ? "Loading…"
-                  : `Show more · ${total - payments.length} left`}
+                  ? t("Loading…")
+                  : t("Show more · {count} left", {
+                      count: total - payments.length,
+                    })}
               </button>
             </div>
           )}
@@ -557,8 +568,11 @@ export default function Payments() {
 
       {deleting && (
         <ConfirmDialog
-          title="Delete payment"
-          message={`Delete the Rs. ${deleting.amount.toLocaleString()} payment from ${deleting.member.name}? This removes it from the books and cannot be undone — it is recorded in the audit log.`}
+          title={t("Delete payment")}
+          message={t(
+            "Delete the Rs. {amount} payment from {name}? This removes it from the books and cannot be undone — it is recorded in the audit log.",
+            { amount: deleting.amount.toLocaleString(), name: deleting.member.name },
+          )}
           busy={saving}
           onConfirm={() => void handleDelete()}
           onCancel={() => setDeleting(null)}

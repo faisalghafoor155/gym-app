@@ -3,6 +3,7 @@ import {
   type AiDietGuidance, type DietPreference, type Gender, type GainerProfile, type Goal,
   type MacroResult, type MealSlot, type OneRmResult,
 } from './data';
+import { translate, type Language, type TVars } from '../../context/LanguageContext';
 
 export interface MacroInputs {
   gender: Gender;
@@ -187,79 +188,85 @@ export interface GuidanceInputs extends GainerNumbers {
 export const getAiDietGuidance = ({
   goal, selectedGainer, dietPreference, weightKg, macros, takingPreworkout, takingCreatine,
   gainer, gainerCalories, gainerProtein, foodCaloriesNeeded, foodProteinNeeded,
-}: GuidanceInputs): AiDietGuidance => {
+}: GuidanceInputs, lang: Language): AiDietGuidance => {
+  const tr = (english: string, vars?: TVars) => translate(lang, english, vars);
   const isFatLoss = goal.startsWith('cut');
   const isBulking = goal.startsWith('bulk');
+  const gainerName = tr(gainer.name);
+  const creatine = takingCreatine ? '+ 5g Creatine' : '';
 
   let gainerAdvice = '';
   if (selectedGainer !== 'none') {
-    gainerAdvice = `Aap ${gainer.name} (${gainerCalories} kcal, ${gainerProtein}g protein) le rahe hain. Isliye aapko khane (food) se sirf ${foodCaloriesNeeded} kcal aur ${foodProteinNeeded}g protein lena ha taake fat na charhay!`;
+    gainerAdvice = tr(
+      'You are taking {gainer} ({calories} kcal, {protein}g protein), so you only need {foodCalories} kcal and {foodProtein}g protein from food so that you do not gain fat!',
+      { gainer: gainerName, calories: gainerCalories, protein: gainerProtein, foodCalories: foodCaloriesNeeded, foodProtein: foodProteinNeeded },
+    );
   }
 
   if (dietPreference === 'pakistani_desi') {
     return {
       strategy: isFatLoss
-        ? `Apka body weight ${weightKg}kg ha aur target ${macros.targetCalories} kcal (Fat Loss Deficit). Desi khano me ghee aur tail kam karein, plain roti aur chawal portion control ke sath len aur protein har meal me barhaein.`
+        ? tr('Your body weight is {weight}kg and your target is {calories} kcal (fat loss deficit). Use less ghee and oil in desi food, keep roti and rice portions under control, and add protein to every meal.', { weight: weightKg, calories: macros.targetCalories })
         : isBulking
-          ? `Apka target ${macros.targetCalories} kcal (Lean Muscle Gain) ha. ${gainerAdvice} Desi khano me dodh, dahi, anday, aur chicken shamil karein aur heavy compound lifts karein.`
-          : `Apka target ${macros.targetCalories} kcal (Maintenance) ha taake weight maintain rahay aur body shape improve ho.`,
-      morningMeal: '3-4 Ublay anday + 1 saadi roti / 1 pyali daliya (oats) doodh ke sath + 5 badam.',
-      lunchMeal: '150g Chicken breast / seena (tikka style ya kam oil salan) + 1 cup ublay chawal / 1 roti + khoob sari salaad + 1 katori dahi.',
+          ? tr('Your target is {calories} kcal (lean muscle gain). {advice} Add milk, yogurt, eggs and chicken to your desi meals and do heavy compound lifts.', { calories: macros.targetCalories, advice: gainerAdvice })
+          : tr('Your target is {calories} kcal (maintenance), so your weight stays steady while your body shape improves.', { calories: macros.targetCalories }),
+      morningMeal: tr('3-4 boiled eggs + 1 plain roti / 1 bowl of oats with milk + 5 almonds.'),
+      lunchMeal: tr('150g chicken breast (tikka style or low-oil curry) + 1 cup boiled rice / 1 roti + plenty of salad + 1 bowl of yogurt.'),
       preWorkout: takingPreworkout
-        ? '1 Scoop Pre-workout (C4 / Psychotic) paani me workout se 25 min pehle + 1 kela.'
-        : '1 Kela (Banana) + 1 cup Black Coffee bina cheeni ke workout se 30 min pehle.',
+        ? tr('1 scoop pre-workout (C4 / Psychotic) in water 25 min before the workout + 1 banana.')
+        : tr('1 banana + 1 cup black coffee without sugar, 30 min before the workout.'),
       postWorkout: selectedGainer !== 'none'
-        ? `1 Scoop ${gainer.name} (${gainerCalories} kcal, ${gainerProtein}g protein) ${takingCreatine ? '+ 5g Creatine' : ''} paani/doodh me foran workout k baad.`
-        : `4-5 Ublay andon ki safedi + 1 glass taaza doodh / whey ${takingCreatine ? '+ 5g Creatine' : ''}.`,
-      dinnerMeal: '120g Machli (Fish) / Chicken kabab ya Daal (Moong/Masoor) + 1 roti + zaitoon ke tail ke drops ke sath salad.',
+        ? tr('1 scoop {gainer} ({calories} kcal, {protein}g protein) {creatine} in water/milk right after the workout.', { gainer: gainerName, calories: gainerCalories, protein: gainerProtein, creatine })
+        : tr('4-5 boiled egg whites + 1 glass of fresh milk / whey {creatine}.', { creatine }),
+      dinnerMeal: tr('120g fish / chicken kebab or daal (moong/masoor) + 1 roti + salad with a few drops of olive oil.'),
       supplements: [
-        takingCreatine ? 'Creatine Monohydrate: 5g rozana (Muscle cell hydration & strength boost).' : 'Creatine: Optional',
-        takingPreworkout ? 'Pre-Workout: Sirf workout walay din 1 scoop (raat ke waqt late workout ho to half scoop len taake neend kharab na ho).' : 'Pre-Workout: Natural black coffee/banana.',
-        selectedGainer !== 'none' ? `${gainer.name}: ${gainer.doseRecommendation}` : 'Food First Whole Protein sources.',
-        'Omega-3 Fish Oil: 1 capsule rozana joron (joints) ki lubrication k liye.',
+        takingCreatine ? tr('Creatine Monohydrate: 5g daily (muscle cell hydration & strength boost).') : tr('Creatine: Optional'),
+        takingPreworkout ? tr('Pre-Workout: 1 scoop on workout days only (half a scoop for a late-night workout so your sleep is not disturbed).') : tr('Pre-Workout: Natural black coffee/banana.'),
+        selectedGainer !== 'none' ? `${gainerName}: ${tr(gainer.doseRecommendation)}` : tr('Food first: whole protein sources.'),
+        tr('Omega-3 Fish Oil: 1 capsule daily for joint lubrication.'),
       ],
       avoidList: [
-        'Ghee me bhari hui biryani, nihari, aur oily parathay (gainer ke sath ye lenge to sirf pet niklega).',
-        'Meethay drinks, bakery biscuits aur cold drinks.',
+        tr('Ghee-heavy biryani, nihari and oily parathas (with a gainer these only add belly fat).'),
+        tr('Sugary drinks, bakery biscuits and cold drinks.'),
       ]
     };
   } else if (dietPreference === 'budget_friendly') {
     return {
-      strategy: `Student / Low Budget High Protein Plan: ${gainerAdvice} Mehengay supplements ke baghair ghar ke saste aur behtareen protein sources (Anday, Dahi, Daalein, Safaid Chana, Doodh, Peanut Butter) se protein poori ki gayi ha.`,
-      morningMeal: '4 Ublay anday + 2 slices brown bread / roti + 1 glass taaza doodh.',
-      lunchMeal: 'Safaid / Kaala Chana chaat (boiled) ya Daal chawal + 1 cup dahi (dahi me 10g protein hota ha) + salad.',
-      preWorkout: '1 Roti par 1 chamach Peanut Butter laga kar + 1 Kela + Black coffee.',
+      strategy: tr('Student / Low Budget High Protein Plan: {advice} Protein comes from cheap, excellent home sources (eggs, yogurt, daal, white chickpeas, milk, peanut butter) instead of expensive supplements.', { advice: gainerAdvice }),
+      morningMeal: tr('4 boiled eggs + 2 slices brown bread / roti + 1 glass of fresh milk.'),
+      lunchMeal: tr('White / black chickpea chaat (boiled) or daal chawal + 1 cup yogurt (yogurt has 10g protein) + salad.'),
+      preWorkout: tr('1 roti with 1 spoon of peanut butter + 1 banana + black coffee.'),
       postWorkout: selectedGainer !== 'none'
-        ? `1 Scoop ${gainer.name} + 5g Creatine.`
-        : '4 Ublay anday ki safedi + 1 glass sattu / doodh + 5g Creatine.',
-      dinnerMeal: 'Ghar ka bana salan (Daal / Sabzi / Anda curry) + 2 roti + kheera.',
+        ? tr('1 scoop {gainer} + 5g Creatine.', { gainer: gainerName })
+        : tr('4 boiled egg whites + 1 glass of sattu / milk + 5g Creatine.'),
+      dinnerMeal: tr('Home-cooked curry (daal / vegetables / egg curry) + 2 roti + cucumber.'),
       supplements: [
-        'Creatine Monohydrate: Sab se sasta aur sab se effective supplement ha (Rs. 3000-4000 me 2-3 maah chal jata ha).',
-        selectedGainer !== 'none' ? `${gainer.name} (Budget Saver: Rozana sirf 1 scoop len taake dabba 1 mahina chalay).` : 'Anday aur dahi se protein poori karein.',
+        tr('Creatine Monohydrate: the cheapest and most effective supplement (Rs. 3000-4000 lasts 2-3 months).'),
+        selectedGainer !== 'none' ? tr('{gainer} (budget saver: just 1 scoop a day so a tub lasts a month).', { gainer: gainerName }) : tr('Get your protein from eggs and yogurt.'),
       ],
       avoidList: [
-        'Bahar ki chaat, shawarma, aur meethay cold drinks jo pocket b kharab karein aur sehat b.'
+        tr('Street chaat, shawarma and sugary cold drinks, which hurt both your pocket and your health.')
       ]
     };
   } else {
     // Pro Bodybuilding
     return {
-      strategy: `Pro Bodybuilding Clean Macro Plan: Maximum muscle definition, low body fat aur rapid recovery ke liye clean lean protein sources se protein aur calories distribute kiye gaye hain. ${gainerAdvice}`,
-      morningMeal: '6 Egg whites + 2 whole eggs + 60g rolled oats cooked in water/skim milk + berries.',
-      lunchMeal: '200g Grilled Chicken Breast + 150g Jasmine Rice + Steamed Broccoli / Asparagus.',
+      strategy: tr('Pro Bodybuilding Clean Macro Plan: protein and calories are spread across clean, lean protein sources for maximum muscle definition, low body fat and fast recovery. {advice}', { advice: gainerAdvice }),
+      morningMeal: tr('6 egg whites + 2 whole eggs + 60g rolled oats cooked in water/skim milk + berries.'),
+      lunchMeal: tr('200g grilled chicken breast + 150g jasmine rice + steamed broccoli / asparagus.'),
       preWorkout: takingPreworkout
-        ? '1 Scoop High-Stim Pre-workout + 5g L-Citrulline Malate 30 mins before lifting.'
-        : 'Cream of Rice with 1 tbsp peanut butter + black coffee.',
+        ? tr('1 scoop high-stim pre-workout + 5g L-Citrulline Malate 30 mins before lifting.')
+        : tr('Cream of rice with 1 tbsp peanut butter + black coffee.'),
       postWorkout: selectedGainer !== 'none'
-        ? `1 Scoop ${gainer.name} (${gainerProtein}g protein) + 5g Creatine Monohydrate.`
-        : '1.5 Scoop Whey Isolate + 1 large banana + 5g Creatine Monohydrate.',
-      dinnerMeal: '180g White Fish / Tilapia ya Lean Beef Mince + 100g Sweet potato + green salad.',
+        ? tr('1 scoop {gainer} ({protein}g protein) + 5g Creatine Monohydrate.', { gainer: gainerName, protein: gainerProtein })
+        : tr('1.5 scoop whey isolate + 1 large banana + 5g Creatine Monohydrate.'),
+      dinnerMeal: tr('180g white fish / tilapia or lean beef mince + 100g sweet potato + green salad.'),
       supplements: [
-        selectedGainer !== 'none' ? `${gainer.name}: Post workout recovery` : 'Whey Isolate: Fast digesting post workout.',
-        'Creatine Monohydrate: 5g daily indefinitely.',
-        'Omega 3 Fish Oil & Zinc/Magnesium (ZMA) raat ko gehri neend ke liye.'
+        selectedGainer !== 'none' ? tr('{gainer}: Post workout recovery', { gainer: gainerName }) : tr('Whey Isolate: Fast digesting post workout.'),
+        tr('Creatine Monohydrate: 5g daily indefinitely.'),
+        tr('Omega 3 Fish Oil & Zinc/Magnesium (ZMA) at night for deep sleep.')
       ],
-      avoidList: ['Sodium loaded junk, refined sugars, vegetable seed oils.']
+      avoidList: [tr('Sodium loaded junk, refined sugars, vegetable seed oils.')]
     };
   }
 };
@@ -274,9 +281,9 @@ export interface MealInputs extends GainerNumbers {
 export const buildMealDistribution = ({
   macros, selectedGainer, aiGuidance, gainerCalories, gainerProtein, gainerCarbs,
   foodCaloriesNeeded, foodProteinNeeded,
-}: MealInputs): MealSlot[] => [
+}: MealInputs, lang: Language): MealSlot[] => [
   {
-    name: 'Breakfast (Nashta)',
+    name: translate(lang, 'Breakfast'),
     time: '8:00 AM - 9:00 AM',
     portion: 25,
     calories: Math.round(foodCaloriesNeeded * 0.30),
@@ -286,7 +293,7 @@ export const buildMealDistribution = ({
     foodIdea: aiGuidance.morningMeal,
   },
   {
-    name: 'Lunch (Dopeher Ka Khana)',
+    name: translate(lang, 'Lunch'),
     time: '1:00 PM - 2:00 PM',
     portion: 35,
     calories: Math.round(foodCaloriesNeeded * 0.40),
@@ -296,17 +303,17 @@ export const buildMealDistribution = ({
     foodIdea: aiGuidance.lunchMeal,
   },
   {
-    name: 'Workout Fuel & Supplements',
+    name: translate(lang, 'Workout Fuel & Supplements'),
     time: '5:00 PM - 6:30 PM',
     portion: 15,
     calories: selectedGainer !== 'none' ? gainerCalories : Math.round(foodCaloriesNeeded * 0.10),
     protein: selectedGainer !== 'none' ? gainerProtein : Math.round(foodProteinNeeded * 0.10),
     carbs: selectedGainer !== 'none' ? gainerCarbs : 20,
     fats: 3,
-    foodIdea: `Pre: ${aiGuidance.preWorkout} | Post: ${aiGuidance.postWorkout}`,
+    foodIdea: translate(lang, 'Pre: {pre} | Post: {post}', { pre: aiGuidance.preWorkout, post: aiGuidance.postWorkout }),
   },
   {
-    name: 'Dinner (Raat Ka Khana)',
+    name: translate(lang, 'Dinner'),
     time: '8:30 PM - 9:30 PM',
     portion: 25,
     calories: Math.round(foodCaloriesNeeded * 0.30),

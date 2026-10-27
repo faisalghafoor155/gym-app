@@ -1,4 +1,5 @@
 import { FieldLabel, inputClass, focusRing } from '../ui';
+import { useLanguage } from '../../context/LanguageContext';
 import type { AccountMethod } from './types';
 
 /**
@@ -12,10 +13,11 @@ export default function PasswordMethod({ method, onMethod, password, onPassword 
   password: string;
   onPassword: (p: string) => void;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="space-y-3">
       {/* Names the pair of choices below rather than a single field. */}
-      <FieldLabel id="access-mode-label" required>How should they get in?</FieldLabel>
+      <FieldLabel id="access-mode-label" required>{t('How should they get in?')}</FieldLabel>
       <div
         role="group"
         aria-labelledby="access-mode-label"
@@ -36,29 +38,28 @@ export default function PasswordMethod({ method, onMethod, password, onPassword 
                 : 'border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:border-gray-300'
             }`}
           >
-            <p className="font-semibold text-xs">{o.title}</p>
-            <p className="text-xs opacity-60 mt-0.5 leading-snug">{o.hint}</p>
+            <p className="font-semibold text-xs">{t(o.title)}</p>
+            <p className="text-xs opacity-60 mt-0.5 leading-snug">{t(o.hint)}</p>
           </button>
         ))}
       </div>
 
       {method === 'password' ? (
         <div>
-          <FieldLabel htmlFor="team-temporary-password" required>Temporary password</FieldLabel>
+          <FieldLabel htmlFor="team-temporary-password" required>{t('Temporary password')}</FieldLabel>
           <input id="team-temporary-password"
             type="password" required minLength={8} value={password}
             onChange={e => onPassword(e.target.value)}
-            placeholder="Min 8 characters"
+            placeholder={t('Min 8 characters')}
             className={inputClass}
           />
           <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-            Share this with them; they can change it after signing in.
+            {t('Share this with them; they can change it after signing in.')}
           </p>
         </div>
       ) : (
         <p className="text-xs text-gray-500 dark:text-slate-400 bg-blue-50/60 border border-blue-100 dark:border-blue-500/20 rounded-xl px-3 py-2.5 leading-relaxed">
-          They get an email with a link to choose their own password. The link
-          lasts 48 hours and works once — you never see the password.
+          {t('They get an email with a link to choose their own password. The link lasts 48 hours and works once — you never see the password.')}
         </p>
       )}
     </div>

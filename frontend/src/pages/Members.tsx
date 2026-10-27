@@ -117,7 +117,7 @@ export default function Members() {
 
   const handleWhatsApp = (m: Member) => {
     if (!m.phone) {
-      toast.error('No phone number recorded for this member');
+      toast.error(t('No phone number recorded for this member'));
       return;
     }
     const ms = m.currentMembership;
@@ -259,10 +259,10 @@ export default function Members() {
         show(r.data);
       })
       .catch(err => {
-        if (!isStale()) toast.error(apiError(err, 'Could not load members'));
+        if (!isStale()) toast.error(apiError(err, t('Could not load members')));
       })
       .finally(() => { if (!isStale()) setLoading(false); }),
-  [query]);
+  [query, t]);
 
   // Refetched whenever the filters change. The old list is dimmed rather than
   // blanked, so typing in the search box does not empty the page.
@@ -300,7 +300,7 @@ export default function Members() {
         setHasMore(r.data.hasMore);
         setPage(next);
       })
-      .catch(err => toast.error(apiError(err, 'Could not load more members')))
+      .catch(err => toast.error(apiError(err, t('Could not load more members'))))
       .finally(() => setLoadingMore(false));
   };
 
@@ -325,7 +325,7 @@ export default function Members() {
           }, { replace: true });
         }
       })
-      .catch(err => toast.error(apiError(err, 'Could not load membership plans')));
+      .catch(err => toast.error(apiError(err, t('Could not load membership plans'))));
 
     // Worth a toast, unlike the settings below: without this the trainer filter
     // and the assign-trainer picker are simply absent, which reads as the gym
@@ -335,7 +335,7 @@ export default function Members() {
         cacheResponse(TRAINERS_URL, r.data);
         setTrainers(r.data.data);
       })
-      .catch(err => toast.error(apiError(err, 'Could not load trainers')));
+      .catch(err => toast.error(apiError(err, t('Could not load trainers'))));
 
     // The fee field's placeholder and the account line under the channel
     // picker. A failure is not worth a toast — the form still works, the hints
@@ -359,11 +359,11 @@ export default function Members() {
     setDeletingBusy(true);
     try {
       await api.delete(`/members/${deleting.id}`);
-      toast.success('Member deleted');
+      toast.success(t('Member deleted'));
       setDeleting(null);
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Failed to delete'));
+      toast.error(apiError(err, t('Failed to delete')));
     } finally {
       setDeletingBusy(false);
     }
@@ -384,14 +384,17 @@ export default function Members() {
     try {
       await api.post(`/members/${member.id}/memberships/${membershipId}/${verb}`);
       toast.success(
-        verb === 'suspend' ? 'Membership suspended'
-          : verb === 'resume' ? 'Membership resumed'
-            : 'Membership cancelled',
+        verb === 'suspend' ? t('Membership suspended')
+          : verb === 'resume' ? t('Membership resumed')
+            : t('Membership cancelled'),
       );
       setStatusChange(null);
       await load();
     } catch (err) {
-      toast.error(apiError(err, `Could not ${verb} membership`));
+      toast.error(apiError(err,
+        verb === 'suspend' ? t('Could not suspend membership')
+          : verb === 'resume' ? t('Could not resume membership')
+            : t('Could not cancel membership')));
     } finally {
       setStatusBusy(false);
     }
@@ -404,11 +407,11 @@ export default function Members() {
     setStatusBusy(true);
     try {
       await api.post(`/members/${unfreezing.id}/memberships/${membershipId}/unfreeze`);
-      toast.success('Freeze ended');
+      toast.success(t('Freeze ended'));
       setUnfreezing(null);
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not end freeze'));
+      toast.error(apiError(err, t('Could not end freeze')));
     } finally {
       setStatusBusy(false);
     }
@@ -429,8 +432,10 @@ export default function Members() {
     <Page>
       <PageHeader
         icon={Users}
-        title="Members"
-        subtitle={`${rosterSize} ${rosterSize === 1 ? 'member' : 'members'} on the books`}
+        title={t('Members')}
+        subtitle={rosterSize === 1
+          ? t('{count} member on the books', { count: rosterSize })
+          : t('{count} members on the books', { count: rosterSize })}
         action={
           <button onClick={() => openAdd()} className={`${primaryButton} shrink-0 !py-1.5 !px-3 sm:!py-2 sm:!px-4 text-xs sm:text-sm gap-1 sm:gap-2`}>
             <Plus size={16} />
@@ -448,12 +453,12 @@ export default function Members() {
               value={filterStatus}
               onChange={setFilterStatus}
               options={[
-                { value: 'all', label: 'All', count: counts.all },
-                { value: 'active', label: 'Active', count: counts.active },
-                { value: 'expiring', label: 'Expiring', count: counts.expiring },
-                { value: 'expired', label: 'Expired', count: counts.expired },
-                { value: 'lapsed', label: 'Lapsed', count: counts.lapsed },
-                { value: 'none', label: 'No plan', count: counts.none },
+                { value: 'all', label: t('All'), count: counts.all },
+                { value: 'active', label: t('Active'), count: counts.active },
+                { value: 'expiring', label: t('Expiring'), count: counts.expiring },
+                { value: 'expired', label: t('Expired'), count: counts.expired },
+                { value: 'lapsed', label: t('Lapsed'), count: counts.lapsed },
+                { value: 'none', label: t('No plan'), count: counts.none },
               ]}
             />
           </div>
@@ -467,15 +472,15 @@ export default function Members() {
                 type="search"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search name, ID or phone..."
-                aria-label="Search members"
+                placeholder={t('Search name, ID or phone...')}
+                aria-label={t('Search members')}
                 className={`${inputClass} pl-9 pr-8 text-xs sm:text-sm py-2`}
               />
               {search && (
                 <button
                   type="button"
                   onClick={() => setSearch('')}
-                  aria-label="Clear search"
+                  aria-label={t('Clear search')}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   <X size={14} />
@@ -488,27 +493,27 @@ export default function Members() {
               <select
                 value={filterGender}
                 onChange={e => setFilterGender(e.target.value as GenderFilter)}
-                aria-label="Filter members by gender"
+                aria-label={t('Filter members by gender')}
                 className={`${inputClass} text-xs sm:text-sm py-2 sm:w-auto`}
               >
-                <option value="">All genders</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
+                <option value="">{t('All genders')}</option>
+                <option value="male">{t('Male')}</option>
+                <option value="female">{t('Female')}</option>
+                <option value="other">{t('Other')}</option>
               </select>
 
               {trainers.length > 0 && (
                 <select
                   value={filterTrainer}
                   onChange={e => setFilterTrainer(e.target.value)}
-                  aria-label="Filter members by trainer"
+                  aria-label={t('Filter members by trainer')}
                   className={`${inputClass} text-xs sm:text-sm py-2 sm:w-auto`}
                 >
-                  <option value="">All trainers</option>
-                  <option value="none">Not assigned</option>
-                  {trainers.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.isActive ? t.name : `${t.name} (left)`}
+                  <option value="">{t('All trainers')}</option>
+                  <option value="none">{t('Not assigned')}</option>
+                  {trainers.map(tr => (
+                    <option key={tr.id} value={tr.id}>
+                      {tr.isActive ? tr.name : t('{name} (left)', { name: tr.name })}
                     </option>
                   ))}
                 </select>
@@ -523,20 +528,20 @@ export default function Members() {
         hasFilters ? (
           <EmptyState
             icon={Search}
-            title="No members match these filters"
-            hint="Try a different status tab, or clear the search."
+            title={t('No members match these filters')}
+            hint={t('Try a different status tab, or clear the search.')}
             action={
-              <button onClick={clearFilters} className={secondaryButton}>Clear filters</button>
+              <button onClick={clearFilters} className={secondaryButton}>{t('Clear filters')}</button>
             }
           />
         ) : (
           <EmptyState
             icon={User}
-            title="No members yet"
-            hint="Register the first member to start tracking memberships, attendance and fees."
+            title={t('No members yet')}
+            hint={t('Register the first member to start tracking memberships, attendance and fees.')}
             action={
               <button onClick={() => openAdd()} className={primaryButton}>
-                <Plus size={16} /> Add the first member
+                <Plus size={16} /> {t('Add the first member')}
               </button>
             }
           />
@@ -569,17 +574,17 @@ export default function Members() {
                     <p className="text-xs font-medium text-gray-400 dark:text-slate-500 mt-0.5">{m.memberNo}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1">
-                        <Phone size={11} /> {m.phone || 'No phone'}
+                        <Phone size={11} /> {m.phone || t('No phone')}
                       </p>
                       {m.phone && (
                         <button
                           type="button"
                           onClick={() => handleWhatsApp(m)}
-                          title="Message on WhatsApp"
+                          title={t('Message on WhatsApp')}
                           className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
                         >
                           <MessageCircle size={11} className="fill-emerald-500/20" />
-                          <span>WhatsApp</span>
+                          <span>{t('WhatsApp')}</span>
                         </button>
                       )}
                     </div>
@@ -613,9 +618,9 @@ export default function Members() {
                         ms.status === 'expiring' ? 'text-yellow-700' : 'text-green-700'
                       }`}>
                         {ms.status === 'expired'
-                          ? `Expired ${Math.abs(ms.daysLeft)}d ago`
+                          ? t('Expired {days}d ago', { days: Math.abs(ms.daysLeft) })
                           : ms.status === 'expiring'
-                          ? `${ms.daysLeft}d left`
+                          ? t('{days}d left', { days: ms.daysLeft })
                           : new Date(ms.expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })
                         }
                       </span>
@@ -626,7 +631,7 @@ export default function Members() {
                         <span className="font-semibold text-xs">
                           {new Date(ms.freeze.from) > new Date()
                             ? `${freezeDate(ms.freeze.from)} – ${freezeDate(ms.freeze.until)}`
-                            : `until ${freezeDate(ms.freeze.until)}`}
+                            : t('until {date}', { date: freezeDate(ms.freeze.until) })}
                         </span>
                       </div>
                     )}
@@ -648,7 +653,7 @@ export default function Members() {
                       type="button"
                       onClick={() => setAssignTrainerMember(m)}
                       className="shrink-0 font-medium text-[11px] underline hover:text-purple-900 dark:hover:text-purple-200 transition-colors"
-                      title="Change or remove assigned trainer"
+                      title={t('Change or remove assigned trainer')}
                     >
                       {t('Change / Remove')}
                     </button>
@@ -674,16 +679,18 @@ export default function Members() {
                   <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
                     <button
                       onClick={() => setQrMember(m)}
-                      aria-label={`Show ${m.name}'s check-in code`}
-                      title="Check-in QR Code"
+                      aria-label={t("Show {name}'s check-in code", { name: m.name })}
+                      title={t('Check-in QR Code')}
                       className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 active:scale-95 transition-all shrink-0 ${focusRing}`}
                     >
                       <QrCode size={14} />
                     </button>
                     <button
                       onClick={() => { setFingerprintAfterRegister(false); setFingerprintMember(m); }}
-                      aria-label={m.fingerprint ? `Manage ${m.name}'s fingerprint` : `Enrol ${m.name}'s fingerprint`}
-                      title={m.fingerprint ? 'Fingerprint enrolled' : 'No fingerprint enrolled'}
+                      aria-label={m.fingerprint
+                        ? t("Manage {name}'s fingerprint", { name: m.name })
+                        : t("Enrol {name}'s fingerprint", { name: m.name })}
+                      title={m.fingerprint ? t('Fingerprint enrolled') : t('No fingerprint enrolled')}
                       className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-medium border active:scale-95 transition-all shrink-0 ${focusRing} ${
                         m.fingerprint
                           ? 'border-blue-200 dark:border-blue-500/30 text-blue-600 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-50'
@@ -694,15 +701,15 @@ export default function Members() {
                     </button>
                     <button
                       onClick={() => setProgressMember(m)}
-                      aria-label={`${m.name}'s progress`}
-                      title="Progress & measurements"
+                      aria-label={t("{name}'s progress", { name: m.name })}
+                      title={t('Progress & measurements')}
                       className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-medium border border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800/60 active:scale-95 transition-all shrink-0 ${focusRing}`}
                     >
                       <Activity size={14} />
                     </button>
                     <button
                       onClick={() => openEdit(m)}
-                      aria-label={`Edit ${m.name}`}
+                      aria-label={t('Edit {name}', { name: m.name })}
                       className={`flex-1 min-w-[70px] min-h-[36px] flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl text-xs font-semibold border border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800/60 active:scale-95 transition-all ${focusRing}`}
                     >
                       <Pencil size={12} /> {t('Edit')}
@@ -710,8 +717,8 @@ export default function Members() {
                     {m.phone && (
                       <button
                         onClick={() => handleWhatsApp(m)}
-                        aria-label={`Send WhatsApp message to ${m.name}`}
-                        title={ms?.status === 'expiring' || ms?.status === 'expired' ? 'Send WhatsApp expiry reminder' : 'Send WhatsApp message'}
+                        aria-label={t('Send WhatsApp message to {name}', { name: m.name })}
+                        title={ms?.status === 'expiring' || ms?.status === 'expired' ? t('Send WhatsApp expiry reminder') : t('Send WhatsApp message')}
                         className={`min-h-[36px] flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border active:scale-95 transition-all shrink-0 ${focusRing} ${
                           ms?.status === 'expiring' || ms?.status === 'expired'
                             ? 'border-emerald-300 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 bg-emerald-50/80 dark:bg-emerald-950/40 hover:bg-emerald-100'
@@ -725,7 +732,7 @@ export default function Members() {
                     {canRenew(m) && (
                       <button
                         onClick={() => setRenewing(m)}
-                        aria-label={`Renew ${m.name}'s membership`}
+                        aria-label={t("Renew {name}'s membership", { name: m.name })}
                         className={`min-h-[36px] flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-2xs active:scale-95 transition-all shrink-0 ${focusRing}`}
                       >
                         <CalendarPlus size={12} /> {t('Renew')}
@@ -739,8 +746,8 @@ export default function Members() {
                       {canFreeze(m) && (
                         <button
                           onClick={() => setFreezing(m)}
-                          aria-label={`Freeze ${m.name}'s membership`}
-                          title="Freeze for travel, injury or Ramadan — the expiry moves forward"
+                          aria-label={t("Freeze {name}'s membership", { name: m.name })}
+                          title={t('Freeze for travel, injury or Ramadan — the expiry moves forward')}
                           className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-sky-200 dark:border-sky-500/20 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/30 transition-colors ${focusRing}`}
                         >
                           <Snowflake size={12} /> {t('Freeze')}
@@ -749,8 +756,8 @@ export default function Members() {
                       {m.currentMembership?.freeze && (
                         <button
                           onClick={() => setUnfreezing(m)}
-                          aria-label={`End ${m.name}'s freeze`}
-                          title="End the freeze early"
+                          aria-label={t("End {name}'s freeze", { name: m.name })}
+                          title={t('End the freeze early')}
                           className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-sky-200 dark:border-sky-500/20 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/30 transition-colors ${focusRing}`}
                         >
                           <Snowflake size={12} /> {t('Unfreeze')}
@@ -759,8 +766,8 @@ export default function Members() {
                       {canSuspend(m) && (
                         <button
                           onClick={() => setStatusChange({ member: m, verb: 'suspend' })}
-                          aria-label={`Suspend ${m.name}'s membership`}
-                          title="Pause this membership"
+                          aria-label={t("Suspend {name}'s membership", { name: m.name })}
+                          title={t('Pause this membership')}
                           className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-orange-200 dark:border-orange-500/20 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/30 transition-colors ${focusRing}`}
                         >
                           <PauseCircle size={12} /> {t('Suspend')}
@@ -769,8 +776,8 @@ export default function Members() {
                       {canResume(m) && (
                         <button
                           onClick={() => setStatusChange({ member: m, verb: 'resume' })}
-                          aria-label={`Resume ${m.name}'s membership`}
-                          title="Put this membership back into service"
+                          aria-label={t("Resume {name}'s membership", { name: m.name })}
+                          title={t('Put this membership back into service')}
                           className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-green-200 dark:border-green-500/20 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors ${focusRing}`}
                         >
                           <PlayCircle size={12} /> {t('Resume')}
@@ -779,8 +786,8 @@ export default function Members() {
                       {(canSuspend(m) || canResume(m)) && (
                         <button
                           onClick={() => setStatusChange({ member: m, verb: 'cancel' })}
-                          aria-label={`Cancel ${m.name}'s membership`}
-                          title="Cancel this membership"
+                          aria-label={t("Cancel {name}'s membership", { name: m.name })}
+                          title={t('Cancel this membership')}
                           className={`flex-1 flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-xs font-medium border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors ${focusRing}`}
                         >
                           <XCircle size={12} /> {t('Cancel')}
@@ -789,8 +796,8 @@ export default function Members() {
                     </div>
                     <button
                       onClick={() => setDeleting(m)}
-                      aria-label={`Delete ${m.name}`}
-                      title="Delete member"
+                      aria-label={t('Delete {name}', { name: m.name })}
+                      title={t('Delete member')}
                       className={`p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors shrink-0 ${focusRing}`}
                     >
                       <Trash2 size={13} />
@@ -806,7 +813,7 @@ export default function Members() {
       {hasMore && (
         <div className="flex justify-center mt-5">
           <button onClick={loadMore} disabled={loadingMore} className={secondaryButton}>
-            {loadingMore ? 'Loading…' : `Show more · ${total - members.length} left`}
+            {loadingMore ? t('Loading…') : t('Show more · {count} left', { count: total - members.length })}
           </button>
         </div>
       )}
@@ -873,16 +880,16 @@ export default function Members() {
       {statusChange && (
         <ConfirmDialog
           title={
-            statusChange.verb === 'suspend' ? 'Suspend membership'
-              : statusChange.verb === 'resume' ? 'Resume membership'
-                : 'Cancel membership'
+            statusChange.verb === 'suspend' ? t('Suspend membership')
+              : statusChange.verb === 'resume' ? t('Resume membership')
+                : t('Cancel membership')
           }
           message={
             statusChange.verb === 'suspend'
-              ? `Suspend ${statusChange.member.name}'s membership? The expiry date keeps running while it is paused, so the days still count down. You can resume it at any time.`
+              ? t("Suspend {name}'s membership? The expiry date keeps running while it is paused, so the days still count down. You can resume it at any time.", { name: statusChange.member.name })
               : statusChange.verb === 'resume'
-                ? `Put ${statusChange.member.name}'s membership back into service? If it ran out while paused it will show as expired, ready to renew.`
-                : `Cancel ${statusChange.member.name}'s membership for good? It stays in their history and any payments already taken are kept, but it cannot be resumed or renewed afterwards.`
+                ? t("Put {name}'s membership back into service? If it ran out while paused it will show as expired, ready to renew.", { name: statusChange.member.name })
+                : t("Cancel {name}'s membership for good? It stays in their history and any payments already taken are kept, but it cannot be resumed or renewed afterwards.", { name: statusChange.member.name })
           }
           // Named for the act, rather than left on the component's "Delete"
           // default: a dialog headed "Cancel membership" whose button said
@@ -890,9 +897,9 @@ export default function Members() {
           // two, and "Cancel" beside "Cancel" is worse still — one abandons
           // the dialog and the other ends the membership.
           confirmLabel={
-            statusChange.verb === 'suspend' ? 'Suspend membership'
-              : statusChange.verb === 'resume' ? 'Resume membership'
-                : 'Cancel membership'
+            statusChange.verb === 'suspend' ? t('Suspend membership')
+              : statusChange.verb === 'resume' ? t('Resume membership')
+                : t('Cancel membership')
           }
           // Resuming gives a membership back; only the other two take
           // something away.
@@ -913,9 +920,9 @@ export default function Members() {
 
       {unfreezing?.currentMembership?.freeze && (
         <ConfirmDialog
-          title="End freeze"
-          message={`End ${unfreezing.name}'s freeze now? Only the days not yet used come off the expiry.`}
-          confirmLabel="End freeze"
+          title={t('End freeze')}
+          message={t("End {name}'s freeze now? Only the days not yet used come off the expiry.", { name: unfreezing.name })}
+          confirmLabel={t('End freeze')}
           tone="primary"
           busy={statusBusy}
           onConfirm={() => void handleUnfreeze()}
@@ -929,8 +936,8 @@ export default function Members() {
 
       {deleting && (
         <ConfirmDialog
-          title="Delete member"
-          message={`Delete ${deleting.name} (${deleting.memberNo})? Their memberships, attendance and payment history go with them, and this cannot be undone.`}
+          title={t('Delete member')}
+          message={t('Delete {name} ({memberNo})? Their memberships, attendance and payment history go with them, and this cannot be undone.', { name: deleting.name, memberNo: deleting.memberNo })}
           busy={deletingBusy}
           onConfirm={() => void handleDelete()}
           onCancel={() => setDeleting(null)}

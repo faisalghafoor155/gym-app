@@ -4,7 +4,10 @@ import {
   ShieldAlert, Sparkles, Compass, X, Play, Pause, Activity
 } from 'lucide-react';
 import { useDialog } from '../../hooks/useDialog';
+import { useLanguage } from '../../context/LanguageContext';
 
+/** Every text field is English and doubles as its `t()` key; the Roman Urdu
+ *  lives in i18n/ur/fitness-exercises.ts. */
 export interface ExerciseAngleGuide {
   id: string;
   name: string;
@@ -18,7 +21,7 @@ export interface ExerciseAngleGuide {
   idealAngleDegree: number; // for SVG visualization
   dangerAngleDegree?: number;
   angleCategory: 'bench' | 'elbow' | 'torso' | 'foot';
-  summaryUrdu: string;
+  summary: string;
   proFormTips: string[];
   mistakesToAvoid: string[];
   safeZoneText: string;
@@ -31,7 +34,7 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
     id: 'incline_bench_press',
     name: 'Incline Bench Press (Barbell / Dumbbell)',
     muscle: 'chest',
-    primaryTarget: 'Upper Chest (Clavicular Head) - Seenay ka Oopri Hissa',
+    primaryTarget: 'Upper Chest (Clavicular Head)',
     comparisonImage: '/exercises/incline_bench_guide.jpg',
     benchAngle: '30° to 45° (2nd or 3rd Notch)',
     elbowAngle: '45° to 60° (Arrowhead angle relative to torso)',
@@ -39,17 +42,17 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
     idealAngleDegree: 35,
     dangerAngleDegree: 60,
     angleCategory: 'bench',
-    summaryUrdu: 'Upper Chest banane ke liye bench ka angle sirf 30° se 45° (2nd ya 3rd notch) par hona chahiye. Agar angle 60° ya us se upar chala jaye to sara wazan Seenay ke bajaye Kandhon (Front Shoulders) par shift ho jata hai!',
+    summary: 'To build the upper chest, the bench angle should only be 30° to 45° (2nd or 3rd notch). If the angle goes to 60° or higher, all the weight shifts from the chest onto the front shoulders!',
     proFormTips: [
-      'Bench ko 30° par set karein (zyada se zyada 45°). Yeh upper chest ke muscle fibers ko perfectly activate karta hai.',
-      'Kohniyan (Elbows) ko body se 45° angle par andar ki taraf rakhein taake rotator cuff shoulder par pressure na aye.',
-      'Dumbbells ko niche laate waqt thora 45° tilt rakhein (semi-neutral grip) taake chest par behtareen stretch miley.',
-      'Barbell ko hamesha collarbone aur upper chest ke darmiyan control ke sath touch karein.',
+      'Set the bench at 30° (45° at most). This activates the upper chest muscle fibers perfectly.',
+      'Keep the elbows tucked in at a 45° angle to the body so the rotator cuff takes no pressure on the shoulder.',
+      'Keep a slight 45° tilt (semi-neutral grip) while lowering the dumbbells for the best chest stretch.',
+      'Always touch the barbell with control between the collarbone and the upper chest.',
     ],
     mistakesToAvoid: [
-      'Bench ko 60° par rakhna: Yeh sab se bari ghalti hai, is se chest ke bajaye shoulder workout ban jata hai.',
-      'Kohniyan 90° bahar phailana: Is se shoulder joint par severe stress ata hai.',
-      'Wazan ko tezi se gira kar chest se bounce karna.',
+      'Setting the bench at 60°: This is the biggest mistake, it turns a chest workout into a shoulder workout.',
+      'Flaring the elbows out to 90°: This puts severe stress on the shoulder joint.',
+      'Dropping the weight fast and bouncing it off the chest.',
     ],
     safeZoneText: '✅ 30° - 45° Bench Incline (Perfect Upper Chest Squeeze)',
     dangerZoneText: '❌ 60°+ Incline (Front Delts / Shoulders takeover)',
@@ -58,26 +61,26 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
     id: 'flat_bench_press',
     name: 'Flat Barbell Bench Press',
     muscle: 'chest',
-    primaryTarget: 'Mid & Overall Chest Mass (Sternal Head) - Seenay ki Motai',
+    primaryTarget: 'Mid & Overall Chest Mass (Sternal Head)',
     comparisonImage: '/exercises/flat_bench_guide.jpg',
-    benchAngle: '0° (Bilkul Flat)',
+    benchAngle: '0° (Completely Flat)',
     elbowAngle: '45° to 60° (Arrowhead shape, NOT 90° T-shape)',
     wristGripAngle: '90° Straight Wrists (Bulldog Grip over palm heel)',
     bodyTorsoAngle: '15° to 20° Natural Arch in Lower Back with Retracted Scapula',
     idealAngleDegree: 45,
     dangerAngleDegree: 90,
     angleCategory: 'elbow',
-    summaryUrdu: 'Flat Bench par sab se ahem angle Kohni (Elbow Angle) ka hai! Kohni ko body se 45°–60° par rakhein (teer / arrowhead ki shakal). Agar aap kohni 90° bahar nikaal kar bench lagayein ge to shoulder impingement aur rotator cuff tear ka khatra hota hai!',
+    summary: 'The most important angle on the flat bench is the elbow angle! Keep the elbows at 45°–60° from the body (an arrowhead shape). If you bench with your elbows flared out to 90°, you risk shoulder impingement and a rotator cuff tear!',
     proFormTips: [
-      'Scapula Retraction: Bench par let kar peeth ki dono haddiyon ko peechay aapas me nichor kar bench par lock karein.',
-      'Lower Back Arch: Kamar me halka sa 15°–20° arch rakhein, hips aur upper back bench par chipkay rahein.',
-      'Bar Path: Bar seedhi 90° niche nahi aati, balkay halkay jhook (J-curve) ke sath nipple / lower sternum par touch hoti hai.',
-      'Leg Drive: Dono paon zameen par 90° par mazbooti se jamayein taake zameen se taqat milay.',
+      'Scapula Retraction: Lying on the bench, squeeze both shoulder blades back together and lock them into the bench.',
+      'Lower Back Arch: Keep a slight 15°–20° arch in the lower back, with the hips and upper back pressed into the bench.',
+      'Bar Path: The bar does not come straight down at 90°; it travels in a slight J-curve and touches the nipple line / lower sternum.',
+      'Leg Drive: Plant both feet firmly on the floor at 90° to draw power from the ground.',
     ],
     mistakesToAvoid: [
-      '❌ 90° Flared Elbows (T-Bone Style): Is se seenay ke bajaye kandhay ka joint ghista hai.',
-      'Wrists ko peechay morna (bent wrists): Bar ko hatheli ke lower base par rakhein taake kalai me dard na ho.',
-      'Hips ko bench se uthana (butt lifting off bench).',
+      '❌ 90° Flared Elbows (T-Bone Style): This grinds the shoulder joint instead of working the chest.',
+      'Bending the wrists back: Rest the bar on the lower base of the palm so the wrists do not hurt.',
+      'Lifting the hips off the bench (butt lifting off bench).',
     ],
     safeZoneText: '✅ 45° - 60° Tucked Elbows (Arrowhead Power & Shoulder Safety)',
     dangerZoneText: '❌ 90° Flared Elbows (Rotator Cuff Impingement Risk)',
@@ -86,24 +89,24 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
     id: 'chest_dips',
     name: 'Chest Dips (Parallel Bars)',
     muscle: 'chest',
-    primaryTarget: 'Lower Chest Line & Outer Pec Sweep - Nichla Seena',
+    primaryTarget: 'Lower Chest Line & Outer Pec Sweep',
     comparisonImage: '/exercises/dips_guide.jpg',
-    bodyTorsoAngle: '30° Forward Lean (Seenay ko aagay jhukana)',
+    bodyTorsoAngle: '30° Forward Lean (tilt the chest forward)',
     elbowAngle: '45° Flared slightly outward during descent',
     idealAngleDegree: 30,
     dangerAngleDegree: 90,
     angleCategory: 'torso',
-    summaryUrdu: 'Dips me body ka angle decide karta hai ke exercise Chest ki hai ya Triceps ki! Agar aap 30° Aagay Jhuk kar (Forward Lean) dips lagayein ge to saara load Lower Chest par aye ga. Agar body 90° seedhi khari hogi to sirf Triceps lagain ge!',
+    summary: 'In dips, the body angle decides whether the exercise works the chest or the triceps! If you dip with a 30° forward lean, all the load goes to the lower chest. If the body stays 90° upright, only the triceps work!',
     proFormTips: [
-      'Body ko taqreeban 30 degree aagay ki taraf jhukayein (Forward torso angle).',
-      'Ghutnay peechay fold kar ke thora cross kar lein taake body ka center of gravity aagay rahay.',
-      'Neeche aatay waqt 90° elbow depth tak jayein (is se zyada niche jane se shoulder par overstretch ho sakta hai).',
-      'Upar aatay waqt lower pecs ko zordar squeeze karein.',
+      'Lean the body forward roughly 30 degrees (forward torso angle).',
+      "Fold the knees back and cross them slightly so the body's center of gravity stays forward.",
+      'Go down to 90° elbow depth (going lower can overstretch the shoulder).',
+      'Squeeze the lower pecs hard on the way up.',
     ],
     mistakesToAvoid: [
-      'Bilkul 90° seedha kharay ho kar dip lagana (yeh tricep exercise ban jata hai).',
-      'Bohat zyada gehra (deep) jana jahan kandhay aagay roll ho jayein.',
-      'Jhatkay (momentum) se body ko upar phenkna.',
+      'Dipping completely 90° upright (it becomes a triceps exercise).',
+      'Going so deep that the shoulders roll forward.',
+      'Throwing the body up with momentum.',
     ],
     safeZoneText: '✅ 30° Forward Lean (Maximum Lower Pec Activation)',
     dangerZoneText: '❌ 90° Upright Body (Transfers load entirely to Triceps)',
@@ -112,20 +115,20 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
     id: 'decline_bench_press',
     name: 'Decline Bench Press / Pushups',
     muscle: 'chest',
-    primaryTarget: 'Lower Chest Underline (Abdominal Head) - Seenay ki Nichli Lakeer',
+    primaryTarget: 'Lower Chest Underline (Abdominal Head)',
     benchAngle: '-15° to -20° (Slight Decline)',
     elbowAngle: '45° Tucked',
     idealAngleDegree: 15,
     angleCategory: 'bench',
-    summaryUrdu: 'Decline bench ka angle sirf -15° se -20° ka hona chahiye. Bohat zyada steep decline lagane se sar me khoon ka pressure barh jata hai. Yeh angle seenay ki nichli boundary aur round look banata hai.',
+    summary: 'The decline bench angle should only be -15° to -20°. Too steep a decline raises the blood pressure in the head. This angle builds the lower edge and rounded look of the chest.',
     proFormTips: [
-      'Bench ko -15° ya -20° par set karein, paon ko leg pads me lock karein.',
-      'Bar ko lower chest / abs ke aaghaz par touch karein.',
-      'Agar gym me decline bench na ho to Incline Pushups ya High-to-Low Cable Crossovers behtareen mutabadil (alternative) hain.',
+      'Set the bench at -15° or -20° and lock your feet into the leg pads.',
+      'Touch the bar at the lower chest / top of the abs.',
+      'If your gym has no decline bench, Incline Pushups or High-to-Low Cable Crossovers are great alternatives.',
     ],
     mistakesToAvoid: [
-      '-30° se zyada steep decline na karein taake blood pressure spike na ho.',
-      'Gardn ko utha kar aagay na jhankhein.',
+      'Do not go steeper than -30°, so your blood pressure does not spike.',
+      'Do not lift your neck to look forward.',
     ],
     safeZoneText: '✅ -15° to -20° Decline (Optimal Lower Pec Shelf)',
     dangerZoneText: '❌ -35°+ Steep Decline (Head rush & poor mechanical leverage)',
@@ -134,21 +137,21 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
     id: 'cable_crossover',
     name: 'Cable Chest Flyes / Crossovers',
     muscle: 'chest',
-    primaryTarget: 'Inner Chest Cleavage & Chest Isolation - Seenay ki Lakeer',
+    primaryTarget: 'Inner Chest Cleavage & Chest Isolation',
     benchAngle: 'High-to-Low (45° Downward Arc) | Low-to-High (30° Upward Arc)',
-    elbowAngle: '15° Constant Soft Bend (Kohni bilkul lock mat karein)',
+    elbowAngle: '15° Constant Soft Bend (never fully lock the elbow)',
     idealAngleDegree: 45,
     angleCategory: 'torso',
-    summaryUrdu: 'Cable Crossover me 2 main angles hotay hain: (1) High-to-Low (45° angle niche lana): Lower & Inner Chest ke liye. (2) Low-to-High (30° angle upar uthana): Upper Inner Chest ke liye. Kohni me hamesha 15° ka slight curve constant rakhein!',
+    summary: 'Cable crossovers have 2 main angles: (1) High-to-Low (bringing it down at 45°): for the lower & inner chest. (2) Low-to-High (raising it up at 30°): for the upper inner chest. Always keep a constant slight 15° bend in the elbow!',
     proFormTips: [
-      'Kohni (Elbows) ko pathar ki tarah 15° bend par freeze rakhein, yeh press nahi balkay flye movement hai.',
-      'Haath aapas me cross karte waqt 1 second ke liye chest ko hard squeeze karein.',
-      'Ek paon aagay aur ek peechay rakh kar body ko 15°–20° aagay lean karein taake balance mazboot rahay.',
+      'Freeze the elbows rock-solid at a 15° bend; this is a fly movement, not a press.',
+      'Squeeze the chest hard for 1 second as the hands cross.',
+      'Put one foot forward and one back and lean the body 15°–20° forward for a stable balance.',
     ],
     mistakesToAvoid: [
-      'Kohniyon ko move kar ke dumbbell press bana dena.',
-      'Peechay jaate waqt kandhon ko overstretch karna.',
-      'Wazan bojh se zyada utha kar jhatkay marna.',
+      'Moving the elbows and turning it into a dumbbell press.',
+      'Overstretching the shoulders on the way back.',
+      'Lifting more weight than you can handle and jerking it.',
     ],
     safeZoneText: '✅ 45° High-to-Low Arc (Lower/Inner Cut) | 30° Low-to-High Arc (Upper Line)',
     dangerZoneText: '❌ 0° Locked Straight Elbows (Excessive bicep tendon strain)',
@@ -157,20 +160,20 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
     id: 'dumbbell_flyes',
     name: 'Flat / Incline Dumbbell Flyes',
     muscle: 'chest',
-    primaryTarget: 'Chest Outer Width & Deep Stretch - Seenay ka Phailao',
-    benchAngle: '0° Flat ya 30° Incline',
-    elbowAngle: '15° to 20° Fixed Arc (Jaise kisi baray darakht ko gale laga rahe hon)',
+    primaryTarget: 'Chest Outer Width & Deep Stretch',
+    benchAngle: '0° Flat or 30° Incline',
+    elbowAngle: '15° to 20° Fixed Arc (as if hugging a big tree)',
     idealAngleDegree: 20,
     angleCategory: 'elbow',
-    summaryUrdu: 'Dumbbell fly lagatay waqt kohni ko kabhi bhi bilkul seedha 0° lock mat karein, balkay 15°–20° ka bend rakhein. Niche aatay waqt kohni kandhay (shoulder) ke level se zyada niche nahi jani chahiye warna pectoral tendon phatne ka khatra hota hai!',
+    summary: 'During dumbbell flyes, never lock the elbow completely straight at 0°; keep a 15°–20° bend. On the way down, the elbow should not drop much below shoulder level, or you risk tearing the pectoral tendon!',
     proFormTips: [
-      'Tasawwur karein ke aap kisi baray darakht ya cylinder ko gale laga rahe hain ("Hug a tree" cue).',
-      'Niche aatay waqt deep stretch mehsoos karein lekin kohni ko bench ke level tak hi rokein.',
-      'Upar aatay waqt dumbbells ko aapas me zor se na takrayein, balkay chest muscle se squeeze karein.',
+      'Imagine you are hugging a big tree or cylinder ("Hug a tree" cue).',
+      'Feel a deep stretch on the way down, but stop the elbows at bench level.',
+      'Do not clash the dumbbells together at the top; squeeze with the chest muscle instead.',
     ],
     mistakesToAvoid: [
-      'Kohni ko bilkul seedha rakhna (elbow hyperextension).',
-      'Heavy wazan lagana (Flye isolation exercise hai, heavy lifts ke liye Bench Press lagayein).',
+      'Keeping the elbows completely straight (elbow hyperextension).',
+      'Going too heavy (the fly is an isolation exercise; use the Bench Press for heavy lifts).',
     ],
     safeZoneText: '✅ 15° - 20° Constant Elbow Curve (Safe Deep Muscle Stretch)',
     dangerZoneText: '❌ Over-dropping elbows below bench plane (Pec Tear Danger)',
@@ -181,19 +184,19 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
     id: 'bent_over_barbell_row',
     name: 'Bent-Over Barbell Row',
     muscle: 'back',
-    primaryTarget: 'Lats Thickness, Mid Back & Rhomboids - Peeth ki Motai',
+    primaryTarget: 'Lats Thickness, Mid Back & Rhomboids',
     bodyTorsoAngle: '45° to 70° Torso Hip Hinge (Never completely upright)',
     elbowAngle: 'Pull to hip crease at 45°',
     idealAngleDegree: 45,
     angleCategory: 'torso',
-    summaryUrdu: 'Kamar ko 45° se 70° ke darmiyan aagay jhukayein (Hips peechay dhakail kar). Bar ko seedha pait (Navel / Nabhi) ki taraf kheinchein, seenay par nahi!',
+    summary: 'Bend the torso forward between 45° and 70° (by pushing the hips back). Pull the bar straight to the belly button, not to the chest!',
     proFormTips: [
-      'Kamar ko bilkul seedha (flat spine) rakhein, kabhi bhi qos (cat arch) na banayein.',
-      'Bar ko khinchte waqt kohniyon se sochein ke peeche kisi ko kohni maar rahe hain.',
+      'Keep the back completely straight (flat spine); never let it round (cat arch).',
+      'When pulling the bar, drive the elbows back as if elbowing someone behind you.',
     ],
     mistakesToAvoid: [
-      'Bohat zyada seedha 80°-90° khara hona (yeh shrugs ban jata hai).',
-      'Kamar ko gol karna (round lower back).',
+      'Standing too upright at 80°-90° (it turns into shrugs).',
+      'Rounding the lower back.',
     ],
     safeZoneText: '✅ 45° - 60° Torso Angle (Deep Lat Activation)',
     dangerZoneText: '❌ 80° Upright or Rounded Lower Back (Spinal Disc Danger)',
@@ -203,21 +206,21 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
     id: 'wide_grip_lat_pulldown',
     name: 'Wide-Grip Lat Pulldown',
     muscle: 'back',
-    primaryTarget: 'Lats Width (V-Taper) - Peeth Ki Choorai',
+    primaryTarget: 'Lats Width (V-Taper)',
     bodyTorsoAngle: '10° to 15° Slight Backward Lean (Never 45° swing)',
     elbowAngle: 'Drive elbows down and back into back pockets',
     idealAngleDegree: 15,
     dangerAngleDegree: 45,
     angleCategory: 'torso',
-    summaryUrdu: 'Lat pulldown lagatay waqt kamar ko sirf 10°–15° halka peechay jhukayein. Bohat zyada 45° peechay jholay (swing) khana ghalat hai. Bar ko seedha collarbone / upper chest par kheinchein.',
+    summary: 'During lat pulldowns, lean back only a slight 10°–15°. Swinging back as far as 45° is wrong. Pull the bar straight to the collarbone / upper chest.',
     proFormTips: [
-      'Grip shoulder se 1.5 times wide rakhein.',
-      'Kohniyon se kheinchein aur bottom par lats ko 1 second squeeze karein.',
-      'Upar jaate waqt poora stretch mehsoos karein.',
+      'Keep the grip 1.5 times shoulder width.',
+      'Pull with the elbows and squeeze the lats for 1 second at the bottom.',
+      'Feel the full stretch on the way up.',
     ],
     mistakesToAvoid: [
-      'Peechay 45° tak jhulna (momentum use karna).',
-      'Bar ko pait (belly) tak kheench lena.',
+      'Swinging back as far as 45° (using momentum).',
+      'Pulling the bar down to the belly.',
     ],
     safeZoneText: '✅ 10° - 15° Controlled Lean & Collarbone Touch',
     dangerZoneText: '❌ 45° Excessive Backward Swing',
@@ -228,19 +231,19 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
     id: 'dumbbell_lateral_raise',
     name: 'Dumbbell Lateral Raises (Side Delts)',
     muscle: 'shoulders',
-    primaryTarget: 'Side Shoulder Width (3D Delts) - Kandhay ki Choorai',
+    primaryTarget: 'Side Shoulder Width (3D Delts)',
     bodyTorsoAngle: '15° to 30° Forward in Scapular Plane (NOT completely 90° lateral)',
     elbowAngle: '10° Slight Bend',
     idealAngleDegree: 25,
     angleCategory: 'torso',
-    summaryUrdu: 'Dumbbells ko bilkul 90° seedha side par mat uthayein! Hamesha 15°–30° thora aagay (Scapular Plane) me uthayein. Is se shoulder joint par friction nahi aati aur Side Delt par direct load rehta hai.',
+    summary: 'Do not raise the dumbbells straight out to the side at exactly 90°! Always raise them 15°–30° slightly forward (the scapular plane). This avoids friction in the shoulder joint and keeps the load directly on the side delts.',
     proFormTips: [
-      'Hath ko 15° aagay rakhein (V-shape upward motion).',
-      'Kohni ko hamesha kalai (wrist) se thora upar rakhein (jaise jug se paani udel rahe hon).',
+      'Keep the hands 15° forward (V-shape upward motion).',
+      'Always keep the elbow slightly above the wrist (as if pouring water from a jug).',
     ],
     mistakesToAvoid: [
-      '90° bilkul straight side par uthana (impingement hoti hai).',
-      'Shoulders ko kaan tak uchatna (traps shamil ho jatay hain).',
+      'Raising straight out to the side at 90° (causes impingement).',
+      'Shrugging the shoulders up to the ears (the traps take over).',
     ],
     safeZoneText: '✅ 20° - 30° Scapular Plane (Safe Lateral Delt Growth)',
     dangerZoneText: '❌ 90° Exact Side Raise (Supraspinatus Tendon Friction)',
@@ -249,19 +252,19 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
     id: 'overhead_military_press',
     name: 'Overhead Barbell Military Press',
     muscle: 'shoulders',
-    primaryTarget: 'Front & Side Delts & Core - Kandhon Ki Taqat',
+    primaryTarget: 'Front & Side Delts & Core',
     bodyTorsoAngle: 'Torso locked upright with braced glutes and core',
     elbowAngle: 'Elbows slightly in front of bar (Scapular plane)',
     idealAngleDegree: 90,
     angleCategory: 'torso',
-    summaryUrdu: 'Kharay ho kar military press lagatay waqt kamar me bohat bara arch mat banayein! Pait (Core) aur glutes tight rakhein aur bar ko seedha sar ke upar (straight overhead) lock karein.',
+    summary: 'When doing a standing military press, do not make a big arch in your lower back! Keep the core and glutes tight and lock the bar straight overhead.',
     proFormTips: [
-      'Barbell ko upper chest se seedha upar dhakelein.',
-      'Sar ko halka peechay karein jab bar pass ho, phir sar aagay neutral karein.',
+      'Press the barbell straight up from the upper chest.',
+      'Move the head slightly back as the bar passes, then bring it forward to neutral.',
     ],
     mistakesToAvoid: [
-      'Kamar ko peechay ziyada jhook dena (spine injury risk).',
-      'Ghutno se push-press jhatka marna.',
+      'Leaning the lower back too far back (spine injury risk).',
+      'Jerking a push-press with the knees.',
     ],
     safeZoneText: '✅ Vertical Overhead Path with Braced Core',
     dangerZoneText: '❌ Hyper-extended Lower Back Arch',
@@ -270,22 +273,22 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
   // LEGS EXERCISES
   {
     id: 'barbell_back_squat',
-    name: 'Barbell Back Squat (Baithak)',
+    name: 'Barbell Back Squat',
     muscle: 'legs',
-    primaryTarget: 'Quads, Glutes & Core - Taangon ki Taqat',
+    primaryTarget: 'Quads, Glutes & Core',
     bodyTorsoAngle: 'Torso stays 60°-75° upright depending on anatomy',
     wristGripAngle: 'Feet flared outward at 15° to 30°',
     idealAngleDegree: 25,
     angleCategory: 'foot',
-    summaryUrdu: 'Joote (Shoes) ka angle kandhay ke barabar stance me 15° se 30° bahar ki taraf (flared out) hona chahiye! Ghutnay (knees) bilkul joote ke angothay ki simat me aagay move hone chahiye taake ghutne andar na girein.',
+    summary: 'In a shoulder-width stance, point your shoes 15° to 30° outward (flared out)! The knees should travel forward exactly in the direction of the toes so they do not cave inward.',
     proFormTips: [
       'Knees must track in line with 2nd/3rd toe at 15°-30° outward angle.',
-      'Depth: Hip crease ko ghutnay ke 90° level ya parallel se thora niche le jayein.',
-      'Shoes flat sole hone chahiye (e.g. Converse ya dedicated lifting shoes).',
+      'Depth: Take the hip crease down to 90° knee level (parallel) or slightly below.',
+      'Shoes should have a flat sole (e.g. Converse or dedicated lifting shoes).',
     ],
     mistakesToAvoid: [
-      'Ghutno ka andar ki taraf girna (Knee Valgus / collapse).',
-      'Aerobic running shoes (puffed soft sole) pehen kar squat lagana.',
+      'Knees caving inward (Knee Valgus / collapse).',
+      'Squatting in running shoes with a puffy soft sole.',
     ],
     safeZoneText: '✅ 15° - 30° Outward Shoe Flare & 90° Knee Depth',
     dangerZoneText: '❌ 0° Straight Feet with Inward Knee Collapse',
@@ -296,19 +299,19 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
     id: 'barbell_bicep_curl',
     name: 'Standing Barbell Bicep Curls',
     muscle: 'arms',
-    primaryTarget: 'Bicep Peak & Arm Thickness - Dole Ki Motai',
+    primaryTarget: 'Bicep Peak & Arm Thickness',
     bodyTorsoAngle: 'Strict upright posture (Zero torso momentum)',
     elbowAngle: 'Pinned strictly to ribcage sides',
     idealAngleDegree: 90,
     angleCategory: 'elbow',
-    summaryUrdu: 'Bicep curls lagatay waqt kohniyan body ke sath chipki honi chahiye! Agar aap kohni aagay peechay hilayein ge ya kamar se jhatkay marein ge to biceps par load khatam ho kar front delts par chala jaye ga.',
+    summary: 'During bicep curls, the elbows should stay pinned to the body! If you move the elbows back and forth or jerk with your back, the load leaves the biceps and goes to the front delts.',
     proFormTips: [
-      'Kohni (elbows) ko pasliyon (ribs) ke sath freeze rakhein.',
-      'Upar laate waqt bicep ko hard squeeze karein aur control se niche layein.',
+      'Freeze the elbows against the ribs.',
+      'Squeeze the bicep hard at the top and lower it with control.',
     ],
     mistakesToAvoid: [
-      'Kamar se jhatkay marna (Ego lifting).',
-      'Kohniyon ko aagay hawa me uthana.',
+      'Jerking with the back (ego lifting).',
+      'Lifting the elbows forward into the air.',
     ],
     safeZoneText: '✅ Pinned Elbows with Controlled Negative',
     dangerZoneText: '❌ Swinging Back & Flared Elbows',
@@ -317,19 +320,19 @@ export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
     id: 'ez_bar_skullcrushers',
     name: 'EZ-Bar Lying Skullcrushers',
     muscle: 'arms',
-    primaryTarget: 'Triceps Long Head Mass - Baazu Ka Pechla Hissa',
+    primaryTarget: 'Triceps Long Head Mass',
     bodyTorsoAngle: 'Flat on bench, feet planted',
     elbowAngle: '75° Backward slant (Never 90° straight vertical)',
     idealAngleDegree: 75,
     angleCategory: 'elbow',
-    summaryUrdu: 'Skullcrushers me kohniyon ko 90° seedha rakhne ke bajaye sar ki taraf 75° halka peechay slant rakhein. Is se triceps ke long head par poori exercise me constant tension rehti hai aur kohni me dard nahi hota!',
+    summary: 'In skullcrushers, instead of keeping the elbows straight at 90°, slant them slightly back toward the head at 75°. This keeps constant tension on the triceps long head through the whole exercise, and the elbows do not hurt!',
     proFormTips: [
-      'Barbell ko forehead ke thora peechay niche layein.',
-      'Sirf forearms move honi chahiye, upper arm bilkul freeze rahay.',
+      'Lower the barbell to slightly behind the forehead.',
+      'Only the forearms should move; the upper arm stays completely frozen.',
     ],
     mistakesToAvoid: [
-      'Kohniyon ko bahar phailana (flare out).',
-      'Forehead par bar gira lena.',
+      'Flaring the elbows out.',
+      'Dropping the bar on the forehead.',
     ],
     safeZoneText: '✅ 75° Backward Slant for Constant Tricep Tension',
     dangerZoneText: '❌ Flared Elbows causing Joint Inflammation',
@@ -349,6 +352,7 @@ export default function ExerciseAnglesModal({
   defaultMuscle = 'chest',
   initialExerciseId,
 }: Props) {
+  const { t } = useLanguage();
   const [selectedMuscle, setSelectedMuscle] = useState<'chest' | 'back' | 'shoulders' | 'legs' | 'arms'>(defaultMuscle);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>(
     initialExerciseId || (defaultMuscle === 'chest' ? 'incline_bench_press' : EXERCISE_ANGLES_DATA[0]!.id)
@@ -381,7 +385,7 @@ export default function ExerciseAnglesModal({
           <div className="w-full flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
               <Activity size={14} className={isPressing ? 'animate-pulse text-emerald-400' : 'text-slate-500'} />
-              <span>{isPressing ? '🏋️‍♂️ Lifter In Action (35° Incline Press)' : '⏸️ Motion Paused'}</span>
+              <span>{isPressing ? `🏋️‍♂️ ${t('Lifter In Action ({name})', { name: t('35° Incline Press') })}` : `⏸️ ${t('Motion Paused')}`}</span>
             </div>
             <button
               type="button"
@@ -389,7 +393,7 @@ export default function ExerciseAnglesModal({
               className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1 border border-slate-700"
             >
               {isPressing ? <Pause size={10} /> : <Play size={10} />}
-              <span>{isPressing ? 'Pause' : 'Play'}</span>
+              <span>{isPressing ? t('Pause') : t('Play')}</span>
             </button>
           </div>
 
@@ -408,7 +412,7 @@ export default function ExerciseAnglesModal({
 
             {/* Gym Floor line */}
             <line x1="20" y1="175" x2="320" y2="175" stroke="#334155" strokeWidth="2" strokeDasharray="3 3" />
-            <text x="315" y="188" fill="#64748b" fontSize="9" textAnchor="end">Floor</text>
+            <text x="315" y="188" fill="#64748b" fontSize="9" textAnchor="end">{t('Floor')}</text>
 
             {/* Incline Bench Frame */}
             {/* Base leg & supports */}
@@ -427,7 +431,7 @@ export default function ExerciseAnglesModal({
             {/* Bench Incline Angle Arc & Lines */}
             {/* Horizontal baseline for angle reference */}
             <line x1="108" y1="135" x2="215" y2="135" stroke="#64748b" strokeWidth="1.5" strokeDasharray="4 4" />
-            <text x="215" y="146" fill="#94a3b8" fontSize="9" textAnchor="end">0° Baseline</text>
+            <text x="215" y="146" fill="#94a3b8" fontSize="9" textAnchor="end">{t('0° Baseline')}</text>
 
             {/* 35° Ideal Angle Arc */}
             <path
@@ -436,15 +440,11 @@ export default function ExerciseAnglesModal({
               stroke="#10b981"
               strokeWidth="2.5"
             />
-            <text x="165" y="122" fill="#34d399" fontSize="11" fontWeight="900">
-              35° Incline
-            </text>
+            <text x="165" y="122" fill="#34d399" fontSize="11" fontWeight="900">{t('35° Incline')}</text>
 
             {/* 60° Danger dashed line */}
             <line x1="108" y1="135" x2="175" y2="25" stroke="#f43f5e" strokeWidth="1.5" strokeDasharray="3 3" />
-            <text x="180" y="32" fill="#f43f5e" fontSize="9" fontWeight="bold">
-              60° ❌ Shoulder Danger
-            </text>
+            <text x="180" y="32" fill="#f43f5e" fontSize="9" fontWeight="bold">{t('60° ❌ Shoulder Danger')}</text>
 
             {/* THE LIFTER (Man lying on 35° Incline) */}
             {/* Legs: Thigh & Shin down to floor */}
@@ -494,18 +494,18 @@ export default function ExerciseAnglesModal({
             {/* Biomechanical Cues On Figure */}
             <g transform="translate(195, 100)">
               <rect x="0" y="0" width="125" height="42" rx="8" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">✅ Bench: 30° - 45°</text>
-              <text x="6" y="26" fill="#38bdf8" fontSize="9" fontWeight="bold">✅ Elbows: 45° Tucked</text>
-              <text x="6" y="37" fill="#f43f5e" fontSize="8">❌ 60°: Shoulder Takeover</text>
+              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">{t('✅ Bench: 30° - 45°')}</text>
+              <text x="6" y="26" fill="#38bdf8" fontSize="9" fontWeight="bold">{t('✅ Elbows: 45° Tucked')}</text>
+              <text x="6" y="37" fill="#f43f5e" fontSize="8">{t('❌ 60°: Shoulder Takeover')}</text>
             </g>
           </svg>
 
           <div className="w-full mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={13} /> Target: 30° - 45° Incline (Upper Chest)
+              <CheckCircle2 size={13} /> {t('Target: 30° - 45° Incline (Upper Chest)')}
             </span>
             <span className="text-rose-400 font-bold flex items-center gap-1">
-              <AlertTriangle size={13} /> 60° Flared Shoulder Danger
+              <AlertTriangle size={13} /> {t('60° Flared Shoulder Danger')}
             </span>
           </div>
         </div>
@@ -519,7 +519,7 @@ export default function ExerciseAnglesModal({
           <div className="w-full flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
               <Activity size={14} className={isPressing ? 'animate-pulse text-emerald-400' : 'text-slate-500'} />
-              <span>{isPressing ? '🏋️‍♂️ Lifter In Action (Flat Bench Press)' : '⏸️ Motion Paused'}</span>
+              <span>{isPressing ? `🏋️‍♂️ ${t('Lifter In Action ({name})', { name: t('Flat Bench Press') })}` : `⏸️ ${t('Motion Paused')}`}</span>
             </div>
             <button
               type="button"
@@ -527,7 +527,7 @@ export default function ExerciseAnglesModal({
               className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1 border border-slate-700"
             >
               {isPressing ? <Pause size={10} /> : <Play size={10} />}
-              <span>{isPressing ? 'Pause' : 'Play'}</span>
+              <span>{isPressing ? t('Pause') : t('Play')}</span>
             </button>
           </div>
 
@@ -569,7 +569,7 @@ export default function ExerciseAnglesModal({
             />
             {/* Shoe */}
             <rect x="70" y="172" width="22" height="6" rx="2" fill="#3b82f6" />
-            <text x="65" y="160" fill="#94a3b8" fontSize="8">90° Knee</text>
+            <text x="65" y="160" fill="#94a3b8" fontSize="8">{t('90° Knee')}</text>
 
             {/* LIFTER TORSO: With 15° Lumbar Arch & Retracted Scapula */}
             {/* Hips on bench at 110, arch lifting off bench at 140, upper back on bench at 180 */}
@@ -582,7 +582,7 @@ export default function ExerciseAnglesModal({
             />
             {/* Chest pecs highlighted */}
             <circle cx="165" cy="118" r="8" fill="#38bdf8" opacity="0.8" />
-            <text x="135" y="112" fill="#34d399" fontSize="8" fontWeight="bold">15° Back Arch</text>
+            <text x="135" y="112" fill="#34d399" fontSize="8" fontWeight="bold">{t('15° Back Arch')}</text>
 
             {/* Lifter Head on bench */}
             <circle cx="210" cy="128" r="10" fill="#fbcfe8" stroke="#cbd5e1" strokeWidth="2" />
@@ -610,22 +610,22 @@ export default function ExerciseAnglesModal({
             {/* INSET: Top-Down Elbow Angle View (Arrowhead 45° vs Flared 90°) */}
             <g transform="translate(15, 20)">
               <rect x="0" y="0" width="115" height="52" rx="8" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-              <text x="6" y="13" fill="#94a3b8" fontSize="8" fontWeight="bold">ELBOW ANGLE (Kohni):</text>
-              <text x="6" y="26" fill="#10b981" fontSize="9" fontWeight="bold">✅ 45°-60° Arrowhead</text>
-              <text x="6" y="38" fill="#f43f5e" fontSize="9" fontWeight="bold">❌ 90° Flared Danger</text>
-              <text x="6" y="48" fill="#cbd5e1" fontSize="7">Rotator Cuff Protected</text>
+              <text x="6" y="13" fill="#94a3b8" fontSize="8" fontWeight="bold">{t('ELBOW ANGLE:')}</text>
+              <text x="6" y="26" fill="#10b981" fontSize="9" fontWeight="bold">{t('✅ 45°-60° Arrowhead')}</text>
+              <text x="6" y="38" fill="#f43f5e" fontSize="9" fontWeight="bold">{t('❌ 90° Flared Danger')}</text>
+              <text x="6" y="48" fill="#cbd5e1" fontSize="7">{t('Rotator Cuff Protected')}</text>
             </g>
 
             {/* Bench 0° indicator */}
-            <text x="245" y="138" fill="#38bdf8" fontSize="10" fontWeight="bold">0° Flat</text>
+            <text x="245" y="138" fill="#38bdf8" fontSize="10" fontWeight="bold">{t('0° Flat')}</text>
           </svg>
 
           <div className="w-full mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={13} /> 45°–60° Elbow Arrowhead (Safe Power)
+              <CheckCircle2 size={13} /> {t('45°–60° Elbow Arrowhead (Safe Power)')}
             </span>
             <span className="text-rose-400 font-bold flex items-center gap-1">
-              <AlertTriangle size={13} /> 90° T-Bone Flared Elbows = Injury Risk
+              <AlertTriangle size={13} /> {t('90° T-Bone Flared Elbows = Injury Risk')}
             </span>
           </div>
         </div>
@@ -639,7 +639,7 @@ export default function ExerciseAnglesModal({
           <div className="w-full flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
               <Activity size={14} className={isPressing ? 'animate-pulse text-emerald-400' : 'text-slate-500'} />
-              <span>{isPressing ? '🏋️‍♂️ Lifter In Action (Chest Dips - 30° Lean)' : '⏸️ Motion Paused'}</span>
+              <span>{isPressing ? `🏋️‍♂️ ${t('Lifter In Action ({name})', { name: t('Chest Dips - 30° Lean') })}` : `⏸️ ${t('Motion Paused')}`}</span>
             </div>
             <button
               type="button"
@@ -647,7 +647,7 @@ export default function ExerciseAnglesModal({
               className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1 border border-slate-700"
             >
               {isPressing ? <Pause size={10} /> : <Play size={10} />}
-              <span>{isPressing ? 'Pause' : 'Play'}</span>
+              <span>{isPressing ? t('Pause') : t('Play')}</span>
             </button>
           </div>
 
@@ -675,13 +675,13 @@ export default function ExerciseAnglesModal({
             {/* Angle Guide Lines from Hips */}
             {/* 90° Vertical Line (Triceps only) */}
             <line x1="145" y1="140" x2="145" y2="35" stroke="#64748b" strokeWidth="1.5" strokeDasharray="3 3" />
-            <text x="142" y="32" fill="#94a3b8" fontSize="8" textAnchor="end">90° (Triceps Only)</text>
+            <text x="142" y="32" fill="#94a3b8" fontSize="8" textAnchor="end">{t('90° (Triceps Only)')}</text>
 
             {/* 30° Forward Torso Line (Chest Focus) */}
             <line x1="145" y1="140" x2="185" y2="45" stroke="#10b981" strokeWidth="2.5" />
             {/* Arc */}
             <path d="M 145 80 A 60 60 0 0 1 168 85" fill="none" stroke="#10b981" strokeWidth="2" />
-            <text x="175" y="75" fill="#34d399" fontSize="10" fontWeight="900">30° Chest Lean</text>
+            <text x="175" y="75" fill="#34d399" fontSize="10" fontWeight="900">{t('30° Chest Lean')}</text>
 
             {/* ANIMATED LIFTER PERFORMING DIPS */}
             <g className="dip-anim">
@@ -720,18 +720,18 @@ export default function ExerciseAnglesModal({
             {/* Callout box */}
             <g transform="translate(205, 115)">
               <rect x="0" y="0" width="125" height="42" rx="8" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">✅ 30° Lean = Chest</text>
-              <text x="6" y="26" fill="#f43f5e" fontSize="9">❌ 90° Upright = Triceps</text>
-              <text x="6" y="37" fill="#94a3b8" fontSize="8">Knees bent & crossed back</text>
+              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">{t('✅ 30° Lean = Chest')}</text>
+              <text x="6" y="26" fill="#f43f5e" fontSize="9">{t('❌ 90° Upright = Triceps')}</text>
+              <text x="6" y="37" fill="#94a3b8" fontSize="8">{t('Knees bent & crossed back')}</text>
             </g>
           </svg>
 
           <div className="w-full mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={13} /> 30° Torso Forward Lean = Lower Chest Activation
+              <CheckCircle2 size={13} /> {t('30° Torso Forward Lean = Lower Chest Activation')}
             </span>
             <span className="text-amber-400 font-bold flex items-center gap-1">
-              <AlertTriangle size={13} /> Seedha kharay hone se chest nahi lagti!
+              <AlertTriangle size={13} /> {t('Standing upright does not work the chest!')}
             </span>
           </div>
         </div>
@@ -745,7 +745,7 @@ export default function ExerciseAnglesModal({
           <div className="w-full flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
               <Activity size={14} className={isPressing ? 'animate-pulse text-emerald-400' : 'text-slate-500'} />
-              <span>{isPressing ? '🏋️‍♂️ Lifter In Action (Cable Crossover 45°)' : '⏸️ Motion Paused'}</span>
+              <span>{isPressing ? `🏋️‍♂️ ${t('Lifter In Action ({name})', { name: t('Cable Crossover 45°') })}` : `⏸️ ${t('Motion Paused')}`}</span>
             </div>
             <button
               type="button"
@@ -753,7 +753,7 @@ export default function ExerciseAnglesModal({
               className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1 border border-slate-700"
             >
               {isPressing ? <Pause size={10} /> : <Play size={10} />}
-              <span>{isPressing ? 'Pause' : 'Play'}</span>
+              <span>{isPressing ? t('Pause') : t('Play')}</span>
             </button>
           </div>
 
@@ -781,7 +781,7 @@ export default function ExerciseAnglesModal({
 
             {/* 45° Trajectory Arrow lines */}
             <line x1="40" y1="45" x2="160" y2="140" stroke="#10b981" strokeWidth="1.5" strokeDasharray="3 3" />
-            <text x="75" y="85" fill="#34d399" fontSize="9" fontWeight="bold">45° Downward Arc</text>
+            <text x="75" y="85" fill="#34d399" fontSize="9" fontWeight="bold">{t('45° Downward Arc')}</text>
 
             {/* LIFTER: Standing in center with staggered stance */}
             <polyline
@@ -828,18 +828,18 @@ export default function ExerciseAnglesModal({
             {/* Callout Info */}
             <g transform="translate(195, 125)">
               <rect x="0" y="0" width="135" height="42" rx="8" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">✅ 45° High-to-Low Arc</text>
-              <text x="6" y="26" fill="#38bdf8" fontSize="9">✅ 15° Soft Elbow Curve</text>
-              <text x="6" y="37" fill="#f43f5e" fontSize="8">❌ Never lock straight 0°</text>
+              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">{t('✅ 45° High-to-Low Arc')}</text>
+              <text x="6" y="26" fill="#38bdf8" fontSize="9">{t('✅ 15° Soft Elbow Curve')}</text>
+              <text x="6" y="37" fill="#f43f5e" fontSize="8">{t('❌ Never lock straight 0°')}</text>
             </g>
           </svg>
 
           <div className="w-full mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={13} /> 45° Trajectory = Inner & Lower Chest Cleavage Squeeze
+              <CheckCircle2 size={13} /> {t('45° Trajectory = Inner & Lower Chest Cleavage Squeeze')}
             </span>
             <span className="text-blue-400 font-bold flex items-center gap-1">
-              15° Constant Elbow Curve
+              {t('15° Constant Elbow Curve')}
             </span>
           </div>
         </div>
@@ -853,7 +853,7 @@ export default function ExerciseAnglesModal({
           <div className="w-full flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
               <Activity size={14} className={isPressing ? 'animate-pulse text-emerald-400' : 'text-slate-500'} />
-              <span>{isPressing ? '🏋️‍♂️ Lifter In Action (-20° Decline Press)' : '⏸️ Motion Paused'}</span>
+              <span>{isPressing ? `🏋️‍♂️ ${t('Lifter In Action ({name})', { name: t('-20° Decline Press') })}` : `⏸️ ${t('Motion Paused')}`}</span>
             </div>
             <button
               type="button"
@@ -861,7 +861,7 @@ export default function ExerciseAnglesModal({
               className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1 border border-slate-700"
             >
               {isPressing ? <Pause size={10} /> : <Play size={10} />}
-              <span>{isPressing ? 'Pause' : 'Play'}</span>
+              <span>{isPressing ? t('Pause') : t('Play')}</span>
             </button>
           </div>
 
@@ -891,7 +891,7 @@ export default function ExerciseAnglesModal({
             {/* -20° Angle Arc */}
             <line x1="80" y1="145" x2="190" y2="145" stroke="#64748b" strokeWidth="1.5" strokeDasharray="3 3" />
             <path d="M 140 145 A 50 50 0 0 1 148 120" fill="none" stroke="#10b981" strokeWidth="2" />
-            <text x="155" y="132" fill="#34d399" fontSize="10" fontWeight="bold">-20° Decline</text>
+            <text x="155" y="132" fill="#34d399" fontSize="10" fontWeight="bold">{t('-20° Decline')}</text>
 
             {/* LIFTER: Head down at left, legs hooked into rollers at right */}
             <polyline points="180,105 215,80 220,70" fill="none" stroke="#cbd5e1" strokeWidth="7" strokeLinecap="round" />
@@ -910,18 +910,18 @@ export default function ExerciseAnglesModal({
 
             <g transform="translate(195, 115)">
               <rect x="0" y="0" width="135" height="42" rx="8" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">✅ -15° to -20° Decline</text>
-              <text x="6" y="26" fill="#38bdf8" fontSize="9">✅ Lower Pec Cut Squeeze</text>
-              <text x="6" y="37" fill="#f43f5e" fontSize="8">❌ -35°+ Head pressure</text>
+              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">{t('✅ -15° to -20° Decline')}</text>
+              <text x="6" y="26" fill="#38bdf8" fontSize="9">{t('✅ Lower Pec Cut Squeeze')}</text>
+              <text x="6" y="37" fill="#f43f5e" fontSize="8">{t('❌ -35°+ Head pressure')}</text>
             </g>
           </svg>
 
           <div className="w-full mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={13} /> -20° Decline = Lower Pec Shelf Line
+              <CheckCircle2 size={13} /> {t('-20° Decline = Lower Pec Shelf Line')}
             </span>
             <span className="text-blue-400 font-bold flex items-center gap-1">
-              Bar touches bottom ribs
+              {t('Bar touches bottom ribs')}
             </span>
           </div>
         </div>
@@ -935,7 +935,7 @@ export default function ExerciseAnglesModal({
           <div className="w-full flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
               <Activity size={14} className={isPressing ? 'animate-pulse text-emerald-400' : 'text-slate-500'} />
-              <span>{isPressing ? '🏋️‍♂️ Lifter In Action (15°–20° Elbow Flye Arc)' : '⏸️ Motion Paused'}</span>
+              <span>{isPressing ? `🏋️‍♂️ ${t('Lifter In Action ({name})', { name: t('15°–20° Elbow Flye Arc') })}` : `⏸️ ${t('Motion Paused')}`}</span>
             </div>
             <button
               type="button"
@@ -943,7 +943,7 @@ export default function ExerciseAnglesModal({
               className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1 border border-slate-700"
             >
               {isPressing ? <Pause size={10} /> : <Play size={10} />}
-              <span>{isPressing ? 'Pause' : 'Play'}</span>
+              <span>{isPressing ? t('Pause') : t('Play')}</span>
             </button>
           </div>
 
@@ -984,22 +984,22 @@ export default function ExerciseAnglesModal({
 
             {/* Bench Plane Danger Line (Do not drop elbows below bench) */}
             <line x1="85" y1="135" x2="235" y2="135" stroke="#f43f5e" strokeWidth="1.5" strokeDasharray="3 3" />
-            <text x="240" y="125" fill="#f43f5e" fontSize="8" fontWeight="bold">❌ Stop at bench level</text>
+            <text x="240" y="125" fill="#f43f5e" fontSize="8" fontWeight="bold">{t('❌ Stop at bench level')}</text>
 
             <g transform="translate(15, 20)">
               <rect x="0" y="0" width="135" height="42" rx="8" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">✅ 15°-20° Elbow Curve</text>
-              <text x="6" y="26" fill="#38bdf8" fontSize="9">"Hug A Big Tree" Cue</text>
-              <text x="6" y="37" fill="#f43f5e" fontSize="8">❌ Never lock straight 0°</text>
+              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">{t('✅ 15°-20° Elbow Curve')}</text>
+              <text x="6" y="26" fill="#38bdf8" fontSize="9">{t('"Hug A Big Tree" Cue')}</text>
+              <text x="6" y="37" fill="#f43f5e" fontSize="8">{t('❌ Never lock straight 0°')}</text>
             </g>
           </svg>
 
           <div className="w-full mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={13} /> 15°–20° Elbow Curve = Deep Chest Fiber Stretch
+              <CheckCircle2 size={13} /> {t('15°–20° Elbow Curve = Deep Chest Fiber Stretch')}
             </span>
             <span className="text-rose-400 font-bold flex items-center gap-1">
-              <AlertTriangle size={13} /> Kohni bench se niche na le kar jayein!
+              <AlertTriangle size={13} /> {t('Do not take the elbows below the bench!')}
             </span>
           </div>
         </div>
@@ -1013,7 +1013,7 @@ export default function ExerciseAnglesModal({
           <div className="w-full flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
               <Activity size={14} className={isPressing ? 'animate-pulse text-emerald-400' : 'text-slate-500'} />
-              <span>{isPressing ? '🏋️‍♂️ Lifter In Action (45° Barbell Row)' : '⏸️ Motion Paused'}</span>
+              <span>{isPressing ? `🏋️‍♂️ ${t('Lifter In Action ({name})', { name: t('45° Barbell Row') })}` : `⏸️ ${t('Motion Paused')}`}</span>
             </div>
             <button
               type="button"
@@ -1021,7 +1021,7 @@ export default function ExerciseAnglesModal({
               className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1 border border-slate-700"
             >
               {isPressing ? <Pause size={10} /> : <Play size={10} />}
-              <span>{isPressing ? 'Pause' : 'Play'}</span>
+              <span>{isPressing ? t('Pause') : t('Play')}</span>
             </button>
           </div>
 
@@ -1043,7 +1043,7 @@ export default function ExerciseAnglesModal({
             <line x1="115" y1="120" x2="210" y2="120" stroke="#64748b" strokeWidth="1.5" strokeDasharray="3 3" />
             <line x1="115" y1="120" x2="190" y2="65" stroke="#10b981" strokeWidth="2" />
             <path d="M 155 120 A 40 40 0 0 0 148 95" fill="none" stroke="#10b981" strokeWidth="2" />
-            <text x="160" y="105" fill="#34d399" fontSize="10" fontWeight="bold">45° Hip Hinge</text>
+            <text x="160" y="105" fill="#34d399" fontSize="10" fontWeight="bold">{t('45° Hip Hinge')}</text>
 
             {/* LIFTER: Standing hinged at hips, knees soft */}
             <polyline points="105,175 105,145 115,120" fill="none" stroke="#cbd5e1" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
@@ -1067,18 +1067,18 @@ export default function ExerciseAnglesModal({
 
             <g transform="translate(195, 115)">
               <rect x="0" y="0" width="135" height="42" rx="8" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">✅ 45° Torso Flat Spine</text>
-              <text x="6" y="26" fill="#38bdf8" fontSize="9">✅ Pull to Belly Button</text>
-              <text x="6" y="37" fill="#f43f5e" fontSize="8">❌ Never round lower back</text>
+              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">{t('✅ 45° Torso Flat Spine')}</text>
+              <text x="6" y="26" fill="#38bdf8" fontSize="9">{t('✅ Pull to Belly Button')}</text>
+              <text x="6" y="37" fill="#f43f5e" fontSize="8">{t('❌ Never round lower back')}</text>
             </g>
           </svg>
 
           <div className="w-full mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={13} /> 45° Hip Hinge & Pull to Navel = Massive Lat Thickness
+              <CheckCircle2 size={13} /> {t('45° Hip Hinge & Pull to Navel = Massive Lat Thickness')}
             </span>
             <span className="text-rose-400 font-bold flex items-center gap-1">
-              <AlertTriangle size={13} /> Kamar gol karne se disc slip ho sakti hai!
+              <AlertTriangle size={13} /> {t('Rounding the back can slip a disc!')}
             </span>
           </div>
         </div>
@@ -1092,7 +1092,7 @@ export default function ExerciseAnglesModal({
           <div className="w-full flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
               <Activity size={14} className={isPressing ? 'animate-pulse text-emerald-400' : 'text-slate-500'} />
-              <span>{isPressing ? '🏋️‍♂️ Lifter In Action (Wide Lat Pulldown)' : '⏸️ Motion Paused'}</span>
+              <span>{isPressing ? `🏋️‍♂️ ${t('Lifter In Action ({name})', { name: t('Wide Lat Pulldown') })}` : `⏸️ ${t('Motion Paused')}`}</span>
             </div>
             <button
               type="button"
@@ -1100,7 +1100,7 @@ export default function ExerciseAnglesModal({
               className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1 border border-slate-700"
             >
               {isPressing ? <Pause size={10} /> : <Play size={10} />}
-              <span>{isPressing ? 'Pause' : 'Play'}</span>
+              <span>{isPressing ? t('Pause') : t('Play')}</span>
             </button>
           </div>
 
@@ -1131,7 +1131,7 @@ export default function ExerciseAnglesModal({
             <rect x="170" y="172" width="20" height="6" rx="2" fill="#3b82f6" />
             <line x1="150" y1="130" x2="140" y2="65" stroke="#e2e8f0" strokeWidth="14" strokeLinecap="round" />
             <circle cx="138" cy="52" r="10" fill="#fbcfe8" stroke="#cbd5e1" strokeWidth="2" />
-            <text x="100" y="90" fill="#34d399" fontSize="9" fontWeight="bold">15° Lean</text>
+            <text x="100" y="90" fill="#34d399" fontSize="9" fontWeight="bold">{t('15° Lean')}</text>
 
             {/* ANIMATED CABLE BAR PULL */}
             <g className="lat-anim">
@@ -1148,18 +1148,18 @@ export default function ExerciseAnglesModal({
 
             <g transform="translate(205, 115)">
               <rect x="0" y="0" width="125" height="42" rx="8" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">✅ 10° - 15° Controlled Lean</text>
-              <text x="6" y="26" fill="#38bdf8" fontSize="9">✅ Pull to Collarbone</text>
-              <text x="6" y="37" fill="#f43f5e" fontSize="8">❌ No 45° body swinging</text>
+              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">{t('✅ 10° - 15° Controlled Lean')}</text>
+              <text x="6" y="26" fill="#38bdf8" fontSize="9">{t('✅ Pull to Collarbone')}</text>
+              <text x="6" y="37" fill="#f43f5e" fontSize="8">{t('❌ No 45° body swinging')}</text>
             </g>
           </svg>
 
           <div className="w-full mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={13} /> 15° Lean & Collarbone Touch = V-Taper Back Width
+              <CheckCircle2 size={13} /> {t('15° Lean & Collarbone Touch = V-Taper Back Width')}
             </span>
             <span className="text-blue-400 font-bold flex items-center gap-1">
-              Kohniyan peechay pocket ki taraf kheinchein
+              {t('Drive the elbows back toward your pockets')}
             </span>
           </div>
         </div>
@@ -1173,7 +1173,7 @@ export default function ExerciseAnglesModal({
           <div className="w-full flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
               <Activity size={14} className={isPressing ? 'animate-pulse text-emerald-400' : 'text-slate-500'} />
-              <span>{isPressing ? '🏋️‍♂️ Lifter In Action (25° Scapular Lateral Raise)' : '⏸️ Motion Paused'}</span>
+              <span>{isPressing ? `🏋️‍♂️ ${t('Lifter In Action ({name})', { name: t('25° Scapular Lateral Raise') })}` : `⏸️ ${t('Motion Paused')}`}</span>
             </div>
             <button
               type="button"
@@ -1181,7 +1181,7 @@ export default function ExerciseAnglesModal({
               className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1 border border-slate-700"
             >
               {isPressing ? <Pause size={10} /> : <Play size={10} />}
-              <span>{isPressing ? 'Pause' : 'Play'}</span>
+              <span>{isPressing ? t('Pause') : t('Play')}</span>
             </button>
           </div>
 
@@ -1221,15 +1221,15 @@ export default function ExerciseAnglesModal({
             {/* Inset Cues */}
             <g transform="translate(195, 20)">
               <rect x="0" y="0" width="135" height="42" rx="8" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">✅ 25° Scapular Plane</text>
-              <text x="6" y="26" fill="#38bdf8" fontSize="9">✅ Thora Aagay Uthayein</text>
-              <text x="6" y="37" fill="#f43f5e" fontSize="8">❌ Never 90° straight side</text>
+              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">{t('✅ 25° Scapular Plane')}</text>
+              <text x="6" y="26" fill="#38bdf8" fontSize="9">{t('✅ Raise Slightly Forward')}</text>
+              <text x="6" y="37" fill="#f43f5e" fontSize="8">{t('❌ Never 90° straight side')}</text>
             </g>
           </svg>
 
           <div className="w-full mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={13} /> 25° Scapular Plane = 3D Boulder Shoulders Without Joint Friction
+              <CheckCircle2 size={13} /> {t('25° Scapular Plane = 3D Boulder Shoulders Without Joint Friction')}
             </span>
           </div>
         </div>
@@ -1243,7 +1243,7 @@ export default function ExerciseAnglesModal({
           <div className="w-full flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
               <Activity size={14} className={isPressing ? 'animate-pulse text-emerald-400' : 'text-slate-500'} />
-              <span>{isPressing ? '🏋️‍♂️ Lifter In Action (Overhead Military Press)' : '⏸️ Motion Paused'}</span>
+              <span>{isPressing ? `🏋️‍♂️ ${t('Lifter In Action ({name})', { name: t('Overhead Military Press') })}` : `⏸️ ${t('Motion Paused')}`}</span>
             </div>
             <button
               type="button"
@@ -1251,7 +1251,7 @@ export default function ExerciseAnglesModal({
               className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1 border border-slate-700"
             >
               {isPressing ? <Pause size={10} /> : <Play size={10} />}
-              <span>{isPressing ? 'Pause' : 'Play'}</span>
+              <span>{isPressing ? t('Pause') : t('Play')}</span>
             </button>
           </div>
 
@@ -1288,15 +1288,15 @@ export default function ExerciseAnglesModal({
 
             <g transform="translate(195, 115)">
               <rect x="0" y="0" width="135" height="42" rx="8" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">✅ Strict Vertical Lockout</text>
-              <text x="6" y="26" fill="#38bdf8" fontSize="9">✅ Glutes & Core Tight</text>
-              <text x="6" y="37" fill="#f43f5e" fontSize="8">❌ No excessive lower back arch</text>
+              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">{t('✅ Strict Vertical Lockout')}</text>
+              <text x="6" y="26" fill="#38bdf8" fontSize="9">{t('✅ Glutes & Core Tight')}</text>
+              <text x="6" y="37" fill="#f43f5e" fontSize="8">{t('❌ No excessive lower back arch')}</text>
             </g>
           </svg>
 
           <div className="w-full mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={13} /> Seedha sar ke upar lockout karein aur core tight rakhein
+              <CheckCircle2 size={13} /> {t('Lock out straight overhead and keep the core tight')}
             </span>
           </div>
         </div>
@@ -1310,7 +1310,7 @@ export default function ExerciseAnglesModal({
           <div className="w-full flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
               <Activity size={14} className={isPressing ? 'animate-pulse text-emerald-400' : 'text-slate-500'} />
-              <span>{isPressing ? '🏋️‍♂️ Lifter In Action (Barbell Back Squat)' : '⏸️ Motion Paused'}</span>
+              <span>{isPressing ? `🏋️‍♂️ ${t('Lifter In Action ({name})', { name: t('Barbell Back Squat') })}` : `⏸️ ${t('Motion Paused')}`}</span>
             </div>
             <button
               type="button"
@@ -1318,7 +1318,7 @@ export default function ExerciseAnglesModal({
               className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1 border border-slate-700"
             >
               {isPressing ? <Pause size={10} /> : <Play size={10} />}
-              <span>{isPressing ? 'Pause' : 'Play'}</span>
+              <span>{isPressing ? t('Pause') : t('Play')}</span>
             </button>
           </div>
 
@@ -1342,12 +1342,12 @@ export default function ExerciseAnglesModal({
 
             {/* 90° Parallel Knee Depth line */}
             <line x1="120" y1="140" x2="200" y2="140" stroke="#10b981" strokeWidth="1.5" strokeDasharray="3 3" />
-            <text x="205" y="143" fill="#34d399" fontSize="8">90° Parallel Depth</text>
+            <text x="205" y="143" fill="#34d399" fontSize="8">{t('90° Parallel Depth')}</text>
 
             {/* Fixed Shoes on Floor with 15°-30° Flare */}
             <rect x="125" y="172" width="22" height="6" rx="2" fill="#3b82f6" transform="rotate(-15, 135, 175)" />
             <rect x="175" y="172" width="22" height="6" rx="2" fill="#3b82f6" transform="rotate(15, 185, 175)" />
-            <text x="160" y="188" fill="#38bdf8" fontSize="8" textAnchor="middle">15°-30° Shoe Flare</text>
+            <text x="160" y="188" fill="#38bdf8" fontSize="8" textAnchor="middle">{t('15°-30° Shoe Flare')}</text>
 
             {/* ANIMATED SQUATTING LIFTER & BARBELL */}
             <g className="squat-anim">
@@ -1371,15 +1371,15 @@ export default function ExerciseAnglesModal({
 
             <g transform="translate(15, 20)">
               <rect x="0" y="0" width="135" height="42" rx="8" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">✅ 90° Parallel Depth</text>
-              <text x="6" y="26" fill="#38bdf8" fontSize="9">✅ 15°-30° Shoe Flare</text>
-              <text x="6" y="37" fill="#f43f5e" fontSize="8">❌ Ghutnay andar na girein</text>
+              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">{t('✅ 90° Parallel Depth')}</text>
+              <text x="6" y="26" fill="#38bdf8" fontSize="9">{t('✅ 15°-30° Shoe Flare')}</text>
+              <text x="6" y="37" fill="#f43f5e" fontSize="8">{t('❌ Do not let the knees cave in')}</text>
             </g>
           </svg>
 
           <div className="w-full mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={13} /> 90° Parallel Knee Depth & 15°-30° Shoe Angle
+              <CheckCircle2 size={13} /> {t('90° Parallel Knee Depth & 15°-30° Shoe Angle')}
             </span>
           </div>
         </div>
@@ -1393,7 +1393,7 @@ export default function ExerciseAnglesModal({
           <div className="w-full flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
               <Activity size={14} className={isPressing ? 'animate-pulse text-emerald-400' : 'text-slate-500'} />
-              <span>{isPressing ? '🏋️‍♂️ Lifter In Action (Barbell Bicep Curl)' : '⏸️ Motion Paused'}</span>
+              <span>{isPressing ? `🏋️‍♂️ ${t('Lifter In Action ({name})', { name: t('Barbell Bicep Curl') })}` : `⏸️ ${t('Motion Paused')}`}</span>
             </div>
             <button
               type="button"
@@ -1401,7 +1401,7 @@ export default function ExerciseAnglesModal({
               className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1 border border-slate-700"
             >
               {isPressing ? <Pause size={10} /> : <Play size={10} />}
-              <span>{isPressing ? 'Pause' : 'Play'}</span>
+              <span>{isPressing ? t('Pause') : t('Play')}</span>
             </button>
           </div>
 
@@ -1429,7 +1429,7 @@ export default function ExerciseAnglesModal({
 
             {/* Pinned Elbow Marker at Ribs */}
             <circle cx="150" cy="95" r="5" fill="#10b981" />
-            <text x="100" y="98" fill="#34d399" fontSize="8" fontWeight="bold">Pinned Elbows</text>
+            <text x="100" y="98" fill="#34d399" fontSize="8" fontWeight="bold">{t('Pinned Elbows')}</text>
 
             {/* ANIMATED BARBELL CURL */}
             <g className="curl-anim">
@@ -1442,15 +1442,15 @@ export default function ExerciseAnglesModal({
 
             <g transform="translate(195, 115)">
               <rect x="0" y="0" width="135" height="42" rx="8" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">✅ Pinned Elbows (No Swing)</text>
-              <text x="6" y="26" fill="#38bdf8" fontSize="9">✅ Peak Bicep Squeeze</text>
-              <text x="6" y="37" fill="#f43f5e" fontSize="8">❌ Kamar se jhatkay na marein</text>
+              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">{t('✅ Pinned Elbows (No Swing)')}</text>
+              <text x="6" y="26" fill="#38bdf8" fontSize="9">{t('✅ Peak Bicep Squeeze')}</text>
+              <text x="6" y="37" fill="#f43f5e" fontSize="8">{t('❌ No jerking with the back')}</text>
             </g>
           </svg>
 
           <div className="w-full mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={13} /> Kohniyan Freeze Rakh Kar Bicep Se Kheenchein
+              <CheckCircle2 size={13} /> {t('Freeze the Elbows and Pull with the Bicep')}
             </span>
           </div>
         </div>
@@ -1464,7 +1464,7 @@ export default function ExerciseAnglesModal({
           <div className="w-full flex items-center justify-between pb-2 mb-1 border-b border-slate-800/80">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">
               <Activity size={14} className={isPressing ? 'animate-pulse text-emerald-400' : 'text-slate-500'} />
-              <span>{isPressing ? '🏋️‍♂️ Lifter In Action (75° Slant Skullcrushers)' : '⏸️ Motion Paused'}</span>
+              <span>{isPressing ? `🏋️‍♂️ ${t('Lifter In Action ({name})', { name: t('75° Slant Skullcrushers') })}` : `⏸️ ${t('Motion Paused')}`}</span>
             </div>
             <button
               type="button"
@@ -1472,7 +1472,7 @@ export default function ExerciseAnglesModal({
               className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1 border border-slate-700"
             >
               {isPressing ? <Pause size={10} /> : <Play size={10} />}
-              <span>{isPressing ? 'Pause' : 'Play'}</span>
+              <span>{isPressing ? t('Pause') : t('Play')}</span>
             </button>
           </div>
 
@@ -1502,7 +1502,7 @@ export default function ExerciseAnglesModal({
 
             {/* 75° Backward Slant Guideline */}
             <line x1="180" y1="130" x2="205" y2="75" stroke="#10b981" strokeWidth="2" />
-            <text x="210" y="80" fill="#34d399" fontSize="9" fontWeight="bold">75° Slant</text>
+            <text x="210" y="80" fill="#34d399" fontSize="9" fontWeight="bold">{t('75° Slant')}</text>
 
             {/* ANIMATED TRICEPS EXTENSION */}
             <g className="skull-anim">
@@ -1515,15 +1515,15 @@ export default function ExerciseAnglesModal({
 
             <g transform="translate(15, 20)">
               <rect x="0" y="0" width="135" height="42" rx="8" fill="#0f172a" stroke="#334155" strokeWidth="1" />
-              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">✅ 75° Backward Slant</text>
-              <text x="6" y="26" fill="#38bdf8" fontSize="9">Continuous Tricep Tension</text>
-              <text x="6" y="37" fill="#f43f5e" fontSize="8">❌ No 90° straight vertical</text>
+              <text x="6" y="14" fill="#10b981" fontSize="9" fontWeight="bold">{t('✅ 75° Backward Slant')}</text>
+              <text x="6" y="26" fill="#38bdf8" fontSize="9">{t('Continuous Tricep Tension')}</text>
+              <text x="6" y="37" fill="#f43f5e" fontSize="8">{t('❌ No 90° straight vertical')}</text>
             </g>
           </svg>
 
           <div className="w-full mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px]">
             <span className="text-emerald-400 font-bold flex items-center gap-1">
-              <CheckCircle2 size={13} /> 75° Backward Slant = Triceps Long Head Continuous Burn
+              <CheckCircle2 size={13} /> {t('75° Backward Slant = Triceps Long Head Continuous Burn')}
             </span>
           </div>
         </div>
@@ -1556,17 +1556,17 @@ export default function ExerciseAnglesModal({
             </div>
             <div>
               <h2 id="angles-modal-title" className="text-base font-bold text-gray-900 dark:text-slate-100">
-                Workout Angles & Biomechanics Guide
+                {t('Workout Angles & Biomechanics Guide')}
               </h2>
               <p className="text-xs text-gray-500 dark:text-slate-400">
-                Correct bench incline, elbow tuck, and joint safety angles
+                {t('Correct bench incline, elbow tuck, and joint safety angles')}
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('Close')}
             className="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 p-1 rounded-lg"
           >
             <X size={20} />
@@ -1596,7 +1596,7 @@ export default function ExerciseAnglesModal({
                     : 'text-gray-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-700/60'
                 }`}
               >
-                <span>{tab.label}</span>
+                <span>{t(tab.label)}</span>
               </button>
             ))}
           </div>
@@ -1604,7 +1604,7 @@ export default function ExerciseAnglesModal({
           {/* Exercise Quick Selector for Active Muscle */}
           <div className="space-y-1.5">
             <label className="text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider block">
-              Select Exercise to View Precise Angles:
+              {t('Select Exercise to View Precise Angles:')}
             </label>
             <div className="flex flex-wrap gap-2">
               {filteredExercises.map(ex => (
@@ -1619,7 +1619,7 @@ export default function ExerciseAnglesModal({
                   }`}
                 >
                   <Dumbbell size={13} className="shrink-0" />
-                  <span>{ex.name}</span>
+                  <span>{t(ex.name)}</span>
                 </button>
               ))}
             </div>
@@ -1631,15 +1631,15 @@ export default function ExerciseAnglesModal({
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-gray-200/60 dark:border-slate-800">
               <div>
                 <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                  {activeExercise.primaryTarget}
+                  {t(activeExercise.primaryTarget)}
                 </span>
                 <h2 className="text-lg font-black text-gray-900 dark:text-slate-100 mt-1.5">
-                  {activeExercise.name}
+                  {t(activeExercise.name)}
                 </h2>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  Target: {activeExercise.idealAngleDegree}°
+                  {t('Target: {degree}°', { degree: activeExercise.idealAngleDegree })}
                 </span>
               </div>
             </div>
@@ -1655,7 +1655,7 @@ export default function ExerciseAnglesModal({
                     : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
                 }`}
               >
-                <span>🏋️‍♂️ Animated Rep Motion & Live Angles (Lifter In Action)</span>
+                <span>{t('🏋️‍♂️ Animated Rep Motion & Live Angles (Lifter In Action)')}</span>
               </button>
               {activeExercise.comparisonImage && (
                 <button
@@ -1667,7 +1667,7 @@ export default function ExerciseAnglesModal({
                       : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
                   }`}
                 >
-                  <span>🖼️ Sahi vs Ghalat Photo (Real Lifter Infographic)</span>
+                  <span>{t('🖼️ Right vs Wrong Photo (Real Lifter Infographic)')}</span>
                 </button>
               )}
             </div>
@@ -1679,12 +1679,12 @@ export default function ExerciseAnglesModal({
                 <div className="relative rounded-2xl overflow-hidden border-2 border-slate-800 bg-slate-950 shadow-2xl group">
                   <img
                     src={activeExercise.comparisonImage}
-                    alt={`${activeExercise.name} Correct vs Wrong Form`}
+                    alt={t('{name} Correct vs Wrong Form', { name: t(activeExercise.name) })}
                     className="w-full h-auto object-cover max-h-[360px] sm:max-h-[440px]"
                     loading="lazy"
                   />
                   <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 rounded-lg border border-white/20">
-                    High-Res Biomechanics Comparison
+                    {t('High-Res Biomechanics Comparison')}
                   </div>
                 </div>
 
@@ -1694,26 +1694,26 @@ export default function ExerciseAnglesModal({
                   <div className="p-4 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/25 border-2 border-emerald-500/30 text-xs space-y-2">
                     <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 font-black text-sm uppercase tracking-wide border-b border-emerald-500/20 pb-2">
                       <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
-                      <span>Sahi Tareeqa (Correct Form ✅)</span>
+                      <span>{t('Correct Form ✅')}</span>
                     </div>
                     <ul className="space-y-2 text-emerald-950 dark:text-emerald-200 font-medium">
                       <li className="flex items-start gap-2">
                         <span className="text-emerald-600 font-black">✓</span>
-                        <span><strong>Bench Angle:</strong> {activeExercise.benchAngle || '0° Flat'} — Pectoral fibers par direct target.</span>
+                        <span><strong>{t('Bench Angle:')}</strong> {t(activeExercise.benchAngle || '0° Flat')} — {t('Directly targets the pectoral fibers.')}</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-emerald-600 font-black">✓</span>
-                        <span><strong>Kohniyan (Elbows):</strong> {activeExercise.elbowAngle || '45° Arrowhead'} — Rotator cuff bilkul safe rehta hai.</span>
+                        <span><strong>{t('Elbows:')}</strong> {t(activeExercise.elbowAngle || '45° Arrowhead')} — {t('The rotator cuff stays completely safe.')}</span>
                       </li>
                       {activeExercise.bodyTorsoAngle && (
                         <li className="flex items-start gap-2">
                           <span className="text-emerald-600 font-black">✓</span>
-                          <span><strong>Body Posture:</strong> {activeExercise.bodyTorsoAngle}.</span>
+                          <span><strong>{t('Body Posture:')}</strong> {t(activeExercise.bodyTorsoAngle)}.</span>
                         </li>
                       )}
                       <li className="flex items-start gap-2">
                         <span className="text-emerald-600 font-black">✓</span>
-                        <span><strong>Bar Path:</strong> Nipple / lower sternum par control ke sath touch hoti hai.</span>
+                        <span><strong>{t('Bar Path:')}</strong> {t('Touches the nipple line / lower sternum with control.')}</span>
                       </li>
                     </ul>
                   </div>
@@ -1722,24 +1722,24 @@ export default function ExerciseAnglesModal({
                   <div className="p-4 rounded-2xl bg-rose-50/80 dark:bg-rose-950/25 border-2 border-rose-500/30 text-xs space-y-2">
                     <div className="flex items-center gap-2 text-rose-700 dark:text-rose-300 font-black text-sm uppercase tracking-wide border-b border-rose-500/20 pb-2">
                       <AlertTriangle size={18} className="text-rose-500 shrink-0" />
-                      <span>Ghalat Tareeqa (Wrong Form ❌)</span>
+                      <span>{t('Wrong Form ❌')}</span>
                     </div>
                     <ul className="space-y-2 text-rose-950 dark:text-rose-200 font-medium">
                       <li className="flex items-start gap-2">
                         <span className="text-rose-600 font-black">✗</span>
-                        <span><strong>Flared 90° Elbows:</strong> Kohniyan bahar phailane se shoulder joint pinch ho kar phat sakta hai.</span>
+                        <span><strong>{t('Flared 90° Elbows:')}</strong> {t('Flaring the elbows out can pinch and tear the shoulder joint.')}</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-rose-600 font-black">✗</span>
-                        <span><strong>Steep 60° Angle:</strong> Bench ko seedha khara karne se seena band ho jata hai aur sara wazan kandhay uthatay hain.</span>
+                        <span><strong>{t('Steep 60° Angle:')}</strong> {t('Standing the bench upright switches off the chest and the shoulders lift all the weight.')}</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-rose-600 font-black">✗</span>
-                        <span><strong>Bouncing Bar:</strong> Barbell ko seenay par bounce karna ya neck (galay) ki taraf giraana.</span>
+                        <span><strong>{t('Bouncing Bar:')}</strong> {t('Bouncing the barbell off the chest or dropping it toward the neck.')}</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-rose-600 font-black">✗</span>
-                        <span><strong>Unstable Legs:</strong> Paon ko hawa me hilana ya zameen par mazboot na rakhna.</span>
+                        <span><strong>{t('Unstable Legs:')}</strong> {t('Moving the feet in the air or not planting them firmly on the floor.')}</span>
                       </li>
                     </ul>
                   </div>
@@ -1756,10 +1756,10 @@ export default function ExerciseAnglesModal({
                   {activeExercise.benchAngle && (
                     <div className="p-3 rounded-xl bg-white dark:bg-slate-800/80 border border-gray-100 dark:border-slate-800">
                       <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 block">
-                        Bench Angle (Bench Ka Angle):
+                        {t('Bench Angle:')}
                       </span>
                       <span className="text-sm font-black text-gray-900 dark:text-slate-100">
-                        {activeExercise.benchAngle}
+                        {t(activeExercise.benchAngle)}
                       </span>
                     </div>
                   )}
@@ -1767,10 +1767,10 @@ export default function ExerciseAnglesModal({
                   {activeExercise.elbowAngle && (
                     <div className="p-3 rounded-xl bg-white dark:bg-slate-800/80 border border-gray-100 dark:border-slate-800">
                       <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 block">
-                        Elbow Tuck Angle (Kohni Ka Angle):
+                        {t('Elbow Tuck Angle:')}
                       </span>
                       <span className="text-sm font-black text-blue-600 dark:text-blue-400">
-                        {activeExercise.elbowAngle}
+                        {t(activeExercise.elbowAngle)}
                       </span>
                     </div>
                   )}
@@ -1778,10 +1778,10 @@ export default function ExerciseAnglesModal({
                   {activeExercise.bodyTorsoAngle && (
                     <div className="p-3 rounded-xl bg-white dark:bg-slate-800/80 border border-gray-100 dark:border-slate-800">
                       <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 block">
-                        Body & Torso Lean Angle:
+                        {t('Body & Torso Lean Angle:')}
                       </span>
                       <span className="text-sm font-black text-purple-600 dark:text-purple-400">
-                        {activeExercise.bodyTorsoAngle}
+                        {t(activeExercise.bodyTorsoAngle)}
                       </span>
                     </div>
                   )}
@@ -1789,10 +1789,10 @@ export default function ExerciseAnglesModal({
                   {activeExercise.wristGripAngle && (
                     <div className="p-3 rounded-xl bg-white dark:bg-slate-800/80 border border-gray-100 dark:border-slate-800">
                       <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-500 block">
-                        Wrist & Grip Alignment:
+                        {t('Wrist & Grip Alignment:')}
                       </span>
                       <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
-                        {activeExercise.wristGripAngle}
+                        {t(activeExercise.wristGripAngle)}
                       </span>
                     </div>
                   )}
@@ -1800,35 +1800,35 @@ export default function ExerciseAnglesModal({
               </div>
             )}
 
-            {/* Coach Explanation in Roman Urdu */}
+            {/* Coach Explanation */}
             <div className="p-4 rounded-xl bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/30 text-amber-900 dark:text-amber-300 text-xs leading-relaxed">
               <strong className="block font-black text-amber-950 dark:text-amber-200 mb-1 flex items-center gap-1.5">
-                <Sparkles size={14} className="text-amber-500" /> AI Coach Biomechanics Guide (Roman Urdu):
+                <Sparkles size={14} className="text-amber-500" /> {t('AI Coach Biomechanics Guide:')}
               </strong>
-              {activeExercise.summaryUrdu}
+              {t(activeExercise.summary)}
             </div>
 
             {/* Safe Zone vs Danger Alert Badges */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 text-emerald-800 dark:text-emerald-300 font-medium">
                 <strong className="block font-bold text-emerald-900 dark:text-emerald-200 mb-0.5">
-                  {activeExercise.safeZoneText}
+                  {t(activeExercise.safeZoneText)}
                 </strong>
-                Seena maximum stretch aur pump hota hai, joints safe rehtay hain.
+                {t('The chest gets maximum stretch and pump, and the joints stay safe.')}
               </div>
 
               <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/30 text-rose-800 dark:text-rose-300 font-medium">
                 <strong className="block font-bold text-rose-900 dark:text-rose-200 mb-0.5">
-                  {activeExercise.dangerZoneText}
+                  {t(activeExercise.dangerZoneText)}
                 </strong>
-                Kandhay ka rotator cuff aur joint injury ka khatra barh jata hai.
+                {t('The risk of shoulder rotator cuff and joint injury goes up.')}
               </div>
             </div>
 
             {/* Pro Form Checkpoints */}
             <div className="space-y-2 pt-2">
               <h4 className="text-xs font-bold text-gray-900 dark:text-slate-100 uppercase tracking-wider flex items-center gap-1.5">
-                <CheckCircle2 size={14} className="text-emerald-500" /> Sahi Form & Angle Checkpoints:
+                <CheckCircle2 size={14} className="text-emerald-500" /> {t('Correct Form & Angle Checkpoints:')}
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 {activeExercise.proFormTips.map((tip, idx) => (
@@ -1836,7 +1836,7 @@ export default function ExerciseAnglesModal({
                     <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
                       {idx + 1}
                     </span>
-                    <span>{tip}</span>
+                    <span>{t(tip)}</span>
                   </div>
                 ))}
               </div>
@@ -1845,13 +1845,13 @@ export default function ExerciseAnglesModal({
             {/* Mistakes to Avoid */}
             <div className="space-y-2 pt-1">
               <h4 className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldAlert size={14} /> Yeh Ghaltiyan Kabhi Mat Karein:
+                <ShieldAlert size={14} /> {t('Never Make These Mistakes:')}
               </h4>
               <ul className="space-y-1.5 text-xs text-gray-600 dark:text-slate-400">
                 {activeExercise.mistakesToAvoid.map((m, idx) => (
                   <li key={idx} className="flex items-start gap-2">
                     <span className="text-rose-500 font-bold shrink-0">•</span>
-                    <span>{m}</span>
+                    <span>{t(m)}</span>
                   </li>
                 ))}
               </ul>
@@ -1865,7 +1865,7 @@ export default function ExerciseAnglesModal({
               onClick={onClose}
               className="px-5 py-2.5 rounded-xl text-xs font-bold bg-gray-900 hover:bg-black text-white dark:bg-slate-800 dark:hover:bg-slate-700 transition"
             >
-              Close Angle Guide
+              {t('Close Angle Guide')}
             </button>
           </div>
         </div>

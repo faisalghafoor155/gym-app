@@ -1,3 +1,5 @@
+import { useLanguage } from '../context/LanguageContext';
+
 /**
  * Clean, modern status badges with glowing indicator dots.
  */
@@ -64,13 +66,14 @@ const defaultStyle: BadgeStyle = {
 };
 
 export default function Badge({ status }: { status: string }) {
+  const { t } = useLanguage();
   const style = styles[status] ?? defaultStyle;
   return (
     <span
       className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide capitalize border shadow-2xs transition-colors ${style.bg}`}
     >
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />
-      <span>{status}</span>
+      <span>{t(status)}</span>
     </span>
   );
 }

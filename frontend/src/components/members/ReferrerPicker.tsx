@@ -3,6 +3,7 @@ import { Gift, X } from 'lucide-react';
 import { FieldLabel, inputClass } from '../ui';
 import api from '../../api/client';
 import { useDebounced } from '../../hooks/useDebounced';
+import { useLanguage } from '../../context/LanguageContext';
 import type { PaginatedMembers } from '../../types';
 
 export interface Referrer { id: string; name: string; memberNo: string }
@@ -15,6 +16,7 @@ export default function ReferrerPicker({ value, onChange }: {
   value: Referrer | null;
   onChange: (r: Referrer | null) => void;
 }) {
+  const { t } = useLanguage();
   const [query, setQuery] = useState('');
   const debounced = useDebounced(query);
   const [results, setResults] = useState<Referrer[]>([]);
@@ -32,11 +34,11 @@ export default function ReferrerPicker({ value, onChange }: {
   if (value) {
     return (
       <div>
-        <FieldLabel>Referred by</FieldLabel>
+        <FieldLabel>{t('Referred by')}</FieldLabel>
         <div className="rounded-xl bg-purple-50 dark:bg-purple-500/15 border border-purple-200 dark:border-purple-500/20 px-3 py-2.5 flex items-center gap-2 text-sm">
           <Gift size={15} className="text-purple-600 dark:text-purple-300 shrink-0" />
           <span className="flex-1 text-purple-800 dark:text-purple-200">{value.name} · {value.memberNo}</span>
-          <button type="button" aria-label="Clear referrer" onClick={() => onChange(null)} className="text-purple-600 dark:text-purple-300 p-0.5">
+          <button type="button" aria-label={t('Clear referrer')} onClick={() => onChange(null)} className="text-purple-600 dark:text-purple-300 p-0.5">
             <X size={15} />
           </button>
         </div>
@@ -46,13 +48,13 @@ export default function ReferrerPicker({ value, onChange }: {
 
   return (
     <div className="relative">
-      <FieldLabel htmlFor="referrer-search">Referred by <span className="font-normal text-gray-400">(optional)</span></FieldLabel>
+      <FieldLabel htmlFor="referrer-search">{t('Referred by')} <span className="font-normal text-gray-400">{t('(optional)')}</span></FieldLabel>
       <input
         id="referrer-search"
         type="search"
         value={query}
         onChange={e => setQuery(e.target.value)}
-        placeholder="Search the member who sent them…"
+        placeholder={t('Search the member who sent them…')}
         autoComplete="off"
         className={inputClass}
       />

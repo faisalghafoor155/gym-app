@@ -5,6 +5,7 @@ import api, { apiError } from '../../api/client';
 import { Card, Spinner } from '../ui';
 import { useFetch } from '../../hooks/useFetch';
 import type { BillingResponse } from '../../types';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * What this gym pays, and the button that pays it.
@@ -51,9 +52,10 @@ const postToProvider = (url: string, fields: Record<string, string>): void => {
 };
 
 export default function BillingPanel() {
+  const { t } = useLanguage();
   const { data, loading, reload } = useFetch<BillingResponse>(
     '/billing',
-    'Could not load billing',
+    t('Could not load billing'),
   );
   const [paying, setPaying] = useState(false);
 
@@ -67,13 +69,15 @@ export default function BillingPanel() {
     const payment = params.get('payment');
     if (!payment) return;
 
-    if (payment === 'success') toast.success('Payment received — thank you.');
+    if (payment === 'success') toast.success(t('Payment received — thank you.'));
     else if (payment === 'pending')
-      toast('Payment is still being confirmed. This page will update shortly.');
-    else toast.error('That payment did not go through.');
+      toast(t('Payment is still being confirmed. This page will update shortly.'));
+    else toast.error(t('That payment did not go through.'));
 
     window.history.replaceState({}, '', window.location.pathname);
     void reload();
+    // Read once on arrival; a language switch is not a second payment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reload]);
 
   if (loading) {
@@ -104,7 +108,7 @@ export default function BillingPanel() {
       // because the money arrives by bank transfer and an operator settles it.
       if (!started.url) {
         toast.success(
-          'Noted. Send the payment as arranged and it will be confirmed here.',
+          t('Noted. Send the payment as arranged and it will be confirmed here.'),
         );
         await reload();
         return;
@@ -112,7 +116,7 @@ export default function BillingPanel() {
 
       postToProvider(started.url, started.fields);
     } catch (err) {
-      toast.error(apiError(err, 'Could not start the payment'));
+      toast.error(apiError(err, t('Could not start the payment')));
     } finally {
       setPaying(false);
     }
@@ -140,11 +144,11 @@ export default function BillingPanel() {
         </div>
         <div>
           <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">
-            Billing
+            {t('Billing')}
           </h2>
           <p className="text-xs text-gray-500 dark:text-slate-400">
-            {money(billing.amount)} every {billing.periodDays} days
-            {billing.paidThrough && ` · paid through ${day(billing.paidThrough)}`}
+            {t('{amount} every {days} days', { amount: money(billing.amount), days: billing.periodDays })}
+            {billing.paidThrough && ` · ${t('paid through {date}', { date: day(billing.paidThrough) })}`}
           </p>
         </div>
       </div>
@@ -170,17 +174,18 @@ export default function BillingPanel() {
             />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-                {money(invoice.amount)}{' '}
-                {overdue ? 'overdue' : `due ${day(invoice.dueDate)}`}
+                {overdue
+                  ? t('{amount} overdue', { amount: money(invoice.amount) })
+                  : t('{amount} due {date}', { amount: money(invoice.amount), date: day(invoice.dueDate) })}
               </p>
               <p className="text-xs text-gray-600 dark:text-slate-400 mt-0.5">
-                Covers {day(invoice.periodStart)} to {day(invoice.periodEnd)}.
+                {t('Covers {start} to {end}.', { start: day(invoice.periodStart), end: day(invoice.periodEnd) })}
                 {billing.suspendsOn && (
                   <>
                     {' '}
-                    {overdue ? 'Access stops' : 'If unpaid, access stops'} on{' '}
-                    <strong>{day(billing.suspendsOn)}</strong> — nothing is
-                    deleted, and paying restores it.
+                    {overdue ? t('Access stops on') : t('If unpaid, access stops on')}{' '}
+                    <strong>{day(billing.suspendsOn)}</strong>{' '}
+                    {t('— nothing is deleted, and paying restores it.')}
                   </>
                 )}
               </p>
@@ -195,7 +200,7 @@ export default function BillingPanel() {
                     className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700
                       disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
                   >
-                    {p.redirects ? `Pay with ${p.label}` : p.label}
+                    {p.redirects ? t('Pay with {provider}', { provider: p.label }) : p.label}
                   </button>
                 ))}
               </div>
@@ -204,24 +209,24 @@ export default function BillingPanel() {
         </div>
       ) : (
         <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
-          Nothing outstanding.
+          {t('Nothing outstanding.')}
           {billing.paidThrough &&
-            ` The next invoice is issued as ${day(billing.paidThrough)} approaches.`}
+            ` ${t('The next invoice is issued as {date} approaches.', { date: day(billing.paidThrough) })}`}
         </p>
       )}
 
       {billing.invoices.length > 0 && (
         <div>
           <p className="text-xs font-semibold text-gray-600 dark:text-slate-300 mb-2">
-            Invoices
+            {t('Invoices')}
           </p>
           <div className="overflow-x-auto -mx-1 px-1">
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-gray-400 dark:text-slate-500">
-                  <th className="font-medium pb-1.5 pr-3">Period</th>
-                  <th className="font-medium pb-1.5 pr-3">Amount</th>
-                  <th className="font-medium pb-1.5">Status</th>
+                  <th className="font-medium pb-1.5 pr-3">{t('Period')}</th>
+                  <th className="font-medium pb-1.5 pr-3">{t('Amount')}</th>
+                  <th className="font-medium pb-1.5">{t('Status')}</th>
                 </tr>
               </thead>
               <tbody className="text-gray-700 dark:text-slate-300">
@@ -239,15 +244,15 @@ export default function BillingPanel() {
                     <td className="py-1.5 whitespace-nowrap">
                       {i.status === 'paid' ? (
                         <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                          Paid {day(i.paidAt)}
+                          {t('Paid {date}', { date: day(i.paidAt) })}
                         </span>
                       ) : i.status === 'void' ? (
                         <span className="text-gray-400 dark:text-slate-500">
-                          Cancelled
+                          {t('Cancelled')}
                         </span>
                       ) : (
                         <span className="text-amber-600 dark:text-amber-400 font-medium">
-                          Due {day(i.dueDate)}
+                          {t('Due {date}', { date: day(i.dueDate) })}
                         </span>
                       )}
                     </td>

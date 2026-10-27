@@ -7,6 +7,7 @@ import {
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import type { GymUser, GymSettings, Member, Paginated, Role, StaffSeats, TeamResponse, StaffPermission } from '../types';
 import BackupPanel from '../components/team/BackupPanel';
 import GymSettingsCard from '../components/team/GymSettingsCard';
@@ -24,6 +25,7 @@ import toast from 'react-hot-toast';
 
 export default function Team() {
   const { user: me, isOwner, gym, updateGym } = useAuth();
+  const { t } = useLanguage();
   const [params, setParams] = useSearchParams();
   const [users, setUsers] = useState<GymUser[]>([]);
   const [seats, setSeats] = useState<StaffSeats | null>(null);
@@ -65,7 +67,7 @@ export default function Team() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      toast.error('Logo image must be under 2MB');
+      toast.error(t('Logo image must be under 2MB'));
       return;
     }
     const reader = new FileReader();
@@ -109,11 +111,11 @@ export default function Team() {
       await api.put(`/users/${editingPermissions.id}`, {
         staffPermission: selectedPermission,
       });
-      toast.success('Permissions updated');
+      toast.success(t('Permissions updated'));
       setEditingPermissions(null);
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not update permissions'));
+      toast.error(apiError(err, t('Could not update permissions')));
     } finally {
       setSaving(false);
     }
@@ -148,7 +150,7 @@ export default function Team() {
         });
       }),
     ])
-      .catch(err => toast.error(apiError(err, 'Could not load accounts')))
+      .catch(err => toast.error(apiError(err, t('Could not load accounts'))))
       .finally(() => setLoading(false));
 
   useEffect(() => { void load(); }, []);
@@ -186,9 +188,9 @@ export default function Team() {
           logo: data.logo ?? null,
         });
       }
-      toast.success('Settings updated');
+      toast.success(t('Settings updated'));
     } catch (err) {
-      toast.error(apiError(err, 'Could not update settings'));
+      toast.error(apiError(err, t('Could not update settings')));
     } finally {
       setSavingSettings(false);
     }
@@ -218,10 +220,10 @@ export default function Team() {
    * told, or they will wait for a message that never arrives.
    */
   const announce = (invite: InviteResult | null, created: string, name: string) => {
-    if (!invite) { toast.success(`${created} — they can sign in now`); return; }
+    if (!invite) { toast.success(t('{created} — they can sign in now', { created })); return; }
     setSharedInvite({ ...invite, name });
-    if (invite.emailed) toast.success(`${created} — invite emailed`);
-    else toast(`${created}, but the invite could not be emailed`, { icon: '⚠️' });
+    if (invite.emailed) toast.success(t('{created} — invite emailed', { created }));
+    else toast(t('{created}, but the invite could not be emailed', { created }), { icon: '⚠️' });
   };
 
   /** A fresh link for somebody whose invite never arrived or ran out. */
@@ -229,9 +231,9 @@ export default function Team() {
     setReinviting(u.id);
     try {
       const { data } = await api.post<{ invite: InviteResult }>(`/users/${u.id}/invite`);
-      announce(data.invite, 'New invite ready', u.member?.name ?? u.name);
+      announce(data.invite, t('New invite ready'), u.member?.name ?? u.name);
     } catch (err) {
-      toast.error(apiError(err, 'Could not send the invite'));
+      toast.error(apiError(err, t('Could not send the invite')));
     } finally {
       setReinviting(null);
     }
@@ -248,12 +250,12 @@ export default function Team() {
         staffPermission: staffForm.staffPermission,
         ...(staffMethod === 'password' && { password: staffForm.password }),
       });
-      announce(data.invite, 'Staff account created', staffForm.name);
+      announce(data.invite, t('Staff account created'), staffForm.name);
       setShowStaff(false);
       setStaffForm({ name: '', email: '', password: '', staffPermission: 'receptionist' as StaffPermission });
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not create the account'));
+      toast.error(apiError(err, t('Could not create the account')));
     } finally {
       setSaving(false);
     }
@@ -268,13 +270,13 @@ export default function Team() {
         email: loginForm.email,
         ...(loginMethod === 'password' && { password: loginForm.password }),
       });
-      announce(data.invite, 'Member login created',
+      announce(data.invite, t('Member login created'),
         members.find(m => m.id === loginForm.memberId)?.name ?? loginForm.email);
       setShowMemberLogin(false);
       setLoginForm({ memberId: '', email: '', password: '' });
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not create the login'));
+      toast.error(apiError(err, t('Could not create the login')));
     } finally {
       setSaving(false);
     }
@@ -283,10 +285,10 @@ export default function Team() {
   const toggleActive = async (u: GymUser) => {
     try {
       await api.put(`/users/${u.id}`, { isActive: !u.isActive });
-      toast.success(u.isActive ? 'Access revoked' : 'Access restored');
+      toast.success(u.isActive ? t('Access revoked') : t('Access restored'));
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not update the account'));
+      toast.error(apiError(err, t('Could not update the account')));
     }
   };
 
@@ -305,11 +307,11 @@ export default function Team() {
     setSaving(true);
     try {
       await api.put(`/users/${u.id}`, { role });
-      toast.success(`${u.name} is now ${role}`);
+      toast.success(t(role === 'staff' ? '{name} is now staff' : '{name} is now member', { name: u.name }));
       setChangingRole(null);
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not change the role'));
+      toast.error(apiError(err, t('Could not change the role')));
     } finally {
       setSaving(false);
     }
@@ -319,11 +321,11 @@ export default function Team() {
     setSaving(true);
     try {
       await api.delete(`/users/${u.id}`);
-      toast.success('Account removed');
+      toast.success(t('Account removed'));
       setConfirming(null);
       await load();
     } catch (err) {
-      toast.error(apiError(err, 'Could not remove the account'));
+      toast.error(apiError(err, t('Could not remove the account')));
     } finally {
       setSaving(false);
     }
@@ -338,7 +340,7 @@ export default function Team() {
       // new role everywhere.
       window.location.reload();
     } catch (err) {
-      toast.error(apiError(err, 'Could not transfer ownership'));
+      toast.error(apiError(err, t('Could not transfer ownership')));
       setSaving(false);
     }
   };
@@ -356,13 +358,16 @@ export default function Team() {
         title="Staff & Logins"
         subtitle={
           seats
-            ? `${users.length} ${users.length === 1 ? 'account' : 'accounts'} can sign in · ${seats.used} of ${seats.limit} staff seats used`
-            : `${users.length} ${users.length === 1 ? 'account' : 'accounts'} can sign in`
+            ? t(users.length === 1
+              ? '{count} account can sign in · {used} of {limit} staff seats used'
+              : '{count} accounts can sign in · {used} of {limit} staff seats used',
+              { count: users.length, used: seats.used, limit: seats.limit })
+            : t(users.length === 1 ? '{count} account can sign in' : '{count} accounts can sign in', { count: users.length })
         }
         action={isOwner ? (
           <div className="flex gap-2">
             <button onClick={() => setShowMemberLogin(true)} className={secondaryButton}>
-              <KeyRound size={15} /> <span className="hidden sm:inline">Member login</span>
+              <KeyRound size={15} /> <span className="hidden sm:inline">{t('Member login')}</span>
             </button>
             {/* Disabled once the seats are gone, with the reason on hover —
                 the API refuses it anyway, so offering the form would only
@@ -371,12 +376,12 @@ export default function Team() {
               onClick={() => setShowStaff(true)}
               disabled={seatsFull}
               title={seatsFull
-                ? `All ${seats?.limit} staff seats are in use. Remove an account to free one.`
+                ? t('All {limit} staff seats are in use. Remove an account to free one.', { limit: seats?.limit ?? 0 })
                 : undefined}
               className={primaryButton}
             >
               <Plus size={16} />
-              <span className="hidden sm:inline">Add Staff</span><span className="sm:hidden">Staff</span>
+              <span className="hidden sm:inline">{t('Add Staff')}</span><span className="sm:hidden">{t('Staff')}</span>
             </button>
           </div>
         ) : undefined}
@@ -407,9 +412,7 @@ export default function Team() {
         <div className="bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4 mb-5 flex items-start gap-3">
           <UserCog size={18} className="text-amber-600 shrink-0 mt-0.5" />
           <p className="text-sm text-amber-800">
-            All {seats?.limit} staff seats are in use. To add someone else, remove an
-            account below — revoking access alone does not free the seat, since the
-            account keeps its email address and can be restored.
+            {t('All {limit} staff seats are in use. To add someone else, remove an account below — revoking access alone does not free the seat, since the account keeps its email address and can be restored.', { limit: seats?.limit ?? 0 })}
           </p>
         </div>
       )}
@@ -418,7 +421,7 @@ export default function Team() {
         <div className="bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/20 rounded-xl p-4 mb-5 flex items-start gap-3">
           <Shield size={18} className="text-blue-600 shrink-0 mt-0.5" />
           <p className="text-sm text-blue-800">
-            You can see who has access, but only the gym owner can add or remove accounts.
+            {t('You can see who has access, but only the gym owner can add or remove accounts.')}
           </p>
         </div>
       )}
@@ -426,10 +429,10 @@ export default function Team() {
       {users.length === 0 ? (
         <EmptyState
           icon={UserCog}
-          title="No accounts yet"
+          title={t('No accounts yet')}
           hint={isOwner
-            ? 'Invite a staff member, or create a login for a member so they can see their own plan and fees.'
-            : 'Only the gym owner can add accounts.'}
+            ? t('Invite a staff member, or create a login for a member so they can see their own plan and fees.')
+            : t('Only the gym owner can add accounts.')}
         />
       ) : (
       <div className="space-y-3">

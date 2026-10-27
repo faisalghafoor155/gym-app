@@ -6,6 +6,7 @@ import {
   Card, FieldLabel, focusRing, inputClass, primaryButton, secondaryButton,
 } from '../ui';
 import type { MyProfile } from '../../types';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * The contact details a member maintains themselves.
@@ -51,6 +52,7 @@ export default function MyProfileForm({
    *  response rather than refetching what it was just handed. */
   onSaved: (profile: MyProfile) => void;
 }) {
+  const { t } = useLanguage();
   const saved = draftOf(member);
   const [draft, setDraft] = useState<Draft>(saved);
   const [saving, setSaving] = useState(false);
@@ -75,12 +77,12 @@ export default function MyProfileForm({
         emergencyContact: orNull(draft.emergencyContact),
         dateOfBirth: draft.dateOfBirth || null,
       });
-      toast.success('Your details are saved');
+      toast.success(t('Your details are saved'));
       onSaved(data);
     } catch (err) {
       // Left as typed. A rejected save is usually one field the server did not
       // like, and clearing the form would take the other three with it.
-      toast.error(apiError(err, 'Could not save your details'));
+      toast.error(apiError(err, t('Could not save your details')));
     } finally {
       setSaving(false);
     }
@@ -89,11 +91,10 @@ export default function MyProfileForm({
   return (
     <Card className="p-5">
       <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-1 flex items-center gap-2">
-        <UserCog size={16} className="text-blue-600" /> Your details
+        <UserCog size={16} className="text-blue-600" /> {t('Your details')}
       </h2>
       <p className="text-xs text-gray-400 dark:text-slate-500 mb-5">
-        How the gym reaches you. Your name and membership are set at the front
-        desk.
+        {t('How the gym reaches you. Your name and membership are set at the front desk.')}
       </p>
 
       <form
@@ -101,7 +102,7 @@ export default function MyProfileForm({
         onSubmit={e => { e.preventDefault(); void submit(); }}
       >
         <div>
-          <FieldLabel htmlFor="my-phone">Phone</FieldLabel>
+          <FieldLabel htmlFor="my-phone">{t('Phone')}</FieldLabel>
           <input
             id="my-phone"
             type="tel"
@@ -114,7 +115,7 @@ export default function MyProfileForm({
         </div>
 
         <div>
-          <FieldLabel htmlFor="my-email">Email</FieldLabel>
+          <FieldLabel htmlFor="my-email">{t('Email')}</FieldLabel>
           {/* Read-only rather than absent: a member checking where their
               receipts go should be able to see it without asking. */}
           <input
@@ -123,45 +124,45 @@ export default function MyProfileForm({
             value={member.email ?? ''}
             readOnly
             disabled
-            placeholder="Not set"
+            placeholder={t('Not set')}
             className={`${inputClass} cursor-not-allowed opacity-60`}
           />
           <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
-            Your email is your sign-in. Ask the front desk to change it.
+            {t('Your email is your sign-in. Ask the front desk to change it.')}
           </p>
         </div>
 
         <div>
-          <FieldLabel htmlFor="my-address">Address</FieldLabel>
+          <FieldLabel htmlFor="my-address">{t('Address')}</FieldLabel>
           <textarea
             id="my-address"
             value={draft.address}
             onChange={e => set('address')(e.target.value)}
             maxLength={500}
             rows={2}
-            placeholder="House, street, area"
+            placeholder={t('House, street, area')}
             className={`${inputClass} resize-none`}
           />
         </div>
 
         <div>
-          <FieldLabel htmlFor="my-emergency">Emergency contact</FieldLabel>
+          <FieldLabel htmlFor="my-emergency">{t('Emergency contact')}</FieldLabel>
           <input
             id="my-emergency"
             type="text"
             value={draft.emergencyContact}
             onChange={e => set('emergencyContact')(e.target.value)}
             maxLength={100}
-            placeholder="Name and number"
+            placeholder={t('Name and number')}
             className={inputClass}
           />
           <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
-            Who the gym should call if something happens while you are training.
+            {t('Who the gym should call if something happens while you are training.')}
           </p>
         </div>
 
         <div>
-          <FieldLabel htmlFor="my-dob">Date of birth</FieldLabel>
+          <FieldLabel htmlFor="my-dob">{t('Date of birth')}</FieldLabel>
           <input
             id="my-dob"
             type="date"
@@ -171,7 +172,7 @@ export default function MyProfileForm({
             className={inputClass}
           />
           <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
-            So the gym can wish you on your birthday. 🎂
+            {t('So the gym can wish you on your birthday.')} 🎂
           </p>
         </div>
 
@@ -182,14 +183,14 @@ export default function MyProfileForm({
             disabled={!dirty || saving}
             className={`${secondaryButton} disabled:cursor-not-allowed`}
           >
-            Cancel
+            {t('Cancel')}
           </button>
           <button
             type="submit"
             disabled={!dirty || saving}
             className={`${primaryButton} ${focusRing}`}
           >
-            {saving ? 'Saving…' : 'Save changes'}
+            {saving ? t('Saving…') : t('Save changes')}
           </button>
         </div>
       </form>

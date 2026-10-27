@@ -15,6 +15,7 @@ import MyProfileForm from '../components/portal/MyProfileForm';
 import ProgressPanel from '../components/progress/ProgressPanel';
 import MyPlans from '../components/portal/MyPlans';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import api, { apiError } from '../api/client';
 import type { MyProfile, MembershipPlan, PaymentProviderOption, CheckoutStarted } from '../types';
 import toast from 'react-hot-toast';
@@ -51,6 +52,7 @@ const postToProvider = (url: string, fields: Record<string, string>): void => {
  */
 type PortalTab = 'overview' | 'plans' | 'progress' | 'classes' | 'checkin' | 'history' | 'profile';
 
+/** Labels in English; translated where the tabs are drawn. */
 const TABS: readonly { value: PortalTab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
   { value: 'plans', label: 'My Plan' },
@@ -63,6 +65,7 @@ const TABS: readonly { value: PortalTab; label: string }[] = [
 
 export default function MyPortal() {
   const { user } = useAuth();
+  const { lang, t } = useLanguage();
   const [tab, setTab] = useState<PortalTab>('overview');
   const [data, setData] = useState<MyProfile | null>(null);
   const [plans, setPlans] = useState<MembershipPlan[]>([]);
@@ -86,7 +89,7 @@ export default function MyPortal() {
       setProviders(providersRes.data);
       setProvider(prev => prev || providersRes.data[0]?.provider || '');
     } catch (err) {
-      toast.error(apiError(err, 'Could not load portal details'));
+      toast.error(apiError(err, t('Could not load portal details')));
     } finally {
       setLoading(false);
     }
@@ -106,12 +109,14 @@ export default function MyPortal() {
     const status = new URLSearchParams(window.location.search).get('payment');
     if (!status) return;
 
-    if (status === 'success') toast.success('Payment received — your membership is up to date.');
-    else if (status === 'failed') toast.error('That payment did not go through. Nothing was charged.');
-    else if (status === 'pending') toast('Payment is still being confirmed. This page will update shortly.');
+    if (status === 'success') toast.success(t('Payment received — your membership is up to date.'));
+    else if (status === 'failed') toast.error(t('That payment did not go through. Nothing was charged.'));
+    else if (status === 'pending') toast(t('Payment is still being confirmed. This page will update shortly.'));
 
     // Cleared so a refresh does not replay the message.
     window.history.replaceState({}, '', window.location.pathname);
+    // Once, on arrival: the message is for the return from the provider.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -144,12 +149,12 @@ export default function MyPortal() {
       }
 
       // No gateway configured — the intent is a request the front desk settles.
-      toast.success('Request sent. Please pay at the front desk to activate it.');
+      toast.success(t('Request sent. Please pay at the front desk to activate it.'));
       setCheckoutItem(null);
       setLoading(true);
       await loadData();
     } catch (err) {
-      toast.error(apiError(err, 'Could not start the payment'));
+      toast.error(apiError(err, t('Could not start the payment')));
     } finally {
       setPaying(false);
     }
@@ -162,8 +167,8 @@ export default function MyPortal() {
   if (!data) {
     return (
       <LoadFailed
-        title="Could not load your details"
-        hint="The server did not answer. Check the connection and try again."
+        title={t('Could not load your details')}
+        hint={t('The server did not answer. Check the connection and try again.')}
       />
     );
   }
@@ -178,7 +183,7 @@ export default function MyPortal() {
     <Page>
       <div className="space-y-5">
 
-      <SegmentedControl value={tab} onChange={setTab} options={TABS} />
+      <SegmentedControl value={tab} onChange={setTab} options={TABS.map(o => ({ ...o, label: t(o.label) }))} />
 
       {tab === 'plans' && <MyPlans plan={plan} />}
 
@@ -251,30 +256,30 @@ export default function MyPortal() {
             membership.status === 'expired' ? 'bg-red-50 dark:bg-red-500/15' :
             membership.status === 'expiring' ? 'bg-yellow-50 dark:bg-yellow-500/15' : 'bg-green-50 dark:bg-green-500/15'
           }`}>
-            <span className="text-sm text-gray-600 dark:text-slate-300">Membership expiry</span>
+            <span className="text-sm text-gray-600 dark:text-slate-300">{t('Membership expiry')}</span>
             <span className={`text-sm font-bold ${
               membership.status === 'expired' ? 'text-red-600' :
               membership.status === 'expiring' ? 'text-yellow-700' : 'text-green-700'
             }`}>
               {membership.status === 'expired'
-                ? `Expired ${Math.abs(membership.daysLeft)}d ago`
-                : `${membership.daysLeft}d left`}
+                ? t('Expired {days}d ago', { days: Math.abs(membership.daysLeft) })
+                : t('{days}d left', { days: membership.daysLeft })}
             </span>
           </div>
         ) : null}
 
         {membership?.freeze && (
           <div className="mt-3 rounded-xl px-4 py-3 flex items-center justify-between bg-sky-50 dark:bg-sky-500/15 text-sky-700 dark:text-sky-300">
-            <span className="text-sm">Membership frozen</span>
+            <span className="text-sm">{t('Membership frozen')}</span>
             <span className="text-sm font-bold">
-              until {new Date(membership.freeze.until).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+              {t('until {date}', { date: new Date(membership.freeze.until).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }) })}
             </span>
           </div>
         )}
 
         {!membership && (
           <div className="mt-4 rounded-xl px-4 py-3 bg-gray-50 dark:bg-slate-800/60 text-sm text-gray-500 dark:text-slate-400 text-center">
-            No membership yet — ask the front desk to set one up.
+            {t('No membership yet — ask the front desk to set one up.')}
           </div>
         )}
 
@@ -284,9 +289,9 @@ export default function MyPortal() {
               <CreditCard size={18} className="text-red-600 shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-red-800">
-                  Rs. {dueTotal.toLocaleString()} outstanding
+                  {t('Rs. {amount} outstanding', { amount: dueTotal.toLocaleString() })}
                 </p>
-                <p className="text-xs text-red-600">Clear your unpaid invoices easily online.</p>
+                <p className="text-xs text-red-600">{t('Clear your unpaid invoices easily online.')}</p>
               </div>
             </div>
             <button
@@ -298,7 +303,7 @@ export default function MyPortal() {
               })}
               className="py-1.5 px-3 rounded-lg text-xs font-bold bg-red-600 hover:bg-red-700 text-white transition-colors"
             >
-              Pay Dues Online
+              {t('Pay Dues Online')}
             </button>
           </div>
         )}
@@ -308,17 +313,17 @@ export default function MyPortal() {
       <Card className="p-5">
         <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
           <Sparkles size={16} className="text-indigo-600" />
-          Renew or Upgrade Membership
+          {t('Renew or Upgrade Membership')}
         </h2>
         {plans.length === 0 ? (
-          <InlineEmpty message="No plans are on sale right now. Ask at the front desk to renew." />
+          <InlineEmpty message={t('No plans are on sale right now. Ask at the front desk to renew.')} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {plans.map(p => (
               <div key={p.id} className="p-4 rounded-xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/40 flex flex-col justify-between">
                 <div>
                   <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm">{p.name}</h3>
-                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{p.durationDays} Days duration</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{t('{days} Days duration', { days: p.durationDays })}</p>
                   <p className="text-lg font-black text-indigo-600 mt-2">Rs. {p.price.toLocaleString()}</p>
                 </div>
                 <button
@@ -330,7 +335,7 @@ export default function MyPortal() {
                   })}
                   className="mt-4 w-full py-2 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
                 >
-                  Renew / Purchase
+                  {t('Renew / Purchase')}
                 </button>
               </div>
             ))}
@@ -346,15 +351,15 @@ export default function MyPortal() {
               <Calculator size={20} />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm">Calculate Your Daily Calories & Protein</h3>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Apne body weight ke mutabiq exact daily calories, protein grams aur workout weights calculate karein.</p>
+              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm">{t('Calculate Your Daily Calories & Protein')}</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">{t('Work out your exact daily calories, protein grams and workout weights for your body weight.')}</p>
             </div>
           </div>
           <Link
             to="/calculator"
             className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition shadow-sm shrink-0"
           >
-            <span>Open Calculator</span>
+            <span>{t('Open Calculator')}</span>
             <ArrowRight size={14} />
           </Link>
         </div>
@@ -364,39 +369,39 @@ export default function MyPortal() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="p-5">
           <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-            <Dumbbell size={16} className="text-blue-600" /> Workout Plan
+            <Dumbbell size={16} className="text-blue-600" /> {t('Workout Plan')}
           </h2>
           {plan?.workoutPlan ? (
             <>
               <p className="font-medium text-gray-900 dark:text-slate-100 text-sm">{plan.workoutPlan.name}</p>
               <p className="text-sm text-gray-500 dark:text-slate-400 mt-1 whitespace-pre-wrap">
-                {plan.workoutPlan.description || 'No description'}
+                {plan.workoutPlan.description || t('No description')}
               </p>
               <button type="button" onClick={() => setTab('plans')} className="mt-3 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline">
-                See today's workout →
+                {t("See today's workout")} →
               </button>
             </>
           ) : (
-            <InlineEmpty message="No workout plan assigned yet. Your trainer sets this up for you." />
+            <InlineEmpty message={t('No workout plan assigned yet. Your trainer sets this up for you.')} />
           )}
         </Card>
 
         <Card className="p-5">
           <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-            <Utensils size={16} className="text-green-600" /> Diet Plan
+            <Utensils size={16} className="text-green-600" /> {t('Diet Plan')}
           </h2>
           {plan?.dietPlan ? (
             <>
               <p className="font-medium text-gray-900 dark:text-slate-100 text-sm">{plan.dietPlan.name}</p>
               <p className="text-sm text-gray-500 dark:text-slate-400 mt-1 whitespace-pre-wrap">
-                {plan.dietPlan.description || 'No description'}
+                {plan.dietPlan.description || t('No description')}
               </p>
               <button type="button" onClick={() => setTab('plans')} className="mt-3 text-xs font-semibold text-green-600 dark:text-green-400 hover:underline">
-                See all meals →
+                {t('See all meals')} →
               </button>
             </>
           ) : (
-            <InlineEmpty message="No diet plan assigned yet. Your trainer sets this up for you." />
+            <InlineEmpty message={t('No diet plan assigned yet. Your trainer sets this up for you.')} />
           )}
         </Card>
       </div>
@@ -404,19 +409,23 @@ export default function MyPortal() {
       {/* Attendance */}
       <Card className="p-5">
         <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
-          <CalendarCheck size={16} className="text-blue-600" /> Recent Attendance
+          <CalendarCheck size={16} className="text-blue-600" /> {t('Recent Attendance')}
           <span className="ml-auto bg-blue-100 dark:bg-blue-500/15 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">
             {attendance.length}
           </span>
         </h2>
         {attendance.length === 0 ? (
-          <InlineEmpty message="No check-ins recorded yet. Your visits appear here once you scan in." />
+          <InlineEmpty message={t('No check-ins recorded yet. Your visits appear here once you scan in.')} />
         ) : (
           <ul className="space-y-2">
             {attendance.slice(0, 10).map(a => (
               <li key={a.id} className="flex items-center justify-between text-sm py-2 border-b border-gray-50 dark:border-slate-800 last:border-0">
                 <span className="text-gray-700 dark:text-slate-300">
-                  {new Date(a.checkedInAt).toLocaleDateString('en-PK', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  {/* The weekday from the dictionary in Urdu; the locale only
+                      names it in English. */}
+                  {lang === 'ur'
+                    ? `${t(new Date(a.checkedInAt).toLocaleDateString('en', { weekday: 'short' }))}, ${new Date(a.checkedInAt).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' })}`
+                    : new Date(a.checkedInAt).toLocaleDateString('en-PK', { weekday: 'short', day: 'numeric', month: 'short' })}
                 </span>
                 <span className="text-gray-400 dark:text-slate-500 text-xs flex items-center gap-1">
                   <Clock size={11} />
@@ -437,25 +446,27 @@ export default function MyPortal() {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in"
              onClick={() => !paying && setCheckoutItem(null)}>
           <div className="w-full max-w-md p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-2">Checkout</h3>
+            <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-2">{t('Checkout')}</h3>
             <p className="text-xs text-gray-500 dark:text-slate-400 mb-5">
               {hasRedirectProvider
-                ? 'You will be taken to your payment provider to complete this securely. Your membership updates once they confirm the payment.'
-                : 'This gym takes payment at the front desk. We will let the staff know you want to pay.'}
+                ? t('You will be taken to your payment provider to complete this securely. Your membership updates once they confirm the payment.')
+                : t('This gym takes payment at the front desk. We will let the staff know you want to pay.')}
             </p>
 
             <div className="p-4 rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800 mb-5">
-              <span className="text-xs text-gray-400 font-semibold uppercase">Item to checkout</span>
-              <p className="font-bold text-gray-800 dark:text-slate-200 mt-0.5">{checkoutItem.name}</p>
+              <span className="text-xs text-gray-400 font-semibold uppercase">{t('Item to checkout')}</span>
+              <p className="font-bold text-gray-800 dark:text-slate-200 mt-0.5">
+                {checkoutItem.type === 'due' ? t(checkoutItem.name) : checkoutItem.name}
+              </p>
               <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-200 dark:border-slate-700">
-                <span className="text-xs font-bold text-gray-400 uppercase">Amount Due</span>
+                <span className="text-xs font-bold text-gray-400 uppercase">{t('Amount Due')}</span>
                 <span className="text-lg font-black text-indigo-600">Rs. {checkoutItem.price.toLocaleString()}</span>
               </div>
             </div>
 
             {providers.length > 1 && (
               <div className="mb-5">
-                <span className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-2">Pay with</span>
+                <span className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-2">{t('Pay with')}</span>
                 <div className="grid grid-cols-2 gap-2">
                   {providers.map(p => (
                     <button
@@ -482,7 +493,7 @@ export default function MyPortal() {
                 disabled={paying}
                 className={secondaryButton}
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="button"
@@ -492,10 +503,10 @@ export default function MyPortal() {
               >
                 <ShieldCheck size={16} />
                 {paying
-                  ? 'Starting…'
+                  ? t('Starting…')
                   : hasRedirectProvider
-                    ? 'Continue to payment'
-                    : 'Request at front desk'}
+                    ? t('Continue to payment')
+                    : t('Request at front desk')}
               </button>
             </div>
           </div>

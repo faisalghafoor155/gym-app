@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 
 interface Props {
   children: ReactNode;
@@ -52,57 +53,65 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children;
     if (this.props.fallback) return this.props.fallback;
 
-    return (
-      <div className="min-h-dvh flex items-center justify-center p-6 bg-gray-50 dark:bg-slate-950">
-        <div className="max-w-md w-full text-center">
-          <div className="w-14 h-14 rounded-2xl bg-red-50 dark:bg-red-500/15 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto mb-5">
-            <AlertTriangle size={26} />
-          </div>
-
-          <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">
-            Something went wrong
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
-            This page hit an error and could not finish loading. Your data has
-            not been affected — nothing was saved or changed.
-          </p>
-
-          <div className="flex gap-3 justify-center mt-6">
-            <button
-              onClick={this.reset}
-              className="inline-flex items-center justify-center gap-2 bg-white dark:bg-slate-800
-                text-gray-700 dark:text-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold
-                border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700
-                transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              Try again
-            </button>
-            <button
-              onClick={this.reload}
-              className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white
-                px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700
-                transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <RotateCcw size={15} />
-              Reload the page
-            </button>
-          </div>
-
-          {/*
-            The message itself, not a stack trace: it is what somebody can read
-            out over the phone when reporting the fault. Kept in dev only —
-            in production an error string can name internals, and it is not
-            something the front desk can act on anyway.
-          */}
-          {import.meta.env.DEV && (
-            <pre className="mt-6 text-left text-xs bg-gray-100 dark:bg-slate-900 text-red-700
-              dark:text-red-300 rounded-xl p-4 overflow-x-auto whitespace-pre-wrap
-              border border-gray-200 dark:border-slate-800">
-              {error.message}
-            </pre>
-          )}
-        </div>
-      </div>
-    );
+    return <ErrorScreen error={error} onReset={this.reset} onReload={this.reload} />;
   }
+}
+
+/** The full-screen fallback. A function component of its own so it can read
+ *  the language, which a class has no hook for. */
+function ErrorScreen({ error, onReset, onReload }: {
+  error: Error; onReset: () => void; onReload: () => void;
+}) {
+  const { t } = useLanguage();
+  return (
+    <div className="min-h-dvh flex items-center justify-center p-6 bg-gray-50 dark:bg-slate-950">
+      <div className="max-w-md w-full text-center">
+        <div className="w-14 h-14 rounded-2xl bg-red-50 dark:bg-red-500/15 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto mb-5">
+          <AlertTriangle size={26} />
+        </div>
+
+        <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+          {t('Something went wrong')}
+        </h1>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
+          {t('This page hit an error and could not finish loading. Your data has not been affected — nothing was saved or changed.')}
+        </p>
+
+        <div className="flex gap-3 justify-center mt-6">
+          <button
+            onClick={onReset}
+            className="inline-flex items-center justify-center gap-2 bg-white dark:bg-slate-800
+              text-gray-700 dark:text-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold
+              border border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700
+              transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {t('Try again')}
+          </button>
+          <button
+            onClick={onReload}
+            className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white
+              px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-700
+              transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <RotateCcw size={15} />
+            {t('Reload the page')}
+          </button>
+        </div>
+
+        {/*
+          The message itself, not a stack trace: it is what somebody can read
+          out over the phone when reporting the fault. Kept in dev only —
+          in production an error string can name internals, and it is not
+          something the front desk can act on anyway.
+        */}
+        {import.meta.env.DEV && (
+          <pre className="mt-6 text-left text-xs bg-gray-100 dark:bg-slate-900 text-red-700
+            dark:text-red-300 rounded-xl p-4 overflow-x-auto whitespace-pre-wrap
+            border border-gray-200 dark:border-slate-800">
+            {error.message}
+          </pre>
+        )}
+      </div>
+    </div>
+  );
 }

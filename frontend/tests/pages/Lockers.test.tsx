@@ -55,7 +55,7 @@ describe('Lockers', () => {
     expect(await screen.findByText('Expired 21d ago')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /free all expired \(1\)/i }));
     const dialog = await screen.findByRole('dialog', { name: /free expired lockers/i });
-    await userEvent.click(within(dialog).getByRole('button', { name: /^free$/i }));
+    await userEvent.click(within(dialog).getByRole('button', { name: /^free locker$/i }));
 
     await waitFor(() => expect(api.current!.post).toHaveBeenCalledWith('/lockers/release-expired'));
   });

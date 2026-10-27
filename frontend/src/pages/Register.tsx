@@ -7,6 +7,8 @@ import api, { apiError } from '../api/client';
 import type { AuthResponse, GymPlan } from '../types';
 import { SUBSCRIPTIONS_ENABLED } from '../utils/entitlements';
 import toast from 'react-hot-toast';
+import LanguageToggle from '../components/LanguageToggle';
+import { useLanguage } from '../context/LanguageContext';
 
 interface RegisterForm {
   gymName: string;
@@ -30,6 +32,7 @@ interface PlanOption {
   popular?: boolean;
 }
 
+/** English, translated where each is shown. */
 const PLAN_OPTIONS: PlanOption[] = [
   {
     id: 'free',
@@ -88,6 +91,7 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const set = (key: keyof RegisterForm) => (e: ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }));
@@ -105,10 +109,10 @@ export default function Register() {
       const body = SUBSCRIPTIONS_ENABLED ? { ...details, plan } : details;
       const { data } = await api.post<AuthResponse>('/auth/register', body);
       login(data.user, data.gym);
-      toast.success('Gym registered successfully! Welcome aboard.');
+      toast.success(t('Gym registered successfully! Welcome aboard.'));
       navigate('/dashboard');
     } catch (err) {
-      toast.error(apiError(err, 'Registration failed'));
+      toast.error(apiError(err, t('Registration failed')));
     } finally {
       setLoading(false);
     }
@@ -117,6 +121,10 @@ export default function Register() {
   return (
     <div className="min-h-dvh bg-gray-50 dark:bg-slate-950 py-10 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto">
+        <div className="flex justify-end mb-2">
+          <LanguageToggle />
+        </div>
+
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center gap-2 mb-3">
@@ -126,12 +134,12 @@ export default function Register() {
             <span className="text-2xl font-black tracking-tight text-gray-900 dark:text-slate-100">GymPro</span>
           </div>
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 tracking-tight">
-            Register Your Gym
+            {t('Register Your Gym')}
           </h1>
           <p className="text-gray-500 dark:text-slate-400 mt-1 text-sm sm:text-base">
             {SUBSCRIPTIONS_ENABLED
-              ? 'Select your member capacity plan and start managing your gym effortlessly'
-              : 'Create your account and start managing your gym effortlessly'}
+              ? t('Select your member capacity plan and start managing your gym effortlessly')
+              : t('Create your account and start managing your gym effortlessly')}
           </p>
         </div>
 
@@ -143,10 +151,10 @@ export default function Register() {
               <div>
                 <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center justify-center">1</span>
-                  Select Subscription Plan
+                  {t('Select Subscription Plan')}
                 </h2>
                 <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400">
-                  Choose the plan that best fits your gym size. You can upgrade anytime.
+                  {t('Choose the plan that best fits your gym size. You can upgrade anytime.')}
                 </p>
               </div>
             </div>
@@ -172,7 +180,7 @@ export default function Register() {
                           ? 'bg-blue-600 text-white shadow-sm'
                           : 'bg-emerald-600 text-white'
                       }`}>
-                        {opt.badge}
+                        {t(opt.badge)}
                       </span>
                     )}
 
@@ -195,12 +203,12 @@ export default function Register() {
                       </div>
 
                       <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm">
-                        {opt.name}
+                        {t(opt.name)}
                       </h3>
                       
                       <div className="mt-1">
                         <span className="text-base font-extrabold text-blue-600 dark:text-blue-400">
-                          {opt.members}
+                          {t(opt.members)}
                         </span>
                       </div>
 
@@ -209,12 +217,12 @@ export default function Register() {
                           {opt.price}
                         </span>
                         <span className="text-gray-500 dark:text-slate-400 ml-1">
-                          /{opt.period.includes('trial') ? 'trial' : 'mo'}
+                          /{opt.period.includes('trial') ? t('trial') : t('mo')}
                         </span>
                       </div>
 
                       <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-2 line-clamp-2">
-                        {opt.description}
+                        {t(opt.description)}
                       </p>
                     </div>
 
@@ -222,7 +230,7 @@ export default function Register() {
                       {opt.features.slice(0, 3).map((feat, idx) => (
                         <div key={idx} className="flex items-center gap-1.5 text-[11px] text-gray-600 dark:text-slate-300">
                           <Check size={12} className="text-emerald-500 shrink-0" />
-                          <span className="truncate">{feat}</span>
+                          <span className="truncate">{t(feat)}</span>
                         </div>
                       ))}
                     </div>
@@ -237,41 +245,41 @@ export default function Register() {
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 p-6 sm:p-8">
             <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2 mb-4">
               <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center justify-center">{SUBSCRIPTIONS_ENABLED ? 2 : 1}</span>
-              Gym & Owner Details
+              {t('Gym & Owner Details')}
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                  Gym Name *
+                  {t('Gym Name')} *
                 </label>
                 <input
                   type="text"
                   required
                   value={form.gymName}
                   onChange={set('gymName')}
-                  placeholder="e.g. Iron Strong Fitness"
+                  placeholder={t('e.g. Iron Strong Fitness')}
                   className={inputClass}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                  Owner Full Name *
+                  {t('Owner Full Name')} *
                 </label>
                 <input
                   type="text"
                   required
                   value={form.ownerName}
                   onChange={set('ownerName')}
-                  placeholder="e.g. Faisal Ghafoor"
+                  placeholder={t('e.g. Faisal Ghafoor')}
                   className={inputClass}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                  Email Address *
+                  {t('Email Address')} *
                 </label>
                 <input
                   type="email"
@@ -285,7 +293,7 @@ export default function Register() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                  Contact Phone
+                  {t('Contact Phone')}
                 </label>
                 <input
                   type="tel"
@@ -300,7 +308,7 @@ export default function Register() {
 
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                  Account Password *
+                  {t('Account Password')} *
                 </label>
                 <input
                   type="password"
@@ -308,11 +316,11 @@ export default function Register() {
                   minLength={8}
                   value={form.password}
                   onChange={set('password')}
-                  placeholder="Minimum 8 characters"
+                  placeholder={t('Minimum 8 characters')}
                   className={inputClass}
                 />
                 <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">
-                  Make sure your password is secure and at least 8 characters long.
+                  {t('Make sure your password is secure and at least 8 characters long.')}
                 </p>
               </div>
             </div>
@@ -321,7 +329,7 @@ export default function Register() {
               {SUBSCRIPTIONS_ENABLED ? (
                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
                   <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
-                  <span>Selected: <strong className="text-gray-900 dark:text-slate-200">{PLAN_OPTIONS.find(p => p.id === form.plan)?.name} ({PLAN_OPTIONS.find(p => p.id === form.plan)?.members})</strong></span>
+                  <span>{t('Selected:')} <strong className="text-gray-900 dark:text-slate-200">{t(PLAN_OPTIONS.find(p => p.id === form.plan)?.name ?? '')} ({t(PLAN_OPTIONS.find(p => p.id === form.plan)?.members ?? '')})</strong></span>
                 </div>
               ) : <span />}
 
@@ -330,16 +338,16 @@ export default function Register() {
                 disabled={loading}
                 className={`w-full sm:w-auto px-8 ${primaryButton}`}
               >
-                {loading ? 'Creating account...' : 'Create Account & Continue'}
+                {loading ? t('Creating account...') : t('Create Account & Continue')}
               </button>
             </div>
           </div>
         </form>
 
         <p className="text-center text-sm text-gray-500 dark:text-slate-400 mt-6">
-          Already have an account?{' '}
+          {t('Already have an account?')}{' '}
           <Link to="/login" className="text-blue-600 dark:text-blue-400 font-semibold hover:underline">
-            Sign in here
+            {t('Sign in here')}
           </Link>
         </p>
       </div>

@@ -6,6 +6,7 @@ import {
 import api, { apiError } from '../api/client';
 import { useDebounced } from '../hooks/useDebounced';
 import { cachedResponse, cacheResponse } from '../hooks/useFetch';
+import { useLanguage } from '../context/LanguageContext';
 import CheckinResultModal, { type CheckinDisplay } from '../components/attendance/CheckinResultModal';
 import GymQrPanel from '../components/attendance/GymQrPanel';
 import type {
@@ -44,6 +45,7 @@ const TODAY_URL = '/attendance/today';
 const FP_STATUS_URL = '/fingerprint/status';
 
 export default function Attendance() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<TabType>('search');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounced(search);
@@ -98,8 +100,10 @@ export default function Attendance() {
         })
         .catch(() => setFpStatus(null)),
     ])
-      .catch(err => toast.error(apiError(err, 'Could not load attendance')))
+      .catch(err => toast.error(apiError(err, t('Could not load attendance'))))
       .finally(() => setLoading(false));
+    // Once on mount; the language only words the error.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -128,13 +132,15 @@ export default function Attendance() {
       .catch(err => {
         if (cancelled) return;
         setMembers([]);
-        toast.error(apiError(err, 'Could not search members'));
+        toast.error(apiError(err, t('Could not search members')));
       })
       .finally(() => { if (!cancelled) setSearching(false); });
 
     // A slower reply to an older query must not overwrite a newer one — the
     // desk types fast, and the wrong member checked in is the failure here.
     return () => { cancelled = true; };
+    // The language only words the error; switching it is not a new search.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch]);
 
   const filtered = members;
@@ -143,7 +149,7 @@ export default function Attendance() {
 
   const handleCheckin = async (member: Member) => {
     if (checkedInIds.has(member.id)) {
-      toast('Already checked in today', { icon: 'ℹ️' });
+      toast(t('Already checked in today'), { icon: 'ℹ️' });
       return;
     }
     setChecking(member.id);
@@ -169,7 +175,7 @@ export default function Attendance() {
       await loadToday();
       setSearch('');
     } catch (err) {
-      toast.error(apiError(err, 'Check-in failed'));
+      toast.error(apiError(err, t('Check-in failed')));
     } finally {
       setChecking(null);
     }
@@ -202,7 +208,7 @@ export default function Attendance() {
       // The reader may have told us who this is; the QR scanner has only an
       // id and looks it up in the roster it already holds.
       const member = members.find(m => m.id === memberId);
-      const memberName = known?.name || member?.name || 'Member';
+      const memberName = known?.name || member?.name || t('Member');
       const photo = known?.photo ?? member?.photo;
 
       const msStatus = data.membership?.status || 'none';
@@ -227,9 +233,9 @@ export default function Attendance() {
 
       await loadToday();
     } catch (err) {
-      toast.error(apiError(err, `${label} check-in failed`));
+      toast.error(apiError(err, t('{label} check-in failed', { label })));
     }
-  }, [members]);
+  }, [members, t]);
 
   /** Process a scanned QR code value (memberId UUID). */
   const handleQrScan = useCallback(async (decodedText: string) => {
@@ -239,7 +245,7 @@ export default function Attendance() {
     // UUID format check
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(decodedText)) {
-      toast.error('Invalid QR code format');
+      toast.error(t('Invalid QR code format'));
       setTimeout(() => { cooldownRef.current = false; }, 2000);
       return;
     }
@@ -251,7 +257,7 @@ export default function Attendance() {
       cooldownRef.current = false;
       setLastScanned(null);
     }, 3000);
-  }, [checkinFromScan]);
+  }, [checkinFromScan, t]);
 
   /**
    * Read a finger and check the member in.
@@ -282,25 +288,25 @@ export default function Attendance() {
       if (!data.matched) {
         setFpMessage(
           data.reason === 'no_enrolments'
-            ? 'No fingerprints are enrolled yet. Enrol members from their profile page.'
-            : 'Fingerprint not recognised. Try again, or use Search Check-In.',
+            ? t('No fingerprints are enrolled yet. Enrol members from their profile page.')
+            : t('Fingerprint not recognised. Try again, or use Search Check-In.'),
         );
         return;
       }
 
-      await checkinFromScan(data.member.id, 'Fingerprint', {
+      await checkinFromScan(data.member.id, t('Fingerprint'), {
         name: data.member.name,
         photo: data.member.photo,
       });
     } catch (err) {
-      setFpMessage(apiError(err, 'Could not read the fingerprint'));
+      setFpMessage(apiError(err, t('Could not read the fingerprint')));
     } finally {
       setFpScanning(false);
       // Same 3s the camera uses, so the desk sees the result long enough to
       // read it before the panel clears itself for the next member.
       setTimeout(() => setLastScanned(null), 3000);
     }
-  }, [fpScanning, checkinFromScan]);
+  }, [fpScanning, checkinFromScan, t]);
 
   /** Start the camera scanner. */
   const startScanner = useCallback(async () => {
@@ -319,10 +325,10 @@ export default function Attendance() {
       );
       setScannerActive(true);
     } catch (err) {
-      toast.error('Could not access camera. Please allow camera permissions.');
+      toast.error(t('Could not access camera. Please allow camera permissions.'));
       console.error(err);
     }
-  }, [handleQrScan]);
+  }, [handleQrScan, t]);
 
   /** Stop the camera scanner. */
   const stopScanner = useCallback(async () => {
@@ -354,19 +360,19 @@ export default function Attendance() {
     <Page>
       <PageHeader
         icon={CalendarCheck}
-        title="Attendance"
+        title={t('Attendance')}
         subtitle={today}
         action={
           <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
             <Card className="px-3.5 sm:px-4 py-2 sm:py-2.5 text-center flex-1 sm:flex-initial min-w-[85px]">
               <p className="text-xl sm:text-2xl font-bold text-blue-600">{todayList.length}</p>
-              <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">Checked in</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">{t('Checked in')}</p>
             </Card>
             <Card className="px-3.5 sm:px-4 py-2 sm:py-2.5 text-center flex-1 sm:flex-initial min-w-[85px]">
               <p className="text-xl sm:text-2xl font-bold text-gray-400 dark:text-slate-500">
                 {Math.max(0, members.length - todayList.length)}
               </p>
-              <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">Absent</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 font-medium">{t('Absent')}</p>
             </Card>
           </div>
         }
@@ -378,10 +384,10 @@ export default function Attendance() {
             value={activeTab}
             onChange={setActiveTab}
             options={[
-              { value: 'search', label: 'Search Check-In' },
-              { value: 'scanner', label: 'QR Scanner' },
-              { value: 'gymqr', label: 'Gym QR' },
-              { value: 'fingerprint', label: 'Fingerprint' },
+              { value: 'search', label: t('Search Check-In') },
+              { value: 'scanner', label: t('QR Scanner') },
+              { value: 'gymqr', label: t('Gym QR') },
+              { value: 'fingerprint', label: t('Fingerprint') },
             ]}
           />
         </Card>
@@ -394,7 +400,7 @@ export default function Attendance() {
       <Card className="p-4 sm:p-5">
         <h2 className="font-bold text-gray-900 dark:text-slate-100 mb-3 flex items-center gap-2">
           <Search size={16} className="text-blue-600" />
-          Quick Check-In
+          {t('Quick Check-In')}
         </h2>
         <div className="relative">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500" />
@@ -402,8 +408,8 @@ export default function Attendance() {
             type="search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Type member name or phone number..."
-            aria-label="Search member to check in"
+            placeholder={t('Type member name or phone number...')}
+            aria-label={t('Search member to check in')}
             className={`${inputClass} pl-10 py-3`}
             autoFocus
           />
@@ -421,8 +427,8 @@ export default function Attendance() {
                 <UserX size={24} className="mx-auto mb-1" />
                 {/* Says what was searched for: at the desk this is usually a
                     typo in a phone number, not a missing member. */}
-                <p className="text-sm">No member matches “{search.trim()}”</p>
-                <p className="text-xs mt-0.5">Check the spelling, or try their phone number.</p>
+                <p className="text-sm">{t('No member matches “{search}”', { search: search.trim() })}</p>
+                <p className="text-xs mt-0.5">{t('Check the spelling, or try their phone number.')}</p>
               </div>
             ) : (
               filtered.map(m => {
@@ -442,18 +448,18 @@ export default function Attendance() {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 dark:text-slate-100 text-sm truncate">{m.name}</p>
                       <p className="text-xs text-gray-400 dark:text-slate-500">
-                        {m.memberNo} · {m.phone || 'No phone'}
+                        {m.memberNo} · {m.phone || t('No phone')}
                       </p>
                       {/* The front desk needs the membership state before it
                           waves somebody through, not after. */}
                       {m.currentMembership ? (
                         m.currentMembership.status === 'expired' ? (
                           <p className="text-xs font-semibold text-red-600 mt-0.5">
-                            Expired {Math.abs(m.currentMembership.daysLeft)}d ago
+                            {t('Expired {days}d ago', { days: Math.abs(m.currentMembership.daysLeft) })}
                           </p>
                         ) : m.currentMembership.status === 'expiring' ? (
                           <p className="text-xs font-semibold text-yellow-700 mt-0.5">
-                            Expires in {m.currentMembership.daysLeft}d
+                            {t('Expires in {days}d', { days: m.currentMembership.daysLeft })}
                           </p>
                         ) : (
                           <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
@@ -461,7 +467,7 @@ export default function Attendance() {
                           </p>
                         )
                       ) : (
-                        <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">No membership</p>
+                        <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{t('No membership')}</p>
                       )}
                     </div>
                     <button
@@ -473,7 +479,7 @@ export default function Attendance() {
                           : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95'
                       }`}>
                       <CheckCircle2 size={13} />
-                      {isIn ? 'Done' : isLoading ? '...' : 'Check In'}
+                      {isIn ? t('Done') : isLoading ? '...' : t('Check In')}
                     </button>
                   </div>
                 );
@@ -484,7 +490,7 @@ export default function Attendance() {
 
         {search.trim().length === 0 && (
           <p className="text-center text-gray-400 dark:text-slate-500 text-xs mt-4">
-            Start typing to search a member
+            {t('Start typing to search a member')}
           </p>
         )}
       </Card>
@@ -495,7 +501,7 @@ export default function Attendance() {
         <Card className="p-4 sm:p-6">
           <h2 className="font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
             <ScanLine size={16} className="text-blue-600" />
-            Camera QR Scanner
+            {t('Camera QR Scanner')}
           </h2>
 
           {!scannerActive ? (
@@ -503,16 +509,16 @@ export default function Attendance() {
               <div className="w-20 h-20 rounded-2xl bg-blue-50 dark:bg-blue-950/30 flex items-center justify-center mx-auto mb-5">
                 <QrCode size={36} className="text-blue-600" />
               </div>
-              <p className="text-gray-600 dark:text-slate-300 font-semibold mb-2">Ready to scan member QR codes</p>
+              <p className="text-gray-600 dark:text-slate-300 font-semibold mb-2">{t('Ready to scan member QR codes')}</p>
               <p className="text-sm text-gray-400 dark:text-slate-500 mb-6 max-w-sm mx-auto">
-                Point your camera at a member's QR code for instant check-in. The scanner will automatically detect and process the code.
+                {t("Point your camera at a member's QR code for instant check-in. The scanner will automatically detect and process the code.")}
               </p>
               <button
                 onClick={() => void startScanner()}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 active:scale-95 transition-all shadow-lg shadow-blue-500/25"
               >
                 <QrCode size={18} />
-                Start Camera Scanner
+                {t('Start Camera Scanner')}
               </button>
             </div>
           ) : (
@@ -523,7 +529,7 @@ export default function Attendance() {
                 <button
                   onClick={() => void stopScanner()}
                   className="absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors z-10"
-                  aria-label="Stop scanner"
+                  aria-label={t('Stop scanner')}
                 >
                   <X size={18} />
                 </button>
@@ -552,17 +558,17 @@ export default function Attendance() {
                       lastScanned.status === 'none' ? 'text-gray-500' :
                       'text-green-700'
                     }`}>
-                      {lastScanned.status === 'already' ? '✓ Already checked in today' :
-                       lastScanned.status === 'expired' ? '⚠ Checked in — Membership expired!' :
-                       lastScanned.status === 'none' ? '✓ Checked in — No membership' :
-                       '✓ Checked in successfully!'}
+                      {lastScanned.status === 'already' ? t('✓ Already checked in today') :
+                       lastScanned.status === 'expired' ? t('⚠ Checked in — Membership expired!') :
+                       lastScanned.status === 'none' ? t('✓ Checked in — No membership') :
+                       t('✓ Checked in successfully!')}
                     </p>
                   </div>
                 </div>
               )}
 
               <p className="text-xs text-center text-gray-400 dark:text-slate-500">
-                Hold a member's QR code in front of the camera. The scanner auto-detects and checks in.
+                {t("Hold a member's QR code in front of the camera. The scanner auto-detects and checks in.")}
               </p>
             </div>
           )}
@@ -577,7 +583,7 @@ export default function Attendance() {
         <Card className="p-4 sm:p-6">
           <h2 className="font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
             <Fingerprint size={16} className="text-blue-600" />
-            Fingerprint Check-In
+            {t('Fingerprint Check-In')}
           </h2>
 
           {/* Three ways this tab can be unavailable, and they need different
@@ -591,11 +597,10 @@ export default function Attendance() {
                 <Fingerprint size={36} className="text-blue-500" />
               </div>
               <p className="text-gray-900 dark:text-slate-100 font-semibold mb-2">
-                Fingerprint check-in is not on your plan
+                {t('Fingerprint check-in is not on your plan')}
               </p>
               <p className="text-sm text-gray-400 dark:text-slate-500 max-w-sm mx-auto">
-                Members can still be checked in by QR code or by name. Talk to
-                us about upgrading to add fingerprint check-in.
+                {t('Members can still be checked in by QR code or by name. Talk to us about upgrading to add fingerprint check-in.')}
               </p>
             </div>
           ) : !fpStatus?.configured ? (
@@ -604,11 +609,10 @@ export default function Attendance() {
                 <Fingerprint size={36} className="text-gray-400 dark:text-slate-500" />
               </div>
               <p className="text-gray-600 dark:text-slate-300 font-semibold mb-2">
-                No fingerprint reader is set up
+                {t('No fingerprint reader is set up')}
               </p>
               <p className="text-sm text-gray-400 dark:text-slate-500 max-w-sm mx-auto">
-                Connect a reader to check members in by fingerprint. Until then,
-                use the QR scanner or search by name.
+                {t('Connect a reader to check members in by fingerprint. Until then, use the QR scanner or search by name.')}
               </p>
             </div>
           ) : !fpStatus.online ? (
@@ -617,21 +621,20 @@ export default function Attendance() {
                 <AlertCircle size={36} className="text-red-500" />
               </div>
               <p className="text-gray-900 dark:text-slate-100 font-semibold mb-2">
-                {fpStatus.label} is not responding
+                {t('{reader} is not responding', { reader: fpStatus.label })}
               </p>
               <p className="text-sm text-gray-400 dark:text-slate-500 mb-6 max-w-sm mx-auto">
-                Check that it is powered on and connected. Members can still be
-                checked in by QR code or by name.
+                {t('Check that it is powered on and connected. Members can still be checked in by QR code or by name.')}
               </p>
               <button
                 onClick={() => {
                   void api.get<FingerprintStatus>('/fingerprint/status')
                     .then(r => setFpStatus(r.data))
-                    .catch(() => toast.error('Could not reach the reader'));
+                    .catch(() => toast.error(t('Could not reach the reader')));
                 }}
                 className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 text-sm font-semibold text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors ${focusRing}`}
               >
-                Check again
+                {t('Check again')}
               </button>
             </div>
           ) : (
@@ -640,7 +643,7 @@ export default function Attendance() {
                 <button
                   onClick={() => void handleFingerprintScan()}
                   disabled={fpScanning}
-                  aria-label="Scan fingerprint to check in"
+                  aria-label={t('Scan fingerprint to check in')}
                   className={`w-32 h-32 rounded-full flex items-center justify-center mx-auto mb-5 transition-all ${focusRing} ${
                     fpScanning
                       ? 'bg-blue-100 dark:bg-blue-950/40 animate-pulse cursor-wait'
@@ -650,12 +653,12 @@ export default function Attendance() {
                   <Fingerprint size={56} className="text-blue-600" />
                 </button>
                 <p className="text-gray-600 dark:text-slate-300 font-semibold mb-1">
-                  {fpScanning ? 'Reading fingerprint…' : 'Ready to scan'}
+                  {fpScanning ? t('Reading fingerprint…') : t('Ready to scan')}
                 </p>
                 <p className="text-sm text-gray-400 dark:text-slate-500">
                   {fpScanning
-                    ? 'Ask the member to keep their finger on the reader'
-                    : 'Press to scan, then place a finger on the reader'}
+                    ? t('Ask the member to keep their finger on the reader')
+                    : t('Press to scan, then place a finger on the reader')}
                 </p>
               </div>
 
@@ -695,17 +698,19 @@ export default function Attendance() {
                       lastScanned.status === 'none' ? 'text-gray-500' :
                       'text-green-700'
                     }`}>
-                      {lastScanned.status === 'already' ? '✓ Already checked in today' :
-                       lastScanned.status === 'expired' ? '⚠ Checked in — Membership expired!' :
-                       lastScanned.status === 'none' ? '✓ Checked in — No membership' :
-                       '✓ Checked in successfully!'}
+                      {lastScanned.status === 'already' ? t('✓ Already checked in today') :
+                       lastScanned.status === 'expired' ? t('⚠ Checked in — Membership expired!') :
+                       lastScanned.status === 'none' ? t('✓ Checked in — No membership') :
+                       t('✓ Checked in successfully!')}
                     </p>
                   </div>
                 </div>
               )}
 
               <p className="text-xs text-center text-gray-400 dark:text-slate-500">
-                {fpStatus.enrolledCount} member{fpStatus.enrolledCount === 1 ? '' : 's'} enrolled ·{' '}
+                {fpStatus.enrolledCount === 1
+                  ? t('{count} member enrolled', { count: fpStatus.enrolledCount })
+                  : t('{count} members enrolled', { count: fpStatus.enrolledCount })} ·{' '}
                 {fpStatus.label}
               </p>
             </div>
@@ -717,7 +722,7 @@ export default function Attendance() {
       <Card className="p-4 sm:p-5">
         <h2 className="font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
           <Users size={16} className="text-blue-600" />
-          Today's Log
+          {t("Today's Log")}
           <span className="ml-auto bg-blue-100 dark:bg-blue-500/15 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">
             {todayList.length}
           </span>
@@ -726,9 +731,9 @@ export default function Attendance() {
         {todayList.length === 0 ? (
           <div className="text-center py-10">
             <CalendarCheck size={36} className="text-gray-200 dark:text-slate-700 mx-auto mb-2" />
-            <p className="text-gray-400 dark:text-slate-500 text-sm">No check-ins yet today</p>
+            <p className="text-gray-400 dark:text-slate-500 text-sm">{t('No check-ins yet today')}</p>
             <p className="text-gray-400 dark:text-slate-500 text-xs mt-0.5">
-              Members appear here as they arrive.
+              {t('Members appear here as they arrive.')}
             </p>
           </div>
         ) : (
@@ -753,7 +758,7 @@ export default function Attendance() {
                   </p>
                   <div className="flex items-center justify-end gap-1 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-                    <span className="text-xs text-green-600 font-medium">Present</span>
+                    <span className="text-xs text-green-600 font-medium">{t('Present')}</span>
                   </div>
                 </div>
               </div>

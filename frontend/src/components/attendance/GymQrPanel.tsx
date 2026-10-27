@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import { AlertCircle, QrCode, Smartphone } from 'lucide-react';
 import api, { apiError } from '../../api/client';
+import { useLanguage } from '../../context/LanguageContext';
 import { Card, Spinner } from '../ui';
 
 interface GymQrResponse {
@@ -39,6 +40,7 @@ const phoneBaseUrl = (appUrl: string | null): string => {
  * member land without touching anything.
  */
 export default function GymQrPanel({ onRefreshToday }: { onRefreshToday: () => Promise<unknown> }) {
+  const { t } = useLanguage();
   const [qr, setQr] = useState<{ image: string; url: string; base: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -47,6 +49,9 @@ export default function GymQrPanel({ onRefreshToday }: { onRefreshToday: () => P
   // restart the rotation (and re-fetch the code) on every render.
   const refreshTodayRef = useRef(onRefreshToday);
   refreshTodayRef.current = onRefreshToday;
+  // Same for the language: switching it should not restart the rotation.
+  const tRef = useRef(t);
+  tRef.current = t;
 
   useEffect(() => {
     let cancelled = false;
@@ -66,7 +71,7 @@ export default function GymQrPanel({ onRefreshToday }: { onRefreshToday: () => P
         rotateTimer = setTimeout(() => void refresh(), data.rotateSeconds * 1000);
       } catch (err) {
         if (cancelled) return;
-        setError(apiError(err, 'Could not load the check-in QR'));
+        setError(apiError(err, tRef.current('Could not load the check-in QR')));
         // Keep trying: the desk screen is left up all day, and a blip in the
         // network should not leave it showing an error until somebody notices.
         rotateTimer = setTimeout(() => void refresh(), 10_000);
@@ -90,13 +95,13 @@ export default function GymQrPanel({ onRefreshToday }: { onRefreshToday: () => P
     <Card className="p-4 sm:p-6">
       <h2 className="font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
         <QrCode size={16} className="text-blue-600" />
-        Gym Check-In QR
+        {t('Gym Check-In QR')}
       </h2>
 
       <div className="flex flex-col lg:flex-row items-center gap-6 lg:gap-10">
         <div className="relative w-full max-w-[320px] aspect-square rounded-2xl bg-white border border-gray-200 dark:border-slate-700 flex items-center justify-center p-3 shrink-0">
           {qr ? (
-            <img src={qr.image} alt="Gym check-in QR code" className="w-full h-full" />
+            <img src={qr.image} alt={t('Gym check-in QR code')} className="w-full h-full" />
           ) : error ? (
             <AlertCircle size={40} className="text-red-500" />
           ) : (
@@ -108,10 +113,10 @@ export default function GymQrPanel({ onRefreshToday }: { onRefreshToday: () => P
           <div>
             <p className="text-lg font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2 justify-center lg:justify-start">
               <Smartphone size={20} className="text-blue-600" />
-              Members: scan with your phone camera
+              {t('Members: scan with your phone camera')}
             </p>
             <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
-              The link opens the gym app and checks you in. Sign in with your member account if asked.
+              {t('The link opens the gym app and checks you in. Sign in with your member account if asked.')}
             </p>
           </div>
 
@@ -124,7 +129,7 @@ export default function GymQrPanel({ onRefreshToday }: { onRefreshToday: () => P
                 />
               </div>
               <p className="text-xs text-gray-400 dark:text-slate-500">
-                New code in {secondsLeft}s — old codes stop working after two minutes.
+                {t('New code in {seconds}s — old codes stop working after two minutes.', { seconds: secondsLeft })}
               </p>
             </div>
           )}
@@ -133,14 +138,13 @@ export default function GymQrPanel({ onRefreshToday }: { onRefreshToday: () => P
 
           {unreachable && (
             <p className="text-sm rounded-xl p-3 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900/50">
-              This code points at <strong>localhost</strong>, which a phone cannot open. Open this page using the
-              PC's Wi-Fi address (for example http://192.168.1.10:5000), or set <code>APP_URL</code> to it.
+              {t("This code points at localhost, which a phone cannot open. Open this page using the PC's Wi-Fi address (for example http://192.168.1.10:5000), or set APP_URL to it.")}
             </p>
           )}
 
           {qr && !unreachable && (
             <p className="text-xs text-gray-400 dark:text-slate-500 break-all">
-              Phones must be on the same Wi-Fi as this PC · {qr.base}
+              {t('Phones must be on the same Wi-Fi as this PC')} · {qr.base}
             </p>
           )}
         </div>
