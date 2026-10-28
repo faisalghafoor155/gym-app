@@ -3,6 +3,12 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { spawn, execFile, execSync } = require('node:child_process');
 
+// The embedded cluster is created with `initdb -A trust` and listens on
+// 127.0.0.1 only, so it takes no password. Anything that does (a Docker
+// Postgres on 5433, say) supplies its own URL through backend/.env or
+// DATABASE_URL — never a password written here.
+const EMBEDDED_DB_URL = 'postgresql://gymapp@127.0.0.1:5433/gymapp';
+
 function checkPort(port, host = '127.0.0.1', timeout = 1200) {
   return new Promise((resolve) => {
     const socket = new net.Socket();
@@ -108,7 +114,7 @@ class DatabaseManager {
     const port5433Open = await checkPort(5433);
     if (port5433Open) {
       this.logger('[DB] Detected PostgreSQL running on port 5433');
-      this.databaseUrl = backendEnvDbUrl || 'postgresql://gymapp:99162a29589a02f11e2a35b252114149@127.0.0.1:5433/gymapp';
+      this.databaseUrl = backendEnvDbUrl || EMBEDDED_DB_URL;
       return { success: true, url: this.databaseUrl, type: 'local_5433' };
     }
 
@@ -128,7 +134,7 @@ class DatabaseManager {
       }
 
       this.logger('[DB] No embedded PostgreSQL found and port 5433 is not running.');
-      this.databaseUrl = backendEnvDbUrl || 'postgresql://gymapp:99162a29589a02f11e2a35b252114149@127.0.0.1:5433/gymapp';
+      this.databaseUrl = backendEnvDbUrl || EMBEDDED_DB_URL;
       return {
         success: false,
         message: 'No running PostgreSQL server found on port 5433. Please ensure database is started or embedded binaries are present.',
@@ -245,7 +251,7 @@ class DatabaseManager {
     }
 
     this.isEmbedded = true;
-    this.databaseUrl = backendEnvDbUrl || 'postgresql://gymapp:99162a29589a02f11e2a35b252114149@127.0.0.1:5433/gymapp';
+    this.databaseUrl = backendEnvDbUrl || EMBEDDED_DB_URL;
     this.logger('[DB] Embedded PostgreSQL started successfully.');
     return { success: true, url: this.databaseUrl, type: 'embedded' };
   }
