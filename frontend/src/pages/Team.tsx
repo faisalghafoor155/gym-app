@@ -219,9 +219,12 @@ export default function Team() {
    * emailed is not a failure — the account exists — but the owner has to be
    * told, or they will wait for a message that never arrives.
    */
-  const announce = (invite: InviteResult | null, created: string, name: string, viaWhatsApp = false) => {
+  const announce = (
+    invite: InviteResult | null, created: string, name: string,
+    viaWhatsApp = false, phone: string | null = null,
+  ) => {
     if (!invite) { toast.success(t('{created} — they can sign in now', { created })); return; }
-    setSharedInvite({ ...invite, name, viaWhatsApp });
+    setSharedInvite({ ...invite, name, viaWhatsApp, phone });
     if (viaWhatsApp) toast.success(t('{created} — send the link on WhatsApp', { created }));
     else if (invite.emailed) toast.success(t('{created} — invite emailed', { created }));
     else toast(t('{created}, but the invite could not be emailed', { created }), { icon: '⚠️' });
@@ -232,7 +235,8 @@ export default function Team() {
     setReinviting(u.id);
     try {
       const { data } = await api.post<{ invite: InviteResult }>(`/users/${u.id}/invite`);
-      announce(data.invite, t('New invite ready'), u.member?.name ?? u.name);
+      announce(data.invite, t('New invite ready'), u.member?.name ?? u.name, false,
+        members.find(m => m.id === u.memberId)?.phone ?? null);
     } catch (err) {
       toast.error(apiError(err, t('Could not send the invite')));
     } finally {
@@ -273,9 +277,9 @@ export default function Team() {
         ...(loginMethod === 'password' && { password: loginForm.password }),
         ...(loginMethod === 'whatsapp' && { sendEmail: false }),
       });
-      announce(data.invite, t('Member login created'),
-        members.find(m => m.id === loginForm.memberId)?.name ?? loginForm.email,
-        loginMethod === 'whatsapp');
+      const member = members.find(m => m.id === loginForm.memberId);
+      announce(data.invite, t('Member login created'), member?.name ?? loginForm.email,
+        loginMethod === 'whatsapp', member?.phone ?? null);
       setShowMemberLogin(false);
       setLoginForm({ memberId: '', email: '', password: '' });
       await load();

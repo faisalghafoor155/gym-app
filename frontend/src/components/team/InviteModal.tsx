@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import Modal from '../Modal';
-import { focusRing, primaryButton, secondaryButton } from '../ui';
+import { FieldLabel, focusRing, inputClass, primaryButton, secondaryButton } from '../ui';
 import { useLanguage } from '../../context/LanguageContext';
+import { formatWhatsAppNumber } from '../../utils/whatsapp';
 import type { SharedInvite } from './types';
 
-/** A WhatsApp message the owner forwards; no number, so they pick the chat. */
-const whatsappInviteUrl = (invite: SharedInvite) =>
-  `https://wa.me/?text=${encodeURIComponent(
+/** The invite as a WhatsApp message: straight to `number`'s chat when there is
+ *  one, otherwise WhatsApp asks the owner to pick the chat. */
+const whatsappInviteUrl = (invite: SharedInvite, number: string | null) =>
+  `https://wa.me/${number ?? ''}?text=${encodeURIComponent(
     `Assalam o Alaikum ${invite.name}, aap ko gym app mein add kar diya gaya hai. ` +
     `Ye link khol kar apna password set karein (48 ghante ke liye, sirf aik dafa):
 ${invite.link}`,
@@ -19,6 +22,11 @@ export default function InviteModal({ sharedInvite, onClose }: {
   onClose: () => void;
 }) {
   const { t } = useLanguage();
+  const [phone, setPhone] = useState(sharedInvite.phone ?? '');
+  const number = formatWhatsAppNumber(phone);
+  // A half-typed number would open WhatsApp on a stranger's chat, so it is
+  // refused; a blank field falls back to picking the chat in WhatsApp.
+  const invalid = phone.trim() !== '' && !number;
   return (
     <Modal title={t('Invite for {name}', { name: sharedInvite.name })} onClose={() => onClose()}>
       <div className="space-y-4">
@@ -39,11 +47,27 @@ export default function InviteModal({ sharedInvite, onClose }: {
             {sharedInvite.link}
           </p>
         </div>
+        <div>
+          <FieldLabel htmlFor="invite-whatsapp-number">{t('WhatsApp number')}</FieldLabel>
+          <input id="invite-whatsapp-number" type="tel" inputMode="tel" value={phone}
+            onChange={e => setPhone(e.target.value)}
+            placeholder="03001234567"
+            aria-invalid={invalid}
+            aria-describedby="invite-whatsapp-hint"
+            className={inputClass} />
+          <p id="invite-whatsapp-hint" className={`text-xs mt-1 ${invalid ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-slate-500'}`}>
+            {invalid
+              ? t('Enter a full number, like 03001234567')
+              : t('The link opens straight in their WhatsApp chat. Leave blank to pick the chat yourself.')}
+          </p>
+        </div>
         <a
-          href={whatsappInviteUrl(sharedInvite)}
+          href={invalid ? undefined : whatsappInviteUrl(sharedInvite, number)}
           target="_blank"
           rel="noopener noreferrer"
-          className={`flex items-center justify-center w-full rounded-xl py-2.5 font-semibold text-white bg-green-600 hover:bg-green-700 ${focusRing}`}
+          aria-disabled={invalid}
+          onClick={e => { if (invalid) e.preventDefault(); }}
+          className={`flex items-center justify-center w-full rounded-xl py-2.5 font-semibold text-white bg-green-600 hover:bg-green-700 ${focusRing} ${invalid ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           {t('Send on WhatsApp')}
         </a>

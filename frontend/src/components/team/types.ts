@@ -17,6 +17,8 @@ export interface SharedInvite extends InviteResult {
   name: string;
   /** True when the owner chose WhatsApp, so no email was ever attempted. */
   viaWhatsApp?: boolean;
+  /** The member's saved number, to prefill the WhatsApp field. */
+  phone?: string | null;
 }
 
 /** The gym's identity as edited in the settings card. */

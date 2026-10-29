@@ -119,6 +119,9 @@ const team: Record<string, string> = {
   'They open the link, choose their own password and are signed in with the access you gave them. It lasts 48 hours and works once.':
     'Woh link kholenge, apna password chunenge aur aap ka diya hua access le kar login ho jayenge. Link 48 ghante chalta hai aur sirf aik dafa.',
   'Send on WhatsApp': 'WhatsApp par bhejein',
+  'WhatsApp number': 'WhatsApp number',
+  'Enter a full number, like 03001234567': 'Poora number likhein, jaise 03001234567',
+  'The link opens straight in their WhatsApp chat. Leave blank to pick the chat yourself.': 'Link seedha unki WhatsApp chat mein khulega. Khali chhorein to chat khud chunein.',
   'Link copied': 'Link copy ho gaya',
   'Could not copy — select the text instead': 'Copy nahi ho saka — text khud select kar lein',
   'Copy link': 'Link copy karein',

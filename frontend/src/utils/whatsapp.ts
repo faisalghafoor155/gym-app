@@ -7,13 +7,14 @@ export function formatWhatsAppNumber(phone: string | null | undefined): string |
   const digits = phone.replace(/\D/g, '');
   if (!digits) return null;
 
-  // Already 923xxxxxxxxx
+  // Already 923xxxxxxxxx. Each Pakistani form checks its full length, so a
+  // half-typed number is refused instead of opening a stranger's chat.
   if (digits.startsWith('92')) {
-    return digits;
+    return digits.length === 12 ? digits : null;
   }
   // Local 03xxxxxxxxx -> 923xxxxxxxxx
   if (digits.startsWith('03')) {
-    return '92' + digits.slice(1);
+    return digits.length === 11 ? '92' + digits.slice(1) : null;
   }
   // 3xxxxxxxxx (10 digits)
   if (digits.length === 10 && digits.startsWith('3')) {
