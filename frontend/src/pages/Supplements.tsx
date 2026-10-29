@@ -207,21 +207,26 @@ export default function Supplements() {
 
   const addToCart = (s: Supplement) => {
     if (s.stock === 0 || s.price == null) return;
+    // Toasts stay outside the state updater: React may run an updater twice
+    // (StrictMode does in dev), which would show every toast twice.
+    const existing = cart.find(item => item.supplementId === s.id);
+    if (existing && existing.quantity >= s.stock) {
+      toast.error(t('Cannot add more. Only {count} in stock.', { count: s.stock }));
+      return;
+    }
+    toast.success(existing
+      ? t('Increased {name} quantity in cart', { name: s.name })
+      : t('Added {name} to cart', { name: s.name }));
     setCart(prev => {
-      const existing = prev.find(item => item.supplementId === s.id);
-      if (existing) {
-        if (existing.quantity >= s.stock) {
-          toast.error(t('Cannot add more. Only {count} in stock.', { count: s.stock }));
-          return prev;
-        }
-        toast.success(t('Increased {name} quantity in cart', { name: s.name }));
+      const current = prev.find(item => item.supplementId === s.id);
+      if (current) {
+        if (current.quantity >= s.stock) return prev;
         return prev.map(item =>
           item.supplementId === s.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      toast.success(t('Added {name} to cart', { name: s.name }));
       return [...prev, {
         supplementId: s.id,
         name: s.name,
