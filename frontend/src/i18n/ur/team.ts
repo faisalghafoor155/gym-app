@@ -9,6 +9,7 @@ const team: Record<string, string> = {
   'Could not update settings': 'Settings update nahi ho sakin',
   '{created} — they can sign in now': '{created} — ab woh login kar sakte hain',
   '{created} — invite emailed': '{created} — invite email kar diya gaya',
+  '{created} — send the link on WhatsApp': '{created} — ab link WhatsApp par bhejein',
   '{created}, but the invite could not be emailed': '{created}, lekin invite email nahi ho saka',
   'New invite ready': 'Naya invite tayyar hai',
   'Could not send the invite': 'Invite nahi bheja ja saka',
@@ -75,11 +76,15 @@ const team: Record<string, string> = {
   'How should they get in?': 'Woh login kaise karenge?',
   'Email an invite': 'Invite email karein',
   'They pick their own password': 'Woh apna password khud chunenge',
+  'WhatsApp link': 'WhatsApp link',
+  'You send the link on WhatsApp': 'Aap link WhatsApp par bhejenge',
   'Set a password': 'Password set karein',
   'You share it with them': 'Aap unhein bata denge',
   'Temporary password': 'Aarzi password',
   'Min 8 characters': 'Kam az kam 8 huroof',
   'Share this with them; they can change it after signing in.': 'Yeh unhein bata dein; login ke baad woh isay badal sakte hain.',
+  'No email is sent. Next you get a link to send them on WhatsApp; they open it and choose their own password. It lasts 48 hours and works once.':
+    'Koi email nahi jayegi. Agle qadam par aap ko link milega jo unhein WhatsApp par bhejna hai; woh isay khol kar apna password chunenge. Link 48 ghante chalta hai aur sirf aik dafa.',
   'They get an email with a link to choose their own password. The link lasts 48 hours and works once — you never see the password.':
     'Unhein aik email milega jis ke link se woh apna password chunenge. Link 48 ghante chalta hai aur sirf aik dafa — password aap ko kabhi nazar nahi aata.',
 
@@ -110,6 +115,7 @@ const team: Record<string, string> = {
   'Invite for {name}': '{name} ke liye invite',
   'The invite email has been sent. You can also send the link on WhatsApp.': 'Invite email bhej diya gaya hai. Aap link WhatsApp par bhi bhej sakte hain.',
   'The invite email could not be sent. Send them this link on WhatsApp or copy it.': 'Invite email nahi bheja ja saka. Yeh link unhein WhatsApp par bhejein ya copy kar lein.',
+  'Account created. Send them this link on WhatsApp.': 'Account ban gaya. Yeh link unhein WhatsApp par bhejein.',
   'They open the link, choose their own password and are signed in with the access you gave them. It lasts 48 hours and works once.':
     'Woh link kholenge, apna password chunenge aur aap ka diya hua access le kar login ho jayenge. Link 48 ghante chalta hai aur sirf aik dafa.',
   'Send on WhatsApp': 'WhatsApp par bhejein',

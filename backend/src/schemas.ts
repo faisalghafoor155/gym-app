@@ -181,12 +181,16 @@ export const createStaffSchema = z.object({
   email,
   password: password.optional(),
   staffPermission: z.enum(STAFF_PERMISSIONS).optional(),
+  // False when the owner will pass the invite link on by WhatsApp instead.
+  sendEmail: z.boolean().optional(),
 });
 
 export const createMemberLoginSchema = z.object({
   memberId: uuid,
   email,
   password: password.optional(),
+  // False when the owner will pass the invite link on by WhatsApp instead.
+  sendEmail: z.boolean().optional(),
 });
 
 export const acceptInviteSchema = z.object({

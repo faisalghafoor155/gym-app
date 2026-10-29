@@ -21,10 +21,11 @@ export default function PasswordMethod({ method, onMethod, password, onPassword 
       <div
         role="group"
         aria-labelledby="access-mode-label"
-        className="grid grid-cols-2 gap-2"
+        className="grid grid-cols-1 sm:grid-cols-3 gap-2"
       >
         {([
           { value: 'invite', title: 'Email an invite', hint: 'They pick their own password' },
+          { value: 'whatsapp', title: 'WhatsApp link', hint: 'You send the link on WhatsApp' },
           { value: 'password', title: 'Set a password', hint: 'You share it with them' },
         ] as const).map(o => (
           <button
@@ -59,7 +60,9 @@ export default function PasswordMethod({ method, onMethod, password, onPassword 
         </div>
       ) : (
         <p className="text-xs text-gray-500 dark:text-slate-400 bg-blue-50/60 border border-blue-100 dark:border-blue-500/20 rounded-xl px-3 py-2.5 leading-relaxed">
-          {t('They get an email with a link to choose their own password. The link lasts 48 hours and works once — you never see the password.')}
+          {method === 'whatsapp'
+            ? t('No email is sent. Next you get a link to send them on WhatsApp; they open it and choose their own password. It lasts 48 hours and works once.')
+            : t('They get an email with a link to choose their own password. The link lasts 48 hours and works once — you never see the password.')}
         </p>
       )}
     </div>

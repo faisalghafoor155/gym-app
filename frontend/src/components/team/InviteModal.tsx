@@ -22,12 +22,14 @@ export default function InviteModal({ sharedInvite, onClose }: {
   return (
     <Modal title={t('Invite for {name}', { name: sharedInvite.name })} onClose={() => onClose()}>
       <div className="space-y-4">
-        <p className={`text-sm rounded-xl p-3 ${sharedInvite.emailed
+        <p className={`text-sm rounded-xl p-3 ${sharedInvite.emailed || sharedInvite.viaWhatsApp
           ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300'
           : 'bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300'}`}>
-          {sharedInvite.emailed
-            ? t('The invite email has been sent. You can also send the link on WhatsApp.')
-            : t('The invite email could not be sent. Send them this link on WhatsApp or copy it.')}
+          {sharedInvite.viaWhatsApp
+            ? t('Account created. Send them this link on WhatsApp.')
+            : sharedInvite.emailed
+              ? t('The invite email has been sent. You can also send the link on WhatsApp.')
+              : t('The invite email could not be sent. Send them this link on WhatsApp or copy it.')}
         </p>
         <p className="text-sm text-gray-500 dark:text-slate-400">
           {t('They open the link, choose their own password and are signed in with the access you gave them. It lasts 48 hours and works once.')}

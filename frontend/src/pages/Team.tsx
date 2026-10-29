@@ -219,10 +219,11 @@ export default function Team() {
    * emailed is not a failure — the account exists — but the owner has to be
    * told, or they will wait for a message that never arrives.
    */
-  const announce = (invite: InviteResult | null, created: string, name: string) => {
+  const announce = (invite: InviteResult | null, created: string, name: string, viaWhatsApp = false) => {
     if (!invite) { toast.success(t('{created} — they can sign in now', { created })); return; }
-    setSharedInvite({ ...invite, name });
-    if (invite.emailed) toast.success(t('{created} — invite emailed', { created }));
+    setSharedInvite({ ...invite, name, viaWhatsApp });
+    if (viaWhatsApp) toast.success(t('{created} — send the link on WhatsApp', { created }));
+    else if (invite.emailed) toast.success(t('{created} — invite emailed', { created }));
     else toast(t('{created}, but the invite could not be emailed', { created }), { icon: '⚠️' });
   };
 
@@ -249,8 +250,9 @@ export default function Team() {
         email: staffForm.email,
         staffPermission: staffForm.staffPermission,
         ...(staffMethod === 'password' && { password: staffForm.password }),
+        ...(staffMethod === 'whatsapp' && { sendEmail: false }),
       });
-      announce(data.invite, t('Staff account created'), staffForm.name);
+      announce(data.invite, t('Staff account created'), staffForm.name, staffMethod === 'whatsapp');
       setShowStaff(false);
       setStaffForm({ name: '', email: '', password: '', staffPermission: 'receptionist' as StaffPermission });
       await load();
@@ -269,9 +271,11 @@ export default function Team() {
         memberId: loginForm.memberId,
         email: loginForm.email,
         ...(loginMethod === 'password' && { password: loginForm.password }),
+        ...(loginMethod === 'whatsapp' && { sendEmail: false }),
       });
       announce(data.invite, t('Member login created'),
-        members.find(m => m.id === loginForm.memberId)?.name ?? loginForm.email);
+        members.find(m => m.id === loginForm.memberId)?.name ?? loginForm.email,
+        loginMethod === 'whatsapp');
       setShowMemberLogin(false);
       setLoginForm({ memberId: '', email: '', password: '' });
       await load();

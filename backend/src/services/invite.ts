@@ -40,7 +40,11 @@ export interface IssuedInvite {
  */
 export const issueInvite = async (
   userId: string,
-  opts: { email: string; gymName: string; role: 'staff' | 'member'; invitedBy: string },
+  opts: {
+    email: string; gymName: string; role: 'staff' | 'member'; invitedBy: string;
+    /** False when the owner sends the link on WhatsApp, so no mail goes out. */
+    sendEmail?: boolean;
+  },
 ): Promise<IssuedInvite> => {
   const token = crypto.randomBytes(32).toString('hex');
 
@@ -50,6 +54,8 @@ export const issueInvite = async (
   });
 
   const link = `${appUrl()}/accept-invite?token=${token}`;
+  if (opts.sendEmail === false) return { link, emailed: false };
+
   const emailed = await sendMail({
     to: opts.email,
     fromName: opts.gymName,

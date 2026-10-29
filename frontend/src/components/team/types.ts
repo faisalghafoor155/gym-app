@@ -1,9 +1,9 @@
 import type { StaffPermission, GymUser, Role } from '../../types';
 
-/** How a new account gets its password: emailed invite, or one the owner
- *  types. Invite is the default; the manual route exists for the helper whose
- *  email does not work. */
-export type AccountMethod = 'invite' | 'password';
+/** How a new account gets its password: emailed invite, an invite link the
+ *  owner sends on WhatsApp, or one the owner types. Invite is the default;
+ *  the other two exist for people whose email does not work. */
+export type AccountMethod = 'invite' | 'whatsapp' | 'password';
 
 /** What the API answers when an account was created by invite. */
 export interface InviteResult {
@@ -15,6 +15,8 @@ export interface InviteResult {
 /** The invite on screen after creating or re-inviting an account. */
 export interface SharedInvite extends InviteResult {
   name: string;
+  /** True when the owner chose WhatsApp, so no email was ever attempted. */
+  viaWhatsApp?: boolean;
 }
 
 /** The gym's identity as edited in the settings card. */

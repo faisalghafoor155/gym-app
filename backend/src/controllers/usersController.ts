@@ -152,7 +152,7 @@ export const createStaff = async (
   req: AuthedRequest<Record<string, string>, unknown, CreateStaffBody>,
   res: Response,
 ): Promise<void> => {
-  const { name, email, password, staffPermission } = req.body;
+  const { name, email, password, staffPermission, sendEmail } = req.body;
   try {
     if (await prisma.user.findUnique({ where: { email } })) {
       res.status(409).json({ error: 'Email already registered' });
@@ -184,7 +184,7 @@ export const createStaff = async (
       ? null
       : await issueInvite(user.id, {
           email, gymName: await gymName(req.gymId),
-          role: 'staff', invitedBy: req.actorName,
+          role: 'staff', invitedBy: req.actorName, sendEmail,
         });
 
     await audit(req, {
@@ -194,7 +194,7 @@ export const createStaff = async (
       entityLabel: `${user.name} · staff`,
       // Which way the account was created is the part worth being able to look
       // up later; the password itself never goes near an audit row.
-      after: { name, email, role: 'staff', method: password ? 'password' : 'invite' },
+      after: { name, email, role: 'staff', method: password ? 'password' : sendEmail === false ? 'whatsapp' : 'invite' },
     });
 
     res.status(201).json({
@@ -227,7 +227,7 @@ export const createMemberLogin = async (
   req: AuthedRequest<Record<string, string>, unknown, CreateMemberLoginBody>,
   res: Response,
 ): Promise<void> => {
-  const { memberId, email, password } = req.body;
+  const { memberId, email, password, sendEmail } = req.body;
   try {
     const member = await prisma.member.findFirst({
       where: { id: memberId, gymId: req.gymId },
@@ -260,7 +260,7 @@ export const createMemberLogin = async (
       ? null
       : await issueInvite(user.id, {
           email, gymName: await gymName(req.gymId),
-          role: 'member', invitedBy: req.actorName,
+          role: 'member', invitedBy: req.actorName, sendEmail,
         });
 
     await audit(req, {
@@ -268,7 +268,7 @@ export const createMemberLogin = async (
       entity: 'user',
       entityId: user.id,
       entityLabel: `${member.memberNo} · ${member.name}`,
-      after: { memberId, email, role: 'member', method: password ? 'password' : 'invite' },
+      after: { memberId, email, role: 'member', method: password ? 'password' : sendEmail === false ? 'whatsapp' : 'invite' },
     });
 
     res.status(201).json({ ...user, invite: inviteInfo(invite) });
