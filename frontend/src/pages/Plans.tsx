@@ -2,13 +2,14 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, ClipboardList, Dumbbell, Utensils, UserPlus, Trash, ChevronDown, ChevronUp, Calculator } from 'lucide-react';
 import Modal from '../components/Modal';
+import TrainerSelect from '../components/plans/TrainerSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
   Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl, FieldLabel,
   inputClass, primaryButton, secondaryButton,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
-import type { Plan, Member, Paginated, WorkoutExercise, DailyWorkout, DietItem, DietMeal } from '../types';
+import type { Plan, Member, Paginated, WorkoutExercise, DailyWorkout, DietItem, DietMeal, Trainer } from '../types';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -30,6 +31,7 @@ export default function Plans() {
   const [workoutPlans, setWorkoutPlans] = useState<Plan[]>([]);
   const [dietPlans, setDietPlans] = useState<Plan[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [trainers, setTrainers] = useState<Trainer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
@@ -76,6 +78,7 @@ export default function Plans() {
       api.get<Plan[]>('/plans/workout').then(r => setWorkoutPlans(r.data)),
       api.get<Plan[]>('/plans/diet').then(r => setDietPlans(r.data)),
       api.get<Paginated<Member>>('/members?all=true').then(r => setMembers(r.data.data)),
+      api.get<Paginated<Trainer>>('/trainers?all=true').then(r => setTrainers(r.data.data)),
     ])
       .catch(err => toast.error(apiError(err, t('Could not load plans'))))
       .finally(() => setLoading(false));
@@ -170,7 +173,7 @@ export default function Plans() {
     setDietMeals(updated);
   };
 
-  const [assignForm, setAssignForm] = useState({ memberId: '', workoutPlanId: '', dietPlanId: '' });
+  const [assignForm, setAssignForm] = useState({ memberId: '', workoutPlanId: '', dietPlanId: '', trainerId: '' });
 
   const handleAssign = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -184,10 +187,11 @@ export default function Plans() {
         memberId: assignForm.memberId,
         ...(assignForm.workoutPlanId && { workoutPlanId: assignForm.workoutPlanId }),
         ...(assignForm.dietPlanId && { dietPlanId: assignForm.dietPlanId }),
+        ...(assignForm.trainerId && { trainerId: assignForm.trainerId }),
       });
       toast.success(t('Plans assigned to member'));
       setShowAssign(false);
-      setAssignForm({ memberId: '', workoutPlanId: '', dietPlanId: '' });
+      setAssignForm({ memberId: '', workoutPlanId: '', dietPlanId: '', trainerId: '' });
     } catch (err) {
       toast.error(apiError(err, t('Could not assign the plan')));
     } finally {
@@ -489,7 +493,14 @@ export default function Plans() {
             <div>
               <FieldLabel htmlFor="plans-member" required>{t('Member')}</FieldLabel>
               <select id="plans-member" required value={assignForm.memberId}
-                onChange={e => setAssignForm(f => ({ ...f, memberId: e.target.value }))}
+                // Their own trainer is the usual answer; it can still be changed.
+                onChange={e => {
+                  const memberId = e.target.value;
+                  setAssignForm(f => ({
+                    ...f, memberId,
+                    trainerId: members.find(m => m.id === memberId)?.trainerId ?? '',
+                  }));
+                }}
                 className={inputClass}>
                 <option value="">{t('Select member...')}</option>
                 {members.map(m => (
@@ -522,6 +533,8 @@ export default function Plans() {
                 {dietPlans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
+            <TrainerSelect id="plans-trainer" trainers={trainers} value={assignForm.trainerId}
+              onChange={trainerId => setAssignForm(f => ({ ...f, trainerId }))} />
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={() => setShowAssign(false)}
                 className={`flex-1 ${secondaryButton}`}>

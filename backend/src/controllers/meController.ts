@@ -11,6 +11,7 @@ import {
 import { sum, withMoney } from "../services/money.js";
 import { getPhotoUrl } from "../services/s3.js";
 import { audit } from "../services/audit.js";
+import { planIncludes } from "./plansController.js";
 import {
   atMidnight,
   bookingErrorResponse,
@@ -51,7 +52,7 @@ const buildMyProfileResponse = async (memberId: string) => {
     }),
     prisma.memberPlan.findFirst({
       where: { memberId },
-      include: { workoutPlan: true, dietPlan: true },
+      include: planIncludes,
       orderBy: { assignedAt: "desc" },
     }),
     prisma.attendance.findMany({

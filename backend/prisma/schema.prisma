@@ -660,11 +660,15 @@ model MemberPlan {
   memberId      String
   workoutPlanId String?
   dietPlanId    String?
+  /// The trainer the plan comes from, named to the member in their portal.
+  /// SetNull: removing a trainer must not take the member's plan with them.
+  trainerId     String?
   assignedAt    DateTime @default(now())
 
   member      Member       @relation(fields: [memberId], references: [id])
   workoutPlan WorkoutPlan? @relation(fields: [workoutPlanId], references: [id])
   dietPlan    DietPlan?    @relation(fields: [dietPlanId], references: [id])
+  trainer     Trainer?     @relation(fields: [trainerId], references: [id], onDelete: SetNull)
 
   @@index([memberId])
 }
@@ -939,6 +943,7 @@ model Trainer {
   members        Member[]
   ptSessions     PtSession[]
   classSchedules ClassSchedule[]
+  memberPlans    MemberPlan[]
 
   @@index([gymId])
 }

@@ -1,4 +1,4 @@
-import { Droplets, Sparkles, Copy, Check } from 'lucide-react';
+import { Droplets, Sparkles, Copy, Check, Send } from 'lucide-react';
 import { Card } from '../ui';
 import { useLanguage } from '../../context/LanguageContext';
 import type { Goal, MacroResult, GainerProfile, MealSlot, CalcTab } from './data';
@@ -15,6 +15,8 @@ interface MealPlanTabProps {
   setTab: React.Dispatch<React.SetStateAction<CalcTab>>;
   handleCopyDietSummary: () => void;
   copiedPlan: boolean;
+  /** Set only for staff who may assign plans; members never see the button. */
+  onSendToMember?: () => void;
 }
 
 export default function MealPlanTab({
@@ -29,6 +31,7 @@ export default function MealPlanTab({
   handleAskAi,
   setTab,
   handleCopyDietSummary,
+  onSendToMember,
 }: MealPlanTabProps) {
   const { t } = useLanguage();
   return (
@@ -67,6 +70,16 @@ export default function MealPlanTab({
               {copiedPlan ? <Check size={16} /> : <Copy size={16} />}
               <span>{copiedPlan ? t('Copied to Clipboard') : t('Copy Full Plan')}</span>
             </button>
+            {onSendToMember && (
+              <button
+                type="button"
+                onClick={onSendToMember}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition flex items-center gap-2 shrink-0 shadow-md shadow-emerald-600/30"
+              >
+                <Send size={16} />
+                <span>{t('Send to member')}</span>
+              </button>
+            )}
           </div>
         </div>
       </Card>

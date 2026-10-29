@@ -229,6 +229,8 @@ export interface MyProfile {
     assignedAt: string;
     workoutPlan: Plan | null;
     dietPlan: Plan | null;
+    /** The trainer the plans come from, when the gym named one. */
+    trainer?: { id: string; name: string } | null;
   } | null;
   attendance: { id: string; checkedInAt: string }[];
   payments: Omit<Payment, 'member'>[];

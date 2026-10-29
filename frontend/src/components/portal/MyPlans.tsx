@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Dumbbell, Utensils, Flame } from 'lucide-react';
+import { Dumbbell, Utensils, Flame, UserRound } from 'lucide-react';
 import { Card, InlineEmpty, SegmentedControl } from '../ui';
 import type { DailyWorkout, DietMeal, MyProfile } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
@@ -15,6 +15,12 @@ export default function MyPlans({ plan }: { plan: MyProfile['plan'] }) {
   const { t } = useLanguage();
   const workout = plan?.workoutPlan;
   const diet = plan?.dietPlan;
+  const trainerName = plan?.trainer?.name;
+  const fromTrainer = trainerName && (
+    <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
+      <UserRound size={12} /> {t('From your trainer {name}', { name: trainerName })}
+    </p>
+  );
   const days = ((workout?.workoutData as { days?: DailyWorkout[] } | undefined)?.days ?? [])
     .filter(d => d.exercises.length > 0);
   const meals = ((diet?.dietData as { meals?: DietMeal[] } | undefined)?.meals ?? [])
@@ -36,6 +42,7 @@ export default function MyPlans({ plan }: { plan: MyProfile['plan'] }) {
         ) : (
           <>
             <p className="font-medium text-gray-900 dark:text-slate-100 text-sm">{workout.name}</p>
+            {fromTrainer}
             {workout.description && (
               <p className="text-sm text-gray-500 dark:text-slate-400 mt-1 whitespace-pre-wrap">{workout.description}</p>
             )}
@@ -84,6 +91,7 @@ export default function MyPlans({ plan }: { plan: MyProfile['plan'] }) {
         ) : (
           <>
             <p className="font-medium text-gray-900 dark:text-slate-100 text-sm">{diet.name}</p>
+            {fromTrainer}
             {diet.description && (
               <p className="text-sm text-gray-500 dark:text-slate-400 mt-1 whitespace-pre-wrap">{diet.description}</p>
             )}

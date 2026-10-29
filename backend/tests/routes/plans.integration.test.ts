@@ -164,3 +164,79 @@ describe('workout and diet plans — who may write them', () => {
     expect(res.status).toBe(200);
   });
 });
+
+/**
+ * Assigning a plan, as the member then sees it.
+ *
+ * The portal shows only the newest assignment, so it has to carry everything:
+ * the trainer the plan comes from, and the half that was not reassigned.
+ */
+describe('assigning a plan', () => {
+  const dietPlan = (gymId: string, name = 'Lean bulk') =>
+    prisma.dietPlan.create({ data: { gymId, name, dietData: { meals: [] } } });
+  const workoutPlan = (gymId: string) =>
+    prisma.workoutPlan.create({ data: { gymId, name: 'Push pull legs', workoutData: { days: [] } } });
+  const trainer = (gymId: string, name = 'Coach Bilal') =>
+    prisma.trainer.create({ data: { gymId, name, commissionPercentage: 0 } });
+
+  it('shows the member the trainer the plan comes from', async () => {
+    const owner = await makeGym();
+    const member = await addMember(owner.gymId);
+    const login = await addUser(owner.gymId, { role: 'member', memberId: member.id });
+    const coach = await trainer(owner.gymId);
+    const diet = await dietPlan(owner.gymId);
+
+    const res = await api().post('/api/plans/assign').set('Cookie', owner.cookie)
+      .send({ memberId: member.id, dietPlanId: diet.id, trainerId: coach.id });
+    expect(res.status).toBe(201);
+
+    const me = await api().get('/api/me').set('Cookie', login.cookie);
+    expect(me.body.plan.dietPlan.name).toBe('Lean bulk');
+    expect(me.body.plan.trainer).toEqual({ id: coach.id, name: 'Coach Bilal' });
+  });
+
+  it('keeps the workout when only a diet is sent', async () => {
+    const owner = await makeGym();
+    const member = await addMember(owner.gymId);
+    const workout = await workoutPlan(owner.gymId);
+    const diet = await dietPlan(owner.gymId);
+
+    await api().post('/api/plans/assign').set('Cookie', owner.cookie)
+      .send({ memberId: member.id, workoutPlanId: workout.id });
+    await api().post('/api/plans/assign').set('Cookie', owner.cookie)
+      .send({ memberId: member.id, dietPlanId: diet.id });
+
+    const res = await api().get(`/api/plans/member/${member.id}`).set('Cookie', owner.cookie);
+    expect(res.body.workoutPlan.id).toBe(workout.id);
+    expect(res.body.dietPlan.id).toBe(diet.id);
+  });
+
+  it('refuses another gym’s trainer', async () => {
+    const owner = await makeGym();
+    const other = await makeGym();
+    const member = await addMember(owner.gymId);
+    const diet = await dietPlan(owner.gymId);
+    const theirs = await trainer(other.gymId);
+
+    const res = await api().post('/api/plans/assign').set('Cookie', owner.cookie)
+      .send({ memberId: member.id, dietPlanId: diet.id, trainerId: theirs.id });
+
+    expect(res.status).toBe(404);
+    expect(await prisma.memberPlan.count()).toBe(0);
+  });
+
+  it('keeps the plan when its trainer is removed', async () => {
+    const owner = await makeGym();
+    const member = await addMember(owner.gymId);
+    const coach = await trainer(owner.gymId);
+    const diet = await dietPlan(owner.gymId);
+    await api().post('/api/plans/assign').set('Cookie', owner.cookie)
+      .send({ memberId: member.id, dietPlanId: diet.id, trainerId: coach.id });
+
+    await prisma.trainer.delete({ where: { id: coach.id } });
+
+    const res = await api().get(`/api/plans/member/${member.id}`).set('Cookie', owner.cookie);
+    expect(res.body.dietPlan.id).toBe(diet.id);
+    expect(res.body.trainer).toBeNull();
+  });
+});

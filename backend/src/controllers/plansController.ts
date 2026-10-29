@@ -4,6 +4,13 @@ import { audit } from '../services/audit.js';
 import type { AuthedRequest } from '../types.js';
 import type { CreatePlanBody, AssignPlanBody, IdParam } from '../schemas.js';
 
+/** An assignment as read back: both plans, and the trainer by name only. */
+export const planIncludes = {
+  workoutPlan: true,
+  dietPlan: true,
+  trainer: { select: { id: true, name: true } },
+} as const;
+
 export const getWorkoutPlans = async (req: AuthedRequest, res: Response): Promise<void> => {
   try {
     const plans = await prisma.workoutPlan.findMany({
@@ -66,7 +73,7 @@ export const assignPlan = async (
   req: AuthedRequest<Record<string, string>, unknown, AssignPlanBody>,
   res: Response,
 ): Promise<void> => {
-  const { memberId, workoutPlanId, dietPlanId } = req.body;
+  const { memberId, workoutPlanId, dietPlanId, trainerId } = req.body;
   try {
     const member = await prisma.member.findFirst({ where: { id: memberId, gymId: req.gymId } });
     if (!member) {
@@ -95,8 +102,32 @@ export const assignPlan = async (
       }
     }
 
+    if (trainerId) {
+      const trainer = await prisma.trainer.findFirst({
+        where: { id: trainerId, gymId: req.gymId },
+      });
+      if (!trainer) {
+        res.status(404).json({ error: 'Trainer not found' });
+        return;
+      }
+    }
+
+    // The member sees only their newest assignment, so a half left out here
+    // is carried over from the last one — sending a diet must not take away
+    // the workout they already have. An explicit null still clears it.
+    const previous = await prisma.memberPlan.findFirst({
+      where: { memberId },
+      orderBy: { assignedAt: 'desc' },
+    });
+
     const assignment = await prisma.memberPlan.create({
-      data: { memberId, workoutPlanId, dietPlanId },
+      data: {
+        memberId,
+        workoutPlanId: workoutPlanId === undefined ? previous?.workoutPlanId : workoutPlanId,
+        dietPlanId: dietPlanId === undefined ? previous?.dietPlanId : dietPlanId,
+        trainerId: trainerId ?? null,
+      },
+      include: planIncludes,
     });
     res.status(201).json(assignment);
   } catch (err) {
@@ -120,7 +151,7 @@ export const getMemberPlans = async (
 
     const plans = await prisma.memberPlan.findMany({
       where: { memberId: id },
-      include: { workoutPlan: true, dietPlan: true },
+      include: planIncludes,
       orderBy: { assignedAt: 'desc' },
       take: 1,
     });

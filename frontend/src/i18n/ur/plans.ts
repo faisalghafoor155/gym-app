@@ -376,6 +376,21 @@ const plans: Record<string, string> = {
   'by {name}': '{name} ne',
   'Remove entry': 'Entry hatayein',
   'Remove the measurements from {date}? This cannot be undone.': '{date} ki paimaish hatayein? Yeh wapas nahi ho sakta.',
+
+  // --- trainer on a plan, and sending a diet from the calculator ---
+  'No trainer named': 'Koi trainer nahi',
+  'The member sees this name with the plan in their app.': 'Member ko app mein plan ke saath yeh naam nazar aayega.',
+  'From your trainer {name}': 'Aap ke trainer {name} ki taraf se',
+  'Send to member': 'Member ko bhejein',
+  'Send diet plan to member': 'Member ko diet plan bhejein',
+  'The member sees this plan in their app under My Plans.': 'Member yeh plan apni app mein "My Plans" mein dekhega.',
+  'Notes for the member': 'Member ke liye hidayat',
+  'e.g. No sugar, drink water before every meal': 'Maslan: cheeni band, har khane se pehle paani piyein',
+  '{p}g protein · {c}g carbs · {f}g fat': '{p}g protein · {c}g carbs · {f}g fat',
+  '{kcal} kcal a day · {p}g protein · {c}g carbs · {f}g fat · {water} L water': 'Rozana {kcal} kcal · {p}g protein · {c}g carbs · {f}g fat · {water} L paani',
+  'Diet plan for {name}': '{name} ka diet plan',
+  'Diet plan sent to {name}': 'Diet plan {name} ko bhej diya gaya',
+  'Could not send the diet plan': 'Diet plan nahi bheja ja saka',
 };
 
 export default plans;

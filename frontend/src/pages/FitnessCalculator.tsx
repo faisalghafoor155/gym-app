@@ -20,6 +20,8 @@ import SupplementsTab from '../components/fitness/SupplementsTab';
 import WorkoutSplitTab from '../components/fitness/WorkoutSplitTab';
 import AiAdvisorTab from '../components/fitness/AiAdvisorTab';
 import MealPlanTab from '../components/fitness/MealPlanTab';
+import SendDietModal from '../components/fitness/SendDietModal';
+import { hasPermission } from '../utils/permissions';
 
 export default function FitnessCalculator() {
   const { lang, t } = useLanguage();
@@ -35,7 +37,12 @@ export default function FitnessCalculator() {
 
   // A member's own logged weight, so the numbers start from them rather than
   // from a 70 kg stranger. Staff use this page for walk-ins and get the default.
-  const { user } = useAuth();
+  const { user, isStaff, isOwner } = useAuth();
+  // Sending a plan to a member is assigning one, so it needs the same
+  // permission as the Plans page — the API refuses it otherwise.
+  const canAssignPlans = isOwner
+    || (isStaff && !!user?.staffPermission && hasPermission(user.role, user.staffPermission, 'canManagePlans'));
+  const [sendingDiet, setSendingDiet] = useState(false);
   const [latestWeighIn, setLatestWeighIn] = useState<{ weightKg: number; measuredOn: string } | null>(null);
   useEffect(() => {
     if (!user?.memberId) return;
@@ -406,7 +413,11 @@ ${t('Generated via Gym App Fitness & AI Calculator')}`;
             handleAskAi={handleAskAi}
             setTab={setTab}
             handleCopyDietSummary={handleCopyDietSummary}
+            onSendToMember={canAssignPlans ? () => setSendingDiet(true) : undefined}
           />
+        )}
+        {sendingDiet && (
+          <SendDietModal macros={macros} meals={mealDistribution} onClose={() => setSendingDiet(false)} />
         )}
       </div>
 

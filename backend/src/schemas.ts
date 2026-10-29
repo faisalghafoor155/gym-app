@@ -859,6 +859,8 @@ export const assignPlanSchema = z.object({
   memberId: uuid,
   workoutPlanId: uuid.nullish(),
   dietPlanId: uuid.nullish(),
+  /** The trainer the plan comes from, shown to the member. */
+  trainerId: uuid.nullish(),
 });
 
 export const trainerIdParam = z.object({ trainerId: uuid });
