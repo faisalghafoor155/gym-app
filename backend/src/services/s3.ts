@@ -8,7 +8,7 @@ import {
   HeadBucketCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "node:crypto";
 
 /**
  * Member photos in S3.
@@ -153,7 +153,7 @@ export const uploadPhoto = async (
 
   const client = getS3Client();
   const fileExt = filename.split(".").pop() || "jpg";
-  const key = `photos/${memberId}/${uuidv4()}.${fileExt}`;
+  const key = `photos/${memberId}/${randomUUID()}.${fileExt}`;
 
   // Determine content type
   const contentTypeMap: { [key: string]: string } = {
