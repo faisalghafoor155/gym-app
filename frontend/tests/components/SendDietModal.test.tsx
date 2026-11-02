@@ -88,6 +88,7 @@ describe('SendDietModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Send to member' }));
 
     await waitFor(() => expect(api.current!.post).toHaveBeenCalledTimes(2));
-    expect(api.current!.post.mock.calls[1]![1]).toMatchObject({ trainerId: 'tr-sana' });
+    const [, assignment] = api.current!.post.mock.calls[1] as unknown as [string, unknown];
+    expect(assignment).toMatchObject({ trainerId: 'tr-sana' });
   });
 });
