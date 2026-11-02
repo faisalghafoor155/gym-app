@@ -365,7 +365,10 @@ export default function Team() {
         icon={Shield}
         title="Staff & Logins"
         subtitle={
-          seats
+          seats && seats.limit === null
+            ? t(users.length === 1 ? '{count} account can sign in · {used} staff seats used' : '{count} accounts can sign in · {used} staff seats used',
+              { count: users.length, used: seats.used })
+            : seats
             ? t(users.length === 1
               ? '{count} account can sign in · {used} of {limit} staff seats used'
               : '{count} accounts can sign in · {used} of {limit} staff seats used',

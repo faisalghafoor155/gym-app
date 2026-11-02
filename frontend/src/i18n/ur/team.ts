@@ -30,6 +30,8 @@ const team: Record<string, string> = {
   '{count} accounts can sign in': '{count} accounts login kar sakte hain',
   '{count} account can sign in · {used} of {limit} staff seats used': '{count} account login kar sakta hai · {limit} mein se {used} staff seats istemaal mein',
   '{count} accounts can sign in · {used} of {limit} staff seats used': '{count} accounts login kar sakte hain · {limit} mein se {used} staff seats istemaal mein',
+  '{count} account can sign in · {used} staff seats used': '{count} account login kar sakta hai · {used} staff seats istemaal mein',
+  '{count} accounts can sign in · {used} staff seats used': '{count} accounts login kar sakte hain · {used} staff seats istemaal mein',
   'Member login': 'Member login',
   'All {limit} staff seats are in use. Remove an account to free one.': 'Saari {limit} staff seats istemaal mein hain. Aik khaali karne ke liye koi account hatayein.',
   'All {limit} staff seats are in use. To add someone else, remove an account below — revoking access alone does not free the seat, since the account keeps its email address and can be restored.':
