@@ -60,14 +60,14 @@ function QuickAction({ to, icon: Icon, label }: {
   return (
     <Link
       to={to}
-      className={`group flex items-center gap-3 px-3.5 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800
+      className={`group flex items-center gap-2.5 sm:gap-3 px-3 sm:px-3.5 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800
         text-sm font-semibold text-slate-700 dark:text-slate-200 hover:border-blue-500/40 hover:text-blue-600 dark:hover:text-blue-400
         hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 ${focusRing}`}
     >
       <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-200 shadow-2xs">
         <Icon size={16} />
       </div>
-      <span className="truncate font-semibold tracking-tight">{t(label)}</span>
+      <span className="font-semibold tracking-tight leading-tight sm:truncate">{t(label)}</span>
     </Link>
   );
 }
@@ -180,7 +180,8 @@ export default function Dashboard() {
       <>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
+      <div className={`grid grid-cols-2 gap-2.5 sm:gap-3 ${isOwner ? 'lg:grid-cols-4' : 'sm:grid-cols-3'}
+        [&>*:last-child:nth-child(odd)]:col-span-2 sm:[&>*:last-child:nth-child(odd)]:col-span-1`}>
         <QuickAction to="/members?new=1" icon={UserPlus} label="Add Member" />
         <QuickAction to="/attendance" icon={CalendarCheck} label="Check-in" />
         {/* Taking a fee is counter work, so the shortcut is staff's too. What

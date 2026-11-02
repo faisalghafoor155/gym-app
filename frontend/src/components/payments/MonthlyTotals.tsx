@@ -23,7 +23,7 @@ export default function MonthlyTotals({
             })}
           </p>
         </div>
-        <div className="text-right">
+        <div className="sm:text-right">
           <p className="text-xs text-gray-400 dark:text-slate-500">
             {t("This month")}
           </p>

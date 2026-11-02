@@ -257,28 +257,28 @@ export default function Layout({ children }: { children: ReactNode }) {
               <p className="font-extrabold text-gray-900 dark:text-slate-100 text-sm leading-tight truncate font-heading">{gym?.name || 'GymPro'}</p>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" title={t('System Online')} />
             </div>
-            <p className="text-xs text-gray-400 dark:text-slate-500 truncate mt-0.5">{gym?.ownerName || t('Fitness Portal')}</p>
+            <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+              <p className="text-xs text-gray-400 dark:text-slate-500 truncate">{gym?.ownerName || t('Fitness Portal')}</p>
+              {isOwner ? (
+                <span className="shrink-0 inline-flex items-center gap-1 bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-purple-100 dark:border-purple-500/20">
+                  <Crown size={9} /> {t('Owner')}
+                </span>
+              ) : isStaff ? (
+                <span className="shrink-0 inline-flex items-center gap-1 bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-blue-100 dark:border-blue-500/20">
+                  <Shield size={9} /> {t('Staff')}
+                </span>
+              ) : (
+                <span className="shrink-0 inline-flex items-center gap-1 bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-400 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                  <User size={9} /> {t('Member')}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="mt-3 flex items-center justify-between gap-2">
-          {isOwner ? (
-            <span className="inline-flex items-center gap-1.5 bg-purple-50 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300 text-xs font-bold px-2.5 py-1 rounded-full border border-purple-100 dark:border-purple-500/20 shadow-2xs">
-              <Crown size={11} /> {t('Owner')}
-            </span>
-          ) : isStaff ? (
-            <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300 text-xs font-bold px-2.5 py-1 rounded-full border border-blue-100 dark:border-blue-500/20 shadow-2xs">
-              <Shield size={11} /> {t('Staff')}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-400 text-xs font-bold px-2.5 py-1 rounded-full shadow-2xs">
-              <User size={11} /> {t('Member')}
-            </span>
-          )}
-          <div className="flex items-center gap-1.5">
-            <LanguageToggle />
-            <ThemeToggle />
-          </div>
+          <LanguageToggle />
+          <ThemeToggle />
         </div>
 
         <div className="mt-3">
@@ -401,7 +401,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <div className="flex items-center gap-1.5 min-w-0">
                 <p className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm truncate font-heading">{gym?.name || 'GymPro'}</p>
                 {pathname === '/members' && (
-                  <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/15 px-1.5 py-0.5 rounded-md shrink-0">
+                  <span className="hidden sm:inline text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/15 px-1.5 py-0.5 rounded-md shrink-0">
                     {t('Members')}
                   </span>
                 )}

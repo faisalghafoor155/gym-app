@@ -556,7 +556,7 @@ export default function Members() {
             // for members somebody is still chasing.
             const lapsed = m.status === 'inactive';
             return (
-              <Card key={m.id} className={`p-5 hover:shadow-md transition-shadow ${
+              <Card key={m.id} className={`p-5 flex flex-col hover:shadow-md transition-shadow ${
                 lapsed ? 'border-slate-200 bg-slate-50/60 opacity-75' :
                 ms?.status === 'expired' ? 'border-red-200 dark:border-red-500/20 bg-red-50/30' :
                 ms?.status === 'expiring' ? 'border-yellow-200 dark:border-yellow-500/20 bg-yellow-50/30' : ''
@@ -673,6 +673,8 @@ export default function Members() {
                     </button>
                   </div>
                 )}
+
+                <div className="flex-1" />
 
                 <div className="mt-4 pt-3.5 border-t border-gray-100 dark:border-slate-800 space-y-2">
                   {/* Primary Row: QR, Fingerprint, Edit, WhatsApp, Renew */}

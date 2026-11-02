@@ -274,7 +274,7 @@ export default function Classes() {
 
         {(activeTab === 'schedule' || activeTab === 'bookings') && (
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-500 dark:text-slate-400 flex items-center gap-1">
+            <span className="text-sm font-semibold text-gray-500 dark:text-slate-400 flex items-center gap-1 whitespace-nowrap">
               <Calendar size={14} /> {t('Selected Date:')}
             </span>
             <input

@@ -95,13 +95,13 @@ interface PageProps {
 export function PageHeader({ icon: Icon, title, subtitle, action }: PageProps) {
   const { t } = useLanguage();
   return (
-    <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6">
+    <div className="flex items-start sm:items-center justify-between gap-3 mb-4 sm:mb-6">
       <div className="min-w-0">
-        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-          <Icon size={20} className="text-blue-600 dark:text-blue-400 shrink-0 sm:w-6 sm:h-6" />
-          <span className="truncate">{t(title)}</span>
+        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-start sm:items-center gap-2 leading-tight">
+          <Icon size={20} className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5 sm:mt-0 sm:w-6 sm:h-6" />
+          <span className="sm:truncate">{t(title)}</span>
         </h1>
-        {subtitle && <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mt-0.5 truncate">{subtitle}</p>}
+        {subtitle && <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 mt-1 line-clamp-2 sm:line-clamp-1">{subtitle}</p>}
       </div>
       {action && <div className="shrink-0 flex items-center gap-2 sm:gap-3">{action}</div>}
     </div>
@@ -163,12 +163,12 @@ export function StatTile({ icon: Icon, label, value, tone = 'blue', hint }: {
   const { t } = useLanguage();
   return (
     <Card className="p-3.5 sm:p-5 relative overflow-hidden group hover:border-blue-300/80 dark:hover:border-blue-900/60 transition-all duration-200">
-      <div className="flex items-center gap-2.5 sm:gap-4 relative z-10">
+      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4 relative z-10">
         <IconTile icon={Icon} tone={tone} />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 w-full sm:w-auto sm:flex-1">
           <p className="text-lg sm:text-2xl font-extrabold text-gray-900 dark:text-slate-100 truncate tracking-tight font-heading">{value}</p>
-          <p className="text-[11px] sm:text-sm font-medium text-gray-500 dark:text-slate-400 mt-0.5 truncate">{t(label)}</p>
-          {hint && <p className="text-[10px] sm:text-[11px] font-semibold text-blue-600 dark:text-blue-400 mt-0.5 truncate">{hint}</p>}
+          <p className="text-xs sm:text-sm font-medium leading-tight text-gray-500 dark:text-slate-400 mt-0.5 sm:truncate">{t(label)}</p>
+          {hint && <p className="text-[11px] font-semibold leading-tight text-blue-600 dark:text-blue-400 mt-0.5 sm:truncate">{hint}</p>}
         </div>
       </div>
       <div className="absolute -right-3 -bottom-3 w-16 h-16 opacity-[0.04] dark:opacity-[0.07] group-hover:opacity-10 group-hover:scale-110 transition-all duration-300 pointer-events-none text-current">

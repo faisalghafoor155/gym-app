@@ -34,7 +34,7 @@ export default function AccountCard({
   const RoleIcon = style.icon;
   return (
     <Card key={u.id} className={`p-4 ${u.isActive ? '' : 'bg-gray-50/60'}`}>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <p className={`font-semibold truncate ${u.isActive ? 'text-gray-900 dark:text-slate-100' : 'text-gray-400 dark:text-slate-500'}`}>
@@ -67,7 +67,7 @@ export default function AccountCard({
           // Wraps rather than shrinking: five controls do not fit beside
           // a name on a phone, and `shrink-0` alone pushed the name to
           // nothing instead of moving the buttons to their own line.
-          <div className="flex items-center justify-end gap-1.5 flex-wrap shrink-0">
+          <div className="flex items-center sm:justify-end gap-1.5 flex-wrap sm:shrink-0">
             {u.role !== 'owner' && (
               <>
                 {u.invitePending && u.isActive && (

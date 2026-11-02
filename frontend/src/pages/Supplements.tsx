@@ -455,7 +455,7 @@ export default function Supplements() {
             const catInfo = getCatInfo(s.category);
             const lowStock = s.stock <= (s.lowStockAt ?? 5);
             return (
-              <Card key={s.id} className="p-5 hover:shadow-md transition-shadow">
+              <Card key={s.id} className="p-5 flex flex-col hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-12 h-12 rounded-2xl bg-gray-50 dark:bg-slate-800/60 border border-gray-100 dark:border-slate-800 flex items-center justify-center text-2xl shrink-0">
@@ -499,6 +499,8 @@ export default function Supplements() {
                     </div>
                   )}
                 </div>
+
+                <div className="flex-1" />
 
                 {/* Stock Badge */}
                 <div className="mt-3 pt-3 border-t border-gray-100 dark:border-slate-800 flex items-center justify-between">
