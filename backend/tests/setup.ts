@@ -66,6 +66,9 @@ export default async function setup(): Promise<void> {
 
   // Handed to the test processes; `db.ts` picks it up when first imported.
   process.env.DATABASE_URL = testUrl;
+  // Existing tests sign up and use the session straight away; the approval
+  // path has its own test that turns this back on.
+  process.env.REQUIRE_GYM_APPROVAL = 'false';
   process.env.NODE_ENV = 'test';
   // The suite covers limits and billing, which only exist with the switch on.
   process.env.SUBSCRIPTIONS_ENABLED ??= 'true';

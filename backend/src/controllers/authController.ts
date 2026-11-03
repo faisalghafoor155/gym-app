@@ -14,6 +14,8 @@ import { DEFAULT_PLANS } from '../services/membership.js';
 import { ensureSubscription, issueInvoiceIfDue } from '../services/billing.js';
 import { subscriptionsEnabled } from '../services/subscription.js';
 import { sendMail, passwordResetMail } from '../services/mail.js';
+import { notifyOperatorOfPendingGym } from '../services/operatorNotify.js';
+import { isPlatformAdmin } from '../services/platformAdmin.js';
 import {
   issueEmailVerification, consumeEmailVerification,
 } from '../services/emailVerification.js';
@@ -47,6 +49,7 @@ const startSession = (res: Response, user: {
       role: user.role, memberId: user.memberId,
       staffPermission: user.staffPermission,
       emailVerified: (user.emailVerifiedAt ?? null) !== null,
+      isPlatformAdmin: user.role === 'owner' && isPlatformAdmin(user.email),
     },
     gym: {
       id: user.gym.id,
@@ -117,7 +120,29 @@ const startTwoFactorChallenge = (user: { id: string; tokenVersion: number }) => 
   twoFactorToken: signTwoFactorChallenge(user.id, user.tokenVersion),
 });
 
-/** Public signup creates a NEW gym; the account that creates it is its owner. */
+/**
+ * What a gym waiting for the operator's go-ahead is told. Doubles as the
+ * marker: `suspendGym.ts` recognises it to list the gym as pending.
+ */
+export const PENDING_APPROVAL_REASON =
+  'Your gym is waiting for approval. We will contact you once it is activated.';
+
+/**
+ * Whether a new gym must be approved before it can be used. On unless
+ * explicitly set to "false" — an open signup that hands the full app to anybody
+ * is the thing to opt into, not the default. Read per call so a test or an
+ * operator can flip it without a restart.
+ */
+export const gymApprovalRequired = (): boolean =>
+  process.env.REQUIRE_GYM_APPROVAL !== 'false';
+
+/**
+ * Public signup creates a NEW gym; the account that creates it is its owner.
+ *
+ * With approval required the gym is born suspended: everything exists and the
+ * owner can sign in once it is lifted, but no session is issued now — a cookie
+ * that fails on its first request reads as a broken app.
+ */
 export const register = async (
   req: Request<unknown, unknown, RegisterBody>,
   res: Response,
@@ -132,6 +157,7 @@ export const register = async (
 
     const passwordHash = await bcrypt.hash(password, 10);
     const selectedPlan = plan && plan !== 'free' ? plan : 'free';
+    const pending = gymApprovalRequired();
     const user = await prisma.$transaction(async (tx) => {
       const gym = await tx.gym.create({
         data: {
@@ -139,6 +165,10 @@ export const register = async (
           ownerName,
           phone,
           plan: selectedPlan,
+          ...(pending && {
+            suspendedAt: new Date(),
+            suspendedReason: PENDING_APPROVAL_REASON,
+          }),
         },
       });
 
@@ -177,6 +207,20 @@ export const register = async (
     }).catch((err: unknown) => {
       console.error('[verify-email] could not issue verification', err);
     });
+
+    if (pending) {
+      void notifyOperatorOfPendingGym({
+        gymId: user.gym.id,
+        gymName,
+        ownerName,
+        email,
+        phone,
+      }).catch((err: unknown) => {
+        console.error('[register] could not notify operator', err);
+      });
+      res.status(202).json({ pendingApproval: true, message: PENDING_APPROVAL_REASON });
+      return;
+    }
 
     res.status(201).json(startSession(res, user));
   } catch (err) {
@@ -667,6 +711,7 @@ export const me = async (req: AuthedRequest, res: Response): Promise<void> => {
         // Drives the banner offering to send the link again. A boolean rather
         // than the timestamp: when it happened is nobody's business on screen.
         emailVerified: user.emailVerifiedAt !== null,
+        isPlatformAdmin: user.role === 'owner' && isPlatformAdmin(user.email),
       },
       // Field by field rather than `user.gym`, which would also hand out
       // `suspendedAt` and `suspendedReason` — internal state that a signed-in

@@ -61,6 +61,8 @@ export interface SessionUser {
    * day it is needed.
    */
   emailVerified?: boolean;
+  /** The product operator: sees every gym on the Platform page. */
+  isPlatformAdmin?: boolean;
 }
 
 /** How many staff accounts the gym may have, and how many are spoken for.

@@ -8,6 +8,10 @@
  *   npx tsx scripts/suspendGym.ts <gymId> suspend        # stop it, with the default message
  *   npx tsx scripts/suspendGym.ts <gymId> suspend "Unpaid since March"
  *   npx tsx scripts/suspendGym.ts <gymId> resume         # let it back in
+ *   npx tsx scripts/suspendGym.ts <gymId> approve        # same as resume; for a new signup
+ *
+ * New signups are created suspended (listed as PENDING) until approved here —
+ * see REQUIRE_GYM_APPROVAL in .env.example.
  *
  * ## Why this is not the plan
  *
@@ -37,6 +41,7 @@
 import 'dotenv/config';
 import prisma from '../src/db.js';
 import { PLAN_LABELS } from '../src/services/subscription.js';
+import { PENDING_APPROVAL_REASON } from '../src/controllers/authController.js';
 
 /** Every gym, and whether it is currently stopped. */
 const listGyms = async (): Promise<void> => {
@@ -59,7 +64,8 @@ const listGyms = async (): Promise<void> => {
 
   for (const gym of gyms) {
     const state = gym.suspendedAt
-      ? `SUSPENDED ${gym.suspendedAt.toISOString().slice(0, 10)}`
+      ? `${gym.suspendedReason === PENDING_APPROVAL_REASON ? 'PENDING' : 'SUSPENDED'} ` +
+        gym.suspendedAt.toISOString().slice(0, 10)
       : 'active';
     console.log(
       `${gym.id}  ${state.padEnd(21)}  ${PLAN_LABELS[gym.plan].padEnd(6)}  ` +
@@ -138,13 +144,13 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  if (action === 'resume') {
+  if (action === 'resume' || action === 'approve') {
     await resume(gymId);
     return;
   }
 
   console.error(
-    `Expected "suspend" or "resume" after the gym id.\n\n` +
+    `Expected "suspend", "resume" or "approve" after the gym id.\n\n` +
       `  npx tsx scripts/suspendGym.ts ${gymId} suspend "Unpaid since March"\n` +
       `  npx tsx scripts/suspendGym.ts ${gymId} resume`,
   );

@@ -107,7 +107,12 @@ export default function Register() {
       // No plan to choose while subscriptions are off, so none is sent.
       const { plan, ...details } = form;
       const body = SUBSCRIPTIONS_ENABLED ? { ...details, plan } : details;
-      const { data } = await api.post<AuthResponse>('/auth/register', body);
+      const { data } = await api.post<AuthResponse | { pendingApproval: true; message: string }>('/auth/register', body);
+      if ('pendingApproval' in data) {
+        toast.success(t(data.message), { duration: 8000 });
+        navigate('/login');
+        return;
+      }
       login(data.user, data.gym);
       toast.success(t('Gym registered successfully! Welcome aboard.'));
       navigate('/dashboard');

@@ -30,6 +30,27 @@ describe('POST /api/auth/register', () => {
     expect(user?.role).toBe('owner');
   });
 
+  it('holds the gym for approval, with no session, when approval is required', async () => {
+    process.env.REQUIRE_GYM_APPROVAL = 'true';
+    try {
+      const res = await api().post('/api/auth/register').send(body);
+      expect(res.status).toBe(202);
+      expect(res.body.pendingApproval).toBe(true);
+      expect(sessionCookie(res)).toBeUndefined();
+
+      const gym = await prisma.gym.findFirst({ where: { name: 'Iron Works' } });
+      expect(gym?.suspendedAt).not.toBeNull();
+
+      const login = await api()
+        .post('/api/auth/login')
+        .send({ email: body.email, password: body.password });
+      expect(login.status).toBe(403);
+      expect(login.body.reason).toBe('gym_suspended');
+    } finally {
+      process.env.REQUIRE_GYM_APPROVAL = 'false';
+    }
+  });
+
   it('never returns the password hash', async () => {
     const res = await api().post('/api/auth/register').send(body);
     expect(JSON.stringify(res.body)).not.toContain('$2');

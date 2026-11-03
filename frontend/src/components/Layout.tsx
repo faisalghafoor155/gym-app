@@ -85,6 +85,9 @@ const memberNavItems: NavItem[] = [
 ];
 
 /** Account security is everyone's, so it trails whatever list the role gets. */
+/** The operator's overview of every gym; only an account on the server's admin list sees it. */
+const platformNavItem: NavItem = { to: '/platform', label: 'Platform', icon: Crown };
+
 const securityNavItem: NavItem = { to: '/security', label: 'Security', icon: ShieldCheck };
 
 /**
@@ -186,6 +189,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   };
 
   const navItems = [
+    ...(user?.isPlatformAdmin ? [platformNavItem] : []),
     ...(isStaff
       ? [
           ...staffNavItems.filter(item => {
@@ -204,7 +208,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   // The breadcrumb names the page by its sidebar label, so it follows the
   // language along with the sidebar.
-  const currentNav = [...staffNavItems, ...ownerNavItems, ...memberNavItems, securityNavItem]
+  const currentNav = [...staffNavItems, ...ownerNavItems, ...memberNavItems, platformNavItem, securityNavItem]
     .find(i => i.to === pathname);
 
   const renderLink = ({ to, label, icon: Icon }: NavItem) => (

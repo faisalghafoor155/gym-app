@@ -31,6 +31,7 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
 const AcceptInvite = lazy(() => import('./pages/AcceptInvite'));
+const Platform = lazy(() => import('./pages/Platform'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Members = lazy(() => import('./pages/Members'));
 const Attendance = lazy(() => import('./pages/Attendance'));
@@ -127,6 +128,15 @@ function OwnerRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** The product operator only — the server decides, this just spares everyone else a blank page. */
+function PlatformRoute({ children }: { children: ReactNode }) {
+  const { isAuth, user, loading } = useAuth();
+  if (loading) return <BootSpinner />;
+  if (!isAuth) return <Navigate to="/login" replace />;
+  if (!user?.isPlatformAdmin) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 /**
  * The boundary that sits inside the app chrome.
  *
@@ -197,6 +207,7 @@ function AppRoutes() {
                 <Route path="/my" element={<MyPortal />} />
                 {/* Every role — calculator, security and profile are available to all */}
                 <Route path="/calculator" element={<FitnessCalculator />} />
+                <Route path="/platform" element={<PlatformRoute><Platform /></PlatformRoute>} />
                 <Route path="/security" element={<Security />} />
                  <Route path="/dashboard" element={<StaffRoute><Dashboard /></StaffRoute>} />
                 <Route path="/attendance" element={<PermissionRoute action="canViewAttendance"><Attendance /></PermissionRoute>} />
