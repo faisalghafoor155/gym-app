@@ -35,6 +35,17 @@ export default async function setup(): Promise<void> {
     );
   }
 
+  // Drops and recreates a database and truncates tables. Fine on this machine,
+  // never on a hosted server that backend/.env may point at once local runs
+  // share the deployed database.
+  const host = new URL(base).hostname;
+  if (!['localhost', '127.0.0.1', '::1', '[::1]'].includes(host) && process.env.ALLOW_REMOTE_TEST_DB !== 'true') {
+    throw new Error(
+      `Refusing to run the integration tests against ${host}: it is not a local database. ` +
+      'Point DATABASE_URL at a local Postgres for the test run.',
+    );
+  }
+
   const testUrl = withDatabase(base, TEST_DB);
 
   // Dropped and recreated so a run always starts from a known-empty schema,

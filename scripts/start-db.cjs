@@ -17,7 +17,28 @@ const fakeApp = {
   }
 };
 
+/**
+ * True when backend/.env points at a database that is not on this machine —
+ * the deployed one. Then there is nothing local to start, and `migrate deploy`
+ * must not be run against it from here: the deploy already does that.
+ */
+function usesRemoteDatabase() {
+  try {
+    const env = fs.readFileSync(path.join(__dirname, '..', 'backend', '.env'), 'utf8');
+    const match = env.match(/^DATABASE_URL=["']?([^"'\r\n]+)["']?/m);
+    if (!match) return false;
+    const host = new URL(match[1]).hostname;
+    return !['localhost', '127.0.0.1', '::1', '[::1]'].includes(host);
+  } catch {
+    return false;
+  }
+}
+
 async function main() {
+  if (usesRemoteDatabase()) {
+    console.log('[DB] backend/.env uses a remote database - not starting the local one.');
+    process.exit(0);
+  }
   console.log('[DB] Ensuring database service is ready...');
   const mgr = new DatabaseManager(fakeApp, false, console.log);
 
