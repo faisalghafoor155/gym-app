@@ -69,9 +69,12 @@ const from = real(process.env.MAIL_FROM)
  */
 const fromAddress = from.match(/<([^>]+)>/)?.[1] ?? from;
 
+/** What the product calls itself in an inbox, when no gym's name fits. */
+export const appName = (): string => process.env.APP_NAME?.trim() || 'Gymora';
+
 const fromFor = (name: string | undefined): string => {
   // Quotes, backslashes and line breaks would let a gym name rewrite the header.
-  const display = (name?.trim() || 'GymPro').replace(/["\\\r\n]/g, '');
+  const display = (name?.trim() || appName()).replace(/["\\\r\n]/g, '');
   return `"${display}" <${fromAddress}>`;
 };
 
@@ -390,7 +393,7 @@ export const verifyEmailMail = (
  * Only the five characters that can end an attribute or open a tag; this is
  * for interpolation into element content, not for building URLs.
  */
-const escapeHtml = (value: string): string =>
+export const escapeHtml = (value: string): string =>
   value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

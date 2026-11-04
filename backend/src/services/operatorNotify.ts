@@ -1,4 +1,5 @@
-import { sendMail } from './mail.js';
+import { appName, escapeHtml, sendMail } from './mail.js';
+import { signGymApprovalToken } from './gymApproval.js';
 import { sendWhatsApp } from './whatsapp.js';
 
 /**
@@ -27,21 +28,54 @@ interface PendingGym {
 }
 
 export const notifyOperatorOfPendingGym = async (gym: PendingGym): Promise<void> => {
-  const approve = `npx tsx scripts/suspendGym.ts ${gym.gymId} approve`;
+  const appUrl = (process.env.APP_URL ?? '').trim().replace(/\/+$/, '');
+  // Without APP_URL there is nowhere for a button to point, so the mail falls
+  // back to naming the Platform page.
+  const approveLink = appUrl
+    ? `${appUrl}/api/platform/approve/${signGymApprovalToken(gym.gymId)}`
+    : null;
 
   const operatorEmail = process.env.OPERATOR_EMAIL?.trim();
   if (operatorEmail) {
+    const rows: [string, string][] = [
+      ['Gym', gym.gymName],
+      ['Owner', gym.ownerName],
+      ['Email', gym.email],
+      ['Phone', gym.phone ?? '—'],
+    ];
     await sendMail({
       to: operatorEmail,
-      subject: `New gym waiting for approval: ${gym.gymName}`,
+      // The inbox line says who is waiting, before the mail is even opened.
+      fromName: `${gym.ownerName} · ${gym.gymName}`,
+      subject: `Approve ${gym.gymName}? New gym waiting`,
       text:
         `A new gym has signed up and cannot use the app until you approve it.\n\n` +
-        `Gym:    ${gym.gymName}\n` +
-        `Owner:  ${gym.ownerName}\n` +
-        `Email:  ${gym.email}\n` +
-        `Phone:  ${gym.phone ?? '—'}\n\n` +
-        `To approve, run in the backend folder:\n  ${approve}\n\n` +
+        rows.map(([k, v]) => `${`${k}:`.padEnd(7)} ${v}`).join('\n') + '\n\n' +
+        (approveLink
+          ? `Approve ${gym.gymName}:\n${approveLink}\n\n`
+          : `To approve, open the Platform page in the app and press Approve.\n\n`) +
         `If you do not recognise this signup, do nothing — they stay locked out.`,
+      html:
+        `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:480px">` +
+        `<h2 style="margin:0 0 16px;font-size:18px">${escapeHtml(gym.gymName)} is waiting for approval</h2>` +
+        `<p style="color:#374151;line-height:1.5">A new gym has signed up and cannot use ` +
+        `${escapeHtml(appName())} until you approve it.</p>` +
+        `<table style="font-size:14px;color:#374151;border-collapse:collapse">` +
+        rows.map(([k, v]) =>
+          `<tr><td style="padding:2px 16px 2px 0;color:#6b7280">${k}</td>` +
+          `<td style="padding:2px 0"><strong>${escapeHtml(v)}</strong></td></tr>`,
+        ).join('') +
+        `</table>` +
+        (approveLink
+          ? `<p style="margin:24px 0"><a href="${approveLink}" ` +
+            `style="background:#16a34a;color:#fff;padding:12px 20px;border-radius:10px;` +
+            `text-decoration:none;font-weight:600;display:inline-block">` +
+            `Approve ${escapeHtml(gym.ownerName)}'s gym</a></p>`
+          : `<p style="color:#374151">To approve, open the Platform page in the app and press Approve.</p>`) +
+        `<p style="color:#6b7280;font-size:13px;line-height:1.5">The button opens a page ` +
+        `that asks once more before letting them in, and works for 7 days. If you do not ` +
+        `recognise this signup, do nothing — they stay locked out.</p>` +
+        `</div>`,
     });
   } else {
     console.log(`[operator] OPERATOR_EMAIL not set — pending gym "${gym.gymName}" (${gym.gymId}) not announced.`);

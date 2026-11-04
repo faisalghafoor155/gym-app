@@ -1,8 +1,10 @@
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import prisma from '../db.js';
 import type { AuthedRequest } from '../types.js';
 import { PLAN_LABELS } from '../services/subscription.js';
 import { PENDING_APPROVAL_REASON } from './authController.js';
+import { escapeHtml } from '../services/mail.js';
+import { verifyGymApprovalToken } from '../services/gymApproval.js';
 
 /**
  * The operator's view of every gym on the platform: who signed up, whether
@@ -302,5 +304,104 @@ export const deleteGym = async (
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
+  }
+};
+
+/**
+ * The page behind the "Approve" button in the operator's new-gym email.
+ *
+ * Plain server-rendered HTML rather than a route in the app, so it works on a
+ * phone that has never signed in. The GET only shows what is about to happen;
+ * the approval itself is a POST from the button on that page. Mail scanners
+ * open every link in a message to check it, and if a GET approved, a gym
+ * would be let in before anyone had read who it was.
+ */
+const approvalPage = (res: Response, status: number, heading: string, body: string): void => {
+  res
+    .status(status)
+    .type('html')
+    .send(
+      `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+      `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+      `<meta name="robots" content="noindex">` +
+      `<title>${escapeHtml(heading)}</title></head>` +
+      `<body style="margin:0;background:#f3f4f6;font-family:system-ui,-apple-system,Segoe UI,sans-serif">` +
+      `<main style="max-width:420px;margin:48px auto;padding:24px;background:#fff;border-radius:16px;` +
+      `box-shadow:0 1px 3px rgba(0,0,0,.1)">` +
+      `<h1 style="margin:0 0 12px;font-size:20px;color:#111827">${escapeHtml(heading)}</h1>` +
+      `${body}</main></body></html>`,
+    );
+};
+
+const para = (text: string): string =>
+  `<p style="color:#374151;line-height:1.5;margin:0 0 12px">${text}</p>`;
+
+/** Resolves the link's token to its gym, or answers with a page saying why not. */
+const gymForApprovalLink = async (token: string, res: Response) => {
+  const gymId = verifyGymApprovalToken(token);
+  if (!gymId) {
+    approvalPage(res, 410, 'This link no longer works',
+      para('It has expired or is not valid. Approve the gym from the Platform page in the app instead.'));
+    return null;
+  }
+  const gym = await prisma.gym.findUnique({
+    where: { id: gymId },
+    select: { id: true, name: true, ownerName: true, suspendedReason: true, suspendedAt: true },
+  });
+  if (!gym) {
+    approvalPage(res, 404, 'Gym not found', para('This gym has been deleted.'));
+    return null;
+  }
+  if (!gym.suspendedAt) {
+    approvalPage(res, 200, 'Already approved',
+      para(`<strong>${escapeHtml(gym.name)}</strong> can already use the app. Nothing more to do.`));
+    return null;
+  }
+  // A suspension the operator chose is lifted from the Platform page, where its
+  // reason is in view — never by an old signup link.
+  if (gym.suspendedReason !== PENDING_APPROVAL_REASON) {
+    approvalPage(res, 409, 'Not waiting for approval',
+      para(`<strong>${escapeHtml(gym.name)}</strong> has been suspended. Resume it from the Platform page if you mean to.`));
+    return null;
+  }
+  return gym;
+};
+
+export const approvalLinkPage = async (
+  req: Request<{ token: string }>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const gym = await gymForApprovalLink(req.params.token, res);
+    if (!gym) return;
+    approvalPage(res, 200, `Approve ${gym.name}?`,
+      para(`<strong>${escapeHtml(gym.ownerName)}</strong> signed up <strong>${escapeHtml(gym.name)}</strong>. ` +
+        `Approving lets them sign in and use the whole app.`) +
+      `<form method="post" style="margin:20px 0 0">` +
+      `<button type="submit" style="width:100%;background:#16a34a;color:#fff;border:0;padding:14px;` +
+      `border-radius:10px;font-size:16px;font-weight:600;cursor:pointer">` +
+      `Approve ${escapeHtml(gym.ownerName)}'s gym</button></form>`);
+  } catch (err) {
+    console.error(err);
+    approvalPage(res, 500, 'Something went wrong', para('Please try again, or approve from the Platform page.'));
+  }
+};
+
+export const approvalLinkConfirm = async (
+  req: Request<{ token: string }>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const gym = await gymForApprovalLink(req.params.token, res);
+    if (!gym) return;
+    await prisma.gym.update({
+      where: { id: gym.id },
+      data: { suspendedAt: null, suspendedReason: null },
+    });
+    approvalPage(res, 200, 'Approved',
+      para(`<strong>${escapeHtml(gym.name)}</strong> is approved. ${escapeHtml(gym.ownerName)} can sign in now.`));
+  } catch (err) {
+    console.error(err);
+    approvalPage(res, 500, 'Something went wrong', para('Please try again, or approve from the Platform page.'));
   }
 };

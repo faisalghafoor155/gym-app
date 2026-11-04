@@ -197,27 +197,36 @@ export const register = async (
       }
     }
 
-    // After the transaction, and not awaited into it: a mail transport being
-    // slow or down must not roll back a gym that has already been created.
+    // After the transaction, so a mail transport being slow or down cannot roll
+    // back a gym that has already been created. Awaited before answering all
+    // the same: on a serverless host the function may be frozen the moment the
+    // response goes out, and a send still in flight then never arrives.
     // The address is unproven either way — this only starts the check.
-    void issueEmailVerification(user.id, {
-      email: user.email,
-      name: ownerName,
-      gymName,
-    }).catch((err: unknown) => {
-      console.error('[verify-email] could not issue verification', err);
-    });
+    const notices: Promise<unknown>[] = [
+      issueEmailVerification(user.id, {
+        email: user.email,
+        name: ownerName,
+        gymName,
+      }).catch((err: unknown) => {
+        console.error('[verify-email] could not issue verification', err);
+      }),
+    ];
+    if (pending) {
+      notices.push(
+        notifyOperatorOfPendingGym({
+          gymId: user.gym.id,
+          gymName,
+          ownerName,
+          email,
+          phone,
+        }).catch((err: unknown) => {
+          console.error('[register] could not notify operator', err);
+        }),
+      );
+    }
+    await Promise.all(notices);
 
     if (pending) {
-      void notifyOperatorOfPendingGym({
-        gymId: user.gym.id,
-        gymName,
-        ownerName,
-        email,
-        phone,
-      }).catch((err: unknown) => {
-        console.error('[register] could not notify operator', err);
-      });
       res.status(202).json({ pendingApproval: true, message: PENDING_APPROVAL_REASON });
       return;
     }

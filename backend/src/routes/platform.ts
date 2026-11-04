@@ -8,6 +8,8 @@ import { requirePlatformAdmin } from "../middleware/requirePlatformAdmin.js";
 import { authed } from "../types.js";
 import { idParam } from "../schemas.js";
 import {
+  approvalLinkConfirm,
+  approvalLinkPage,
   approveGym,
   deleteGym,
   listGyms,
@@ -16,6 +18,11 @@ import {
 } from "../controllers/platformController.js";
 
 const router = Router();
+
+// The email approval link is its own credential, so it sits before `auth`:
+// the operator may open it on a phone that has never signed in.
+router.get("/approve/:token", approvalLinkPage);
+router.post("/approve/:token", approvalLinkConfirm);
 
 router.use(auth);
 // Every route here is the operator's, never a gym owner's.

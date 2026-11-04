@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import prisma from '../../src/db.js';
 import { PENDING_APPROVAL_REASON } from '../../src/controllers/authController.js';
 import { api, makeGym, resetDb } from '../helpers.js';
+import { signGymApprovalToken } from '../../src/services/gymApproval.js';
+import { signGymCheckinToken } from '../../src/services/gymCheckin.js';
 
 beforeEach(async () => {
   await resetDb();
@@ -76,5 +78,50 @@ describe('/api/platform', () => {
     expect(res.status).toBe(200);
     const gym = await prisma.gym.findUnique({ where: { id: other.gymId } });
     expect(gym?.suspendedReason).toBe('Unpaid');
+  });
+
+  describe('approval link from the operator email', () => {
+    const holdForApproval = (gymId: string) =>
+      prisma.gym.update({
+        where: { id: gymId },
+        data: { suspendedAt: new Date(), suspendedReason: PENDING_APPROVAL_REASON },
+      });
+
+    it('only shows the gym on GET, and approves it on POST without a session', async () => {
+      const pending = await makeGym({ gymName: 'Apex Fitness' });
+      await holdForApproval(pending.gymId);
+      const token = signGymApprovalToken(pending.gymId);
+
+      const page = await api().get(`/api/platform/approve/${token}`);
+      expect(page.status).toBe(200);
+      expect(page.text).toContain('Approve Apex Fitness?');
+      expect((await prisma.gym.findUnique({ where: { id: pending.gymId } }))?.suspendedAt).not.toBeNull();
+
+      const done = await api().post(`/api/platform/approve/${token}`);
+      expect(done.status).toBe(200);
+      expect(done.text).toContain('is approved');
+      expect((await prisma.gym.findUnique({ where: { id: pending.gymId } }))?.suspendedAt).toBeNull();
+    });
+
+    it('will not lift a suspension the operator chose', async () => {
+      const gym = await makeGym();
+      await prisma.gym.update({
+        where: { id: gym.gymId },
+        data: { suspendedAt: new Date(), suspendedReason: 'Unpaid' },
+      });
+
+      const res = await api().post(`/api/platform/approve/${signGymApprovalToken(gym.gymId)}`);
+      expect(res.status).toBe(409);
+      expect((await prisma.gym.findUnique({ where: { id: gym.gymId } }))?.suspendedReason).toBe('Unpaid');
+    });
+
+    it('refuses a token minted for anything else', async () => {
+      const pending = await makeGym();
+      await holdForApproval(pending.gymId);
+
+      const res = await api().post(`/api/platform/approve/${signGymCheckinToken(pending.gymId)}`);
+      expect(res.status).toBe(410);
+      expect((await prisma.gym.findUnique({ where: { id: pending.gymId } }))?.suspendedAt).not.toBeNull();
+    });
   });
 });
