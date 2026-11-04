@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react';
 import { Building2, Users, Activity, Hourglass, CalendarClock, Wallet, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ConfirmDialog from '../components/ConfirmDialog';
+import Modal from '../components/Modal';
 import {
   Page, PageHeader, Card, StatTile, PageLoader, LoadFailed, EmptyState, Refetching,
-  SegmentedControl, inputClass, primaryButton, secondaryButton,
+  SegmentedControl, inputClass, primaryButton, secondaryButton, dangerButton,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
@@ -108,6 +109,8 @@ export default function Platform() {
   const [search, setSearch] = useState('');
   const [action, setAction] = useState<Action | null>(null);
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState<PlatformGym | null>(null);
+  const [typedName, setTypedName] = useState('');
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -135,6 +138,21 @@ export default function Platform() {
       await reload();
     } catch (err) {
       toast.error(apiError(err, t('Could not update the gym')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!removing) return;
+    setBusy(true);
+    try {
+      await api.delete(`/platform/gyms/${removing.id}`, { data: { confirmName: typedName } });
+      toast.success(t('Gym deleted'));
+      setRemoving(null);
+      await reload();
+    } catch (err) {
+      toast.error(apiError(err, t('Could not delete the gym')));
     } finally {
       setBusy(false);
     }
@@ -255,6 +273,12 @@ export default function Platform() {
                           {t('Suspend')}
                         </button>
                       )}
+                      <button
+                        className={`${dangerButton} ml-2`}
+                        onClick={() => { setTypedName(''); setRemoving(g); }}
+                      >
+                        {t('Delete')}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -278,6 +302,35 @@ export default function Platform() {
           onConfirm={run}
           onCancel={() => setAction(null)}
         />
+      )}
+      {removing && (
+        <Modal title={t('Delete gym permanently')} onClose={() => setRemoving(null)}>
+          <p className="text-sm text-gray-600 dark:text-slate-300">
+            {t('This erases the gym, its owner and staff logins, members, payments and every other record. It cannot be undone.')}
+          </p>
+          <p className="text-sm mt-3 text-gray-600 dark:text-slate-300">
+            {t('Type the gym name to confirm:')} <b>{removing.name}</b>
+          </p>
+          <input
+            value={typedName}
+            onChange={e => setTypedName(e.target.value)}
+            className={`${inputClass} mt-2`}
+            autoFocus
+          />
+          <div className="flex gap-3 pt-5">
+            <button type="button" onClick={() => setRemoving(null)} className={`flex-1 ${secondaryButton}`}>
+              {t('Cancel')}
+            </button>
+            <button
+              type="button"
+              disabled={busy || typedName.trim() !== removing.name}
+              onClick={remove}
+              className={`flex-1 ${dangerButton}`}
+            >
+              {busy ? t('Working...') : t('Delete forever')}
+            </button>
+          </div>
+        </Modal>
       )}
     </Page>
   );

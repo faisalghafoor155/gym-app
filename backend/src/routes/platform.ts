@@ -9,6 +9,7 @@ import { authed } from "../types.js";
 import { idParam } from "../schemas.js";
 import {
   approveGym,
+  deleteGym,
   listGyms,
   resumeGym,
   suspendGym,
@@ -22,6 +23,8 @@ router.use(requirePlatformAdmin);
 
 const suspendBody = z.object({ reason: z.string().trim().max(300).optional() });
 
+const deleteBody = z.object({ confirmName: z.string().trim().max(200) });
+
 router.get("/gyms", authed(listGyms));
 router.post("/gyms/:id/approve", validate(idParam, "params"), authed(approveGym));
 router.post("/gyms/:id/resume", validate(idParam, "params"), authed(resumeGym));
@@ -30,6 +33,13 @@ router.post(
   validate(idParam, "params"),
   validate(suspendBody),
   authed(suspendGym),
+);
+
+router.delete(
+  "/gyms/:id",
+  validate(idParam, "params"),
+  validate(deleteBody),
+  authed(deleteGym),
 );
 
 export default router;

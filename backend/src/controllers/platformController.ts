@@ -236,3 +236,71 @@ export const suspendGym = async (
     res.status(500).json({ error: 'Server error' });
   }
 };
+
+/**
+ * Erases a gym and everything that belongs to it. Unlike suspending, this
+ * cannot be undone, so the gym's own name must be typed back as confirmation.
+ *
+ * The relations to a gym carry no cascade, so the rows are cleared child
+ * first, in one transaction: a half-deleted gym would be worse than either end.
+ */
+export const deleteGym = async (
+  req: AuthedRequest<{ id: string }, unknown, { confirmName?: string }>,
+  res: Response,
+): Promise<void> => {
+  try {
+    const gym = await findGym(req.params.id, res);
+    if (!gym) return;
+    if (gym.id === req.gymId) {
+      res.status(400).json({ error: 'You cannot delete your own gym' });
+      return;
+    }
+    if (req.body.confirmName?.trim() !== gym.name) {
+      res.status(400).json({ error: 'Type the gym name exactly to confirm' });
+      return;
+    }
+
+    const gymId = gym.id;
+    await prisma.$transaction(async (tx) => {
+      const memberIds = (await tx.member.findMany({ where: { gymId }, select: { id: true } })).map(m => m.id);
+      const membershipIds = (await tx.membership.findMany({ where: { gymId }, select: { id: true } })).map(m => m.id);
+      await tx.promoRedemption.deleteMany({ where: { gymId } });
+      await tx.promoCode.deleteMany({ where: { gymId } });
+      await tx.referralReward.deleteMany({ where: { gymId } });
+      await tx.locker.deleteMany({ where: { gymId } });
+      await tx.memberMeasurement.deleteMany({ where: { gymId } });
+      await tx.membershipFreeze.deleteMany({ where: { gymId } });
+      await tx.greetingLog.deleteMany({ where: { gymId } });
+      await tx.reminderLog.deleteMany({ where: { gymId } });
+      await tx.classBooking.deleteMany({ where: { gymId } });
+      await tx.classSchedule.deleteMany({ where: { gymId } });
+      await tx.class.deleteMany({ where: { gymId } });
+      await tx.ptSession.deleteMany({ where: { gymId } });
+      await tx.paymentIntent.deleteMany({ where: { gymId } });
+      await tx.supplementSale.deleteMany({ where: { gymId } });
+      await tx.payment.deleteMany({ where: { gymId } });
+      await tx.expense.deleteMany({ where: { gymId } });
+      await tx.supplement.deleteMany({ where: { gymId } });
+      await tx.memberPlan.deleteMany({ where: { memberId: { in: memberIds } } });
+      await tx.workoutPlan.deleteMany({ where: { gymId } });
+      await tx.dietPlan.deleteMany({ where: { gymId } });
+      await tx.fingerprintTemplate.deleteMany({ where: { gymId } });
+      await tx.attendance.deleteMany({ where: { gymId } });
+      await tx.membership.deleteMany({ where: { id: { in: membershipIds } } });
+      await tx.user.deleteMany({ where: { gymId } });
+      await tx.member.updateMany({ where: { gymId }, data: { referredById: null, trainerId: null } });
+      await tx.member.deleteMany({ where: { gymId } });
+      await tx.membershipPlan.deleteMany({ where: { gymId } });
+      await tx.trainer.deleteMany({ where: { gymId } });
+      await tx.auditLog.deleteMany({ where: { gymId } });
+      await tx.subscriptionInvoice.deleteMany({ where: { gymId } });
+      await tx.gymSubscription.deleteMany({ where: { gymId } });
+      await tx.gym.delete({ where: { id: gymId } });
+    }, { timeout: 120_000 });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
