@@ -14,7 +14,7 @@ import { useSubscription } from '../context/SubscriptionContext';
 import { SUBSCRIPTIONS_ENABLED, type PlanFeatures } from '../utils/entitlements';
 import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
-  Dumbbell, LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
+  LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
   BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText, Sparkles, Calculator,
   HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, ChevronDown, Settings,
   type LucideIcon,
@@ -253,12 +253,12 @@ export default function Layout({ children }: { children: ReactNode }) {
             {gym?.logo ? (
               <img src={gym.logo} alt={gym.name} className="w-full h-full object-cover" />
             ) : (
-              <Dumbbell className="text-white" size={20} />
+              <img src="/logo.png" alt="Gymora" className="w-full h-full object-cover" />
             )}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <p className="font-extrabold text-gray-900 dark:text-slate-100 text-sm leading-tight truncate font-heading">{gym?.name || 'GymPro'}</p>
+              <p className="font-extrabold text-gray-900 dark:text-slate-100 text-sm leading-tight truncate font-heading">{gym?.name || 'Gymora'}</p>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" title={t('System Online')} />
             </div>
             <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
@@ -399,11 +399,11 @@ export default function Layout({ children }: { children: ReactNode }) {
                 {gym?.logo ? (
                   <img src={gym.logo} alt={gym.name} className="w-full h-full object-cover" />
                 ) : (
-                  <Dumbbell className="text-white" size={14} />
+                  <img src="/logo.png" alt="Gymora" className="w-full h-full object-cover" />
                 )}
               </div>
               <div className="flex items-center gap-1.5 min-w-0">
-                <p className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm truncate font-heading">{gym?.name || 'GymPro'}</p>
+                <p className="font-bold text-gray-900 dark:text-slate-100 text-xs sm:text-sm truncate font-heading">{gym?.name || 'Gymora'}</p>
                 {pathname === '/members' && (
                   <span className="hidden sm:inline text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/15 px-1.5 py-0.5 rounded-md shrink-0">
                     {t('Members')}
@@ -418,7 +418,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <span>{t('Online')}</span>
               </div>
               <span className="text-slate-300 dark:text-slate-700">/</span>
-              <span className="font-semibold text-slate-700 dark:text-slate-200">{gym?.name || 'GymPro'}</span>
+              <span className="font-semibold text-slate-700 dark:text-slate-200">{gym?.name || 'Gymora'}</span>
               <span className="text-slate-300 dark:text-slate-700">/</span>
               <span className="text-slate-500 dark:text-slate-400 font-medium capitalize">
                 {currentNav ? t(currentNav.label) : pathname.replace('/', '').replace(/-/g, ' ') || t('Dashboard')}

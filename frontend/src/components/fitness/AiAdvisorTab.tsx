@@ -195,7 +195,7 @@ export default function AiAdvisorTab({
             </div>
             <div>
               <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
-                {t('GymPro AI Fitness & Nutrition Chatbot')}
+                {t('Gymora AI Fitness & Nutrition Chatbot')}
                 <span className="text-[10px] bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-bold px-2 py-0.5 rounded-full">
                   {t('Interactive')}
                 </span>
@@ -259,7 +259,7 @@ export default function AiAdvisorTab({
           <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50 flex items-center gap-3 animate-pulse">
             <Spinner className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             <div className="text-xs text-purple-900 dark:text-purple-200">
-              <strong className="block font-bold">{t('GymPro AI is analyzing your stats & formulating recommendations...')}</strong>
+              <strong className="block font-bold">{t('Gymora AI is analyzing your stats & formulating recommendations...')}</strong>
               <span className="text-[11px] text-purple-700 dark:text-purple-300">
                 {t('Profile: {weight}kg | {goal} | {gainer}', { weight: weightKg, goal: goal.replace('_', ' '), gainer: t(gainer.name) })}
               </span>

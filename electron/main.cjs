@@ -178,7 +178,7 @@ function waitForOnlineDatabase(databaseUrl, timeoutMs = 90000) {
         settled = true;
         socket.destroy();
         if (Date.now() - start > timeoutMs) {
-          reject(new Error('Could not reach the online database. Check the internet connection and open GymPro again.'));
+          reject(new Error('Could not reach the online database. Check the internet connection and open Gymora again.'));
           return;
         }
         updateSplashStatus('No internet — waiting to reach the online database...');
@@ -371,7 +371,7 @@ function createMainWindow(targetUrl) {
     height: 860,
     minWidth: 1024,
     minHeight: 680,
-    title: 'GymPro',
+    title: 'Gymora',
     backgroundColor: '#090d16',
     show: false,
     icon: path.join(__dirname, 'assets', 'icon.png'),
@@ -394,7 +394,7 @@ function createMainWindow(targetUrl) {
           click: () => mainWindow && mainWindow.webContents.print()
         },
         { type: 'separator' },
-        { label: 'Quit GymPro', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() }
+        { label: 'Quit Gymora', accelerator: 'CmdOrCtrl+Q', click: () => app.quit() }
       ]
     },
     {
@@ -501,9 +501,9 @@ ipcMain.handle('backup:status', () => {
 ipcMain.handle('backup:create', async () => {
   if (!backupSupported()) return notSupported();
   const pick = await dialog.showSaveDialog(mainWindow, {
-    title: 'Save GymPro backup',
+    title: 'Save Gymora backup',
     defaultPath: path.join(app.getPath('documents'), backup.suggestedName()),
-    filters: [{ name: 'GymPro backup', extensions: ['dump'] }]
+    filters: [{ name: 'Gymora backup', extensions: ['dump'] }]
   });
   if (pick.canceled || !pick.filePath) return { ok: false, canceled: true };
   try {
@@ -518,8 +518,8 @@ ipcMain.handle('backup:create', async () => {
 ipcMain.handle('backup:restore', async () => {
   if (!backupSupported()) return notSupported();
   const pick = await dialog.showOpenDialog(mainWindow, {
-    title: 'Choose a GymPro backup to restore',
-    filters: [{ name: 'GymPro backup', extensions: ['dump'] }],
+    title: 'Choose a Gymora backup to restore',
+    filters: [{ name: 'Gymora backup', extensions: ['dump'] }],
     properties: ['openFile']
   });
   if (pick.canceled || !pick.filePaths[0]) return { ok: false, canceled: true };
@@ -620,7 +620,7 @@ app.whenReady().then(async () => {
       console.warn('[DB] DB initialize warning:', dbResult.message);
     }
 
-    updateSplashStatus('Starting GymPro server...');
+    updateSplashStatus('Starting Gymora server...');
 
     // If dev and Vite is active, we can connect dev to frontend
     if (isDev && process.env.ELECTRON_START_URL) {
@@ -630,7 +630,7 @@ app.whenReady().then(async () => {
       currentDbUrl = dbResult.url;
       currentConfig = config;
       startBackendServer(dbResult.url, config);
-      updateSplashStatus('Connecting to GymPro...');
+      updateSplashStatus('Connecting to Gymora...');
 
       await checkServerHealth(PROD_URL);
       createMainWindow(PROD_URL);

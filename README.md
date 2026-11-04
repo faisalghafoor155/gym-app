@@ -1,4 +1,4 @@
-# GymPro
+# Gymora
 
 [![Test](https://github.com/faisalghafoor155/gym-app/actions/workflows/test.yml/badge.svg)](https://github.com/faisalghafoor155/gym-app/actions/workflows/test.yml)
 

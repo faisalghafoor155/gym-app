@@ -133,10 +133,8 @@ export default function Register() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center gap-2 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-              <Dumbbell size={22} />
-            </div>
-            <span className="text-2xl font-black tracking-tight text-gray-900 dark:text-slate-100">GymPro</span>
+            <img src="/logo.png" alt="" className="w-10 h-10 rounded-xl shadow-md" />
+            <span className="text-2xl font-black tracking-tight text-gray-900 dark:text-slate-100">Gymora</span>
           </div>
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 tracking-tight">
             {t('Register Your Gym')}

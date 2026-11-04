@@ -68,12 +68,12 @@ describe('BackupPanel', () => {
   });
 
   it('reports a failed restore as a failure, never as a success', async () => {
-    install({ restore: vi.fn().mockResolvedValue({ ok: false, error: 'That file is not a GymPro backup, or it is damaged.' }) });
+    install({ restore: vi.fn().mockResolvedValue({ ok: false, error: 'That file is not a Gymora backup, or it is damaged.' }) });
     render(<BackupPanel />);
 
     await userEvent.click(await screen.findByRole('button', { name: /restore from backup/i }));
 
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/not a gympro backup/i)));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/not a gymora backup/i)));
     expect(toast.success).not.toHaveBeenCalled();
   });
 

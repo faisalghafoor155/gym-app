@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Dumbbell, AlertTriangle, UserCog, User } from 'lucide-react';
+import { AlertTriangle, UserCog, User } from 'lucide-react';
 import { inputClass, primaryButton, Spinner } from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -68,8 +68,8 @@ export default function AcceptInvite() {
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 w-full max-w-md p-6 sm:p-8">
         <div className="flex items-center justify-between gap-2 mb-8">
           <div className="flex items-center gap-2">
-            <Dumbbell className="text-blue-600" size={28} />
-            <span className="text-xl font-bold text-gray-900 dark:text-slate-100">GymPro</span>
+            <img src="/logo.png" alt="" className="w-8 h-8 rounded-lg" />
+            <span className="text-xl font-bold text-gray-900 dark:text-slate-100">Gymora</span>
           </div>
           <LanguageToggle />
         </div>

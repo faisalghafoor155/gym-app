@@ -132,7 +132,7 @@ export default function InstallBanner() {
   return (
     <div
       role="region"
-      aria-label={t('Install GymPro')}
+      aria-label={t('Install Gymora')}
       className="fixed z-40 bottom-4 inset-x-4 lg:inset-x-auto lg:right-6 lg:bottom-6 lg:w-80 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl shadow-xl p-4"
     >
       <div className="flex items-start gap-3">
@@ -142,7 +142,7 @@ export default function InstallBanner() {
             : <Download className="text-white" size={16} />}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-bold text-gray-900 dark:text-slate-100">{t('Install GymPro')}</p>
+          <p className="text-sm font-bold text-gray-900 dark:text-slate-100">{t('Install Gymora')}</p>
           <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-400">
             {iosHint
               ? t('Tap Share, then "Add to Home Screen".')

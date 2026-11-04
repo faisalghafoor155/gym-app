@@ -119,9 +119,9 @@ try {
   const info = await transporter.sendMail({
     from,
     to,
-    subject: 'GymPro mail test',
+    subject: 'Gymora mail test',
     text:
-      'If you are reading this, GymPro can send mail.\n\n' +
+      'If you are reading this, Gymora can send mail.\n\n' +
       'Password resets and staff invites will now arrive by email.',
   });
   console.log(`✔ Sent to ${to} (id ${info.messageId})`);

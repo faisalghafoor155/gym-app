@@ -84,7 +84,7 @@ export default function MemberQrModal({ member, onClose }: Props) {
           </button>
           <button
             onClick={() => {
-              if (!printIdCard(member, dataUrl, { name: gym?.name ?? 'GymPro', logo: gym?.logo })) {
+              if (!printIdCard(member, dataUrl, { name: gym?.name ?? 'Gymora', logo: gym?.logo })) {
                 toast.error(t('Allow pop-ups for this site to print the card'));
               }
             }}

@@ -180,7 +180,7 @@ export const checkoutInvoice = async (
     const initiated = await gateway.initiate({
       intentId: invoice.id,
       amount: invoice.amount.toNumber(),
-      description: `GymPro ${invoice.plan} subscription`,
+      description: `Gymora ${invoice.plan} subscription`,
       returnUrl: `${appBaseUrl()}/api/billing/return/${provider}`,
     });
 

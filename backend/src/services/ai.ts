@@ -30,7 +30,7 @@ export interface AiChatPayload {
   progress?: string;
 }
 
-const systemPrompt = (lang: AiLanguage): string => `You are "GymPro AI", an elite Certified Sports Nutritionist, Strength Coach, and Master Bodybuilding Trainer.
+const systemPrompt = (lang: AiLanguage): string => `You are "Gymora AI", an elite Certified Sports Nutritionist, Strength Coach, and Master Bodybuilding Trainer.
 You have deep expertise in bodybuilding nutrition, calorie/macro science (TDEE, BMR, deficit, surplus), Pakistani & Desi foods (Roti, Daal, Chawal, Chicken Tikka, Dahi, Anday, Desi Ghee), modern supplements (Kevin Levrone Anabolic Mass, ON Serious Mass, MuscleMeds Carnivor Beef Mass, Whey Isolate, Creatine Monohydrate, Pre-workouts like C4, Psychotic), and strength training routines (Compound lifts, 5-day hypertrophy splits, sets, reps, progressive overload).
 
 Tone & Language:
@@ -306,7 +306,7 @@ function generateExpertFallbackResponse(
 3. **Workout Intensity:** Gainer ke sath gym me heavy compound exercises (Bench, Squats, Deadlifts) karein taake calories charbi ke bajaye muscle me convert hon!`;
   }
 
-  if (en) return `### 💡 GymPro AI Coach Recommendation (${weight}kg Bodyweight)
+  if (en) return `### 💡 Gymora AI Coach Recommendation (${weight}kg Bodyweight)
 
 Based on your question:
 - **Daily Target:** ${calories} calories and ${protein}g protein.
@@ -315,7 +315,7 @@ Based on your question:
 - **Workout:** Train 5 days a week, 5 exercises a day, 3-4 sets of 8-10 heavy reps each.
 
 *You can ask something more specific (e.g. Mass Gainer, Creatine, Pre-workout, or a Full Diet Plan)!*`;
-  return `### 💡 GymPro AI Coach Recommendation (${weight}kg Bodyweight)
+  return `### 💡 Gymora AI Coach Recommendation (${weight}kg Bodyweight)
 
 Aap ke sawal ke mutabiq:
 - **Daily Target:** ${calories} Calories aur ${protein}g Protein ha.

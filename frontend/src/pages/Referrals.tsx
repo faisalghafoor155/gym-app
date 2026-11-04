@@ -99,7 +99,7 @@ export default function Referrals() {
     openWhatsApp(r.referrer.phone,
       `Assalam-o-Alaikum ${r.referrer.name},\n\nThank you for referring ${r.referred.name} to *${gym?.name ?? 'our gym'}*! 🙏` +
       (r.rewardDays > 0 ? ` We've added *${r.rewardDays} free days* to your membership as a thank-you.` : '') +
-      `\n\n*${gym?.name ?? 'GymPro'} Management*`);
+      `\n\n*${gym?.name ?? 'Gymora'} Management*`);
   };
 
   if (loading) return <PageLoader />;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { AlertCircle, CheckCircle2, Dumbbell, QrCode } from 'lucide-react';
+import { AlertCircle, CheckCircle2, QrCode } from 'lucide-react';
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -118,9 +118,7 @@ function Shell({ children }: { children: ReactNode }) {
     <div className="min-h-dvh bg-gray-50 dark:bg-slate-950 flex items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-200 dark:border-slate-800 p-8">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white">
-            <Dumbbell size={20} />
-          </div>
+          <img src="/logo.png" alt="" className="w-9 h-9 rounded-xl" />
           <span className="text-xl font-black text-gray-900 dark:text-slate-100">{t('Gym Check-In')}</span>
         </div>
         {children}

@@ -52,7 +52,7 @@ export function createExpiryMessage({
   daysLeft?: number;
   expiryDate?: string;
 }): string {
-  const gym = gymName || 'GymPro';
+  const gym = gymName || 'Gymora';
   const plan = planName ? ` (${planName})` : '';
 
   if (daysLeft !== undefined && daysLeft < 0) {
@@ -77,7 +77,7 @@ export function createGeneralMessage({
   memberName: string;
   gymName?: string;
 }): string {
-  const gym = gymName || 'GymPro';
+  const gym = gymName || 'Gymora';
   return `Assalam-o-Alaikum ${memberName},\n\nHope you are doing well. Message from *${gym}*.\n\n`;
 }
 
@@ -93,7 +93,7 @@ export function createDuesMessage({
   amount: number;
   forWhat?: string;
 }): string {
-  const gym = gymName || 'GymPro';
+  const gym = gymName || 'Gymora';
   const what = forWhat ? ` for *${forWhat}*` : '';
   return `Assalam-o-Alaikum ${memberName},\n\nThis is a gentle reminder that *Rs. ${amount.toLocaleString('en-PK')}* is still pending${what} at *${gym}*. Kindly clear it at the counter at your convenience.\n\nThank you,\n*${gym} Management*`;
 }
@@ -105,7 +105,7 @@ export function createBirthdayMessage({
   memberName: string;
   gymName?: string;
 }): string {
-  const gym = gymName || 'GymPro';
+  const gym = gymName || 'Gymora';
   return `Happy Birthday ${memberName}! 🎉\n\nEveryone at *${gym}* wishes you a healthy, strong and happy year ahead. Keep crushing your goals! 💪\n\n*${gym} Family*`;
 }
 
@@ -118,12 +118,12 @@ export function createAnniversaryMessage({
   gymName?: string;
   years: number;
 }): string {
-  const gym = gymName || 'GymPro';
+  const gym = gymName || 'Gymora';
   return `Congratulations ${memberName}! 🎉\n\nToday marks *${years} year${years === 1 ? '' : 's'}* since you joined *${gym}*. Thank you for training with us — here's to many more!\n\n*${gym} Family*`;
 }
 
 /** A nudge to a paying member who has stopped coming in. */
 export function createMissYouMessage(name: string, gymName: string | undefined, daysAway: number): string {
-  const gym = gymName || 'GymPro';
+  const gym = gymName || 'Gymora';
   return `Assalam-o-Alaikum ${name},\n\nWe haven't seen you at *${gym}* for ${daysAway} days and we miss you! 💪 Your membership is still active — come back and pick up where you left off. If anything is stopping you (timings, injury, travel), just reply and we'll help.\n\n*${gym} Management*`;
 }
