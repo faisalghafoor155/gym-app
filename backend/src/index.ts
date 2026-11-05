@@ -368,6 +368,20 @@ app.use("/api/online-payments/callback", paymentLimiter);
 app.use("/api/billing/checkout", paymentLimiter);
 app.use("/api/billing/callback", paymentLimiter);
 
+// Each AI answer is paid for on the gym's API key, and any signed-in account,
+// members included, can ask. Generous for a person, a wall for a script.
+const aiLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 60,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many questions for now. Please try again in a while." },
+  skip: (req) =>
+    process.env.NODE_ENV === "test" &&
+    req.headers["x-test-skip-ratelimit"] === "1",
+});
+app.use("/api/ai", aiLimiter);
+
 app.use("/api/auth", authRoutes);
 app.use("/api/auth/two-factor", twoFactorRoutes);
 app.use("/api/users", usersRoutes);

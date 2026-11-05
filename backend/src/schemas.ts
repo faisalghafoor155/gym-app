@@ -1309,8 +1309,15 @@ export const updateGymSettingsSchema = z.object({
    * four lines somebody would actually print.
    */
   address: optionalText(300).optional(),
-  /** Gym branding logo (URL or inline data-URL) */
-  logo: z.string().nullable().optional(),
+  /** Gym branding logo (URL or inline data-URL). Sent back on every login and
+   *  `/me`, so it is capped at what the settings page's 2 MB file limit
+   *  becomes in base64, and limited to an https link or an inline image. */
+  logo: z
+    .string()
+    .max(3_000_000, 'logo is too large')
+    .regex(/^(https:\/\/|data:image\/[\w.+-]+;base64,)/, 'must be an https link or an image')
+    .nullable()
+    .optional(),
   /** What a trainer assignment costs when the trainer sets no price of their
    *  own. Zero is valid and means the gym charges nothing for it. */
   defaultPtFee: money,

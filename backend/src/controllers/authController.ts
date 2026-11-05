@@ -28,6 +28,9 @@ import {
 /** A reset link is short-lived; an old inbox should not be a way in. */
 const RESET_TTL_MS = 60 * 60 * 1000;
 
+/** Compared against when no account matches, at the same cost as a real one. */
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
+
 /**
  * Signs the session into an httpOnly cookie and returns the body. The token
  * itself never reaches the response body, so no script can read it.
@@ -315,8 +318,15 @@ export const login = async (
     const user = await prisma.user.findUnique({ where: { email }, include: sessionInclude });
 
     // The same message for "no such account" and "wrong password" so the
-    // endpoint cannot be used to discover which emails are registered.
-    if (!user?.passwordHash || !(await bcrypt.compare(password, user.passwordHash))) {
+    // endpoint cannot be used to discover which emails are registered. A
+    // missing account still pays for one bcrypt compare, or the faster answer
+    // would say the same thing the message is careful not to.
+    if (!user?.passwordHash) {
+      await bcrypt.compare(password, DUMMY_HASH);
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+    if (!(await bcrypt.compare(password, user.passwordHash))) {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }

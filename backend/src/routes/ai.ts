@@ -12,6 +12,8 @@ router.use(auth);
  *  that the prompt stays about the question rather than the history. */
 const PROGRESS_POINTS = 8;
 
+const MAX_MESSAGE_CHARS = 2000;
+
 /**
  * The signed-in member's recent weigh-ins, as prompt lines, or undefined for
  * a staff account or a member who has logged nothing.
@@ -52,6 +54,12 @@ router.post('/chat', authed(async (req: AuthedRequest<Record<string, string>, un
 
   if (!message || typeof message !== 'string') {
     res.status(400).json({ error: 'Message is required' });
+    return;
+  }
+  // Every message is sent on the gym's own AI key, so its length is the
+  // gym's bill. A question to a coach fits in this with room to spare.
+  if (message.length > MAX_MESSAGE_CHARS) {
+    res.status(400).json({ error: `Please keep the question under ${MAX_MESSAGE_CHARS} characters` });
     return;
   }
 
