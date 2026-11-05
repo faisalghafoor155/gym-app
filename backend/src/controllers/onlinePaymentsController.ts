@@ -7,6 +7,7 @@ import { audit } from '../services/audit.js';
 import { availableGateways, getGateway } from '../services/gateways/index.js';
 import { planFor, planHasFeature } from '../services/subscription.js';
 import { notifyPaymentReceipt } from '../services/memberNotifications.js';
+import { supersedeWithCarryOver } from '../services/balances.js';
 import type { CheckoutBody, ConfirmManualParams, ProviderParams } from '../schemas.js';
 
 /**
@@ -281,22 +282,13 @@ export const handleCallback = async (
       return;
     }
 
-    // An abandoned attempt completed weeks later would be sold at a price the
-    // gym may since have changed, so the window is enforced even though the
-    // signature is valid.
+    // A checkout completed after its window closed is still settled. The
+    // signature is valid and the amount above matched the price quoted at
+    // checkout, so the member paid exactly what they were asked; refusing it
+    // would keep their money and grant nothing, while the provider retries
+    // forever. It is audited separately so the gym can see it was late.
     if (intent.expiresAt < new Date()) {
-      await prisma.paymentIntent.update({
-        where: { id: intent.id },
-        data: {
-          status: 'expired',
-          failureReason: 'completed after the checkout window closed',
-          rawCallback: body as Prisma.InputJsonValue,
-          settledAt: new Date(),
-        },
-      });
-      await auditSystem(intent, 'onlinePayment.expired', { expiresAt: intent.expiresAt });
-      res.status(400).json({ error: 'This checkout has expired' });
-      return;
+      await auditSystem(intent, 'onlinePayment.lateSettled', { expiresAt: intent.expiresAt });
     }
 
     await settleIntent(intent, body);
@@ -380,6 +372,13 @@ const settleIntent = async (
       const now = new Date();
       const startDate = current && current.expiryDate > now ? current.expiryDate : now;
       const expiryDate = addDays(startDate, plan.durationDays);
+
+      // The same step the desk renewal takes: the old term is closed, so the
+      // member does not carry two live memberships (and two expiry notices),
+      // and whatever was still owed on it stays owed.
+      await supersedeWithCarryOver(
+        tx, { gymId: intent.gymId, memberId: intent.memberId }, null,
+      );
 
       const membership = await tx.membership.create({
         data: {

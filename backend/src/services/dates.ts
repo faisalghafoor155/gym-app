@@ -9,6 +9,34 @@
  */
 
 /**
+ * The time zone a gym's day is counted in, wherever the server runs.
+ *
+ * Vercel runs in UTC and the desktop app runs in whatever the PC is set to, so
+ * "today" read from the server clock meant a different day on each. Pakistan
+ * keeps no daylight saving, so the offset is fixed and needs no zone database;
+ * the attendance table's generated `checkedInOn` column uses the same zone.
+ */
+export const GYM_TIME_ZONE = 'Asia/Karachi';
+const GYM_OFFSET_MS = 5 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The gym's calendar day that `at` falls on, as UTC midnight — the form a
+ * `@db.Date` column is read and compared in.
+ */
+export const gymDay = (at: Date): Date => {
+  const d = new Date(at.getTime() + GYM_OFFSET_MS);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+};
+
+/** The first and last instants of the gym's day that `at` falls on. */
+export const gymDayBounds = (at: Date): { start: Date; end: Date } => {
+  const start = new Date(gymDay(at).getTime() - GYM_OFFSET_MS);
+  return { start, end: new Date(start.getTime() + DAY_MS - 1) };
+};
+
+/**
  * The last instant of the day a date-only filter names.
  *
  * `setUTCHours`, not `setHours`, and the distinction is the whole reason this

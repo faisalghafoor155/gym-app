@@ -303,7 +303,7 @@ describe('Online payments — only a signed callback settles anything', () => {
     expect(intent.failureReason).toContain('Insufficient balance');
   });
 
-  it('refuses a callback for an intent whose window has closed', async () => {
+  it('still settles a correct payment that arrives after the window closed', async () => {
     const { account, plan, member } = await setup();
     const started = await initiate(account.cookie, plan.id);
 
@@ -323,11 +323,34 @@ describe('Online payments — only a signed callback settles anything', () => {
         }),
       );
 
-    expect(res.status).toBe(400);
-    expect(await prisma.membership.count({ where: { memberId: member.id } })).toBe(0);
+    // The money was captured at the quoted price; refusing it would keep the
+    // member's money and grant nothing.
+    expect(res.status).toBe(200);
+    expect(await prisma.membership.count({ where: { memberId: member.id } })).toBe(1);
 
     const intent = await prisma.paymentIntent.findUniqueOrThrow({ where: { id: started.intentId } });
-    expect(intent.status).toBe('expired');
+    expect(intent.status).toBe('paid');
+  });
+
+  it('closes the current membership when a renewal is bought online', async () => {
+    const { account, plan, member } = await setup();
+    for (let i = 0; i < 2; i++) {
+      const started = await initiate(account.cookie, plan.id);
+      await api()
+        .post('/api/online-payments/callback/jazzcash')
+        .type('form')
+        .send(signedCallback({
+          pp_TxnRefNo: started.fields.pp_TxnRefNo,
+          pp_Amount: '300000',
+          pp_ResponseCode: '000',
+        }));
+    }
+
+    const statuses = (await prisma.membership.findMany({
+      where: { memberId: member.id },
+      orderBy: { createdAt: 'asc' },
+    })).map(m => m.status);
+    expect(statuses).toEqual(['superseded', 'active']);
   });
 
   it('rejects a callback for a reference that was never issued', async () => {

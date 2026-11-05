@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { currentMembershipWhere, toView, withPlan } from '../services/membership.js';
 import { getPhotoUrl } from '../services/s3.js';
+import { gymDayBounds } from '../services/dates.js';
 import type { AuthedRequest } from '../types.js';
 import type { CheckinBody, IdParam, SelfCheckinBody } from '../schemas.js';
 import {
@@ -43,14 +44,13 @@ const signMember = async <T extends WithMember>(row: T): Promise<T> => ({
 const signMembers = async <T extends WithMember>(rows: T[]): Promise<T[]> =>
   Promise.all(rows.map(signMember));
 
-/** The window a check-in belongs to: midnight to midnight, local time. */
-const dayBounds = (now: Date): { start: Date; end: Date } => {
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(now);
-  end.setHours(23, 59, 59, 999);
-  return { start, end };
-};
+/**
+ * The window a check-in belongs to: midnight to midnight in the gym's time
+ * zone. It has to be the same day the `checkedInOn` column computes, or the
+ * duplicate a late-night check-in trips over is never found and the desk gets
+ * a 500 instead of the existing row.
+ */
+const dayBounds = gymDayBounds;
 
 /**
  * What the current membership cost and how much of it has been paid.

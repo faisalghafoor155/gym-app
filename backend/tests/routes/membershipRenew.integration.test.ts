@@ -81,12 +81,56 @@ describe("POST /members/:id/memberships/:membershipId/renew", () => {
     expect(memberships[1].status).toBe("active");
 
     const payment = await prisma.payment.findFirstOrThrow({
-      where: { memberId: member.id },
+      where: { memberId: member.id, status: "paid" },
     });
     expect(payment.amount.toNumber()).toBe(2500);
     expect(payment.status).toBe("paid");
     // Linked to the term it bought, not left floating.
     expect(payment.membershipId).toBe(memberships[1].id);
+  });
+
+  it("keeps what was still owed on the old term as a due", async () => {
+    const owner = await makeGym();
+    const { member, membership } = await memberDueForRenewal(owner.gymId, { price: 5000 });
+    await prisma.payment.create({
+      data: {
+        gymId: owner.gymId, memberId: member.id, membershipId: membership.id,
+        amount: 2000, status: "paid",
+      },
+    });
+
+    const res = await renew(
+      owner.gymId,
+      owner.cookie,
+      { memberId: member.id, membershipId: membership.id },
+      { amount: 5000, method: "cash" },
+    );
+    expect(res.status).toBe(201);
+
+    const due = await prisma.payment.findMany({
+      where: { memberId: member.id, status: "due" },
+    });
+    expect(due).toHaveLength(1);
+    expect(due[0].amount.toNumber()).toBe(3000);
+    expect(due[0].membershipId).toBeNull();
+
+    const dues = await api().get("/api/payments/balances").set("Cookie", owner.cookie);
+    expect(JSON.stringify(dues.body)).toContain("3000");
+  });
+
+  it("sells one renewal when the button is pressed twice at once", async () => {
+    const owner = await makeGym();
+    const { member, membership } = await memberDueForRenewal(owner.gymId);
+    const ids = { memberId: member.id, membershipId: membership.id };
+
+    const [a, b] = await Promise.all([
+      renew(owner.gymId, owner.cookie, ids, { amount: 2500, method: "cash" }),
+      renew(owner.gymId, owner.cookie, ids, { amount: 2500, method: "cash" }),
+    ]);
+
+    expect([a.status, b.status].sort()).toEqual([201, 409]);
+    expect(await prisma.membership.count({ where: { memberId: member.id, status: "active" } })).toBe(1);
+    expect(await prisma.payment.count({ where: { memberId: member.id, status: "paid" } })).toBe(1);
   });
 
   it("carries the days still left rather than burning them", async () => {
@@ -138,7 +182,7 @@ describe("POST /members/:id/memberships/:membershipId/renew", () => {
     );
 
     const payment = await prisma.payment.findFirstOrThrow({
-      where: { memberId: member.id },
+      where: { memberId: member.id, status: "paid" },
     });
     expect(payment.channel).toBe("jazzcash");
     expect(payment.reference).toBe("TX-9");
@@ -202,7 +246,7 @@ describe("POST /members/:id/memberships/:membershipId/renew", () => {
     );
 
     const payment = await prisma.payment.findFirstOrThrow({
-      where: { memberId: member.id },
+      where: { memberId: member.id, status: "paid" },
     });
     // What was actually taken, not what the price list says.
     expect(payment.amount.toNumber()).toBe(2000);

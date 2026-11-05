@@ -90,6 +90,73 @@ export const membershipBalances = async (
     .sort((a, b) => b.outstanding - a.outstanding || a.member.name.localeCompare(b.member.name));
 };
 
+/**
+ * Retires a member's memberships to `superseded` without losing what is still
+ * owed on them.
+ *
+ * Every balance in the books reads current memberships only, so superseding
+ * one with Rs. 3,000 unpaid used to make the Rs. 3,000 vanish from the dues
+ * list, the reminders and the dashboard at once. The shortfall is moved onto a
+ * standalone `due` row first, which is the kind of debt `unpaidCharges`
+ * already reports. `due` rows that already named the membership are detached
+ * rather than duplicated, so the debt is counted once either way.
+ *
+ * The supersede is conditional on the row still being live, and the count is
+ * returned: a caller that expected one row and got none lost a race with a
+ * second click and must not sell a second membership on top.
+ */
+export const supersedeWithCarryOver = async (
+  tx: Prisma.TransactionClient,
+  where: { gymId: string; memberId: string; id?: string },
+  recordedById: string | null,
+): Promise<number> => {
+  const live = await tx.membership.findMany({
+    where: { ...where, status: { in: OWING_STATUSES } },
+    select: {
+      id: true,
+      pricePaid: true,
+      plan: { select: { name: true } },
+      payments: { select: { amount: true, status: true } },
+    },
+  });
+
+  const superseded = await tx.membership.updateMany({
+    where: { ...where, status: { notIn: ['superseded', 'cancelled'] } },
+    data: { status: 'superseded' },
+  });
+  if (superseded.count === 0) return 0;
+
+  for (const m of live) {
+    const paid = sum(m.payments.filter((p) => p.status === 'paid').map((p) => p.amount));
+    const alreadyDue = sum(m.payments.filter((p) => p.status === 'due').map((p) => p.amount));
+    const shortfall = Math.max(0, m.pricePaid.toNumber() - paid);
+    if (shortfall === 0) continue;
+
+    if (alreadyDue > 0) {
+      await tx.payment.updateMany({
+        where: { membershipId: m.id, status: 'due' },
+        data: { membershipId: null },
+      });
+    }
+    const remainder = Math.round((shortfall - alreadyDue) * 100) / 100;
+    if (remainder > 0) {
+      await tx.payment.create({
+        data: {
+          gymId: where.gymId,
+          memberId: where.memberId,
+          amount: remainder,
+          status: 'due',
+          type: 'membership',
+          recordedById,
+          notes: `Balance carried over from ${m.plan.name}`,
+        },
+      });
+    }
+  }
+
+  return superseded.count;
+};
+
 /** `due` payment rows that stand on their own, newest first. */
 export const unpaidCharges = (gymId: string) =>
   prisma.payment.findMany({

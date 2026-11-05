@@ -10,6 +10,10 @@ import type {
   CreateMembershipBody, RenewMembershipBody, MembershipHistoryQuery,
   IdParam, MembershipParams, FreezeMembershipBody,
 } from '../schemas.js';
+import { supersedeWithCarryOver } from '../services/balances.js';
+
+/** The membership was renewed by another request between our read and write. */
+class RenewRaceError extends Error {}
 
 /** Everything this member has ever bought, newest first. */
 export const getHistory = async (
@@ -102,14 +106,9 @@ export const create = async (
     const expiry = addDays(start, plan.durationDays);
 
     const { membership, supersededCount } = await prisma.$transaction(async (tx) => {
-      const superseded = await tx.membership.updateMany({
-        where: {
-          memberId,
-          gymId: req.gymId,
-          status: { notIn: ['superseded', 'cancelled'] },
-        },
-        data: { status: 'superseded' },
-      });
+      const supersededCount = await supersedeWithCarryOver(
+        tx, { gymId: req.gymId, memberId }, req.userId,
+      );
 
       const created = await tx.membership.create({
         data: {
@@ -125,7 +124,7 @@ export const create = async (
         include: withPlan,
       });
 
-      return { membership: created, supersededCount: superseded.count };
+      return { membership: created, supersededCount };
     });
 
     await audit(req, {
@@ -222,10 +221,12 @@ export const renew = async (
     const { created, payment, ptPayment, trainerRemoved } = await prisma.$transaction(async (tx) => {
       // The old membership steps aside rather than being edited: two rows is
       // what makes "what did this member buy, and when" answerable later.
-      await tx.membership.update({
-        where: { id: membership.id },
-        data: { status: 'superseded' },
-      });
+      // Conditional, so a double-click that read the same live row twice sells
+      // one renewal, not two.
+      const stepped = await supersedeWithCarryOver(
+        tx, { gymId: req.gymId, memberId, id: membership.id }, req.userId,
+      );
+      if (stepped === 0) throw new RenewRaceError();
 
       // A promo code sets the price on the server; otherwise it is the
       // agreed price, or the list price.
@@ -356,6 +357,10 @@ export const renew = async (
   } catch (err) {
     if (err instanceof PromoError) {
       res.status(400).json({ error: err.message });
+      return;
+    }
+    if (err instanceof RenewRaceError) {
+      res.status(409).json({ error: 'This membership was just renewed. Refresh to see it.' });
       return;
     }
     console.error(err);

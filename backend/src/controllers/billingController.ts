@@ -301,13 +301,12 @@ export const handleCallback = async (
       return;
     }
 
-    // An abandoned checkout completed weeks later would settle at a price we
-    // may since have changed, so the window is enforced even though the
-    // signature is good. The invoice stays open and payable — only this
-    // attempt is stale.
+    // A checkout completed after its window closed is still settled: the
+    // signature is good and the amount matched the invoice above, so the gym
+    // paid exactly what it owed. Refusing it would keep the money, leave the
+    // invoice open, and eventually suspend a gym that had paid.
     if (invoice.checkoutExpiresAt && invoice.checkoutExpiresAt < new Date()) {
-      res.status(400).json({ error: "This checkout has expired" });
-      return;
+      console.warn("[billing] settling a checkout completed after its window", invoice.id);
     }
 
     await settleInvoice(invoice.id, {

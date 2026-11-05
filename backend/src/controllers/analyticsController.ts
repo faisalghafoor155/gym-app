@@ -2,6 +2,9 @@ import type { Response } from "express";
 import prisma from "../db.js";
 import type { AuthedRequest } from "../types.js";
 import { memberStatusWhere } from "../services/membership.js";
+import { GYM_TIME_ZONE, gymDay, gymDayBounds } from "../services/dates.js";
+
+const DAY = 24 * 60 * 60 * 1000;
 
 export const getAttendanceAnalytics = async (
   req: AuthedRequest,
@@ -10,16 +13,15 @@ export const getAttendanceAnalytics = async (
   try {
     const gymId = req.gymId;
 
-    // Get last 30 days daily attendance trends (pre-populated map to fill gaps with 0)
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
+    // Last 30 days, pre-populated with 0 so quiet days still show. Keyed by the
+    // gym's own calendar day, the same one `checkedInOn` is computed in.
+    const now = new Date();
+    const today = gymDay(now);
+    const thirtyDaysAgo = new Date(gymDayBounds(now).start.getTime() - 29 * DAY);
 
     const dailyCountsMap = new Map<string, number>();
     for (let i = 29; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split("T")[0];
+      const dateStr = new Date(today.getTime() - i * DAY).toISOString().split("T")[0];
       dailyCountsMap.set(dateStr, 0);
     }
 
@@ -51,10 +53,10 @@ export const getAttendanceAnalytics = async (
       count,
     }));
 
-    // Get peak hours: Group all check-ins by hour in node server's local timezone
-    const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    // Peak hours in the gym's own clock, not the server's: on Vercel the
+    // server's zone is UTC and the evening rush would read as early afternoon.
     const peakHoursRaw = await prisma.$queryRaw<{ hour: number; count: bigint }[]>`
-      SELECT EXTRACT(HOUR FROM "checkedInAt" AT TIME ZONE 'UTC' AT TIME ZONE ${localTimezone})::int as hour, COUNT(*)::bigint as count
+      SELECT EXTRACT(HOUR FROM "checkedInAt" AT TIME ZONE 'UTC' AT TIME ZONE ${GYM_TIME_ZONE})::int as hour, COUNT(*)::bigint as count
       FROM "Attendance"
       WHERE "gymId" = ${gymId}
       GROUP BY hour
@@ -75,8 +77,6 @@ export const getAttendanceAnalytics = async (
     }));
 
     // General stats: active members (using same criteria as members page) & today's checkins
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
 
     const [activeMembersCount, todayCheckinsCount] = await Promise.all([
       prisma.member.count({
