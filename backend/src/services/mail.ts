@@ -70,7 +70,7 @@ const from = real(process.env.MAIL_FROM)
 const fromAddress = from.match(/<([^>]+)>/)?.[1] ?? from;
 
 /** What the product calls itself in an inbox, when no gym's name fits. */
-export const appName = (): string => process.env.APP_NAME?.trim() || 'Gymora';
+export const appName = (): string => process.env.APP_NAME?.trim() || 'GymFlow';
 
 const fromFor = (name: string | undefined): string => {
   // Quotes, backslashes and line breaks would let a gym name rewrite the header.

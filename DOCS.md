@@ -1,4 +1,4 @@
-# Gymora — Documentation
+# GymFlow — Documentation
 
 Gym management for a single gym: members, attendance, fees, workout and diet
 plans, and supplement stock — with owner / staff / member accounts.

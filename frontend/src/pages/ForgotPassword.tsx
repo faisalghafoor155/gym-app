@@ -31,8 +31,8 @@ export default function ForgotPassword() {
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 w-full max-w-md p-6 sm:p-8">
         <div className="flex items-center justify-between gap-2 mb-8">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="" className="w-8 h-8 rounded-lg" />
-            <span className="text-xl font-bold text-gray-900 dark:text-slate-100">Gymora</span>
+            <img src="/logo.svg" alt="" className="w-9 h-9" />
+            <span className="text-xl font-extrabold tracking-tight text-gray-900 dark:text-slate-100">Gym<span className="bg-gradient-to-r from-cyan-500 via-blue-500 to-violet-500 bg-clip-text text-transparent">Flow</span></span>
           </div>
           <LanguageToggle />
         </div>

@@ -365,7 +365,7 @@ const fitness: Record<string, string> = {
   'Supplements: Which Ones Do You Need?': 'Supplements: Kaun se Zaroori Hain?',
   'AI Analysis: Food always comes first. Take the supplements below only when you need them:': 'AI Tajziya: Khana hamesha pehli tarjeeh hai. Neeche diye gaye supplements sirf tab lein jab zaroorat ho:',
   'What Not to Eat (Avoid List)': 'Kya Nahi Lena Chahiye (Parhez)',
-  'Gymora AI Fitness & Nutrition Chatbot': 'Gymora AI Fitness aur Nutrition Chatbot',
+  'GymFlow AI Fitness & Nutrition Chatbot': 'GymFlow AI Fitness aur Nutrition Chatbot',
   'Interactive': 'Interactive',
   'You can ask any question about diet, mass gainers, pre-workout, creatine, fat loss or exercises:': 'Aap diet, mass gainer, pre-workout, creatine, fat loss ya exercises ke baare mein koi bhi sawal pooch sakte hain:',
   'Clear Chat History': 'Chat History saaf karein',
@@ -373,7 +373,7 @@ const fitness: Record<string, string> = {
   'e.g. Is it OK to take pre-workout with Anabolic Mass? Or how many chest sets should I do?': 'Maslan: Kya Anabolic Mass ke saath pre-workout lena theek hai? Ya chest ke kitne sets lagayein?',
   'Thinking...': 'Soch raha hai...',
   'Ask AI': 'AI se poochein',
-  'Gymora AI is analyzing your stats & formulating recommendations...': 'Gymora AI aap ke stats dekh kar mashwara tayyar kar raha hai...',
+  'GymFlow AI is analyzing your stats & formulating recommendations...': 'GymFlow AI aap ke stats dekh kar mashwara tayyar kar raha hai...',
   'Profile: {weight}kg | {goal} | {gainer}': 'Profile: {weight}kg | {goal} | {gainer}',
   'Copy advice': 'Mashwara copy karein',
 };

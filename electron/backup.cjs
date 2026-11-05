@@ -63,7 +63,7 @@ async function verifyBackup(binDir, file) {
   try {
     await run(binDir, 'pg_restore', ['--list', file]);
   } catch {
-    throw new Error('That file is not a Gymora backup, or it is damaged.');
+    throw new Error('That file is not a GymFlow backup, or it is damaged.');
   }
 }
 
@@ -107,8 +107,8 @@ const pad = (n) => String(n).padStart(2, '0');
 const stamp = (d = new Date()) =>
   `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
 
-/** `Gymora-Backup-2026-10-19_1730.dump` — what the save dialog suggests. */
-const suggestedName = () => `Gymora-Backup-${stamp()}${EXT}`;
+/** `GymFlow-Backup-2026-10-19_1730.dump` — what the save dialog suggests. */
+const suggestedName = () => `GymFlow-Backup-${stamp()}${EXT}`;
 
 function listAuto(dir) {
   if (!fs.existsSync(dir)) return [];

@@ -1,4 +1,4 @@
-# Gymora - Electron Desktop & USB Portable Setup
+# GymFlow - Electron Desktop & USB Portable Setup
 
 Aapki Gym Management web app ab kamyabi ke sath **Electron Desktop Application** mein convert ho chuki hai. Is setup ka sabse bara faida yeh hai ke aap isay bina kisi internet, cloud deployment, Docker, ya Node.js ke kisi bhi Windows PC par **USB se direct chala sakte hain**.
 
@@ -64,7 +64,7 @@ Mobile par chalane ke liye kisi heavy software ya SDK ki zaroorat nahi hai:
    ```
    Yeh aapko ek link dega (maslan: `https://xxxx.trycloudflare.com`).
 2. **Step 2:** Yeh link WhatsApp ya SMS par send karein.
-3. **Step 3:** Mobile par user link open karega to usay **"Install Gymora"** ka button milega.
+3. **Step 3:** Mobile par user link open karega to usay **"Install GymFlow"** ka button milega.
 4. Button dabate hi app direct phone ki home screen par app icon ke sath install ho jayegi!
 
 ---

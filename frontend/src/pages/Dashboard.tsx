@@ -151,7 +151,7 @@ export default function Dashboard() {
             </span>
           </div>
           <h1 className="text-2xl sm:text-4xl font-extrabold text-white leading-tight pr-24 sm:pr-0 font-heading tracking-tight drop-shadow-sm">
-            {gym?.name || 'Gymora'}
+            {gym?.name || 'GymFlow'}
           </h1>
           <p className="text-white/80 text-xs sm:text-sm mt-1.5 italic max-w-lg line-clamp-2 drop-shadow-sm font-medium">
             "{t(MOTIVATIONAL_QUOTES[quoteIndex] ?? '')}"

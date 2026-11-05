@@ -147,10 +147,10 @@ if (!to) {
  * for a day or two after setup.
  */
 const samples = {
-  member_welcome: templates.welcome('Test', 'Gymora', 'TEST-001'),
-  membership_expiry: templates.membershipExpiry('Test', 'Gymora', 'Monthly'),
-  membership_expiring_soon: templates.membershipExpiringSoon('Test', 'Gymora', 'Monthly', '3'),
-  payment_receipt: templates.paymentReceipt('Test', 'Gymora', 'Rs 3,000', 'Monthly'),
+  member_welcome: templates.welcome('Test', 'GymFlow', 'TEST-001'),
+  membership_expiry: templates.membershipExpiry('Test', 'GymFlow', 'Monthly'),
+  membership_expiring_soon: templates.membershipExpiringSoon('Test', 'GymFlow', 'Monthly', '3'),
+  payment_receipt: templates.paymentReceipt('Test', 'GymFlow', 'Rs 3,000', 'Monthly'),
 } as const;
 
 const name = (process.argv[3] ?? 'member_welcome') as keyof typeof samples;

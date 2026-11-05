@@ -79,7 +79,7 @@ export default function InstallButton({ className = '', variant = 'navbar' }: In
             </div>
 
             <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">
-              {isIOS ? t('Install on iPhone / iPad') : t('Install Gymora App')}
+              {isIOS ? t('Install on iPhone / iPad') : t('Install GymFlow App')}
             </h3>
 
             <div className="mt-3 text-left space-y-2.5 bg-gray-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 text-xs text-gray-600 dark:text-slate-300">

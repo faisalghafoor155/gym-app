@@ -307,8 +307,23 @@ const authLimiter = rateLimit({
     req.headers["x-test-skip-ratelimit"] === "1",
 });
 
+// Signup counts every attempt, successful or not. A signup that works creates a
+// gym and mails the operator, so a script making them one after another would
+// fill the database and the operator's inbox without ever tripping a limiter
+// that only counts failures.
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many sign-ups from this network. Please try again later." },
+  skip: (req) =>
+    process.env.NODE_ENV === "test" &&
+    req.headers["x-test-skip-ratelimit"] === "1",
+});
+
 app.use("/api/auth/login", authLimiter);
-app.use("/api/auth/register", authLimiter);
+app.use("/api/auth/register", registerLimiter);
 app.use("/api/auth/forgot-password", authLimiter);
 app.use("/api/auth/reset-password", authLimiter);
 // Invite tokens are credentials too — guessing one must cost the same as

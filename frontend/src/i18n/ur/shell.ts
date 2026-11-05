@@ -71,7 +71,7 @@ const shell: Record<string, string> = {
   'Send the link again': 'Link dobara bhejein',
 
   // --- install ---
-  'Install Gymora': 'Gymora Install karein',
+  'Install GymFlow': 'GymFlow Install karein',
   'Tap Share, then "Add to Home Screen".': 'Share dabayein, phir "Add to Home Screen" chunein.',
   'Add it to your home screen for quicker access.': 'Jaldi kholne ke liye ise home screen par lagayein.',
   'Dismiss install prompt': 'Install ka paigham band karein',
@@ -80,7 +80,7 @@ const shell: Record<string, string> = {
   'Install app on mobile or desktop': 'Mobile ya computer par App install karein',
   'Install App': 'App Install karein',
   'Install on iPhone / iPad': 'iPhone / iPad par Install karein',
-  'Install Gymora App': 'Gymora App Install karein',
+  'Install GymFlow App': 'GymFlow App Install karein',
   'In Safari, tap the **Share button** (the square with an arrow) at the bottom.':
     'Safari browser mein neechay **Share button** (teer wala dabba) par tap karein.',
   'Scroll down and choose **"Add to Home Screen"**.': 'Neechay scroll karke **"Add to Home Screen"** select karein.',

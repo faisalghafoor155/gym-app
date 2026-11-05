@@ -48,7 +48,7 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
           {/* Gym Details */}
           <div className="text-center pb-5 border-b border-dashed border-gray-200 dark:border-slate-800">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white print:text-black leading-tight">
-              {gym?.name || 'Gymora'}
+              {gym?.name || 'GymFlow'}
             </h2>
             {/* Address before the owner's name: on a receipt the first thing
                 somebody looks for is where it came from, and `whitespace-pre-line`
