@@ -54,6 +54,8 @@ export const celebrationsOn = async (
     where: {
       ...(gymId && { gymId }),
       status: 'active',
+      // A suspended gym's members are not greeted on its behalf.
+      gym: { suspendedAt: null },
       memberships: {
         some: { ...currentMembershipWhere, status: 'active', expiryDate: { gte: lapsedBefore } },
       },

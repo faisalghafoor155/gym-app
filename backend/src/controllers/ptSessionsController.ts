@@ -95,7 +95,9 @@ export const create = async (
 
     // Calculate commission
     const commissionPct = Number(trainer.commissionPercentage);
-    const trainerCommission = (priceCharged * commissionPct) / 100;
+    // Rounded to the paisa here rather than left to the column, so the number
+    // in the audit entry is the number that was stored.
+    const trainerCommission = Math.round(priceCharged * commissionPct) / 100;
 
     const { session, payment } = await prisma.$transaction(async (tx) => {
       const createdSession = await tx.ptSession.create({
@@ -128,6 +130,7 @@ export const create = async (
             paymentDate: sessionDate,
             notes: `PT Session with Trainer: ${trainer.name}`,
             recordedById: req.userId,
+            ptSessionId: createdSession.id,
           },
         });
       }
@@ -185,18 +188,34 @@ export const update = async (
       return;
     }
 
+    const paying = paymentStatus === 'paid' && session.paymentStatus !== 'paid';
+    const unpaying = paymentStatus === 'unpaid' && session.paymentStatus === 'paid';
+
     const { updated } = await prisma.$transaction(async (tx) => {
-      const updatedSession = await tx.ptSession.update({
-        where: { id },
+      // The payment status only moves from the value read above. Two requests
+      // marking the same session paid at once both saw "unpaid"; the loser now
+      // changes nothing and records no second payment.
+      const moved = await tx.ptSession.updateMany({
+        where: {
+          id,
+          ...((paying || unpaying) && { paymentStatus: session.paymentStatus }),
+        },
         data: {
           ...(sessionDate !== undefined && { sessionDate }),
           ...(status !== undefined && { status }),
           ...(paymentStatus !== undefined && { paymentStatus }),
         },
       });
+      const updatedSession = await tx.ptSession.findUniqueOrThrow({ where: { id } });
+      if (moved.count === 0) return { updated: updatedSession };
 
-      // If changed to paid, log a payment
-      if (paymentStatus === 'paid' && session.paymentStatus !== 'paid') {
+      // Marked unpaid again: the money it recorded was never really taken, so
+      // it goes, or the next "paid" would count it twice.
+      if (unpaying) {
+        await tx.payment.deleteMany({ where: { ptSessionId: id, status: 'paid' } });
+      }
+
+      if (paying) {
         await tx.payment.create({
           data: {
             gymId: req.gymId,
@@ -208,6 +227,7 @@ export const update = async (
             paymentDate: sessionDate ?? session.sessionDate,
             notes: `PT Session with Trainer: ${session.trainer.name}`,
             recordedById: req.userId,
+            ptSessionId: id,
           },
         });
       }

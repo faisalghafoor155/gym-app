@@ -611,9 +611,16 @@ model Payment {
   /// a staff member must never delete the gym's money.
   recordedById String?
 
+  /// The PT session this paid for, when there is one. What lets marking a
+  /// session unpaid again remove its payment rather than leave it behind to be
+  /// doubled the next time it is marked paid. Rows from before the column have
+  /// no link and are left alone.
+  ptSessionId String?
+
   member     Member          @relation(fields: [memberId], references: [id])
   gym        Gym             @relation(fields: [gymId], references: [id])
   membership Membership?     @relation(fields: [membershipId], references: [id])
+  ptSession  PtSession?      @relation(fields: [ptSessionId], references: [id], onDelete: SetNull)
   recordedBy User?           @relation("PaymentRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
   sale       SupplementSale?
   intents    PaymentIntent[]
@@ -622,6 +629,7 @@ model Payment {
   @@index([gymId, paymentDate])
   @@index([memberId])
   @@index([membershipId])
+  @@index([ptSessionId])
   @@index([gymId, type])
   /// Serves the staff-scoped list: their own takings, newest first.
   @@index([gymId, recordedById, paymentDate])
@@ -969,9 +977,10 @@ model PtSession {
   payoutStatus      String   @default("unpaid") // unpaid, paid
   createdAt         DateTime @default(now())
 
-  gym     Gym     @relation(fields: [gymId], references: [id])
-  member  Member  @relation(fields: [memberId], references: [id])
-  trainer Trainer @relation(fields: [trainerId], references: [id])
+  gym      Gym       @relation(fields: [gymId], references: [id])
+  member   Member    @relation(fields: [memberId], references: [id])
+  trainer  Trainer   @relation(fields: [trainerId], references: [id])
+  payments Payment[]
 
   @@index([gymId])
   @@index([memberId])

@@ -98,6 +98,9 @@ const findExpiring = (start: Date, end: Date) =>
       // renewal this notice would be asking for.
       status: 'active',
       expiryDate: { gte: start, lte: end },
+      // A suspended or still-unapproved gym cannot use the app, so its
+      // members should not be hearing from it either.
+      gym: { suspendedAt: null },
     },
     select: {
       id: true,
@@ -179,7 +182,7 @@ const notify = async (
       const ok = await sendMail({
         to: member.email,
         fromName: m.gym.name,
-        ...membershipExpiryMail(member.name, m.gym.name, m.plan.name),
+        ...membershipExpiryMail(member.name, m.gym.name, m.plan.name, days),
       });
 
       if (ok) {

@@ -31,20 +31,25 @@ export const remove = async (
     // Every relation is ON DELETE RESTRICT, so children go first. The counts
     // go into the audit entry: how much history went with the member is the
     // part worth knowing afterwards.
+    // In order, one after another: a payment intent and a PT session can both
+    // point at a payment, and a payment at a membership.
     const removed = await prisma.$transaction(async (tx) => {
-      const [memberPlans, attendance, payments, memberships] =
-        await Promise.all([
-          tx.memberPlan.deleteMany({ where: { memberId: id } }),
-          tx.attendance.deleteMany({ where: { memberId: id } }),
-          tx.payment.deleteMany({ where: { memberId: id } }),
-          tx.membership.deleteMany({ where: { memberId: id } }),
-        ]);
+      const paymentIntents = await tx.paymentIntent.deleteMany({ where: { memberId: id } });
+      const classBookings = await tx.classBooking.deleteMany({ where: { memberId: id } });
+      const memberPlans = await tx.memberPlan.deleteMany({ where: { memberId: id } });
+      const attendance = await tx.attendance.deleteMany({ where: { memberId: id } });
+      const payments = await tx.payment.deleteMany({ where: { memberId: id } });
+      const ptSessions = await tx.ptSession.deleteMany({ where: { memberId: id } });
+      const memberships = await tx.membership.deleteMany({ where: { memberId: id } });
       await tx.member.delete({ where: { id } });
       return {
         memberPlans: memberPlans.count,
         attendance: attendance.count,
         payments: payments.count,
         memberships: memberships.count,
+        ptSessions: ptSessions.count,
+        classBookings: classBookings.count,
+        paymentIntents: paymentIntents.count,
       };
     });
 

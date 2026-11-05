@@ -16,6 +16,9 @@ import type {
  * read so the desk can free it — one at a time, or all at once.
  */
 
+/** Another desk assigned the locker between our check and our write. */
+class LockerTakenError extends Error {}
+
 const holder = {
   select: {
     id: true,
@@ -231,9 +234,16 @@ export const assign = async (
     // One transaction: a locker handed over with its fee lost, or a fee
     // recorded for a locker someone else got first, is worse than neither.
     const [updated, payment] = await prisma.$transaction(async tx => {
-      const assigned = await tx.locker.update({
-        where: { id: locker.id },
+      // Only while the locker is still free: two desks giving the same locker
+      // to two members both passed the check above, and the second used to
+      // overwrite the first and record a second fee.
+      const claimed = await tx.locker.updateMany({
+        where: { id: locker.id, memberId: null },
         data: { memberId: member.id, assignedAt: new Date(), ...(notes !== undefined && { notes }) },
+      });
+      if (claimed.count === 0) throw new LockerTakenError();
+      const assigned = await tx.locker.findUniqueOrThrow({
+        where: { id: locker.id },
         include: { member: holder },
       });
       const paid = fee
@@ -269,6 +279,10 @@ export const assign = async (
     // Said back so the desk knows whether money was taken, and why not.
     res.json({ ...toView(updated, new Date()), coveredByPlan: covered, feeRecorded: !!payment });
   } catch (err) {
+    if (err instanceof LockerTakenError) {
+      res.status(400).json({ error: 'That locker was just given to someone else' });
+      return;
+    }
     // Two desks giving the same member a locker at once: the unique key on
     // memberId is what says no to the second.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {

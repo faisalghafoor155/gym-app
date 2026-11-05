@@ -211,7 +211,7 @@ export const verifyMail = async (): Promise<{ ok: boolean; error?: string; note?
 /** Shared shell so the two mails look like they came from the same app. */
 const layout = (heading: string, body: string, link: string, label: string, footer: string) =>
   `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:480px">` +
-  `<h2 style="margin:0 0 16px;font-size:18px">${heading}</h2>` +
+  `<h2 style="margin:0 0 16px;font-size:18px">${escapeHtml(heading)}</h2>` +
   `${body}` +
   `<p style="margin:24px 0"><a href="${link}" ` +
   `style="background:#2563eb;color:#fff;padding:12px 20px;border-radius:10px;` +
@@ -236,6 +236,13 @@ export const inviteMail = (
     ? `help run ${gymName}`
     : `see your membership, attendance and payments at ${gymName}`;
   const validity = `${validHours} hour${validHours === 1 ? '' : 's'}`;
+  // The gym's name and the inviter's are typed by the gym, and this mail goes
+  // to an address the gym chose: unescaped, they could put a link of their
+  // own inside a mail sent from our domain.
+  const gym = escapeHtml(gymName);
+  const whatHtml = role === 'staff'
+    ? `help run ${gym}`
+    : `see your membership, attendance and payments at ${gym}`;
 
   return {
     subject: `You have been added to ${gymName}`,
@@ -247,8 +254,8 @@ export const inviteMail = (
       `cannot be used until a password is set.`,
     html: layout(
       `You have been added to ${gymName}`,
-      `<p style="color:#374151;line-height:1.5"><strong>${invitedBy}</strong> has added ` +
-      `you to <strong>${gymName}</strong> so you can ${what}.</p>`,
+      `<p style="color:#374151;line-height:1.5"><strong>${escapeHtml(invitedBy)}</strong> has added ` +
+      `you to <strong>${gym}</strong> so you can ${whatHtml}.</p>`,
       link,
       'Choose a password',
       `The link is valid for ${validity} and can be used once. If you were not ` +
@@ -273,26 +280,34 @@ export const membershipExpiryMail = (
   memberName: string,
   gymName: string,
   planName: string,
+  /** 0 for the day it runs out; more for the early warning. */
+  daysLeft = 0,
 ): Omit<Mail, 'to'> => {
   // Only the first name: the full record often carries a formal name the
   // member is never addressed by out loud.
   const firstName = memberName.split(' ')[0] ?? memberName;
+  // The early warning used to go out with this same "expires today" wording,
+  // three days before it was true.
+  const when = daysLeft <= 0
+    ? 'today'
+    : daysLeft === 1 ? 'tomorrow' : `in ${daysLeft} days`;
+  const [first, gym, plan] = [firstName, gymName, planName].map(escapeHtml);
 
   return {
-    subject: `Your ${gymName} membership expires today`,
+    subject: `Your ${gymName} membership expires ${when}`,
     text:
       `Hi ${firstName},\n\n` +
-      `Your ${planName} membership at ${gymName} expires today.\n\n` +
+      `Your ${planName} membership at ${gymName} expires ${when}.\n\n` +
       `To keep training without a break, renew at the front desk on your next ` +
       `visit.\n\n` +
       `If you have already renewed, please ignore this — it may have crossed ` +
       `with your payment.`,
     html:
       `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:480px">` +
-      `<h2 style="margin:0 0 16px;font-size:18px">Your membership expires today</h2>` +
-      `<p style="color:#374151;line-height:1.5">Hi ${firstName},</p>` +
-      `<p style="color:#374151;line-height:1.5">Your <strong>${planName}</strong> ` +
-      `membership at <strong>${gymName}</strong> expires today.</p>` +
+      `<h2 style="margin:0 0 16px;font-size:18px">Your membership expires ${when}</h2>` +
+      `<p style="color:#374151;line-height:1.5">Hi ${first},</p>` +
+      `<p style="color:#374151;line-height:1.5">Your <strong>${plan}</strong> ` +
+      `membership at <strong>${gym}</strong> expires ${when}.</p>` +
       `<p style="color:#374151;line-height:1.5">To keep training without a break, ` +
       `renew at the front desk on your next visit.</p>` +
       `<p style="color:#6b7280;font-size:13px;line-height:1.5;margin-top:24px">` +
@@ -325,7 +340,7 @@ export const passwordResetMail = (
     html: layout(
       'Reset your password',
       `<p style="color:#374151;line-height:1.5">A password reset was requested for ` +
-      `<strong>${who}</strong>.</p>`,
+      `<strong>${escapeHtml(who)}</strong>.</p>`,
       link,
       'Choose a new password',
       `The link is valid for ${validity} and can be used once. If you did not ` +
@@ -368,8 +383,8 @@ export const verifyEmailMail = (
       `If you did not sign up, you can ignore this email.`,
     html: layout(
       `Confirm your email for ${gymName}`,
-      `<p style="color:#374151;line-height:1.5">Hello <strong>${name}</strong> — ` +
-      `<strong>${gymName}</strong> is set up and ready to use. This is only to ` +
+      `<p style="color:#374151;line-height:1.5">Hello <strong>${escapeHtml(name)}</strong> — ` +
+      `<strong>${escapeHtml(gymName)}</strong> is set up and ready to use. This is only to ` +
       `confirm the address it was registered with.</p>` +
       `<p style="color:#374151;line-height:1.5">It matters because this is where ` +
       `a password reset is sent. If the address has a typo in it, the day you ` +

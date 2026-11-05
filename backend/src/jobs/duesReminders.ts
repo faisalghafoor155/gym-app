@@ -74,7 +74,8 @@ export const runDuesReminders = async (now: Date = new Date()): Promise<DuesRun>
   // Somebody gone long enough to have lapsed is off the roster; chasing them
   // for a balance belongs to a phone call, not an automated message.
   const balances = await membershipBalances(
-    { expiryDate: { gte: addDays(today, -LAPSED_AFTER_DAYS) } },
+    // Suspended gyms are left out, as with the expiry notices.
+    { expiryDate: { gte: addDays(today, -LAPSED_AFTER_DAYS) }, gym: { suspendedAt: null } },
     now,
   );
   run.owing = balances.length;

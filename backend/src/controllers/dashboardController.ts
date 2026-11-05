@@ -76,7 +76,10 @@ export const getStats = async (req: AuthedRequest, res: Response): Promise<void>
       prisma.member.count({ where: { gymId } }),
       prisma.membership.count({ where: { ...live, expiryDate: { gt: soon } } }),
       prisma.membership.findMany({
-        where: { ...live, expiryDate: { gte: now, lte: soon } },
+        // From the start of today, not from this moment: the follow-up list
+        // below starts at yesterday, so a membership that ran out earlier
+        // today used to fall between the two and be in neither.
+        where: { ...live, expiryDate: { gte: todayStart, lte: soon } },
         include: { ...memberSummary, ...withPlan },
         orderBy: { expiryDate: 'asc' },
       }),

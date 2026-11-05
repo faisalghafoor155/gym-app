@@ -143,19 +143,28 @@ export const issueInvoiceIfDue = async (
   const periodStart = sub.paidThrough ?? now;
   const periodEnd = addDays(periodStart, sub.periodDays);
 
-  return prisma.subscriptionInvoice.create({
-    data: {
-      subscriptionId: sub.id,
-      gymId: sub.gymId,
-      plan: sub.plan,
-      amount: sub.amount,
-      periodStart,
-      periodEnd,
-      // Due when the period it covers begins — that is what paying up front
-      // means. For a first invoice, and for one issued late, that is now.
-      dueDate: periodStart > now ? periodStart : now,
-    },
-  });
+  try {
+    return await prisma.subscriptionInvoice.create({
+      data: {
+        subscriptionId: sub.id,
+        gymId: sub.gymId,
+        plan: sub.plan,
+        amount: sub.amount,
+        periodStart,
+        periodEnd,
+        // Due when the period it covers begins — that is what paying up front
+        // means. For a first invoice, and for one issued late, that is now.
+        dueDate: periodStart > now ? periodStart : now,
+      },
+    });
+  } catch (err) {
+    // A second sweep passed the open-invoice check at the same moment; the
+    // one-open-per-subscription index stopped it. Nothing more is owed.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return null;
+    }
+    throw err;
+  }
 };
 
 /** Thrown when a racing callback already settled the invoice. */
