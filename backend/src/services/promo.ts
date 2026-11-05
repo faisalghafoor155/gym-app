@@ -1,5 +1,6 @@
 import type { Prisma, PromoCode } from '@prisma/client';
 import { toNumber } from './money.js';
+import { gymDayBounds } from './dates.js';
 
 /**
  * Promo codes: looking one up, pricing with it, and spending one use of it.
@@ -29,7 +30,12 @@ export const findUsablePromo = async (
   if (!promo) throw new PromoError('That promo code does not exist');
   if (!promo.isActive) throw new PromoError('That promo code has been switched off');
   if (promo.validFrom && promo.validFrom > now) throw new PromoError('That promo code is not valid yet');
-  if (promo.validUntil && promo.validUntil < now) throw new PromoError('That promo code has expired');
+  // `validUntil` is the last day the code works, stored as that date's
+  // midnight. Compared against the end of that day in the gym's time zone, or
+  // a code advertised "until the 31st" stopped working as the 31st began.
+  if (promo.validUntil && gymDayBounds(promo.validUntil).end < now) {
+    throw new PromoError('That promo code has expired');
+  }
   if (promo.maxUses != null && promo.usedCount >= promo.maxUses) {
     throw new PromoError('That promo code has been used up');
   }

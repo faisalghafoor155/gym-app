@@ -560,7 +560,9 @@ export const checkoutCart = async (
               amount: itemTotal,
               method: paymentMethod || 'cash',
               status: 'paid',
-              type: 'other',
+              // The same type as a single sale, so the takings summary puts
+              // cart sales under supplements rather than "other".
+              type: 'supplement',
               recordedById: req.userId,
               notes: `POS Cart checkout for product: ${supp.name}${notes ? ` - ${notes}` : ''}`,
             },
