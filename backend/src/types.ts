@@ -16,6 +16,8 @@ export interface AuthedRequest<
   gymId: string;
   userId: string;
   userEmail?: string;
+  /** Null until the account's address has been proven by mail or invite. */
+  emailVerifiedAt?: Date | null;
   role: Role;
   /** Staff permission level (only set when role is 'staff') */
   staffPermission?: StaffPermission;

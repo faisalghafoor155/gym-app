@@ -51,6 +51,14 @@ describe('POST /api/auth/register', () => {
     }
   });
 
+  it('starts the gym on free even when a paid plan is picked, until it is paid', async () => {
+    const res = await api().post('/api/auth/register').send({ ...body, plan: 'pro' });
+    expect(res.status).toBe(201);
+
+    const gym = await prisma.gym.findFirst({ where: { name: 'Iron Works' } });
+    expect(gym?.plan).toBe('free');
+  });
+
   it('never returns the password hash', async () => {
     const res = await api().post('/api/auth/register').send(body);
     expect(JSON.stringify(res.body)).not.toContain('$2');

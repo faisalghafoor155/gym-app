@@ -68,6 +68,7 @@ export const requireAuth = async (
         memberId: true,
         tokenVersion: true,
         staffPermission: true,
+        emailVerifiedAt: true,
         // A join on the row already being fetched, so the suspension check
         // below costs no extra round trip.
         gym: { select: { suspendedAt: true, suspendedReason: true } },
@@ -124,6 +125,7 @@ export const requireAuth = async (
       gymId: string;
       userId: string;
       userEmail?: string;
+      emailVerifiedAt: Date | null;
       role: typeof user.role;
       staffPermission?: typeof user.staffPermission;
       actorName: string;
@@ -132,6 +134,7 @@ export const requireAuth = async (
     r.gymId = user.gymId;
     r.userId = user.id;
     r.userEmail = user.email;
+    r.emailVerifiedAt = user.emailVerifiedAt;
     r.role = user.role;
     r.actorName = user.name;
     r.memberId = user.memberId;

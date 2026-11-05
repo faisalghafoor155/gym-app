@@ -5,6 +5,7 @@ import { Prisma, type PaymentProvider } from "@prisma/client";
 import prisma from "../db.js";
 import type { AuthedRequest } from "../types.js";
 import { audit } from "../services/audit.js";
+import { isPlatformAdmin } from "../services/platformAdmin.js";
 import {
   getPlatformGateway,
   availablePlatformGateways,
@@ -445,15 +446,11 @@ const auditSystem = async (
 export const __testing = { auditSystem, isBillable };
 
 /**
- * Platform Owner / Super Admin check.
+ * The same operator check as /api/platform, so there is one list of operators
+ * and one rule for who counts as one.
  */
-export const isPlatformAdmin = (email?: string): boolean => {
-  if (!email) return false;
-  const adminEmail = (process.env.PLATFORM_ADMIN_EMAIL ?? "faisalghafoor015@gmail.com")
-    .toLowerCase()
-    .trim();
-  return email.toLowerCase().trim() === adminEmail;
-};
+const isAdmin = (req: AuthedRequest<unknown, unknown, unknown, unknown>): boolean =>
+  isPlatformAdmin({ email: req.userEmail, role: req.role, emailVerifiedAt: req.emailVerifiedAt });
 
 /**
  * Returns all gym subscription upgrade requests and all gyms for the Platform Owner.
@@ -462,7 +459,7 @@ export const getAdminBillingRequests = async (
   req: AuthedRequest,
   res: Response,
 ): Promise<void> => {
-  if (!isPlatformAdmin(req.userEmail)) {
+  if (!isAdmin(req)) {
     res.json({ isMasterAdmin: false, pendingRequests: [], allGyms: [] });
     return;
   }
@@ -546,7 +543,7 @@ export const approveAdminBillingRequest = async (
   req: AuthedRequest<Record<string, string>, unknown, { invoiceId: string; note?: string }>,
   res: Response,
 ): Promise<void> => {
-  if (!isPlatformAdmin(req.userEmail)) {
+  if (!isAdmin(req)) {
     res.status(403).json({ error: "Only the platform owner can approve subscriptions" });
     return;
   }
@@ -575,14 +572,14 @@ export const setAdminGymPlan = async (
   req: AuthedRequest<Record<string, string>, unknown, { gymId: string; plan: GymPlan }>,
   res: Response,
 ): Promise<void> => {
-  if (!isPlatformAdmin(req.userEmail)) {
+  if (!isAdmin(req)) {
     res.status(403).json({ error: "Only the platform owner can change plans directly" });
     return;
   }
 
   const { gymId, plan } = req.body;
-  if (!gymId || !plan) {
-    res.status(400).json({ error: "gymId and plan are required" });
+  if (!gymId || !plan || !(plan in PLAN_LABELS)) {
+    res.status(400).json({ error: "gymId and a valid plan are required" });
     return;
   }
 

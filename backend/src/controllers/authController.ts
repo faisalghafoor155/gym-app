@@ -49,7 +49,7 @@ const startSession = (res: Response, user: {
       role: user.role, memberId: user.memberId,
       staffPermission: user.staffPermission,
       emailVerified: (user.emailVerifiedAt ?? null) !== null,
-      isPlatformAdmin: user.role === 'owner' && isPlatformAdmin(user.email),
+      isPlatformAdmin: isPlatformAdmin(user),
     },
     gym: {
       id: user.gym.id,
@@ -156,7 +156,6 @@ export const register = async (
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const selectedPlan = plan && plan !== 'free' ? plan : 'free';
     const pending = gymApprovalRequired();
     const user = await prisma.$transaction(async (tx) => {
       const gym = await tx.gym.create({
@@ -164,7 +163,10 @@ export const register = async (
           name: gymName,
           ownerName,
           phone,
-          plan: selectedPlan,
+          // Always free to start. A paid plan picked at sign-up only issues
+          // its invoice below; `settleInvoice` moves the gym onto that plan
+          // once the money arrives, the same as an upgrade from the billing page.
+          plan: 'free',
           ...(pending && {
             suspendedAt: new Date(),
             suspendedReason: PENDING_APPROVAL_REASON,
@@ -720,7 +722,7 @@ export const me = async (req: AuthedRequest, res: Response): Promise<void> => {
         // Drives the banner offering to send the link again. A boolean rather
         // than the timestamp: when it happened is nobody's business on screen.
         emailVerified: user.emailVerifiedAt !== null,
-        isPlatformAdmin: user.role === 'owner' && isPlatformAdmin(user.email),
+        isPlatformAdmin: isPlatformAdmin(user),
       },
       // Field by field rather than `user.gym`, which would also hand out
       // `suspendedAt` and `suspendedReason` — internal state that a signed-in

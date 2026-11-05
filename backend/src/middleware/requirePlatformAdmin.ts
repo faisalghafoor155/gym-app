@@ -9,8 +9,10 @@ import { isPlatformAdmin } from '../services/platformAdmin.js';
  * has no business learning that the operator's tooling exists.
  */
 export const requirePlatformAdmin = (req: Request, res: Response, next: NextFunction): void => {
-  const { userEmail, role } = req as Request & { userEmail?: string; role?: string };
-  if (role !== 'owner' || !isPlatformAdmin(userEmail)) {
+  const { userEmail, role, emailVerifiedAt } = req as Request & {
+    userEmail?: string; role?: string; emailVerifiedAt?: Date | null;
+  };
+  if (!isPlatformAdmin({ email: userEmail, role, emailVerifiedAt })) {
     res.status(404).json({ error: 'Not found' });
     return;
   }

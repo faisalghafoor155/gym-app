@@ -6,6 +6,7 @@ import { setSessionCookie } from '../services/session.js';
 import { audit, diff } from '../services/audit.js';
 import type { AuthedRequest } from '../types.js';
 import { issueInvite } from '../services/invite.js';
+import { isOperatorEmail } from '../services/platformAdmin.js';
 import {
   claimPlace, planErrorResponse, planFor, planLimitFor, PlanLimitError,
 } from '../services/subscription.js';
@@ -154,7 +155,10 @@ export const createStaff = async (
 ): Promise<void> => {
   const { name, email, password, staffPermission, sendEmail } = req.body;
   try {
-    if (await prisma.user.findUnique({ where: { email } })) {
+    // An operator address in somebody else's gym, with a password or invite
+    // link its creator holds, would be one ownership transfer away from the
+    // operator's tools. Answered as "taken" so the list itself is not revealed.
+    if (isOperatorEmail(email) || await prisma.user.findUnique({ where: { email } })) {
       res.status(409).json({ error: 'Email already registered' });
       return;
     }
@@ -241,7 +245,8 @@ export const createMemberLogin = async (
       res.status(409).json({ error: 'This member already has a login' });
       return;
     }
-    if (await prisma.user.findUnique({ where: { email } })) {
+    // Same reason as staff: the invite link goes to the gym, not the inbox.
+    if (isOperatorEmail(email) || await prisma.user.findUnique({ where: { email } })) {
       res.status(409).json({ error: 'Email already registered' });
       return;
     }
@@ -509,6 +514,13 @@ export const transferOwnership = async (
       res.status(400).json({
         error: 'That is a member account. Ownership can only go to a staff account.',
       });
+      return;
+    }
+
+    // Belt and braces for any operator-address account created before staff
+    // creation refused them: owning a gym is the last step to operator access.
+    if (isOperatorEmail(target.email)) {
+      res.status(400).json({ error: 'Ownership cannot be transferred to that account.' });
       return;
     }
 

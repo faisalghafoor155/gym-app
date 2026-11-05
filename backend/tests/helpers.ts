@@ -81,6 +81,7 @@ export const makeGym = async (opts: {
   password?: string;
   isActive?: boolean;
   plan?: GymPlan;
+  emailVerified?: boolean;
 } = {}): Promise<TestAccount> => {
   const {
     role = 'owner',
@@ -94,6 +95,7 @@ export const makeGym = async (opts: {
     // in whatever it was actually testing. Tests about limits ask for the tier
     // they mean.
     plan = 'pro',
+    emailVerified = false,
   } = opts;
 
   const gym = await prisma.gym.create({
@@ -107,6 +109,7 @@ export const makeGym = async (opts: {
       passwordHash: await bcrypt.hash(password, 4),
       role,
       isActive,
+      ...(emailVerified && { emailVerifiedAt: new Date() }),
     },
   });
 

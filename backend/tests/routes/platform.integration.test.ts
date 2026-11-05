@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import prisma from '../../src/db.js';
 import { PENDING_APPROVAL_REASON } from '../../src/controllers/authController.js';
-import { api, makeGym, resetDb } from '../helpers.js';
+import { addMember, api, makeGym, resetDb } from '../helpers.js';
 import { signGymApprovalToken } from '../../src/services/gymApproval.js';
 import { signGymCheckinToken } from '../../src/services/gymCheckin.js';
 
@@ -16,7 +16,7 @@ afterEach(() => {
 
 describe('/api/platform', () => {
   it('shows the operator every gym, with usage and subscription expiry', async () => {
-    const boss = await makeGym({ email: 'boss@example.com', gymName: 'Boss Gym' });
+    const boss = await makeGym({ email: 'boss@example.com', gymName: 'Boss Gym', emailVerified: true });
     const other = await makeGym({ gymName: 'Iron Works' });
     await prisma.gymSubscription.create({
       data: {
@@ -41,15 +41,51 @@ describe('/api/platform', () => {
     expect(res.status).toBe(404);
   });
 
+  it('is closed to an owner on the list whose address was never verified', async () => {
+    // Anybody can type the operator address into the sign-up form.
+    const impostor = await makeGym({ email: 'boss@example.com' });
+    const res = await api().get('/api/platform/gyms').set('Cookie', impostor.cookie);
+    expect(res.status).toBe(404);
+  });
+
+  it('will not let a gym create a staff or member login with an operator address', async () => {
+    const owner = await makeGym();
+    const staff = await api().post('/api/users/staff').set('Cookie', owner.cookie)
+      .send({ name: 'Boss', email: 'BOSS@example.com', password: 'correct-horse-battery' });
+    expect(staff.status).toBe(409);
+
+    const member = await addMember(owner.gymId);
+    const login = await api().post('/api/users/member-login').set('Cookie', owner.cookie)
+      .send({ memberId: member.id, email: 'boss@example.com', password: 'correct-horse-battery' });
+    expect(login.status).toBe(409);
+
+    expect(await prisma.user.count({ where: { email: 'boss@example.com' } })).toBe(0);
+  });
+
+  it('keeps the billing admin endpoints to the same operator', async () => {
+    const owner = await makeGym();
+    const other = await makeGym({ plan: 'free' });
+
+    const plan = await api().post('/api/billing/admin/set-plan').set('Cookie', owner.cookie)
+      .send({ gymId: other.gymId, plan: 'pro' });
+    expect(plan.status).toBe(403);
+    expect((await prisma.gym.findUnique({ where: { id: other.gymId } }))?.plan).toBe('free');
+
+    const boss = await makeGym({ email: 'boss@example.com', emailVerified: true });
+    const ok = await api().post('/api/billing/admin/set-plan').set('Cookie', boss.cookie)
+      .send({ gymId: other.gymId, plan: 'pro' });
+    expect(ok.status).toBe(200);
+  });
+
   it('is closed to everyone when no operator is configured', async () => {
-    const boss = await makeGym({ email: 'boss@example.com' });
+    const boss = await makeGym({ email: 'boss@example.com', emailVerified: true });
     delete process.env.PLATFORM_ADMIN_EMAILS;
     const res = await api().get('/api/platform/gyms').set('Cookie', boss.cookie);
     expect(res.status).toBe(404);
   });
 
   it('approves a pending gym, and only a pending one', async () => {
-    const boss = await makeGym({ email: 'boss@example.com' });
+    const boss = await makeGym({ email: 'boss@example.com', emailVerified: true });
     const pending = await makeGym({ gymName: 'New Gym' });
     await prisma.gym.update({
       where: { id: pending.gymId },
@@ -65,7 +101,7 @@ describe('/api/platform', () => {
   });
 
   it('suspends another gym but refuses to lock the operator out of their own', async () => {
-    const boss = await makeGym({ email: 'boss@example.com' });
+    const boss = await makeGym({ email: 'boss@example.com', emailVerified: true });
     const other = await makeGym();
 
     const own = await api().post(`/api/platform/gyms/${boss.gymId}/suspend`).set('Cookie', boss.cookie).send({});
