@@ -89,61 +89,113 @@ const schedule = (
   console.log(`[jobs] ${name} scheduled (${expression})`);
 };
 
+/** Each job, run once, summarised for the log. */
+const expiryReminders = async (): Promise<string> => {
+  const run = await runExpiryReminders();
+  return (
+    `due ${run.due}, sent ${run.sent}, already sent ${run.skippedAlreadySent}, ` +
+    `no email ${run.skippedNoEmail}, failed ${run.failed}`
+  );
+};
+
+const duesReminders = async (): Promise<string> => {
+  const run = await runDuesReminders();
+  return (
+    `owing ${run.owing}, sent ${run.sent}, reminded recently ${run.skippedRecently}, ` +
+    `already sent ${run.skippedAlreadySent}, no whatsapp ${run.skippedNoWhatsApp}, ` +
+    `failed ${run.failed}`
+  );
+};
+
+const greetings = async (): Promise<string> => {
+  const run = await runGreetings();
+  return (
+    `birthdays ${run.birthdays}, anniversaries ${run.anniversaries}, sent ${run.sent}, ` +
+    `already sent ${run.skippedAlreadySent}, no whatsapp ${run.skippedNoWhatsApp}, ` +
+    `failed ${run.failed}`
+  );
+};
+
+const fingerprintRetention = async (): Promise<string> => {
+  const run = await runFingerprintRetention();
+  return (
+    `due ${run.due}, deleted ${run.deleted}, already gone ${run.alreadyGone} ` +
+    `(after ${run.afterDays} days without an active membership)`
+  );
+};
+
+const subscriptionBilling = async (): Promise<string> => {
+  const run = await runSubscriptionBilling();
+  return (
+    `subscriptions ${run.due}, invoiced ${run.issued}, chased ${run.noticed}, ` +
+    `no owner email ${run.noticeSkippedNoEmail}, suspended ${run.suspended}, ` +
+    `already suspended ${run.alreadySuspended}, failed ${run.failed}`
+  );
+};
+
+/**
+ * The same jobs in two batches, for hosts that call in rather than keep a
+ * process running. On Vercel nothing stays up to run node-cron, so Vercel's
+ * own cron calls `/api/cron/:group` once a day for each batch instead.
+ *
+ * Billing is left out while subscriptions are off, the same as below.
+ */
+export const JOB_GROUPS = {
+  reminders: () => ({
+    'expiry reminders': expiryReminders,
+    'dues reminders': duesReminders,
+    greetings,
+  }),
+  maintenance: () => ({
+    'fingerprint retention': fingerprintRetention,
+    ...(subscriptionsEnabled() && { 'subscription billing': subscriptionBilling }),
+  }),
+} as const;
+
+export type JobGroup = keyof typeof JOB_GROUPS;
+
+/**
+ * Runs one batch, one job after another, and reports each. A job that throws
+ * is recorded and the rest still run, as with the scheduler.
+ */
+export const runJobGroup = async (
+  group: JobGroup,
+): Promise<{ job: string; ok: boolean; summary: string }[]> => {
+  const results = [];
+  for (const [job, run] of Object.entries(JOB_GROUPS[group]())) {
+    try {
+      const summary = await run();
+      console.log(`[jobs] ${job} — ${summary}`);
+      results.push({ job, ok: true, summary });
+    } catch (err) {
+      console.error(`[jobs] ${job} failed:`, err);
+      results.push({ job, ok: false, summary: String(err) });
+    }
+  }
+  return results;
+};
+
 export const startJobs = (): void => {
   if (!enabled) return;
 
-  schedule('expiry reminders', 'REMINDER_CRON', SCHEDULE, async () => {
-    const run = await runExpiryReminders();
-    return (
-      `due ${run.due}, sent ${run.sent}, already sent ${run.skippedAlreadySent}, ` +
-      `no email ${run.skippedNoEmail}, failed ${run.failed}`
-    );
-  });
+  schedule('expiry reminders', 'REMINDER_CRON', SCHEDULE, expiryReminders);
 
   // The other two member-facing messages share the reminder's slot: all three
   // are "the gym talking to its members", and a member reading them over
   // breakfast is the point of nine o'clock for each.
-  schedule('dues reminders', 'REMINDER_CRON', SCHEDULE, async () => {
-    const run = await runDuesReminders();
-    return (
-      `owing ${run.owing}, sent ${run.sent}, reminded recently ${run.skippedRecently}, ` +
-      `already sent ${run.skippedAlreadySent}, no whatsapp ${run.skippedNoWhatsApp}, ` +
-      `failed ${run.failed}`
-    );
-  });
-
-  schedule('greetings', 'REMINDER_CRON', SCHEDULE, async () => {
-    const run = await runGreetings();
-    return (
-      `birthdays ${run.birthdays}, anniversaries ${run.anniversaries}, sent ${run.sent}, ` +
-      `already sent ${run.skippedAlreadySent}, no whatsapp ${run.skippedNoWhatsApp}, ` +
-      `failed ${run.failed}`
-    );
-  });
+  schedule('dues reminders', 'REMINDER_CRON', SCHEDULE, duesReminders);
+  schedule('greetings', 'REMINDER_CRON', SCHEDULE, greetings);
 
   schedule(
     'fingerprint retention',
     'FINGERPRINT_RETENTION_CRON',
     RETENTION_SCHEDULE,
-    async () => {
-      const run = await runFingerprintRetention();
-      return (
-        `due ${run.due}, deleted ${run.deleted}, already gone ${run.alreadyGone} ` +
-        `(after ${run.afterDays} days without an active membership)`
-      );
-    },
+    fingerprintRetention,
   );
 
   // Not scheduled at all while subscriptions are off: no invoices, no
   // reminder mails, and no gym suspended for a bill it was never sent.
   if (subscriptionsEnabled()) {
-    schedule('subscription billing', 'BILLING_CRON', BILLING_SCHEDULE, async () => {
-      const run = await runSubscriptionBilling();
-      return (
-        `subscriptions ${run.due}, invoiced ${run.issued}, chased ${run.noticed}, ` +
-        `no owner email ${run.noticeSkippedNoEmail}, suspended ${run.suspended}, ` +
-        `already suspended ${run.alreadySuspended}, failed ${run.failed}`
-      );
-    });
+    schedule('subscription billing', 'BILLING_CRON', BILLING_SCHEDULE, subscriptionBilling);
   }
 };
