@@ -94,12 +94,25 @@ async function createBackup({ binDir, dbUrl, dest }) {
  * back and the data is exactly as it was. The caller is expected to have
  * stopped whatever is using the database, and to have taken a copy first.
  */
+/**
+ * Replaces the database with the backup in `file`.
+ *
+ * The schema is emptied first rather than relying on `--clean`, which only
+ * drops what the archive contains: tables added since an older backup used to
+ * survive, the migration list went back to the old one, and the next migrate
+ * failed on "already exists". The caller keeps a safety copy and puts it back
+ * if anything here or after fails.
+ */
 async function restoreBackup({ binDir, dbUrl, file }) {
   const c = parseDbUrl(dbUrl);
   await verifyBackup(binDir, file);
+  await run(binDir, 'psql', [
+    ...connArgs(c), '-d', c.database, '-v', 'ON_ERROR_STOP=1',
+    '-c', 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'
+  ], c.password);
   await run(binDir, 'pg_restore', [
     ...connArgs(c), '-d', c.database,
-    '--clean', '--if-exists', '--no-owner', '--no-privileges', '--single-transaction', file
+    '--no-owner', '--no-privileges', '--single-transaction', file
   ], c.password);
 }
 

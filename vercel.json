@@ -15,6 +15,17 @@
       "buildCommand": "npm run db:generate && npx prisma migrate deploy"
     }
   },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Content-Security-Policy", "value": "frame-ancestors 'none'" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ],
   "crons": [
     { "path": "/api/cron/reminders", "schedule": "0 4 * * *" },
     { "path": "/api/cron/maintenance", "schedule": "0 23 * * *" }

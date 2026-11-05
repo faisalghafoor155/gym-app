@@ -12,6 +12,7 @@ import type {
   Class, ClassSchedule, ClassBooking, Member, Trainer, Paginated,
 } from '../types';
 import { useLanguage } from '../context/LanguageContext';
+import { localToday } from '../utils/dates';
 
 interface ClassForm {
   name: string;
@@ -50,7 +51,7 @@ interface BookingForm {
 const emptyBookingForm = (): BookingForm => ({
   scheduleId: '',
   memberId: '',
-  bookingDate: new Date().toISOString().split('T')[0]!,
+  bookingDate: localToday(),
 });
 
 type TabType = 'schedule' | 'classes' | 'bookings';
@@ -68,7 +69,7 @@ export default function Classes() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [targetDate, setTargetDate] = useState<string>(new Date().toISOString().split('T')[0]!);
+  const [targetDate, setTargetDate] = useState<string>(localToday());
 
   // Modals state
   const [showClassModal, setShowClassModal] = useState(false);

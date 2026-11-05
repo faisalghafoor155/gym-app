@@ -35,6 +35,35 @@ const PORT = process.env.PORT || 5000;
 const DEV_URL = 'http://localhost:5173';
 const PROD_URL = `http://127.0.0.1:${PORT}`;
 
+/** Whether `url` is on the same origin as one of the app's own addresses. */
+function isAppUrl(url, ...appUrls) {
+  try {
+    const origin = new URL(url).origin;
+    return appUrls.filter(Boolean).some((u) => new URL(u).origin === origin);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Hands a link to the system, but only a web, mail or phone link. Windows
+ * runs other schemes (file:, smb:, ms-msdt: and the like) as programs, so a
+ * script in the page that could pass one here could start one.
+ */
+function openExternalSafely(url) {
+  let protocol;
+  try {
+    protocol = new URL(url).protocol;
+  } catch {
+    return;
+  }
+  if (['https:', 'http:', 'mailto:', 'tel:'].includes(protocol)) {
+    shell.openExternal(url);
+  } else {
+    console.warn(`[Window] refused to open ${protocol} link externally`);
+  }
+}
+
 function getAppDataDir() {
   const dir = path.join(app.getPath('userData'), 'gympro-data');
   if (!fs.existsSync(dir)) {
@@ -270,7 +299,12 @@ function checkServerHealth(url, timeoutMs = 25000) {
   });
 }
 
-async function runPrismaMigrations(databaseUrl) {
+/**
+ * Brings the database up to this version's schema. On start-up a failure is
+ * logged and the app carries on; a restore passes `strict`, because a restore
+ * that left the schema behind is not one that worked.
+ */
+async function runPrismaMigrations(databaseUrl, { strict = false } = {}) {
   try {
     updateSplashStatus('Checking database tables & migrations...');
     const backendRoot = app.isPackaged
@@ -292,6 +326,7 @@ async function runPrismaMigrations(databaseUrl) {
   } catch (err) {
     const detail = err.stderr ? err.stderr.toString() : err.message;
     console.warn('[Prisma] Migration note/error:', detail);
+    if (strict) throw new Error('The database could not be updated after the restore. ' + detail);
   }
 }
 
@@ -430,7 +465,11 @@ function createMainWindow(targetUrl) {
 
   mainWindow.loadURL(targetUrl);
 
-  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    // Only the page itself, and not ERR_ABORTED (-3): that is a navigation
+    // cancelled by the app, and reloading for it, or for a subframe, threw
+    // away whatever form the desk was in the middle of.
+    if (!isMainFrame || errorCode === -3) return;
     console.warn(`[Window] Server not ready yet: ${validatedURL} (${errorCode}: ${errorDescription}). Retrying...`);
     setTimeout(() => {
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -448,8 +487,20 @@ function createMainWindow(targetUrl) {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    // The ID card and receipt print by writing into a blank window of their
+    // own; denying it made printing impossible in the desktop app.
+    if (url === 'about:blank') return { action: 'allow' };
+    openExternalSafely(url);
     return { action: 'deny' };
+  });
+
+  // The window only ever shows the app. Anything else would be a remote page
+  // with the backup and restore bridge still attached, so it opens in the
+  // browser instead.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (isAppUrl(url, targetUrl)) return;
+    event.preventDefault();
+    openExternalSafely(url);
   });
 
   mainWindow.on('closed', () => {
@@ -467,7 +518,11 @@ ipcMain.on('window:maximize', () => {
 });
 ipcMain.on('window:close', () => mainWindow && mainWindow.close());
 ipcMain.on('window:print', () => mainWindow && mainWindow.webContents.print());
-ipcMain.on('shell:openExternal', (_e, url) => shell.openExternal(url));
+ipcMain.on('shell:openExternal', (e, url) => {
+  // Only from the app's own page, never from a frame or page it was led to.
+  if (!e.senderFrame || !isAppUrl(e.senderFrame.url, PROD_URL, process.env.ELECTRON_START_URL)) return;
+  openExternalSafely(url);
+});
 
 
 // --- Backup & restore -----------------------------------------------------
@@ -560,10 +615,21 @@ ipcMain.handle('backup:restore', async () => {
   try {
     await backup.restoreBackup({ binDir, dbUrl: currentDbUrl, file });
     // A backup from an older version lacks newer tables and columns.
-    await runPrismaMigrations(currentDbUrl);
+    await runPrismaMigrations(currentDbUrl, { strict: true });
   } catch (err) {
     restoreError = err;
     console.error('[Backup] restore failed:', err.message);
+    // The schema was emptied before the restore, so a failure part-way has
+    // to put the data from a moment ago back, not leave whatever got in.
+    try {
+      await backup.restoreBackup({ binDir, dbUrl: currentDbUrl, file: safetyCopy });
+      await runPrismaMigrations(currentDbUrl);
+    } catch (rollbackErr) {
+      console.error('[Backup] putting the previous data back failed:', rollbackErr.message);
+      restoreError = new Error(
+        `${err.message} Putting the previous data back also failed; it is saved at ${safetyCopy}.`
+      );
+    }
   }
 
   // Back up either way: a failed restore rolls back and leaves the old data.

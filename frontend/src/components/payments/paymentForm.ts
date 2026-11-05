@@ -6,6 +6,7 @@ import type {
   PaymentStatus,
   PaymentType,
 } from "../../types";
+import { localToday } from "../../utils/dates";
 
 export interface PaymentForm {
   memberId: string;
@@ -22,7 +23,7 @@ export interface PaymentForm {
   paymentDate: string;
 }
 
-export const today = () => new Date().toISOString().split("T")[0]!;
+export const today = localToday;
 
 export const emptyForm = (): PaymentForm => ({
   memberId: "",

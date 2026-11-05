@@ -13,6 +13,20 @@ import { installKeyboardAvoidance } from './utils/mobileKeyboard.ts'
 // in every modal and page, rather than patching each form separately.
 installKeyboardAvoidance()
 
+// After a deploy, a tab still running the old bundle asks for lazy chunks that
+// no longer exist and gets index.html back, so the page it was opening
+// crashes. Reloading picks up the new build. Once per minute at most, so a
+// chunk that is genuinely broken cannot loop the page.
+window.addEventListener('vite:preloadError', (event) => {
+  const KEY = 'chunk-reload-at'
+  let last = 0
+  try { last = Number(sessionStorage.getItem(KEY) ?? 0) } catch { /* storage blocked */ }
+  if (Date.now() - last < 60_000) return
+  try { sessionStorage.setItem(KEY, String(Date.now())) } catch { /* storage blocked */ }
+  event.preventDefault()
+  window.location.reload()
+})
+
 /**
  * The toasts render into a portal outside the styled tree, so they take their
  * colours from props rather than from a `dark:` class. Split into its own

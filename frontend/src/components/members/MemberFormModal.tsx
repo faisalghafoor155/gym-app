@@ -15,6 +15,7 @@ import { CHANNELS, CHANNEL_LABELS, accountFor } from '../../utils/paymentChannel
 import PromoCodeField from './PromoCodeField';
 import ReferrerPicker, { type Referrer } from './ReferrerPicker';
 import toast from 'react-hot-toast';
+import { localToday } from '../../utils/dates';
 
 /** What the desk fills in to register somebody, or to correct their details. */
 interface MemberForm {
@@ -84,7 +85,7 @@ function previewExpiry(startDate: string, durationDays: number): string {
 function addDefaults(plans: MembershipPlan[], settings: GymSettings | null): MemberForm {
   return {
     ...emptyForm,
-    startDate: new Date().toISOString().split('T')[0]!,
+    startDate: localToday(),
     // Preselect the cheapest offered plan so the common case is one click.
     planId: plans[0]?.id ?? '',
     // The gym's fixed joining fee, so the desk does not retype it every time.
@@ -475,7 +476,7 @@ export default function MemberFormModal({
                 id="member-dob"
                 type="date"
                 value={form.dateOfBirth}
-                max={new Date().toISOString().split('T')[0]}
+                max={localToday()}
                 onChange={e => setChecked('dateOfBirth')(e.target.value)}
                 onBlur={() => void checkDuplicate(form)}
                 className={inputClass}

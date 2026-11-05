@@ -7,6 +7,7 @@ import {
 } from '../ui';
 import type { MyProfile } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
+import { localToday } from '../../utils/dates';
 
 /**
  * The contact details a member maintains themselves.
@@ -167,7 +168,7 @@ export default function MyProfileForm({
             id="my-dob"
             type="date"
             value={draft.dateOfBirth}
-            max={new Date().toISOString().split('T')[0]}
+            max={localToday()}
             onChange={e => set('dateOfBirth')(e.target.value)}
             className={inputClass}
           />

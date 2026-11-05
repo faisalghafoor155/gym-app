@@ -1,6 +1,6 @@
 /** @format */
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Plus,
@@ -102,6 +102,9 @@ export default function Payments() {
     q.set("limit", String(PAGE_SIZE));
     return `?${q.toString()}`;
   }, [filter, debouncedSearch, from, to]);
+  // The filters as they are now, read by a "show more" that finishes later.
+  const queryRef = useRef(query);
+  queryRef.current = query;
 
   // Page one whenever the filters change: page three of the old result set
   // has nothing to do with the new one.
@@ -145,10 +148,14 @@ export default function Payments() {
    */
   const loadMore = () => {
     const next = page + 1;
+    const asked = query;
     setLoadingMore(true);
     api
       .get<PaginatedPayments>(`/payments${query}&page=${next}`)
       .then((r) => {
+        // The filters changed while this page was loading; its rows belong to
+        // the old list and appending them would mix the two.
+        if (asked !== queryRef.current) return;
         setPayments((prev) => [...prev, ...r.data.data]);
         setHasMore(r.data.hasMore);
         setPage(next);

@@ -21,7 +21,10 @@ export default defineConfig({
      * renders its own shell instead of the browser's dinosaur.
      */
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt', not 'autoUpdate': autoUpdate reloads every open tab the
+      // moment a deploy lands, taking a half-typed payment or member form with
+      // it. Prompt waits for the Reload button in UpdatePrompt.
+      registerType: 'prompt',
       // The manifest is a real file in public/, so the plugin should link it
       // rather than synthesise a second one from config.
       manifest: false,

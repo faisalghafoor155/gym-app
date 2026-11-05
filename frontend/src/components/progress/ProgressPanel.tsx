@@ -10,6 +10,7 @@ import api, { apiError } from '../../api/client';
 import { useFetch } from '../../hooks/useFetch';
 import type { Measurement } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
+import { localToday } from '../../utils/dates';
 
 /**
  * A member's weigh-ins: a trend chart, before/after photos, the history, and
@@ -38,7 +39,7 @@ const shortDate = (iso: string): string =>
 const longDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
 
-const today = (): string => new Date().toISOString().split('T')[0]!;
+const today = localToday;
 
 /**
  * Shrinks a phone photo before it is sent. A camera image is 3–8MB, the API

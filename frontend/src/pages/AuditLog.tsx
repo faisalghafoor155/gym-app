@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ScrollText, ChevronDown, UserCog, Filter, X,
 } from 'lucide-react';
@@ -145,6 +145,9 @@ export default function AuditLogPage() {
     q.set('limit', String(PAGE_SIZE));
     return `?${q.toString()}`;
   }, [entity, from, to]);
+  // The filters as they are now, read by a "show more" that finishes later.
+  const queryRef = useRef(query);
+  queryRef.current = query;
 
   useEffect(() => {
     let cancelled = false;
@@ -174,9 +177,12 @@ export default function AuditLogPage() {
   /** Appends the next page rather than replacing what is on screen. */
   const loadMore = () => {
     const next = page + 1;
+    const asked = query;
     setLoadingMore(true);
     api.get<Paginated<AuditLog>>(`/audit-logs${query}&page=${next}`)
       .then(r => {
+        // The filters changed while this page loaded; it belongs to the old list.
+        if (asked !== queryRef.current) return;
         setLogs(prev => [...prev, ...r.data.data]);
         setHasMore(r.data.hasMore);
         setPage(next);

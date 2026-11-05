@@ -115,6 +115,21 @@ class DatabaseManager {
     if (port5433Open) {
       this.logger('[DB] Detected PostgreSQL running on port 5433');
       this.databaseUrl = backendEnvDbUrl || EMBEDDED_DB_URL;
+
+      // Postgres is started detached, so after a crash it is still running
+      // from our own data folder when the app comes back. Treated as a
+      // stranger, it got no daily backups, a panel saying the data was on an
+      // online server, and no shutdown on quit. A postmaster.pid in our own
+      // data folder says it is ours.
+      const ownBin = this.findPostgresBin();
+      const ownData = path.join(this.app.getPath('userData'), 'pgdata');
+      if (ownBin && fs.existsSync(path.join(ownData, 'postmaster.pid'))) {
+        this.pgBinDir = ownBin;
+        this.pgDataDir = ownData;
+        this.isEmbedded = true;
+        this.logger('[DB] The running server is our embedded one, left over from the last session');
+        return { success: true, url: this.databaseUrl, type: 'embedded' };
+      }
       return { success: true, url: this.databaseUrl, type: 'local_5433' };
     }
 

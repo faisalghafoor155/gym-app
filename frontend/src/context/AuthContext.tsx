@@ -102,6 +102,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearFetchCache();
     localStorage.removeItem('user');
     localStorage.removeItem('gym');
+    // A personal AI key typed into the fitness calculator. On a shared front
+    // desk PC the next person to sign in would otherwise be spending it.
+    localStorage.removeItem('gym_gemini_api_key');
     setUser(null);
     setGym(null);
   };
