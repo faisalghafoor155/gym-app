@@ -5,12 +5,16 @@ import { afterEach, vi } from 'vitest';
 // jsdom has no matchMedia, and the install prompt asks it whether the app is
 // running standalone on every page that renders the button. Answers "no match"
 // by default; tests that care (InstallBanner) redefine it, hence configurable.
+//
+// The one exception is reduced motion, answered "yes": a stat that counts up
+// would otherwise read 0 for its first 600ms, and every assertion on a number
+// would be racing the animation instead of checking the page.
 if (!window.matchMedia) {
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
     writable: true,
     value: (query: string) => ({
-      matches: false,
+      matches: query === '(prefers-reduced-motion: reduce)',
       media: query,
       onchange: null,
       addEventListener: vi.fn(),

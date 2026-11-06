@@ -26,7 +26,7 @@ export default function PaymentsList({
   return (
     <>
       {/* Mobile: cards — an eight-column table cannot fit a phone screen */}
-      <div className="space-y-3 md:hidden">
+      <div className="space-y-3 md:hidden stagger">
         {shown.map((p) => (
           <Card
             key={p.id}
@@ -125,7 +125,7 @@ export default function PaymentsList({
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="stagger">
               {shown.map((p) => (
                 <tr
                   key={p.id}

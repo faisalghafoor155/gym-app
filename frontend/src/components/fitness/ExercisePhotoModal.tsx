@@ -3,7 +3,7 @@ import {
   X, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight,
   Dumbbell, Image as ImageIcon, Sparkles
 } from 'lucide-react';
-import { useDialog } from '../../hooks/useDialog';
+import { closeDialog, useDialog } from '../../hooks/useDialog';
 import { useLanguage } from '../../context/LanguageContext';
 
 /**
@@ -395,7 +395,7 @@ export default function ExercisePhotoModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="absolute inset-0 bg-black/75 backdrop-blur-xs" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/75 backdrop-blur-xs" onClick={() => closeDialog(dialogRef.current, onClose)} aria-hidden="true" />
       <div
         ref={dialogRef}
         role="dialog"
@@ -423,7 +423,7 @@ export default function ExercisePhotoModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => closeDialog(dialogRef.current, onClose)}
             aria-label={t('Close')}
             className="text-slate-400 hover:text-white p-1 rounded-lg transition"
           >
@@ -590,7 +590,7 @@ export default function ExercisePhotoModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => closeDialog(dialogRef.current, onClose)}
             className="px-4 py-2 rounded-xl text-xs font-bold bg-gray-900 hover:bg-black text-white dark:bg-slate-800 dark:hover:bg-slate-700 transition"
           >
             {t('Close Photo')}

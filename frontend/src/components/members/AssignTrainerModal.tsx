@@ -4,7 +4,7 @@ import {
 } from '../ui';
 import { Dumbbell, UserCheck, UserX, AlertTriangle } from 'lucide-react';
 import api, { apiError } from '../../api/client';
-import { useDialog } from '../../hooks/useDialog';
+import { closeDialog, useDialog } from '../../hooks/useDialog';
 import { useLanguage } from '../../context/LanguageContext';
 import type { Member, Trainer } from '../../types';
 import toast from 'react-hot-toast';
@@ -88,7 +88,7 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/50" onClick={() => closeDialog(dialogRef.current, onClose)} aria-hidden="true" />
       <div
         ref={dialogRef}
         role="dialog"
@@ -221,7 +221,7 @@ export default function AssignTrainerModal({ member, trainers, onClose, onAssign
           <div className="flex gap-3 pt-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => closeDialog(dialogRef.current, onClose)}
               className={`flex-1 ${secondaryButton}`}
             >
               {t('Cancel')}

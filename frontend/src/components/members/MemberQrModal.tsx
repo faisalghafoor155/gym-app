@@ -4,7 +4,7 @@ import { primaryButton, secondaryButton } from '../ui';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { printIdCard } from '../../utils/idCard';
-import { useDialog } from '../../hooks/useDialog';
+import { closeDialog, useDialog } from '../../hooks/useDialog';
 import type { Member } from '../../types';
 import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
@@ -57,7 +57,7 @@ export default function MemberQrModal({ member, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in"
-         onClick={onClose}>
+         onClick={() => closeDialog(dialogRef.current, onClose)}>
       <div
         ref={dialogRef}
         role="dialog"
@@ -79,7 +79,7 @@ export default function MemberQrModal({ member, onClose }: Props) {
         </div>
         <p className="text-xs text-gray-400 dark:text-slate-500 mt-4">{t('Scan this code at the front desk for instant check-in')}</p>
         <div className="mt-4 flex gap-2">
-          <button onClick={onClose} className={`flex-1 ${secondaryButton}`}>
+          <button onClick={() => closeDialog(dialogRef.current, onClose)} className={`flex-1 ${secondaryButton}`}>
             {t('Close')}
           </button>
           <button

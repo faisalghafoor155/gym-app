@@ -9,7 +9,7 @@ import Badge from '../components/Badge';
 import CelebrationsCard from '../components/dashboard/CelebrationsCard';
 import LowStockCard from '../components/dashboard/LowStockCard';
 import {
-  Page, Card, StatTile, PageLoader, LoadFailed, EmptyState, BarChart, LineChart,
+  Page, Card, StatTile, CountUp, PageLoader, LoadFailed, EmptyState, BarChart, LineChart,
   primaryButton, focusRing,
 } from '../components/ui';
 import { useFetch } from '../hooks/useFetch';
@@ -194,7 +194,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 stagger">
         <StatTile icon={Users} label="Total Members" value={stats.totalMembers} tone="blue" />
         <StatTile icon={UserCheck} label="Active Members" value={stats.activeMembers} tone="green" />
         <StatTile
@@ -208,7 +208,8 @@ export default function Dashboard() {
           <StatTile
             icon={Wallet}
             label="This Month"
-            value={money(revenue.thisMonth)}
+            value={revenue.thisMonth}
+            format={money}
             tone="purple"
             hint={revenueGrowth === null
               ? undefined
@@ -250,17 +251,17 @@ export default function Dashboard() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger">
             <div className="rounded-xl bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/20 px-4 py-3">
               <p className="text-xs font-medium text-blue-700">{t('Membership fees')}</p>
               <p className="text-lg font-bold text-blue-900 mt-0.5">
-                {money(revenue.monthToDate.membership)}
+                <CountUp value={revenue.monthToDate.membership} format={money} />
               </p>
             </div>
             <div className="rounded-xl bg-green-50 dark:bg-green-500/15 border border-green-100 dark:border-green-500/20 px-4 py-3">
               <p className="text-xs font-medium text-green-700">{t('Supplement sales')}</p>
               <p className="text-lg font-bold text-green-900 mt-0.5">
-                {money(revenue.monthToDate.supplement)}
+                <CountUp value={revenue.monthToDate.supplement} format={money} />
               </p>
             </div>
             {/* Only worth a tile when there is something in it — an always-zero
@@ -269,7 +270,7 @@ export default function Dashboard() {
               <div className="rounded-xl bg-amber-50 dark:bg-amber-500/15 border border-amber-100 dark:border-amber-500/20 px-4 py-3">
                 <p className="text-xs font-medium text-amber-700">{t('Locker rent')}</p>
                 <p className="text-lg font-bold text-amber-900 mt-0.5">
-                  {money(revenue.monthToDate.locker)}
+                  <CountUp value={revenue.monthToDate.locker} format={money} />
                 </p>
               </div>
             )}
@@ -277,14 +278,14 @@ export default function Dashboard() {
               <div className="rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 px-4 py-3">
                 <p className="text-xs font-medium text-gray-600 dark:text-slate-300">{t('Other')}</p>
                 <p className="text-lg font-bold text-gray-900 dark:text-slate-100 mt-0.5">
-                  {money(revenue.monthToDate.other)}
+                  <CountUp value={revenue.monthToDate.other} format={money} />
                 </p>
               </div>
             )}
             <div className="rounded-xl bg-purple-600 px-4 py-3 col-span-2 lg:col-span-1 lg:ml-auto lg:w-full">
               <p className="text-xs font-medium text-purple-100">{t('Grand total')}</p>
               <p className="text-xl font-bold text-white mt-0.5">
-                {money(revenue.monthToDate.total)}
+                <CountUp value={revenue.monthToDate.total} format={money} />
               </p>
             </div>
           </div>
@@ -298,7 +299,7 @@ export default function Dashboard() {
               <div className="rounded-xl bg-red-50 dark:bg-red-500/15 border border-red-100 dark:border-red-500/20 px-4 py-3">
                 <p className="text-xs font-medium text-red-700 dark:text-red-300">{t('Expenses')}</p>
                 <p className="text-lg font-bold text-red-900 dark:text-red-200 mt-0.5">
-                  {money(revenue.expensesThisMonth)}
+                  <CountUp value={revenue.expensesThisMonth} format={money} />
                 </p>
                 {revenue.expensesThisMonth === 0 && (
                   <p className="text-[11px] text-red-600/70 dark:text-red-300/70 mt-0.5">
@@ -325,7 +326,7 @@ export default function Dashboard() {
                     ? 'text-emerald-900 dark:text-emerald-200'
                     : 'text-amber-900 dark:text-amber-200'
                 }`}>
-                  {money(Math.abs(revenue.profitThisMonth))}
+                  <CountUp value={Math.abs(revenue.profitThisMonth)} format={money} />
                 </p>
               </div>
             </div>
@@ -363,7 +364,7 @@ export default function Dashboard() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger">
             <div className="rounded-xl bg-green-50 dark:bg-green-500/15 border border-green-100 dark:border-green-500/20 px-4 py-3">
               <p className="text-xs font-medium text-green-700 dark:text-green-300">{t('Paid')}</p>
               <p className="text-lg font-bold text-gray-900 dark:text-slate-100 mt-0.5">

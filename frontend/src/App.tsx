@@ -148,7 +148,13 @@ function PlatformRoute({ children }: { children: ReactNode }) {
  */
 function PageErrorBoundary({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
-  return <ErrorBoundary key={pathname}>{children}</ErrorBoundary>;
+  // The same key remounts the wrapper, so each new page plays the entrance.
+  // There is no exit: the old page is gone the moment the route changes.
+  return (
+    <ErrorBoundary key={pathname}>
+      <div className="h-full animate-rise">{children}</div>
+    </ErrorBoundary>
+  );
 }
 
 /** Members have no gym dashboard, so "/" means different things per role. */

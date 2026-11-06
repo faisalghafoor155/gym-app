@@ -4,7 +4,7 @@ import {
 } from '../ui';
 import { Dumbbell, UserCheck, UserX } from 'lucide-react';
 import api, { apiError } from '../../api/client';
-import { useDialog } from '../../hooks/useDialog';
+import { closeDialog, useDialog } from '../../hooks/useDialog';
 import { useLanguage } from '../../context/LanguageContext';
 import type { GymSettings, Member, MembershipPlan, PaymentChannel, PaymentMethod, PromoCheck, Trainer } from '../../types';
 import { CHANNELS, CHANNEL_LABELS, accountFor } from '../../utils/paymentChannels';
@@ -178,7 +178,7 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/50" onClick={() => closeDialog(dialogRef.current, onClose)} aria-hidden="true" />
       <div
         ref={dialogRef}
         role="dialog"
@@ -578,7 +578,7 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose}
+            <button type="button" onClick={() => closeDialog(dialogRef.current, onClose)}
               className={`flex-1 ${secondaryButton}`}>
               {t('Cancel')}
             </button>

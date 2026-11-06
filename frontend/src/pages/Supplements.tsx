@@ -12,7 +12,7 @@ import {
 import api, { apiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { useDialog } from '../hooks/useDialog';
+import { closeDialog, useDialog } from '../hooks/useDialog';
 import { useFetch } from '../hooks/useFetch';
 import { useDebounced } from '../hooks/useDebounced';
 import type {
@@ -555,7 +555,7 @@ export default function Supplements() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowModal(false)} aria-hidden="true" />
+          <div className="absolute inset-0 bg-black/50" onClick={() => closeDialog(modalRef.current, () => setShowModal(false))} aria-hidden="true" />
           <div
             ref={modalRef}
             role="dialog"
@@ -656,7 +656,7 @@ export default function Supplements() {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)}
+                <button type="button" onClick={() => closeDialog(modalRef.current, () => setShowModal(false))}
                   className={`flex-1 ${secondaryButton}`}>
                   {t('Cancel')}
                 </button>
@@ -672,7 +672,7 @@ export default function Supplements() {
       {/* Restock */}
       {restocking && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setRestocking(null)} aria-hidden="true" />
+          <div className="absolute inset-0 bg-black/50" onClick={() => closeDialog(restockRef.current, () => setRestocking(null))} aria-hidden="true" />
           <div
             ref={restockRef}
             role="dialog"
@@ -723,7 +723,7 @@ export default function Supplements() {
               )}
 
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setRestocking(null)} className={`flex-1 ${secondaryButton}`}>
+                <button type="button" onClick={() => closeDialog(restockRef.current, () => setRestocking(null))} className={`flex-1 ${secondaryButton}`}>
                   {t('Cancel')}
                 </button>
                 <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>

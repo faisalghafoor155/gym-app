@@ -65,7 +65,7 @@ export default function InstallButton({ className = '', variant = 'navbar' }: In
       {/* Guide Modal for Android, iOS & Desktop */}
       {showGuideModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-sm p-6 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-800 text-center">
+          <div className="relative w-full max-w-sm p-6 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl animate-scale-in border border-gray-100 dark:border-slate-800 text-center">
             <button
               onClick={() => setShowGuideModal(false)}
               aria-label={t('Close')}

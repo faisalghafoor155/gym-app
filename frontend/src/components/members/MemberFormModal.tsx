@@ -6,7 +6,7 @@ import {
 } from '../ui';
 import type { AxiosError } from 'axios';
 import api, { apiError } from '../../api/client';
-import { useDialog } from '../../hooks/useDialog';
+import { closeDialog, useDialog } from '../../hooks/useDialog';
 import { useLanguage } from '../../context/LanguageContext';
 import type {
   Gender, GymSettings, Member, MembershipPlan, PaymentChannel, PaymentMethod, PromoCheck, Trainer,
@@ -362,7 +362,7 @@ export default function MemberFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/50" onClick={() => closeDialog(dialogRef.current, onClose)} aria-hidden="true" />
       <div
         ref={dialogRef}
         role="dialog"
@@ -866,7 +866,7 @@ export default function MemberFormModal({
           )}
 
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose}
+            <button type="button" onClick={() => closeDialog(dialogRef.current, onClose)}
               className={`flex-1 ${secondaryButton}`}>
               {t('Cancel')}
             </button>

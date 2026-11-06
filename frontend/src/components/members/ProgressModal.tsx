@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useDialog } from '../../hooks/useDialog';
+import { closeDialog, useDialog } from '../../hooks/useDialog';
 import { useLanguage } from '../../context/LanguageContext';
 import ProgressPanel from '../progress/ProgressPanel';
 import type { Member } from '../../types';
@@ -15,7 +15,7 @@ export default function ProgressModal({ member, onClose }: { member: Member; onC
   const ref = useDialog(true, onClose);
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 dark:bg-black/70" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/40 dark:bg-black/70" onClick={() => closeDialog(ref.current, onClose)} aria-hidden="true" />
       <div
         ref={ref}
         role="dialog"
@@ -30,7 +30,7 @@ export default function ProgressModal({ member, onClose }: { member: Member; onC
             </h2>
             <p className="text-sm text-gray-500 dark:text-slate-400">{member.name} · {member.memberNo}</p>
           </div>
-          <button onClick={onClose} aria-label={t('Close')} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 p-1 -mr-1">
+          <button onClick={() => closeDialog(ref.current, onClose)} aria-label={t('Close')} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 p-1 -mr-1">
             <X size={20} />
           </button>
         </div>

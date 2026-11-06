@@ -69,6 +69,95 @@
    */
   --shadow-card: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 3px oklch(0 0 0 / 0.06);
   --shadow-lifted: 0 2px 4px oklch(0 0 0 / 0.05), 0 8px 16px -4px oklch(0 0 0 / 0.09);
+
+  /**
+   * Motion. Short and ease-out throughout: this is a tool used at a counter all
+   * day, so an animation must never be the thing the user is waiting on.
+   *
+   * Entrances fill `backwards`, never `both`. A transform left on an element
+   * after its animation ends makes it the containing block for every
+   * `position: fixed` descendant, so a modal opened from inside a page or a
+   * panel would be pinned to that box instead of the viewport.
+   */
+  --animate-fade-in: fade-in 200ms ease-out backwards;
+  --animate-fade-out: fade-out 150ms ease-in forwards;
+  --animate-rise: rise 220ms ease-out backwards;
+  --animate-scale-in: scale-in 200ms cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
+  --animate-scale-out: scale-out 150ms ease-in forwards;
+  --animate-pop: pop 320ms cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
+  --animate-draw: draw 400ms 120ms ease-out backwards;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+  }
+  @keyframes fade-out {
+    to { opacity: 0; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px); }
+  }
+  @keyframes scale-in {
+    from { opacity: 0; transform: scale(0.96); }
+  }
+  @keyframes scale-out {
+    to { opacity: 0; transform: scale(0.96); }
+  }
+  @keyframes pop {
+    from { opacity: 0; transform: scale(0.6); }
+  }
+  @keyframes draw {
+    from { stroke-dashoffset: 24; }
+  }
+}
+
+/**
+ * Every modal panel scales in, and the overlay it sits in fades with it.
+ *
+ * Keyed on the ARIA the dialogs already carry rather than a class on each one,
+ * so a new modal animates without anyone remembering to opt in. `aria-labelledby`
+ * leaves out the mobile nav drawer, which is labelled by `aria-label` and
+ * slides rather than scales.
+ */
+[aria-modal="true"][aria-labelledby] {
+  animation: var(--animate-scale-in);
+}
+:has(> [aria-modal="true"]) {
+  animation: var(--animate-fade-in);
+}
+
+/** Set by `closeDialog` for the moment between a close and the unmount. */
+[data-closing] {
+  animation: var(--animate-fade-out);
+}
+[data-closing] [aria-modal="true"][aria-labelledby] {
+  animation: var(--animate-scale-out);
+}
+
+/**
+ * Children rise in one after another. Only the first ten: a long table should
+ * not take a second to finish arriving, and rows added by "Show more" land past
+ * the tenth, so they appear at once.
+ */
+.stagger > :nth-child(-n + 10) {
+  animation: var(--animate-rise);
+}
+.stagger > :nth-child(2) { animation-delay: 30ms; }
+.stagger > :nth-child(3) { animation-delay: 60ms; }
+.stagger > :nth-child(4) { animation-delay: 90ms; }
+.stagger > :nth-child(5) { animation-delay: 120ms; }
+.stagger > :nth-child(6) { animation-delay: 150ms; }
+.stagger > :nth-child(7) { animation-delay: 180ms; }
+.stagger > :nth-child(8) { animation-delay: 210ms; }
+.stagger > :nth-child(9) { animation-delay: 240ms; }
+.stagger > :nth-child(10) { animation-delay: 270ms; }
+
+/* A printed card or receipt is a still image; never catch it mid-animation. */
+@media print {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+  }
 }
 
 * {

@@ -318,7 +318,7 @@ export default function MyPortal() {
         {plans.length === 0 ? (
           <InlineEmpty message={t('No plans are on sale right now. Ask at the front desk to renew.')} />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger">
             {plans.map(p => (
               <div key={p.id} className="p-4 rounded-xl border border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/40 flex flex-col justify-between">
                 <div>
@@ -417,7 +417,7 @@ export default function MyPortal() {
         {attendance.length === 0 ? (
           <InlineEmpty message={t('No check-ins recorded yet. Your visits appear here once you scan in.')} />
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-2 stagger">
             {attendance.slice(0, 10).map(a => (
               <li key={a.id} className="flex items-center justify-between text-sm py-2 border-b border-gray-50 dark:border-slate-800 last:border-0">
                 <span className="text-gray-700 dark:text-slate-300">
@@ -445,7 +445,7 @@ export default function MyPortal() {
       {checkoutItem && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in"
              onClick={() => !paying && setCheckoutItem(null)}>
-          <div className="w-full max-w-md p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800" onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-md p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-800 animate-scale-in" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-2">{t('Checkout')}</h3>
             <p className="text-xs text-gray-500 dark:text-slate-400 mb-5">
               {hasRedirectProvider

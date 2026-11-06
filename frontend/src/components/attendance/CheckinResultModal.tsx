@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, AlertTriangle, XCircle, Clock, CalendarX2, Phone, Wallet } from 'lucide-react';
 import { useLanguage, type TVars } from '../../context/LanguageContext';
+import { SuccessCheck } from '../ui';
 
 import type { CheckinFee, Membership } from '../../types';
 
@@ -168,13 +169,13 @@ export default function CheckinResultModal(
   }, [name, memberNo]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} aria-hidden="true" />
       <div
         role="alertdialog"
         aria-live="assertive"
         aria-label={`${name}. ${headline}`}
-        className={`relative w-full max-w-md rounded-2xl border-4 shadow-2xl overflow-hidden ${panel}`}
+        className={`relative w-full max-w-md rounded-2xl border-4 shadow-2xl overflow-hidden animate-scale-in ${panel}`}
       >
         {/* The countdown is shown rather than left to surprise: a panel that
             vanishes mid-sentence reads as a glitch. */}
@@ -211,7 +212,7 @@ export default function CheckinResultModal(
           {/* The standing, which is the whole reason this panel is large. */}
           <div className={`mt-5 rounded-xl border-2 px-4 py-3 ${panel}`}>
             <p className={`flex items-center gap-2 font-bold text-lg ${text}`}>
-              <Icon size={22} className="shrink-0" /> {headline}
+              {tone === 'ok' ? <SuccessCheck /> : <Icon size={22} className="shrink-0" />} {headline}
             </p>
             {detail && (
               <p className={`text-sm mt-1 ${text}`}>{detail}</p>

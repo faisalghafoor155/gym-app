@@ -7,6 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary.tsx'
 import UpdatePrompt from './components/UpdatePrompt.tsx'
 import { ThemeProvider, useTheme } from './context/ThemeContext.tsx'
 import { LanguageProvider } from './context/LanguageContext.tsx'
+import { SuccessCheck } from './components/ui.tsx'
 import { installKeyboardAvoidance } from './utils/mobileKeyboard.ts'
 
 // Phones only: keeps the field being typed into above the on-screen keyboard
@@ -43,6 +44,11 @@ function ThemedToaster() {
           background: dark ? '#1e293b' : '#ffffff',
           color: dark ? '#e2e8f0' : '#1e293b',
           border: `1px solid ${dark ? '#334155' : '#e2e8f0'}`,
+        },
+        // Every saved payment, member and check-in that reports through a
+        // toast gets the same drawn tick as the check-in panel.
+        success: {
+          icon: <SuccessCheck size={20} className={dark ? 'text-green-400' : 'text-green-600'} />,
         },
       }}
     />

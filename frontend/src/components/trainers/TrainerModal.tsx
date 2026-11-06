@@ -17,7 +17,7 @@ export default function TrainerModal({ editing, form: trainerForm, setForm: setT
   const { t } = useLanguage();
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-      <Card className="w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+      <Card className="w-full max-w-md p-6 max-h-[90vh] overflow-y-auto animate-scale-in">
         <h3 className="font-bold text-gray-900 dark:text-slate-100 text-lg mb-4">
           {editing ? t('Edit Trainer Profile') : t('Add New Trainer')}
         </h3>

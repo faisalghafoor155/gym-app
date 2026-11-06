@@ -187,7 +187,7 @@ export default function Dues() {
           {memberships.length > 0 && (
             <Card className="p-5 mb-5">
               <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-3">{t('Membership balances')}</h2>
-              <ul className="divide-y divide-gray-100 dark:divide-slate-800">
+              <ul className="divide-y divide-gray-100 dark:divide-slate-800 stagger">
                 {memberships.map(r => (
                   <li key={r.membershipId} className="py-3 flex flex-col sm:flex-row sm:items-center gap-3">
                     <div className="flex-1 min-w-0">
@@ -229,7 +229,7 @@ export default function Dues() {
           {charges.length > 0 && (
             <Card className="p-5">
               <h2 className="font-semibold text-gray-900 dark:text-slate-100 mb-3">{t('Other unpaid charges')}</h2>
-              <ul className="divide-y divide-gray-100 dark:divide-slate-800">
+              <ul className="divide-y divide-gray-100 dark:divide-slate-800 stagger">
                 {charges.map(c => (
                   <li key={c.paymentId} className="py-3 flex flex-col sm:flex-row sm:items-center gap-3">
                     <div className="flex-1 min-w-0">

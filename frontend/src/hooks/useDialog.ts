@@ -5,6 +5,36 @@ const FOCUSABLE = [
   'select:not([disabled])', 'textarea:not([disabled])', '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
+/** How long the exit animation in index.css runs. */
+const CLOSE_MS = 150;
+
+/**
+ * Plays a dialog's exit animation, then calls `onClose`.
+ *
+ * The parent decides when a dialog unmounts, so the only way to animate it out
+ * is to mark it closing and hand over a moment later. Anything that closes it
+ * some other way (a save, a route change) simply unmounts it at once, which is
+ * the right fallback rather than a bug.
+ */
+export function closeDialog(node: HTMLElement | null, onClose: () => void) {
+  // The full-screen layer the panel sits in, or the node itself when the ref
+  // is on that layer.
+  const overlay = node?.closest<HTMLElement>('.fixed') ?? node;
+  const instant = !overlay
+    || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (instant) {
+    onClose();
+    return;
+  }
+  // A second click during the animation is the same close, not another one.
+  if (overlay.hasAttribute('data-closing')) return;
+  overlay.setAttribute('data-closing', '');
+  window.setTimeout(() => {
+    // Already gone: something else closed it in the meantime.
+    if (overlay.isConnected) onClose();
+  }, CLOSE_MS);
+}
+
 /**
  * Wires up the behaviour every overlay needs: Escape to close, focus trapped
  * inside, background scroll locked, and focus restored to whatever opened it.
@@ -31,7 +61,7 @@ export function useDialog(open: boolean, onClose: () => void) {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        onCloseRef.current();
+        closeDialog(node, () => onCloseRef.current());
         return;
       }
       if (e.key !== 'Tab' || !node) return;

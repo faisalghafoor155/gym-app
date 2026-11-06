@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { Search, CheckCircle2, Clock, Users, CalendarCheck, UserX, QrCode, ScanLine, X, Fingerprint, AlertCircle } from 'lucide-react';
 import {
-  Page, PageHeader, Card, PageLoader, Spinner, inputClass, focusRing, SegmentedControl,
+  Page, PageHeader, Card, PageLoader, Spinner, SuccessCheck, inputClass, focusRing, SegmentedControl,
 } from '../components/ui';
 import api, { apiError } from '../api/client';
 import { useDebounced } from '../hooks/useDebounced';
@@ -61,7 +61,7 @@ export default function Attendance() {
 
   // QR Scanner state
   const [scannerActive, setScannerActive] = useState(false);
-  const [lastScanned, setLastScanned] = useState<{ name: string; photo?: string | null; status: string } | null>(null);
+  const [lastScanned, setLastScanned] = useState<{ name: string; photo?: string | null; status: string; at: number } | null>(null);
   /**
    * The panel that goes up in front of the desk after a check-in.
    *
@@ -217,6 +217,8 @@ export default function Attendance() {
         name: memberName,
         photo,
         status: data.alreadyCheckedIn ? 'already' : msStatus,
+        // Keys the panel, so a second scan replays its entrance.
+        at: Date.now(),
       });
 
       // The panel says all of this at a size the desk can read across a
@@ -537,7 +539,7 @@ export default function Attendance() {
 
               {/* Scan Result Overlay */}
               {lastScanned && (
-                <div className={`p-4 rounded-xl border-2 flex items-center gap-4 animate-fade-in ${
+                <div key={lastScanned.at} className={`p-4 rounded-xl border-2 flex items-center gap-4 animate-scale-in ${
                   lastScanned.status === 'already'
                     ? 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300'
                     : lastScanned.status === 'expired'
@@ -564,6 +566,9 @@ export default function Attendance() {
                        t('✓ Checked in successfully!')}
                     </p>
                   </div>
+                  {!['already', 'expired', 'none'].includes(lastScanned.status) && (
+                    <SuccessCheck size={36} className="ml-auto text-green-600 dark:text-green-400" />
+                  )}
                 </div>
               )}
 
@@ -677,7 +682,7 @@ export default function Attendance() {
                   at the desk should see one shape of answer however the member
                   identified themselves. */}
               {lastScanned && (
-                <div className={`p-4 rounded-xl border-2 flex items-center gap-4 animate-fade-in ${
+                <div key={lastScanned.at} className={`p-4 rounded-xl border-2 flex items-center gap-4 animate-scale-in ${
                   lastScanned.status === 'already'
                     ? 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-300'
                     : lastScanned.status === 'expired'
@@ -704,6 +709,9 @@ export default function Attendance() {
                        t('✓ Checked in successfully!')}
                     </p>
                   </div>
+                  {!['already', 'expired', 'none'].includes(lastScanned.status) && (
+                    <SuccessCheck size={36} className="ml-auto text-green-600 dark:text-green-400" />
+                  )}
                 </div>
               )}
 
@@ -737,7 +745,7 @@ export default function Attendance() {
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 stagger">
             {todayList.map((r, i) => (
               <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-slate-800/60 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
                 <span className="text-xs text-gray-400 dark:text-slate-500 font-mono w-5 text-center">{i + 1}</span>

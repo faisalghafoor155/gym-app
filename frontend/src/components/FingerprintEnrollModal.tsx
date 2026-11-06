@@ -3,7 +3,7 @@ import { Fingerprint, AlertCircle, Trash2, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api, { apiError } from '../api/client';
 import { primaryButton, secondaryButton, focusRing, inputClass } from './ui';
-import { useDialog } from '../hooks/useDialog';
+import { closeDialog, useDialog } from '../hooks/useDialog';
 import { useLanguage } from '../context/LanguageContext';
 import { useFingerprintReader } from '../hooks/useFingerprintReader';
 import type { Member, FingerprintEnrolment } from '../types';
@@ -158,7 +158,7 @@ export default function FingerprintEnrollModal({
   return (
     <div
       className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in"
-      onClick={onClose}
+      onClick={() => closeDialog(ref.current, onClose)}
     >
       <div
         ref={ref}
@@ -365,7 +365,7 @@ export default function FingerprintEnrollModal({
         )}
 
         <div className="flex gap-2 mt-5 pt-4 border-t border-gray-100 dark:border-slate-800">
-          <button onClick={onClose} className={`flex-1 ${secondaryButton}`}>
+          <button onClick={() => closeDialog(ref.current, onClose)} className={`flex-1 ${secondaryButton}`}>
             {justRegistered ? t('Skip for now') : t('Close')}
           </button>
           {existing && (

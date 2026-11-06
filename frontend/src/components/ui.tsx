@@ -8,6 +8,7 @@ import type { ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { useCountUp } from '../hooks/useCountUp';
 
 export type Tone = 'blue' | 'green' | 'red' | 'yellow' | 'gray' | 'purple';
 
@@ -157,8 +158,21 @@ export function DataRow({ icon: Icon, label, value }: {
 
 /* ------------------------------------------------------------------ data */
 
-export function StatTile({ icon: Icon, label, value, tone = 'blue', hint }: {
-  icon: LucideIcon; label: string; value: ReactNode; tone?: Tone; hint?: string;
+/** A number that counts up to its value, written the way `format` writes it. */
+export function CountUp({ value, format = String }: {
+  value: number; format?: (n: number) => string;
+}) {
+  return <>{format(useCountUp(value))}</>;
+}
+
+/**
+ * A numeric `value` counts up; anything else (already-formatted text, a
+ * fragment) is shown as given. `format` writes the number at every step, so a
+ * money tile reads "Rs. 12,000" on its way to "Rs. 45,000", never a bare 12000.
+ */
+export function StatTile({ icon: Icon, label, value, format, tone = 'blue', hint }: {
+  icon: LucideIcon; label: string; value: ReactNode; format?: (n: number) => string;
+  tone?: Tone; hint?: string;
 }) {
   const { t } = useLanguage();
   return (
@@ -166,7 +180,9 @@ export function StatTile({ icon: Icon, label, value, tone = 'blue', hint }: {
       <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4 relative z-10">
         <IconTile icon={Icon} tone={tone} />
         <div className="min-w-0 w-full sm:w-auto sm:flex-1">
-          <p className="text-lg sm:text-2xl font-extrabold text-gray-900 dark:text-slate-100 truncate tracking-tight font-heading">{value}</p>
+          <p className="text-lg sm:text-2xl font-extrabold text-gray-900 dark:text-slate-100 truncate tracking-tight font-heading">
+            {typeof value === 'number' ? <CountUp value={value} format={format} /> : value}
+          </p>
           <p className="text-xs sm:text-sm font-medium leading-tight text-gray-500 dark:text-slate-400 mt-0.5 sm:truncate">{t(label)}</p>
           {hint && <p className="text-[11px] font-semibold leading-tight text-blue-600 dark:text-blue-400 mt-0.5 sm:truncate">{hint}</p>}
         </div>
@@ -301,6 +317,34 @@ export function LineChart({ data, height = 140, format = String, gradientId = 'l
         <span>{data.at(-1)!.label}</span>
       </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------- feedback */
+
+/**
+ * A tick that pops in and draws itself: the "that worked" moment for a
+ * check-in or a save. Colour comes from `currentColor`, so it takes the text
+ * colour of whatever success panel it sits in. Decorative — the words beside it
+ * carry the meaning.
+ */
+export function SuccessCheck({ size = 22, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={`shrink-0 animate-pop ${className}`}
+    >
+      <circle cx="12" cy="12" r="10" strokeWidth="2" opacity="0.3" />
+      <path d="M7.5 12.5l3 3 6-6.5" strokeDasharray="24" className="animate-draw" />
+    </svg>
   );
 }
 

@@ -547,7 +547,7 @@ export default function Members() {
           />
         )
       ) : (
-        <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 transition-opacity ${
+        <div className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 stagger transition-opacity ${
           refetching ? 'opacity-60' : ''
         }`}>
           {members.map(m => {

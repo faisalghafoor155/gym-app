@@ -25,9 +25,9 @@ export default function ReceiptModal({ payment, onClose }: ReceiptModalProps) {
   }[payment.type] || 'Gym Payment');
 
   return (
-    <div className="receipt-print-root fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 dark:bg-black/75 print:p-0 print:bg-transparent">
+    <div className="receipt-print-root fixed inset-0 z-50 animate-fade-in flex items-center justify-center p-4 bg-black/40 dark:bg-black/75 print:p-0 print:bg-transparent">
       {/* Modal Card container */}
-      <div className="relative bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden print:border-0 print:shadow-none print:w-full print:max-w-none print:bg-white">
+      <div className="relative bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-scale-in print:border-0 print:shadow-none print:w-full print:max-w-none print:bg-white">
         
         {/* Header - Hidden in Print */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-slate-800 print:hidden">

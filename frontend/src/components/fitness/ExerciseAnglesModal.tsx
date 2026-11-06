@@ -3,7 +3,7 @@ import {
   Dumbbell, AlertTriangle, CheckCircle2,
   ShieldAlert, Sparkles, Compass, X, Play, Pause, Activity
 } from 'lucide-react';
-import { useDialog } from '../../hooks/useDialog';
+import { closeDialog, useDialog } from '../../hooks/useDialog';
 import { useLanguage } from '../../context/LanguageContext';
 
 /** Every text field is English and doubles as its `t()` key; the Roman Urdu
@@ -1540,7 +1540,7 @@ export default function ExerciseAnglesModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={() => closeDialog(dialogRef.current, onClose)} aria-hidden="true" />
       <div
         ref={dialogRef}
         role="dialog"
@@ -1565,7 +1565,7 @@ export default function ExerciseAnglesModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => closeDialog(dialogRef.current, onClose)}
             aria-label={t('Close')}
             className="text-gray-400 hover:text-gray-600 dark:text-slate-500 dark:hover:text-slate-300 p-1 rounded-lg"
           >
@@ -1862,7 +1862,7 @@ export default function ExerciseAnglesModal({
           <div className="flex justify-end pt-1">
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => closeDialog(dialogRef.current, onClose)}
               className="px-5 py-2.5 rounded-xl text-xs font-bold bg-gray-900 hover:bg-black text-white dark:bg-slate-800 dark:hover:bg-slate-700 transition"
             >
               {t('Close Angle Guide')}
