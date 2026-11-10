@@ -36,3 +36,10 @@ resources/postgres/
 gympro-config.json
 
 release-stage/
+
+# Local scratch: browser-test logs, saved web pages and stray screenshots
+.playwright-mcp/
+/Gym App Names.html
+/Gym App Names_files/
+/*.png
+/*.jpg
