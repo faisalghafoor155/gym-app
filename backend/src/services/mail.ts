@@ -1,12 +1,14 @@
 import nodemailer, { type Transporter } from 'nodemailer';
 
 /**
- * Outgoing mail, over Resend's HTTP API or plain SMTP.
+ * Outgoing mail, over Resend's or Brevo's HTTP API, or plain SMTP.
  *
- * Two transports because they suit different situations: Resend needs one API
- * key and nothing else, while SMTP works with whatever mail account a gym
- * already has. Resend wins when both are set, being the one that needs no
- * ports open.
+ * Three transports because they suit different situations: Resend needs one API
+ * key and a verified domain, Brevo needs one API key and only a verified sender
+ * address (a plain Gmail will do), and SMTP works with whatever mail account a
+ * gym already has. The HTTP APIs win over SMTP when both are set, being the ones
+ * that need no ports open — Railway's Hobby plan, for one, blocks every SMTP
+ * port outright.
  *
  * Mail is optional either way. With neither configured the transport is null
  * and every send falls back to logging, so the app runs — and its invite and
@@ -34,6 +36,7 @@ const real = (value: string | undefined): string | undefined => {
 };
 
 const resendKey = real(process.env.RESEND_API_KEY);
+const brevoKey = real(process.env.BREVO_API_KEY);
 
 const host = real(process.env.SMTP_HOST);
 const user = real(process.env.SMTP_USER);
@@ -44,15 +47,17 @@ const port = Number(process.env.SMTP_PORT ?? 587);
 
 const smtpConfigured = Boolean(host && user && pass);
 
-export const mailEnabled = Boolean(resendKey) || smtpConfigured;
+export const mailEnabled = Boolean(resendKey) || Boolean(brevoKey) || smtpConfigured;
 
 /**
  * Who the mail claims to be from.
  *
  * Resend rejects a From on a domain you have not verified, so it falls back to
- * their onboarding sender, which works with no DNS set up at all. Gmail
- * silently rewrites From to the authenticated account instead — worth knowing
- * when the header looks wrong in testing.
+ * their onboarding sender, which works with no DNS set up at all. Brevo has no
+ * such sender and rejects any address not on its Senders list, so it takes the
+ * SMTP login as the likeliest one to have been verified. Gmail silently
+ * rewrites From to the authenticated account instead — worth knowing when the
+ * header looks wrong in testing.
  */
 const from = real(process.env.MAIL_FROM)
   ?? real(process.env.SMTP_FROM)
@@ -115,6 +120,34 @@ const sendViaResend = async (mail: Mail): Promise<boolean> => {
   return true;
 };
 
+/** Brevo's transactional API: plain HTTP JSON too, just a different shape. */
+const sendViaBrevo = async (mail: Mail): Promise<boolean> => {
+  const name = (mail.fromName?.trim() || appName()).replace(/["\\\r\n]/g, '');
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': brevoKey!,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name, email: fromAddress },
+      to: [{ email: mail.to }],
+      subject: mail.subject,
+      textContent: mail.text,
+      ...(mail.html && { htmlContent: mail.html }),
+    }),
+  });
+
+  if (!res.ok) {
+    // An unverified sender or a spent daily quota comes back as a 4xx with the
+    // reason in the body, same as Resend.
+    console.error(`[mail] Brevo refused (${res.status}): ${await res.text()}`);
+    return false;
+  }
+  return true;
+};
+
 export interface Mail {
   to: string;
   /** Shown as the sender's name — the gym's, when the mail is on its behalf. */
@@ -147,6 +180,7 @@ export const sendMail = async (mail: Mail): Promise<boolean> => {
 
   try {
     if (resendKey) return await sendViaResend(mail);
+    if (brevoKey) return await sendViaBrevo(mail);
     const { fromName, ...message } = mail;
     await transporter!.sendMail({ from: fromFor(fromName), ...message });
     return true;
@@ -196,10 +230,31 @@ const verifyResend = async (): Promise<{ ok: boolean; error?: string; note?: str
     : { ok: false, error: 'resend: MAIL_FROM domain is not verified in Resend' };
 };
 
+/**
+ * Brevo's equivalent: is the key live, and is the From address on its Senders
+ * list. An unverified sender is the usual first-day failure, and Brevo only
+ * reports it when a real message is refused.
+ */
+const verifyBrevo = async (): Promise<{ ok: boolean; error?: string; note?: string }> => {
+  const res = await fetch('https://api.brevo.com/v3/senders', {
+    headers: { 'api-key': brevoKey!, Accept: 'application/json' },
+  });
+  if (!res.ok) return { ok: false, error: `brevo: API key rejected (${res.status})` };
+
+  const body = await res.json().catch(() => ({})) as {
+    senders?: { email: string; active: boolean }[];
+  };
+  const sender = body.senders?.find(s => s.email.toLowerCase() === fromAddress.toLowerCase());
+  if (!sender) return { ok: false, error: 'brevo: MAIL_FROM is not on the Brevo Senders list' };
+  if (!sender.active) return { ok: false, error: 'brevo: sender not verified yet — check its inbox' };
+  return { ok: true };
+};
+
 export const verifyMail = async (): Promise<{ ok: boolean; error?: string; note?: string }> => {
   if (!mailEnabled) return { ok: false, error: 'not configured' };
   try {
     if (resendKey) return await verifyResend();
+    if (brevoKey) return await verifyBrevo();
     await transporter!.verify();
     return { ok: true };
   } catch (err) {

@@ -167,7 +167,7 @@ if (process.env.NODE_ENV === "production") {
     unsafe.push(
       "Mail is NOT configured — password resets and staff invites are written " +
         "to this log instead of being delivered, and nothing tells the person " +
-        "waiting for them. Set RESEND_API_KEY, or the SMTP_* variables.",
+        "waiting for them. Set RESEND_API_KEY, BREVO_API_KEY, or the SMTP_* variables.",
     );
   }
 
