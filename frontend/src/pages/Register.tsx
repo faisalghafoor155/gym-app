@@ -17,14 +17,22 @@ interface RegisterForm {
   password: string;
   phone: string;
   plan: GymPlan;
+  billingCycle: BillingCycle;
 }
+
+type BillingCycle = 'monthly' | 'yearly';
+
+/** A year costs this many months — two free. Matches YEARLY_MONTHS on the server. */
+const YEARLY_MONTHS = 10;
+
+const rupees = (n: number): string => `Rs. ${n.toLocaleString('en-PK')}`;
 
 interface PlanOption {
   id: GymPlan;
   name: string;
   members: string;
-  price: string;
-  period: string;
+  /** Rupees per month; 0 for the free tier. */
+  monthly: number;
   badge?: string;
   description: string;
   features: string[];
@@ -38,8 +46,7 @@ const PLAN_OPTIONS: PlanOption[] = [
     id: 'free',
     name: 'Free Trial',
     members: '50 Members',
-    price: 'Rs. 0',
-    period: 'forever trial',
+    monthly: 0,
     description: 'Perfect for testing the waters and exploring the software.',
     features: ['Up to 50 active members', '2 staff accounts', 'Basic attendance & payments', 'Email reminders'],
     icon: Dumbbell,
@@ -48,8 +55,7 @@ const PLAN_OPTIONS: PlanOption[] = [
     id: 'basic',
     name: 'Starter Plan',
     members: '200 Members',
-    price: 'Rs. 3,000',
-    period: 'per month',
+    monthly: 3000,
     description: 'Ideal for small to medium fitness clubs and neighborhood gyms.',
     features: ['Up to 200 active members', '6 staff accounts & 10 trainers', 'WhatsApp notices & receipts', 'Financial reports & analytics'],
     icon: Users,
@@ -58,8 +64,7 @@ const PLAN_OPTIONS: PlanOption[] = [
     id: 'growth',
     name: 'Growth Plan',
     members: '400 Members',
-    price: 'Rs. 5,000',
-    period: 'per month',
+    monthly: 5000,
     badge: 'Most Popular',
     popular: true,
     description: 'Designed for rapidly growing gyms needing higher member capacity.',
@@ -70,8 +75,7 @@ const PLAN_OPTIONS: PlanOption[] = [
     id: 'pro',
     name: 'Pro Unlimited',
     members: 'Unlimited Members',
-    price: 'Rs. 8,000',
-    period: 'per month',
+    monthly: 8000,
     badge: 'Full Power',
     description: 'Complete gym automation with biometric door hardware and unlimited capacity.',
     features: ['Unlimited members & trainers', 'Biometric fingerprint check-in', 'Online fees (JazzCash / EasyPaisa)', '25 staff accounts & priority support'],
@@ -87,6 +91,7 @@ export default function Register() {
     password: '',
     phone: '',
     plan: 'growth', // default to popular growth plan
+    billingCycle: 'monthly',
   });
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -105,8 +110,8 @@ export default function Register() {
     setLoading(true);
     try {
       // No plan to choose while subscriptions are off, so none is sent.
-      const { plan, ...details } = form;
-      const body = SUBSCRIPTIONS_ENABLED ? { ...details, plan } : details;
+      const { plan, billingCycle, ...details } = form;
+      const body = SUBSCRIPTIONS_ENABLED ? { ...details, plan, billingCycle } : details;
       const { data } = await api.post<AuthResponse | { pendingApproval: true; message: string }>('/auth/register', body);
       if ('pendingApproval' in data) {
         toast.success(t(data.message), { duration: 8000 });
@@ -150,7 +155,7 @@ export default function Register() {
           {/* Step 1: Choose Plan — skipped while subscriptions are switched off */}
           {SUBSCRIPTIONS_ENABLED && (
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 p-6 sm:p-8">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center justify-center">1</span>
@@ -159,6 +164,22 @@ export default function Register() {
                 <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400">
                   {t('Choose the plan that best fits your gym size. You can upgrade anytime.')}
                 </p>
+              </div>
+              <div className="flex rounded-lg border border-gray-200 dark:border-slate-700 p-0.5 text-xs font-semibold shrink-0">
+                {(['monthly', 'yearly'] as const).map(cycle => (
+                  <button
+                    key={cycle}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, billingCycle: cycle }))}
+                    className={`px-3 py-1.5 rounded-md transition-colors ${
+                      form.billingCycle === cycle
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {cycle === 'monthly' ? t('Monthly') : t('Yearly (2 months free)')}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -217,10 +238,10 @@ export default function Register() {
 
                       <div className="mt-2 text-xs">
                         <span className="text-lg font-black text-gray-900 dark:text-slate-100">
-                          {opt.price}
+                          {rupees(form.billingCycle === 'yearly' ? opt.monthly * YEARLY_MONTHS : opt.monthly)}
                         </span>
                         <span className="text-gray-500 dark:text-slate-400 ml-1">
-                          /{opt.period.includes('trial') ? t('trial') : t('mo')}
+                          /{opt.monthly === 0 ? t('trial') : form.billingCycle === 'yearly' ? t('yr') : t('mo')}
                         </span>
                       </div>
 
@@ -332,7 +353,7 @@ export default function Register() {
               {SUBSCRIPTIONS_ENABLED ? (
                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
                   <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
-                  <span>{t('Selected:')} <strong className="text-gray-900 dark:text-slate-200">{t(PLAN_OPTIONS.find(p => p.id === form.plan)?.name ?? '')} ({t(PLAN_OPTIONS.find(p => p.id === form.plan)?.members ?? '')})</strong></span>
+                  <span>{t('Selected:')} <strong className="text-gray-900 dark:text-slate-200">{t(PLAN_OPTIONS.find(p => p.id === form.plan)?.name ?? '')} ({t(PLAN_OPTIONS.find(p => p.id === form.plan)?.members ?? '')}){form.plan !== 'free' && ` · ${form.billingCycle === 'yearly' ? t('Yearly') : t('Monthly')}`}</strong></span>
                 </div>
               ) : <span />}
 

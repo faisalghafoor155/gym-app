@@ -99,6 +99,38 @@ function Expiry({ gym }: { gym: PlatformGym }) {
 
 type Action = { gym: PlatformGym; kind: 'approve' | 'suspend' | 'resume' };
 
+type PaidPlan = 'basic' | 'growth' | 'pro';
+type Cycle = 'monthly' | 'yearly';
+
+/** List prices, to prefill the form; the operator types the agreed one. */
+const LIST_PRICE: Record<PaidPlan, number> = { basic: 3000, growth: 5000, pro: 8000 };
+const YEARLY_MONTHS = 10;
+const PLAN_NAMES: Record<PaidPlan, string> = { basic: 'Basic', growth: 'Growth', pro: 'Pro' };
+
+interface PackageForm {
+  gym: PlatformGym;
+  plan: PaidPlan;
+  cycle: Cycle;
+  amount: string;
+  paymentReceived: boolean;
+}
+
+const listPrice = (plan: PaidPlan, cycle: Cycle): number =>
+  cycle === 'yearly' ? LIST_PRICE[plan] * YEARLY_MONTHS : LIST_PRICE[plan];
+
+/** The form opened on a gym's current deal, or the list price when it has none. */
+const packageFormFor = (gym: PlatformGym): PackageForm => {
+  const s = gym.subscription;
+  const plan = (Object.keys(PLAN_NAMES) as PaidPlan[])
+    .find(p => PLAN_NAMES[p] === s?.plan) ?? 'growth';
+  const cycle: Cycle = s?.cycle === 'yearly' ? 'yearly' : 'monthly';
+  return {
+    gym, plan, cycle,
+    amount: String(s ? s.amount : listPrice(plan, cycle)),
+    paymentReceived: false,
+  };
+};
+
 export default function Platform() {
   const { t } = useLanguage();
   const { data, loading, refetching, reload } = useFetch<PlatformData>(
@@ -111,6 +143,7 @@ export default function Platform() {
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<PlatformGym | null>(null);
   const [typedName, setTypedName] = useState('');
+  const [pkg, setPkg] = useState<PackageForm | null>(null);
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -138,6 +171,26 @@ export default function Platform() {
       await reload();
     } catch (err) {
       toast.error(apiError(err, t('Could not update the gym')));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const savePackage = async () => {
+    if (!pkg) return;
+    setBusy(true);
+    try {
+      await api.put(`/platform/gyms/${pkg.gym.id}/package`, {
+        plan: pkg.plan,
+        cycle: pkg.cycle,
+        amount: Number(pkg.amount),
+        paymentReceived: pkg.paymentReceived,
+      });
+      toast.success(t(pkg.paymentReceived ? 'Package saved and payment recorded' : 'Package saved'));
+      setPkg(null);
+      await reload();
+    } catch (err) {
+      toast.error(apiError(err, t('Could not save the package')));
     } finally {
       setBusy(false);
     }
@@ -248,6 +301,13 @@ export default function Platform() {
                       ) : (
                         <p className="text-gray-400">—</p>
                       )}
+                      <button
+                        type="button"
+                        className="block text-blue-600 dark:text-blue-400 font-semibold hover:underline pt-1"
+                        onClick={() => setPkg(packageFormFor(g))}
+                      >
+                        {t('Edit package')}
+                      </button>
                     </td>
                     <td className="p-3">
                       <Expiry gym={g} />
@@ -302,6 +362,71 @@ export default function Platform() {
           onConfirm={run}
           onCancel={() => setAction(null)}
         />
+      )}
+      {pkg && (
+        <Modal title={`${t('Package')} — ${pkg.gym.name}`} onClose={() => setPkg(null)}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">{t('Plan')}</label>
+              <SegmentedControl
+                value={pkg.plan}
+                onChange={(plan: PaidPlan) => setPkg({ ...pkg, plan, amount: String(listPrice(plan, pkg.cycle)) })}
+                options={(Object.keys(PLAN_NAMES) as PaidPlan[]).map(p => ({ value: p, label: t(PLAN_NAMES[p]) }))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">{t('Billing')}</label>
+              <SegmentedControl
+                value={pkg.cycle}
+                onChange={(cycle: Cycle) => setPkg({ ...pkg, cycle, amount: String(listPrice(pkg.plan, cycle)) })}
+                options={[
+                  { value: 'monthly', label: t('Monthly') },
+                  { value: 'yearly', label: t('Yearly') },
+                ]}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
+                {pkg.cycle === 'yearly' ? t('Agreed price per year (Rs.)') : t('Agreed price per month (Rs.)')}
+              </label>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                value={pkg.amount}
+                onChange={e => setPkg({ ...pkg, amount: e.target.value })}
+                className={inputClass}
+              />
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                {t('List price')}: {money(listPrice(pkg.plan, pkg.cycle))}. {t('This price stays fixed for every renewal until you change it.')}
+              </p>
+            </div>
+            <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-slate-300">
+              <input
+                type="checkbox"
+                checked={pkg.paymentReceived}
+                onChange={e => setPkg({ ...pkg, paymentReceived: e.target.checked })}
+                className="mt-0.5"
+              />
+              <span>
+                {t('Payment received (cash / bank)')} — {t('activate this plan now for one')} {pkg.cycle === 'yearly' ? t('year') : t('month')}
+              </span>
+            </label>
+          </div>
+          <div className="flex gap-3 pt-5">
+            <button type="button" onClick={() => setPkg(null)} className={`flex-1 ${secondaryButton}`}>
+              {t('Cancel')}
+            </button>
+            <button
+              type="button"
+              disabled={busy || !(Number(pkg.amount) >= 1)}
+              onClick={savePackage}
+              className={`flex-1 ${primaryButton}`}
+            >
+              {busy ? t('Working...') : t('Save package')}
+            </button>
+          </div>
+        </Modal>
       )}
       {removing && (
         <Modal title={t('Delete gym permanently')} onClose={() => setRemoving(null)}>

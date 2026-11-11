@@ -208,5 +208,72 @@ describe('/api/platform', () => {
       expect(res.status).toBe(410);
       expect((await prisma.gym.findUnique({ where: { id: pending.gymId } }))?.suspendedAt).not.toBeNull();
     });
+
+    it('shows the operator the package the gym picked', async () => {
+      const pending = await makeGym({ gymName: 'Apex Fitness' });
+      await holdForApproval(pending.gymId);
+      await prisma.gymSubscription.create({
+        data: { gymId: pending.gymId, plan: 'growth', amount: 50000, periodDays: 365 },
+      });
+
+      const page = await api().get(`/api/platform/approve/${signGymApprovalToken(pending.gymId)}`);
+      expect(page.text).toContain('Growth — Rs. 50,000 yearly');
+    });
+  });
+
+  describe('setting a gym\'s package', () => {
+    const put = (cookie: string, gymId: string, body: object) =>
+      api().put(`/api/platform/gyms/${gymId}/package`).set('Cookie', cookie).send(body);
+
+    it('stores the agreed price and cycle, and bills renewals at that price', async () => {
+      const boss = await makeGym({ email: 'boss@example.com', emailVerified: true });
+      const gym = await makeGym();
+
+      const res = await put(boss.cookie, gym.gymId, { plan: 'growth', cycle: 'yearly', amount: 42000 });
+      expect(res.status).toBe(200);
+      expect(res.body.package).toBe('Growth — Rs. 42,000 yearly');
+
+      const sub = await prisma.gymSubscription.findUnique({ where: { gymId: gym.gymId } });
+      expect(sub).toMatchObject({ plan: 'growth', periodDays: 365 });
+      expect(Number(sub?.amount)).toBe(42000);
+      const invoice = await prisma.subscriptionInvoice.findFirst({ where: { gymId: gym.gymId, status: 'open' } });
+      expect(Number(invoice?.amount)).toBe(42000);
+    });
+
+    it('re-prices an invoice that is still waiting for payment', async () => {
+      const boss = await makeGym({ email: 'boss@example.com', emailVerified: true });
+      const gym = await makeGym();
+      await put(boss.cookie, gym.gymId, { plan: 'basic', cycle: 'monthly', amount: 3000 });
+
+      await put(boss.cookie, gym.gymId, { plan: 'pro', cycle: 'monthly', amount: 6500 });
+
+      const open = await prisma.subscriptionInvoice.findMany({ where: { gymId: gym.gymId, status: 'open' } });
+      expect(open).toHaveLength(1);
+      expect(open[0]).toMatchObject({ plan: 'pro' });
+      expect(Number(open[0]!.amount)).toBe(6500);
+    });
+
+    it('activates the tier for one term when the payment came in by hand', async () => {
+      const boss = await makeGym({ email: 'boss@example.com', emailVerified: true });
+      const gym = await makeGym();
+
+      const res = await put(boss.cookie, gym.gymId, {
+        plan: 'pro', cycle: 'monthly', amount: 8000, paymentReceived: true,
+      });
+      expect(res.status).toBe(200);
+
+      expect((await prisma.gym.findUnique({ where: { id: gym.gymId } }))?.plan).toBe('pro');
+      const sub = await prisma.gymSubscription.findUnique({ where: { gymId: gym.gymId } });
+      const days = (sub!.paidThrough!.getTime() - Date.now()) / 86_400_000;
+      expect(days).toBeGreaterThan(29);
+      expect(days).toBeLessThan(31);
+    });
+
+    it('is the operator\'s alone', async () => {
+      const owner = await makeGym({ emailVerified: true });
+      const res = await put(owner.cookie, owner.gymId, { plan: 'pro', cycle: 'yearly', amount: 1 });
+      expect(res.status).toBe(404);
+      expect(await prisma.gymSubscription.findUnique({ where: { gymId: owner.gymId } })).toBeNull();
+    });
   });
 });

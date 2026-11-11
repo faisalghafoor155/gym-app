@@ -59,6 +59,17 @@ describe('POST /api/auth/register', () => {
     expect(gym?.plan).toBe('free');
   });
 
+  it('bills a yearly sign-up for a year, at the yearly price', async () => {
+    const res = await api().post('/api/auth/register')
+      .send({ ...body, plan: 'growth', billingCycle: 'yearly' });
+    expect(res.status).toBe(201);
+
+    const gym = await prisma.gym.findFirst({ where: { name: 'Iron Works' } });
+    const sub = await prisma.gymSubscription.findUnique({ where: { gymId: gym!.id } });
+    expect(sub?.periodDays).toBe(365);
+    expect(Number(sub?.amount)).toBe(5000 * 10);
+  });
+
   it('never returns the password hash', async () => {
     const res = await api().post('/api/auth/register').send(body);
     expect(JSON.stringify(res.body)).not.toContain('$2');

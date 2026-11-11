@@ -11,7 +11,9 @@ import type {
 import { appUrl, findValidInvite } from '../services/invite.js';
 import { verifyGoogleToken } from '../services/google.js';
 import { DEFAULT_PLANS } from '../services/membership.js';
-import { ensureSubscription, issueInvoiceIfDue } from '../services/billing.js';
+import {
+  describePackage, ensureSubscription, issueInvoiceIfDue, termFor,
+} from '../services/billing.js';
 import { subscriptionsEnabled } from '../services/subscription.js';
 import { sendMail, passwordResetMail } from '../services/mail.js';
 import { notifyOperatorOfPendingGym } from '../services/operatorNotify.js';
@@ -150,7 +152,7 @@ export const register = async (
   req: Request<unknown, unknown, RegisterBody>,
   res: Response,
 ): Promise<void> => {
-  const { gymName, ownerName, email, password, phone, plan } = req.body;
+  const { gymName, ownerName, email, password, phone, plan, billingCycle } = req.body;
   try {
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -193,9 +195,16 @@ export const register = async (
       });
     });
 
+    // The package as the operator will see it when deciding whether to approve.
+    let pkg = describePackage(null);
     if (subscriptionsEnabled() && plan && plan !== 'free') {
       try {
-        const sub = await ensureSubscription(user.gym.id, plan);
+        const sub = await ensureSubscription(
+          user.gym.id,
+          plan,
+          termFor(plan, billingCycle ?? 'monthly'),
+        );
+        pkg = describePackage(sub);
         await issueInvoiceIfDue(sub.id, new Date());
       } catch (err) {
         console.error('[register] could not initialize subscription', err);
@@ -224,6 +233,7 @@ export const register = async (
           ownerName,
           email,
           phone,
+          package: pkg,
         }).catch((err: unknown) => {
           console.error('[register] could not notify operator', err);
         }),

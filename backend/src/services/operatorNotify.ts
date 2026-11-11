@@ -25,6 +25,8 @@ interface PendingGym {
   ownerName: string;
   email: string;
   phone: string | null | undefined;
+  /** What they signed up to pay, e.g. "Growth — Rs. 50,000 yearly". */
+  package: string;
 }
 
 export const notifyOperatorOfPendingGym = async (gym: PendingGym): Promise<void> => {
@@ -42,6 +44,7 @@ export const notifyOperatorOfPendingGym = async (gym: PendingGym): Promise<void>
       ['Owner', gym.ownerName],
       ['Email', gym.email],
       ['Phone', gym.phone ?? '—'],
+      ['Package', gym.package],
     ];
     await sendMail({
       to: operatorEmail,
@@ -50,7 +53,7 @@ export const notifyOperatorOfPendingGym = async (gym: PendingGym): Promise<void>
       subject: `Approve ${gym.gymName}? New gym waiting`,
       text:
         `A new gym has signed up and cannot use the app until you approve it.\n\n` +
-        rows.map(([k, v]) => `${`${k}:`.padEnd(7)} ${v}`).join('\n') + '\n\n' +
+        rows.map(([k, v]) => `${`${k}:`.padEnd(8)} ${v}`).join('\n') + '\n\n' +
         (approveLink
           ? `Approve ${gym.gymName}:\n${approveLink}\n\n`
           : `To approve, open the Platform page in the app and press Approve.\n\n`) +

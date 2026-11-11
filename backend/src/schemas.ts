@@ -139,6 +139,7 @@ export const registerSchema = z.object({
     .max(200, "is too long"),
   phone: optionalText(30),
   plan: z.enum(['free', 'basic', 'growth', 'pro']).default('free').optional(),
+  billingCycle: z.enum(['monthly', 'yearly']).default('monthly').optional(),
 });
 
 export const loginSchema = z.object({

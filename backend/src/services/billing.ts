@@ -37,6 +37,42 @@ export const PLAN_PRICES: Record<GymPlan, number> = {
 /** How long one paid period runs, unless a gym has been given its own term. */
 export const DEFAULT_PERIOD_DAYS = Number(process.env.BILLING_PERIOD_DAYS ?? 30);
 
+/**
+ * A yearly term costs this many months of the monthly price — 10 by default,
+ * so paying for the year up front earns two months free. The sign-up page
+ * shows the same figure; change both together.
+ */
+export const YEARLY_MONTHS = Number(process.env.PLAN_YEARLY_MONTHS ?? 10);
+export const YEARLY_PERIOD_DAYS = 365;
+
+export type BillingCycle = 'monthly' | 'yearly';
+
+/** What one term of `plan` costs, and how long it runs, on the chosen cycle. */
+export const termFor = (plan: GymPlan, cycle: BillingCycle) =>
+  cycle === 'yearly'
+    ? { amount: PLAN_PRICES[plan] * YEARLY_MONTHS, periodDays: YEARLY_PERIOD_DAYS }
+    : { amount: PLAN_PRICES[plan], periodDays: DEFAULT_PERIOD_DAYS };
+
+/** "monthly" / "yearly" for the lengths that are, the raw days otherwise. */
+export const billingCycle = (periodDays: number): string => {
+  if (periodDays >= 28 && periodDays <= 31) return 'monthly';
+  if (periodDays >= 88 && periodDays <= 93) return 'quarterly';
+  if (periodDays >= 180 && periodDays <= 186) return '6 months';
+  if (periodDays >= 360 && periodDays <= 366) return 'yearly';
+  return `${periodDays} days`;
+};
+
+/**
+ * The package a gym signed up for, in the words the operator approves it by:
+ * "Growth — Rs. 50,000 yearly". A gym with no subscription is on the free tier.
+ */
+export const describePackage = (
+  sub: { plan: GymPlan; amount: Prisma.Decimal | number; periodDays: number } | null,
+): string =>
+  sub
+    ? `${PLAN_LABELS[sub.plan]} — Rs. ${Number(sub.amount).toLocaleString('en-PK')} ${billingCycle(sub.periodDays)}`
+    : `${PLAN_LABELS.free} — no payment`;
+
 /** How long after the due date a gym keeps working before it is suspended. */
 export const DEFAULT_GRACE_DAYS = Number(process.env.BILLING_GRACE_DAYS ?? 7);
 

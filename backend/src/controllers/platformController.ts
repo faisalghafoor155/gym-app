@@ -5,6 +5,11 @@ import { PLAN_LABELS } from '../services/subscription.js';
 import { PENDING_APPROVAL_REASON } from './authController.js';
 import { escapeHtml } from '../services/mail.js';
 import { verifyGymApprovalToken } from '../services/gymApproval.js';
+import {
+  addDays, billingCycle, describePackage, issueInvoiceIfDue, settleInvoice, termFor,
+  type BillingCycle,
+} from '../services/billing.js';
+import type { GymPlan } from '@prisma/client';
 
 /**
  * The operator's view of every gym on the platform: who signed up, whether
@@ -15,15 +20,6 @@ import { verifyGymApprovalToken } from '../services/gymApproval.js';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ACTIVE_WINDOW_DAYS = 7;
 const EXPIRING_SOON_DAYS = 7;
-
-/** "monthly" / "yearly" for the lengths that are, the raw days otherwise. */
-const billingCycle = (periodDays: number): string => {
-  if (periodDays >= 28 && periodDays <= 31) return 'monthly';
-  if (periodDays >= 88 && periodDays <= 93) return 'quarterly';
-  if (periodDays >= 180 && periodDays <= 186) return '6 months';
-  if (periodDays >= 360 && periodDays <= 366) return 'yearly';
-  return `${periodDays} days`;
-};
 
 export const listGyms = async (_req: AuthedRequest, res: Response): Promise<void> => {
   try {
@@ -165,6 +161,72 @@ const findGym = async (id: string, res: Response) => {
   });
   if (!gym) res.status(404).json({ error: 'Gym not found' });
   return gym;
+};
+
+/**
+ * Sets the deal a gym is billed on: the tier, monthly or yearly, and the price
+ * agreed with them — which need not be the list price.
+ *
+ * The price is stored on the gym's subscription and every renewal invoice is
+ * cut from it, so a deal stays fixed term after term until the operator
+ * changes it here. An invoice already waiting for payment was cut on the old
+ * terms and is re-priced to the new ones; a paid term is left alone and the new
+ * terms start with the next one.
+ *
+ * `paymentReceived` is for money that arrived outside the app — cash, a bank
+ * transfer: it settles the open invoice, which activates the tier and runs the
+ * term for one period from where it starts.
+ */
+export const setGymPackage = async (
+  req: AuthedRequest<{ id: string }, unknown, {
+    plan: Exclude<GymPlan, 'free'>; cycle: BillingCycle; amount: number; paymentReceived?: boolean;
+  }>,
+  res: Response,
+): Promise<void> => {
+  const { plan, cycle, amount, paymentReceived } = req.body;
+  try {
+    const gym = await prisma.gym.findUnique({ where: { id: req.params.id }, select: { id: true } });
+    if (!gym) {
+      res.status(404).json({ error: 'Gym not found' });
+      return;
+    }
+
+    const { periodDays } = termFor(plan, cycle);
+    const sub = await prisma.gymSubscription.upsert({
+      where: { gymId: gym.id },
+      create: { gymId: gym.id, plan, amount, periodDays },
+      update: { plan, amount, periodDays, active: true },
+    });
+
+    const now = new Date();
+    const open = await prisma.subscriptionInvoice.findFirst({
+      where: { subscriptionId: sub.id, status: 'open' },
+    });
+    if (open) {
+      await prisma.subscriptionInvoice.update({
+        where: { id: open.id },
+        data: { plan, amount, periodEnd: addDays(open.periodStart, periodDays) },
+      });
+    } else {
+      await issueInvoiceIfDue(sub.id, now);
+    }
+
+    if (paymentReceived) {
+      const due = await prisma.subscriptionInvoice.findFirst({
+        where: { subscriptionId: sub.id, status: 'open' },
+      });
+      if (!due) {
+        res.status(409).json({ error: 'Nothing is due yet — the current term is already paid' });
+        return;
+      }
+      await settleInvoice(due.id, { note: 'Payment received, marked paid by the platform operator' });
+    }
+
+    res.json({ package: describePackage(sub) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not update the package' });
+  }
 };
 
 /** Lets a gym waiting for approval in. */
@@ -374,9 +436,12 @@ export const approvalLinkPage = async (
   try {
     const gym = await gymForApprovalLink(req.params.token, res);
     if (!gym) return;
+    // The package they picked is what the operator is really saying yes to.
+    const sub = await prisma.gymSubscription.findUnique({ where: { gymId: gym.id } });
     approvalPage(res, 200, `Approve ${gym.name}?`,
       para(`<strong>${escapeHtml(gym.ownerName)}</strong> signed up <strong>${escapeHtml(gym.name)}</strong>. ` +
         `Approving lets them sign in and use the whole app.`) +
+      para(`Package: <strong>${escapeHtml(describePackage(sub))}</strong>`) +
       `<form method="post" style="margin:20px 0 0">` +
       `<button type="submit" style="width:100%;background:#16a34a;color:#fff;border:0;padding:14px;` +
       `border-radius:10px;font-size:16px;font-weight:600;cursor:pointer">` +

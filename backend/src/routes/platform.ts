@@ -14,6 +14,7 @@ import {
   deleteGym,
   listGyms,
   resumeGym,
+  setGymPackage,
   suspendGym,
 } from "../controllers/platformController.js";
 
@@ -31,10 +32,22 @@ router.use(requirePlatformAdmin);
 const suspendBody = z.object({ reason: z.string().trim().max(300).optional() });
 
 const deleteBody = z.object({ confirmName: z.string().trim().max(200) });
+const packageBody = z.object({
+  plan: z.enum(["basic", "growth", "pro"]),
+  cycle: z.enum(["monthly", "yearly"]),
+  amount: z.coerce.number().int().min(1).max(10_000_000),
+  paymentReceived: z.boolean().optional(),
+});
 
 router.get("/gyms", authed(listGyms));
 router.post("/gyms/:id/approve", validate(idParam, "params"), authed(approveGym));
 router.post("/gyms/:id/resume", validate(idParam, "params"), authed(resumeGym));
+router.put(
+  "/gyms/:id/package",
+  validate(idParam, "params"),
+  validate(packageBody),
+  authed(setGymPackage),
+);
 router.post(
   "/gyms/:id/suspend",
   validate(idParam, "params"),
