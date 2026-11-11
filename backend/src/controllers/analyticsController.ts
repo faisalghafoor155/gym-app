@@ -53,7 +53,7 @@ export const getAttendanceAnalytics = async (
       count,
     }));
 
-    // Peak hours in the gym's own clock, not the server's: on Vercel the
+    // Peak hours in the gym's own clock, not the server's: on a cloud host the
     // server's zone is UTC and the evening rush would read as early afternoon.
     const peakHoursRaw = await prisma.$queryRaw<{ hour: number; count: bigint }[]>`
       SELECT EXTRACT(HOUR FROM "checkedInAt" AT TIME ZONE 'UTC' AT TIME ZONE ${GYM_TIME_ZONE})::int as hour, COUNT(*)::bigint as count

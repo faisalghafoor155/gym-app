@@ -133,48 +133,6 @@ const subscriptionBilling = async (): Promise<string> => {
   );
 };
 
-/**
- * The same jobs in two batches, for hosts that call in rather than keep a
- * process running. On Vercel nothing stays up to run node-cron, so Vercel's
- * own cron calls `/api/cron/:group` once a day for each batch instead.
- *
- * Billing is left out while subscriptions are off, the same as below.
- */
-export const JOB_GROUPS = {
-  reminders: () => ({
-    'expiry reminders': expiryReminders,
-    'dues reminders': duesReminders,
-    greetings,
-  }),
-  maintenance: () => ({
-    'fingerprint retention': fingerprintRetention,
-    ...(subscriptionsEnabled() && { 'subscription billing': subscriptionBilling }),
-  }),
-} as const;
-
-export type JobGroup = keyof typeof JOB_GROUPS;
-
-/**
- * Runs one batch, one job after another, and reports each. A job that throws
- * is recorded and the rest still run, as with the scheduler.
- */
-export const runJobGroup = async (
-  group: JobGroup,
-): Promise<{ job: string; ok: boolean; summary: string }[]> => {
-  const results = [];
-  for (const [job, run] of Object.entries(JOB_GROUPS[group]())) {
-    try {
-      const summary = await run();
-      console.log(`[jobs] ${job} — ${summary}`);
-      results.push({ job, ok: true, summary });
-    } catch (err) {
-      console.error(`[jobs] ${job} failed:`, err);
-      results.push({ job, ok: false, summary: String(err) });
-    }
-  }
-  return results;
-};
-
 export const startJobs = (): void => {
   if (!enabled) return;
 

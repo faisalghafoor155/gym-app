@@ -11,7 +11,7 @@
 /**
  * The time zone a gym's day is counted in, wherever the server runs.
  *
- * Vercel runs in UTC and the desktop app runs in whatever the PC is set to, so
+ * A cloud host runs in UTC and the desktop app runs in whatever the PC is set to, so
  * "today" read from the server clock meant a different day on each. Pakistan
  * keeps no daylight saving, so the offset is fixed and needs no zone database;
  * the attendance table's generated `checkedInOn` column uses the same zone.

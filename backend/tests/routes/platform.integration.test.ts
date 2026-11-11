@@ -100,6 +100,55 @@ describe('/api/platform', () => {
     expect(again.status).toBe(409);
   });
 
+  describe("the operator's own pending gym", () => {
+    const login = (email: string) =>
+      api().post('/api/auth/login').send({ email, password: 'correct-horse-battery' });
+
+    it('is approved when the verified operator signs in', async () => {
+      const boss = await makeGym({ email: 'boss@example.com', emailVerified: true });
+      await prisma.gym.update({
+        where: { id: boss.gymId },
+        data: { suspendedAt: new Date(), suspendedReason: PENDING_APPROVAL_REASON },
+      });
+
+      const res = await login('boss@example.com');
+
+      expect(res.status).toBe(200);
+      expect((await prisma.gym.findUnique({ where: { id: boss.gymId } }))?.suspendedAt).toBeNull();
+    });
+
+    it('stays held while the operator address is unverified', async () => {
+      const boss = await makeGym({ email: 'boss@example.com' });
+      await prisma.gym.update({
+        where: { id: boss.gymId },
+        data: { suspendedAt: new Date(), suspendedReason: PENDING_APPROVAL_REASON },
+      });
+
+      expect((await login('boss@example.com')).status).toBe(403);
+      expect((await prisma.gym.findUnique({ where: { id: boss.gymId } }))?.suspendedAt).not.toBeNull();
+    });
+
+    it('is not lifted when suspended for a reason other than approval', async () => {
+      const boss = await makeGym({ email: 'boss@example.com', emailVerified: true });
+      await prisma.gym.update({
+        where: { id: boss.gymId },
+        data: { suspendedAt: new Date(), suspendedReason: 'Unpaid since March' },
+      });
+
+      expect((await login('boss@example.com')).status).toBe(403);
+    });
+
+    it('does not apply to an ordinary owner', async () => {
+      const owner = await makeGym({ emailVerified: true });
+      await prisma.gym.update({
+        where: { id: owner.gymId },
+        data: { suspendedAt: new Date(), suspendedReason: PENDING_APPROVAL_REASON },
+      });
+
+      expect((await login(owner.email)).status).toBe(403);
+    });
+  });
+
   it('suspends another gym but refuses to lock the operator out of their own', async () => {
     const boss = await makeGym({ email: 'boss@example.com', emailVerified: true });
     const other = await makeGym();

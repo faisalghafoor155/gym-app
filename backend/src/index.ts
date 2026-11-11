@@ -52,7 +52,6 @@ import aiRoutes from "./routes/ai.js";
 import promoCodesRoutes from "./routes/promoCodes.js";
 import referralsRoutes from "./routes/referrals.js";
 import lockersRoutes from "./routes/lockers.js";
-import cronRoutes from "./routes/cron.js";
 import { hasLiveGateway } from "./services/gateways/index.js";
 import { hasPlatformGateway } from "./services/gateways/platform.js";
 import { biometricKeyStatus } from "./services/fingerprint/crypto.js";
@@ -60,17 +59,9 @@ import { mailEnabled, verifyMail } from "./services/mail.js";
 import { startJobs } from "./jobs/index.js";
 
 // Fail loudly at boot rather than turning every login into a generic 500.
-//
-// On Vercel an exit at import becomes FUNCTION_INVOCATION_FAILED, which says
-// nothing to whoever is reading the browser — and the logs that would say it
-// are not always to hand. There the problems are kept instead, and every API
-// request answers 503 with them (names and reasons, never values) until the
-// configuration is fixed and the project redeployed.
-const startupProblems: string[] = [];
 const fatal = (message: string): void => {
   console.error(message);
-  if (!process.env.VERCEL) process.exit(1);
-  startupProblems.push(message);
+  process.exit(1);
 };
 
 for (const key of ["JWT_SECRET", "DATABASE_URL"] as const) {
@@ -229,15 +220,6 @@ app.set(
 // Before the routes and before the body parser, so a request that is rejected
 // for being oversized is still logged and still carries an id to quote.
 app.use(requestLogger);
-
-if (startupProblems.length) {
-  app.use("/api", (_req, res) => {
-    res.status(503).json({
-      error: "Server is misconfigured",
-      problems: startupProblems,
-    });
-  });
-}
 
 // Helmet's default CSP carries `upgrade-insecure-requests`, and it sends HSTS.
 // Both assume TLS. On a deployment that is honestly plain http — the desktop
@@ -411,7 +393,6 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/promo-codes", promoCodesRoutes);
 app.use("/api/referrals", referralsRoutes);
 app.use("/api/lockers", lockersRoutes);
-app.use("/api/cron", cronRoutes);
 
 app.get("/api/health", async (req, res) => {
   // Whether mail is configured, and nothing about how. A dead transport is
@@ -503,12 +484,7 @@ export default app;
 // must not bind a port, or a second import would fight the first for it. The
 // same applies to the scheduler: a background job firing mid-suite would write
 // rows no test asked for.
-//
-// Vercel is the other importer: it mounts the default export as a function and
-// owns the port itself. Its instances are frozen between requests, so node-cron
-// would fire at random or not at all, and process.exit would kill an instance
-// still serving other requests — none of this block belongs there.
-if (process.env.NODE_ENV !== "test" && !process.env.VERCEL) {
+if (process.env.NODE_ENV !== "test") {
   const PORT = Number(process.env.PORT ?? 5000);
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

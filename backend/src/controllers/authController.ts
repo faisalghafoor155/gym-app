@@ -334,6 +334,24 @@ export const login = async (
       res.status(403).json({ error: 'This account has been deactivated' });
       return;
     }
+    // The operator's own gym is held for approval like any other signup, and
+    // the operator is the only one who can approve it — but cannot reach the
+    // Platform page to do so while it is held. A verified owner on
+    // PLATFORM_ADMIN_EMAILS is the person approval exists to ask, so their own
+    // pending gym is let through here. Only the pending hold: a gym suspended
+    // for any other reason stays suspended.
+    if (
+      user.gym.suspendedAt &&
+      user.gym.suspendedReason === PENDING_APPROVAL_REASON &&
+      isPlatformAdmin(user)
+    ) {
+      await prisma.gym.update({
+        where: { id: user.gym.id },
+        data: { suspendedAt: null, suspendedReason: null },
+      });
+      user.gym.suspendedAt = null;
+      user.gym.suspendedReason = null;
+    }
     // Checked before the second factor is even offered: making somebody find
     // their authenticator app to reach a refusal helps nobody.
     if (refusedForSuspension(res, user.gym)) return;

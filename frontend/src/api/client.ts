@@ -74,8 +74,7 @@ export function apiError(err: unknown, fallback = 'Something went wrong'): strin
   if ((err as AxiosError)?.code === 'ERR_OFFLINE_WRITE') return OFFLINE_WRITE_MESSAGE;
 
   // Only a string is the app's own message. A platform in front of the API can
-  // answer with its own shape — Vercel's crash page is
-  // `{ error: { code, message } }` — and handing that object to a toast or a
+  // answer with its own shape — `{ error: { code, message } }`, say — and handing that object to a toast or a
   // <p> is React error #31, which blanks the whole page.
   const message = (err as AxiosError<{ error?: unknown }>)?.response?.data?.error;
   return typeof message === 'string' && message ? message : fallback;
