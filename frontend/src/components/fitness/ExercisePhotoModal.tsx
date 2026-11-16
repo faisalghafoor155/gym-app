@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   X, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight,
-  Dumbbell, Image as ImageIcon, Sparkles
+  Dumbbell, Image as ImageIcon, Sparkles, Layers
 } from 'lucide-react';
 import { closeDialog, useDialog } from '../../hooks/useDialog';
 import { useLanguage } from '../../context/LanguageContext';
@@ -52,11 +52,34 @@ const angles = (game: string, variants: Record<string, string>): GalleryPhoto[] 
     }))
   );
 
-/** Every photo of a game: its main photo first, then the gallery. */
-export const gamePhotos = (ex: ExercisePhotoItem): GalleryPhoto[] => [
-  { src: ex.image, variant: ex.name },
-  ...ex.gallery.filter(p => p.src !== ex.image),
-];
+export interface GameVariation {
+  /** English, doubles as its `t()` key. */
+  name: string;
+  photos: GalleryPhoto[];
+}
+
+/**
+ * A game's variations, each with its start and end photo side by side. The
+ * main photo leads as a variation of its own unless it is one of the gallery's.
+ */
+export const gameVariations = (ex: ExercisePhotoItem): GameVariation[] => {
+  const byName = new Map<string, GalleryPhoto[]>();
+  for (const p of ex.gallery) byName.set(p.variant, [...(byName.get(p.variant) ?? []), p]);
+  const variations = [...byName].map(([name, photos]) => ({ name, photos }));
+  return ex.gallery.some(p => p.src === ex.image)
+    ? variations
+    : [{ name: 'Main Photo', photos: [{ src: ex.image, variant: ex.name }] }, ...variations];
+};
+
+/** The muscle tabs of the photo guide, shared by the workout tab and this modal. */
+export const PHOTO_MUSCLE_TABS = [
+  { key: 'chest', label: '🔥 Chest' },
+  { key: 'back', label: '🛡️ Back' },
+  { key: 'shoulders', label: '⚡ Shoulders' },
+  { key: 'legs', label: '🦵 Legs' },
+  { key: 'arms', label: '💪 Arms' },
+  { key: 'abs', label: '🧱 Abs' },
+] as const satisfies readonly { key: PhotoMuscle; label: string }[];
 
 export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
   // CHEST
@@ -564,13 +587,13 @@ export default function ExercisePhotoModal({
     filteredExercises[0] ||
     WORKOUT_GAMES_PHOTOS[0]!;
 
-  // The photo shown within the game; it goes back to the first photo when the game changes.
-  const [shownPhoto, setShownPhoto] = useState({ id: '', index: 0 });
-  const photos = gamePhotos(activeExercise);
-  const photoIndex = shownPhoto.id === activeExercise.id ? shownPhoto.index : 0;
-  const activePhoto = photos[photoIndex] ?? photos[0]!;
-  const showPhoto = (index: number) =>
-    setShownPhoto({ id: activeExercise.id, index: (index + photos.length) % photos.length });
+  // The variation shown within the game; it goes back to the first one when the game changes.
+  const [shownVariation, setShownVariation] = useState({ id: '', index: 0 });
+  const variations = gameVariations(activeExercise);
+  const variationIndex = shownVariation.id === activeExercise.id ? shownVariation.index : 0;
+  const activeVariation = variations[variationIndex] ?? variations[0]!;
+  const showVariation = (index: number) =>
+    setShownVariation({ id: activeExercise.id, index: (index + variations.length) % variations.length });
 
   const handleMuscleChange = (muscle: PhotoMuscle) => {
     setSelectedMuscle(muscle);
@@ -640,16 +663,7 @@ export default function ExercisePhotoModal({
         <div className="p-4 sm:p-5 overflow-y-auto space-y-4">
           {/* Top Muscle Group Selector */}
           <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-gray-100 dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
-            {(
-              [
-                { key: 'chest', label: '🔥 Chest' },
-                { key: 'back', label: '🛡️ Back' },
-                { key: 'shoulders', label: '⚡ Shoulders' },
-                { key: 'legs', label: '🦵 Legs' },
-                { key: 'arms', label: '💪 Arms' },
-                { key: 'abs', label: '🧱 Abs' },
-              ] as const
-            ).map(tab => (
+            {PHOTO_MUSCLE_TABS.map(tab => (
               <button
                 key={tab.key}
                 type="button"
@@ -672,84 +686,143 @@ export default function ExercisePhotoModal({
                 key={ex.id}
                 type="button"
                 onClick={() => setSelectedExerciseId(ex.id)}
-                className={`py-1 px-3 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 ${
+                className={`py-1 pl-1 pr-3 rounded-full text-xs font-bold border transition flex items-center gap-1.5 ${
                   selectedExerciseId === ex.id
                     ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                     : 'border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800/60 hover:border-gray-300'
                 }`}
               >
-                <Dumbbell size={12} className="shrink-0" />
+                <img src={ex.image} alt="" loading="lazy" className="w-5 h-5 rounded-full object-cover bg-white shrink-0" />
                 <span>{t(ex.name)}</span>
               </button>
             ))}
           </div>
 
-          {/* MAIN PHOTO DISPLAY CARD */}
-          <div className="relative rounded-2xl overflow-hidden border-2 border-slate-800 bg-slate-950 shadow-xl group">
-            {/* The Exercise Photo */}
-            <img
-              key={activePhoto.src}
-              src={activePhoto.src}
-              alt={t(activePhoto.variant)}
-              className="w-full h-64 sm:h-[420px] object-contain mx-auto select-none animate-fade-in"
-              loading="eager"
-            />
-
-            {/* Photo Overlay Badges */}
-            <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-md text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/20 shadow-md">
-              <span className="text-blue-400 font-extrabold uppercase mr-1.5">{t('Game:')}</span>
-              <span>{t(activeExercise.name)}</span>
+          {/* MAIN PHOTO DISPLAY CARD: the variation's start and end photo side by side */}
+          <div className="rounded-2xl overflow-hidden border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 shadow-xl">
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-white/10">
+              <div className="min-w-0">
+                <span className="block text-[10px] font-extrabold uppercase tracking-wider text-blue-400 truncate">
+                  {t('Game:')} {t(activeExercise.name)}
+                </span>
+                <h3 className="text-sm sm:text-base font-black text-white truncate">{t(activeVariation.name)}</h3>
+              </div>
+              <span className="shrink-0 bg-emerald-600/90 text-white text-[11px] sm:text-xs font-bold px-3 py-1.5 rounded-xl shadow-md flex items-center gap-1.5">
+                <Dumbbell size={13} />
+                <span>{t(activeExercise.sets)} · {t(activeExercise.reps)}</span>
+              </span>
             </div>
 
-            <div className="absolute top-3 right-3 bg-emerald-600/90 backdrop-blur-md text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-md flex items-center gap-1.5">
-              <span>{t(activeExercise.sets)} · {t(activeExercise.reps)}</span>
+            <div className="relative p-3">
+              <div
+                key={`${activeExercise.id}:${activeVariation.name}`}
+                className={`relative grid gap-3 animate-fade-in ${activeVariation.photos.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
+              >
+                {activeVariation.photos.length > 1 && (
+                  <span
+                    className="absolute z-10 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center ring-4 ring-slate-900 shadow-lg"
+                    aria-hidden="true"
+                  >
+                    <ChevronRight size={20} />
+                  </span>
+                )}
+                {activeVariation.photos.map((p, i) => (
+                  <figure
+                    key={p.src}
+                    className={`relative rounded-xl overflow-hidden ${p.phase ? 'bg-white' : 'bg-slate-950'}`}
+                  >
+                    <img
+                      src={p.src}
+                      alt={p.phase ? `${t(activeVariation.name)} · ${t(p.phase)}` : t(activeExercise.name)}
+                      className={`w-full object-contain select-none ${p.phase ? 'aspect-[4/3]' : 'h-64 sm:h-[400px]'}`}
+                      loading="eager"
+                    />
+                    {p.phase && (
+                      <figcaption className="absolute top-2 left-2 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold px-2 py-1 rounded-lg bg-black/75 text-white backdrop-blur-xs">
+                        <span className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center text-[9px] font-black">{i + 1}</span>
+                        {t(p.phase)}
+                      </figcaption>
+                    )}
+                  </figure>
+                ))}
+              </div>
+
+              {variations.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => showVariation(variationIndex - 1)}
+                    aria-label={t('Previous Variation')}
+                    className="absolute left-1 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/70 hover:bg-blue-600 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 transition shadow-lg"
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => showVariation(variationIndex + 1)}
+                    aria-label={t('Next Variation')}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/70 hover:bg-blue-600 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 transition shadow-lg"
+                  >
+                    <ChevronRight size={22} />
+                  </button>
+                </>
+              )}
             </div>
 
-            {/* Next / Previous Photo Arrows */}
-            <button
-              type="button"
-              onClick={() => showPhoto(photoIndex - 1)}
-              aria-label={t('Previous Photo')}
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 transition shadow-lg"
-            >
-              <ChevronLeft size={22} />
-            </button>
-            <button
-              type="button"
-              onClick={() => showPhoto(photoIndex + 1)}
-              aria-label={t('Next Photo')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 transition shadow-lg"
-            >
-              <ChevronRight size={22} />
-            </button>
-
-            <div className="absolute bottom-2 left-3 max-w-[60%] text-[11px] font-bold text-white bg-black/70 px-2.5 py-1 rounded-md backdrop-blur-xs truncate">
-              {photoIndex + 1}/{photos.length} · {t(activePhoto.variant)}
-              {activePhoto.phase && <span className="text-blue-300"> · {t(activePhoto.phase)}</span>}
-            </div>
-            <div className="absolute bottom-2 right-3 text-[11px] text-slate-300 bg-black/70 px-2.5 py-1 rounded-md backdrop-blur-xs hidden sm:block">
-              {t('Target: {area}', { area: t(activeExercise.targetArea) })}
+            <div className="flex items-center justify-between gap-3 px-4 pb-3 text-[11px] text-slate-300">
+              <span className="font-bold text-white shrink-0">
+                {t('Variation {n} of {total}', { n: variationIndex + 1, total: variations.length })}
+              </span>
+              <span className="truncate">{t('Target: {area}', { area: t(activeExercise.targetArea) })}</span>
             </div>
           </div>
 
-          {/* All Photos of this Game */}
-          <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label={t('Photos of this game')}>
-            {photos.map((p, i) => (
-              <button
-                key={p.src}
-                type="button"
-                onClick={() => showPhoto(i)}
-                aria-label={`${t(p.variant)}${p.phase ? ` · ${t(p.phase)}` : ''}`}
-                aria-pressed={i === photoIndex}
-                className={`shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition ${
-                  i === photoIndex
-                    ? 'border-blue-600 ring-2 ring-blue-500/30'
-                    : 'border-transparent opacity-70 hover:opacity-100'
-                }`}
-              >
-                <img src={p.src} alt="" loading="lazy" className="w-full h-full object-cover select-none" />
-              </button>
-            ))}
+          {/* Every variation of this game, each one separate */}
+          <div>
+            <h4 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wide text-gray-700 dark:text-slate-300 mb-2">
+              <Layers size={14} className="text-blue-600 dark:text-blue-400" />
+              {t('Variations ({count})', { count: variations.length })}
+            </h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {variations.map((v, i) => (
+                <button
+                  key={v.name}
+                  type="button"
+                  onClick={() => showVariation(i)}
+                  aria-pressed={i === variationIndex}
+                  className={`group text-left rounded-xl overflow-hidden border-2 bg-white dark:bg-slate-800 transition ${
+                    i === variationIndex
+                      ? 'border-blue-600 shadow-md shadow-blue-500/20'
+                      : 'border-gray-200 dark:border-slate-700 hover:border-blue-400'
+                  }`}
+                >
+                  <div className={`relative aspect-[4/3] bg-white overflow-hidden grid ${v.photos.length > 1 ? 'grid-cols-2 gap-px bg-gray-200' : ''}`}>
+                    {v.photos.map(p => (
+                      <img
+                        key={p.src}
+                        src={p.src}
+                        alt=""
+                        loading="lazy"
+                        className="w-full h-full object-cover bg-white select-none group-hover:scale-105 transition duration-300"
+                      />
+                    ))}
+                    {v.photos.length > 1 && (
+                      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center ring-2 ring-white" aria-hidden="true">
+                        <ChevronRight size={12} />
+                      </span>
+                    )}
+                    <span className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full text-white text-[10px] font-black flex items-center justify-center ${
+                      i === variationIndex ? 'bg-blue-600' : 'bg-black/70'
+                    }`}>
+                      {i + 1}
+                    </span>
+                  </div>
+                  <span className="block px-2 py-1.5 text-[11px] font-bold leading-tight text-gray-800 dark:text-slate-200 line-clamp-2">
+                    {t(v.name)}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* HOW TO PERFORM GUIDE */}

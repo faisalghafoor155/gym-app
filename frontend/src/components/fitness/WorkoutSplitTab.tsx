@@ -1,7 +1,7 @@
 import { Dumbbell, Award, Activity, CheckCircle2, ChevronRight, Calendar, Layers, Compass, Image as ImageIcon } from 'lucide-react';
 import { Card, FieldLabel, inputClass } from '../ui';
 import { WORKOUT_SPLIT_DAYS, type Muscle, type MacroResult, type OneRmResult, type PhotoMuscle } from './data';
-import { WORKOUT_GAMES_PHOTOS } from './ExercisePhotoModal';
+import { WORKOUT_GAMES_PHOTOS, PHOTO_MUSCLE_TABS, gameVariations } from './ExercisePhotoModal';
 import { useLanguage } from '../../context/LanguageContext';
 
 interface WorkoutSplitTabProps {
@@ -103,147 +103,128 @@ export default function WorkoutSplitTab({
         </div>
       </Card>
 
-      {/* INTERACTIVE WORKOUT GAME PHOTO VIEWER (Instant picture on click) */}
-      <Card className="p-4 sm:p-5 border-t-4 border-t-blue-600 space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 dark:border-slate-800 pb-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
-              <ImageIcon size={19} />
+      {/* WORKOUT GAMES GALLERY: every game is a card of its own, grouped by muscle */}
+      <Card className="p-4 sm:p-5 space-y-4">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950 p-4 sm:p-5 text-white">
+          <div className="absolute -right-10 -top-10 w-44 h-44 rounded-full bg-blue-500/20 blur-2xl" aria-hidden="true" />
+          <div className="absolute -left-8 -bottom-12 w-36 h-36 rounded-full bg-indigo-500/20 blur-2xl" aria-hidden="true" />
+          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 text-blue-300 flex items-center justify-center shrink-0 backdrop-blur-xs">
+                <ImageIcon size={23} />
+              </div>
+              <div>
+                <h3 className="font-black text-base sm:text-lg leading-tight">
+                  {t('Workout Games — Real Photos & Correct Form')}
+                </h3>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  {t('Tap a game to see its start and end photos, every variation and the correct form.')}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm flex items-center gap-1.5">
-                <span>{t('🖼️ Pick an Exercise — Real Photo & How to Do It')}</span>
-              </h3>
-              <p className="text-[11px] text-gray-500 dark:text-slate-400">
-                {t('Click any exercise to instantly see its real photo and correct form!')}
-              </p>
+            <div className="flex items-center gap-2 shrink-0">
+              {[
+                { value: WORKOUT_GAMES_PHOTOS.length, label: 'Games' },
+                { value: WORKOUT_GAMES_PHOTOS.reduce((n, ex) => n + gameVariations(ex).length, 0), label: 'Variations' },
+              ].map(stat => (
+                <div key={stat.label} className="px-3.5 py-2 rounded-xl bg-white/10 border border-white/15 text-center backdrop-blur-xs">
+                  <span className="block text-lg font-black leading-none">{stat.value}</span>
+                  <span className="text-[10px] uppercase tracking-wider text-blue-200 font-bold">{t(stat.label)}</span>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setShowPhotoModal(true)}
+                className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition flex items-center gap-1 shadow-lg shadow-blue-600/30"
+              >
+                <span>{t('Full-Screen Gallery')}</span>
+                <ChevronRight size={14} />
+              </button>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowPhotoModal(true)}
-            className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center gap-1 shrink-0 self-start sm:self-auto"
-          >
-            <span>{t('Full-Screen Gallery')}</span>
-            <ChevronRight size={14} />
-          </button>
         </div>
 
         {/* Muscle Switcher Tabs */}
-        <div className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-gray-100 dark:bg-slate-800/80 border border-gray-200 dark:border-slate-700">
-          {(
-            [
-              { key: 'chest', label: '🔥 Chest' },
-              { key: 'back', label: '🛡️ Back' },
-              { key: 'shoulders', label: '⚡ Shoulders' },
-              { key: 'legs', label: '🦵 Legs' },
-              { key: 'arms', label: '💪 Arms' },
-              { key: 'abs', label: '🧱 Abs' },
-            ] as const
-          ).map(tab => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => {
-                setSelectedPhotoMuscle(tab.key);
-                const firstInMuscle = WORKOUT_GAMES_PHOTOS.find(e => e.muscle === tab.key);
-                if (firstInMuscle) setSelectedPhotoExercise(firstInMuscle.id);
-              }}
-              className={`flex-1 py-1 px-2.5 rounded-lg text-xs font-bold transition text-center ${
-                selectedPhotoMuscle === tab.key
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
-              }`}
-            >
-              {t(tab.label)}
-            </button>
-          ))}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+          {PHOTO_MUSCLE_TABS.map(tab => {
+            const count = WORKOUT_GAMES_PHOTOS.filter(e => e.muscle === tab.key).length;
+            const active = selectedPhotoMuscle === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setSelectedPhotoMuscle(tab.key)}
+                aria-pressed={active}
+                className={`shrink-0 py-2 px-3.5 rounded-xl text-xs font-bold transition flex items-center gap-2 border ${
+                  active
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/25'
+                    : 'bg-white dark:bg-slate-800/60 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:border-blue-400'
+                }`}
+              >
+                <span>{t(tab.label)}</span>
+                <span className={`min-w-5 h-5 px-1 rounded-full text-[10px] font-black flex items-center justify-center ${
+                  active ? 'bg-white/20 text-white' : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-300'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Exercise Selector Pills for Active Muscle */}
-        <div className="flex flex-wrap gap-1.5">
-          {WORKOUT_GAMES_PHOTOS.filter(e => e.muscle === selectedPhotoMuscle).map(ex => (
+        {/* One card per game */}
+        <div key={selectedPhotoMuscle} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 animate-fade-in">
+          {WORKOUT_GAMES_PHOTOS.filter(e => e.muscle === selectedPhotoMuscle).map((ex, i) => (
             <button
               key={ex.id}
               type="button"
-              onClick={() => setSelectedPhotoExercise(ex.id)}
-              className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 ${
+              onClick={() => {
+                setSelectedPhotoMuscle(ex.muscle);
+                setSelectedPhotoExercise(ex.id);
+                setShowPhotoModal(true);
+              }}
+              className={`group text-left rounded-2xl overflow-hidden border bg-white dark:bg-slate-900 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition duration-300 ${
                 selectedPhotoExercise === ex.id
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                  : 'border-gray-200 dark:border-slate-800 text-gray-700 dark:text-slate-300 bg-white dark:bg-slate-800/60 hover:border-gray-300'
+                  ? 'border-blue-500 ring-2 ring-blue-500/30'
+                  : 'border-gray-200 dark:border-slate-800 hover:border-blue-400'
               }`}
             >
-              <Dumbbell size={12} className="shrink-0" />
-              <span>{t(ex.name)}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Real Photo & Form Guide Card */}
-        {(() => {
-          const activePhotoEx = WORKOUT_GAMES_PHOTOS.find(e => e.id === selectedPhotoExercise) || WORKOUT_GAMES_PHOTOS[0]!;
-          return (
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-3.5 rounded-2xl bg-gray-50/80 dark:bg-slate-850 border border-gray-200 dark:border-slate-800 mt-1">
-              <div
-                className="md:col-span-5 relative rounded-xl overflow-hidden border border-slate-700 bg-slate-950 shadow-md group cursor-pointer"
-                onClick={() => setShowPhotoModal(true)}
-              >
+              <div className="relative aspect-[4/3] overflow-hidden bg-white">
                 <img
-                  src={activePhotoEx.image}
-                  alt={t(activePhotoEx.name)}
-                  className="w-full h-48 sm:h-56 object-cover group-hover:scale-105 transition duration-300 select-none"
+                  src={ex.image}
+                  alt=""
+                  loading="lazy"
+                  className="w-full h-full object-cover select-none group-hover:scale-110 transition duration-500"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent flex items-end p-2.5">
-                  <span className="text-[11px] font-bold text-white flex items-center gap-1">
-                    <ImageIcon size={13} className="text-blue-400" />
-                    <span>{t('Click to see the full-screen photo')}</span>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-transparent" />
+                <span className="absolute top-2 left-2 w-8 h-8 rounded-xl bg-blue-600 text-white text-xs font-black flex items-center justify-center shadow-lg shadow-black/30">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span className="absolute top-2 right-2 flex items-center gap-1 text-[10px] font-bold text-white bg-black/60 backdrop-blur-xs px-2 py-0.5 rounded-full border border-white/20">
+                  <Layers size={10} />
+                  {t('{count} variations', { count: gameVariations(ex).length })}
+                </span>
+                <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition duration-300">
+                  <span className="px-3 py-1.5 rounded-full bg-white/95 text-gray-900 text-xs font-black shadow-xl flex items-center gap-1">
+                    <ImageIcon size={13} /> {t('View')}
+                  </span>
+                </span>
+                <div className="absolute bottom-0 inset-x-0 p-2.5">
+                  <h4 className="text-white font-black text-xs sm:text-sm leading-tight line-clamp-2">{t(ex.name)}</h4>
+                  <span className="text-[10px] sm:text-[11px] font-bold text-emerald-300">
+                    {t(ex.sets)} · {t(ex.reps)}
                   </span>
                 </div>
               </div>
-
-              <div className="md:col-span-7 flex flex-col justify-between space-y-2">
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                      {lang === 'ur' ? activePhotoEx.muscleUrdu : activePhotoEx.muscleLabel}
-                    </span>
-                    <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">
-                      {t(activePhotoEx.sets)} · {t(activePhotoEx.reps)}
-                    </span>
-                  </div>
-                  <h4 className="text-base font-black text-gray-900 dark:text-slate-100 mt-1">
-                    {t(activePhotoEx.name)}
-                  </h4>
-                  <p className="text-xs text-gray-700 dark:text-slate-300 mt-1 leading-relaxed">
-                    <strong>{t('How to Do It:')}</strong> {lang === 'ur' ? activePhotoEx.howToUrdu : activePhotoEx.howTo}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] pt-1">
-                  <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/30 text-emerald-950 dark:text-emerald-200">
-                    <strong className="block text-emerald-700 dark:text-emerald-400 font-bold mb-0.5">{t('✓ Correct Form:')}</strong>
-                    {t(activePhotoEx.goodFormTips[0] ?? '')}
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/30 text-rose-950 dark:text-rose-200">
-                    <strong className="block text-rose-700 dark:text-rose-400 font-bold mb-0.5">{t('✗ Avoid This Mistake:')}</strong>
-                    {t(activePhotoEx.mistakesToAvoid[0] ?? '')}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setShowPhotoModal(true)}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white transition flex items-center gap-1.5 shadow-xs"
-                  >
-                    <ImageIcon size={13} />
-                    <span>{t('See Big Photo & Full Form')}</span>
-                  </button>
-                </div>
+              <div className="px-2.5 py-2 flex items-center justify-between gap-2">
+                <span className="text-[10px] sm:text-[11px] font-semibold text-gray-500 dark:text-slate-400 truncate">
+                  {lang === 'ur' ? ex.muscleUrdu : ex.muscleLabel}
+                </span>
+                <ChevronRight size={15} className="text-blue-600 dark:text-blue-400 shrink-0 group-hover:translate-x-0.5 transition" />
               </div>
-            </div>
-          );
-        })()}
+            </button>
+          ))}
+        </div>
       </Card>
 
       {/* The 5 Workout Days Cards */}
