@@ -1,6 +1,6 @@
 import { Dumbbell, Award, Activity, CheckCircle2, ChevronRight, Calendar, Layers, Compass, Image as ImageIcon } from 'lucide-react';
 import { Card, FieldLabel, inputClass } from '../ui';
-import { WORKOUT_SPLIT_DAYS, type Muscle, type MacroResult, type OneRmResult } from './data';
+import { WORKOUT_SPLIT_DAYS, type Muscle, type MacroResult, type OneRmResult, type PhotoMuscle } from './data';
 import { WORKOUT_GAMES_PHOTOS } from './ExercisePhotoModal';
 import { useLanguage } from '../../context/LanguageContext';
 
@@ -16,13 +16,13 @@ interface WorkoutSplitTabProps {
   setSelectedAngleMuscle: React.Dispatch<React.SetStateAction<Muscle>>;
   setShowPhotoModal: React.Dispatch<React.SetStateAction<boolean>>;
   setSelectedPhotoExercise: React.Dispatch<React.SetStateAction<string>>;
-  setSelectedPhotoMuscle: React.Dispatch<React.SetStateAction<Muscle>>;
+  setSelectedPhotoMuscle: React.Dispatch<React.SetStateAction<PhotoMuscle>>;
   exerciseSelectId: string;
   liftWeightInputId: string;
   liftRepsInputId: string;
   macros: MacroResult;
   oneRm: OneRmResult;
-  selectedPhotoMuscle: Muscle;
+  selectedPhotoMuscle: PhotoMuscle;
   selectedPhotoExercise: string;
 }
 
@@ -138,6 +138,7 @@ export default function WorkoutSplitTab({
               { key: 'shoulders', label: '⚡ Shoulders' },
               { key: 'legs', label: '🦵 Legs' },
               { key: 'arms', label: '💪 Arms' },
+              { key: 'abs', label: '🧱 Abs' },
             ] as const
           ).map(tab => (
             <button

@@ -10,7 +10,7 @@ import { useLanguage } from '../context/LanguageContext';
 import type { Measurement } from '../types';
 import toast from 'react-hot-toast';
 import {
-  type AiAnswer, type CalcTab, type DietPreference, type Gender, type Goal, type Muscle,
+  type AiAnswer, type CalcTab, type DietPreference, type Gender, type Goal, type Muscle, type PhotoMuscle,
 } from '../components/fitness/data';
 import {
   calculateMacros, calculateOneRm, getAiDietGuidance, buildMealDistribution, computeGainerNumbers,
@@ -78,7 +78,7 @@ export default function FitnessCalculator() {
   // Exercise Real Photo Modal & Viewer State ("Jo bhi game select karon pic dikha de")
   const [showPhotoModal, setShowPhotoModal] = useState<boolean>(false);
   const [selectedPhotoExercise, setSelectedPhotoExercise] = useState<string>('flat_bench');
-  const [selectedPhotoMuscle, setSelectedPhotoMuscle] = useState<Muscle>('chest');
+  const [selectedPhotoMuscle, setSelectedPhotoMuscle] = useState<PhotoMuscle>('chest');
 
   // AI Chat Q&A State
   const [userQuery, setUserQuery] = useState('');

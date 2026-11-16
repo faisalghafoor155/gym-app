@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { closeDialog, useDialog } from '../../hooks/useDialog';
 import { useLanguage } from '../../context/LanguageContext';
+import type { PhotoMuscle } from './data';
 
 /**
  * The muscle label and the how-to come in both languages (`muscleLabel` /
@@ -12,14 +13,23 @@ import { useLanguage } from '../../context/LanguageContext';
  * Every other text field is English and doubles as its `t()` key, with the
  * Roman Urdu in i18n/ur/fitness-exercises.ts.
  */
+export interface GalleryPhoto {
+  src: string;
+  /** The variation shown; English, doubles as its `t()` key. */
+  variant: string;
+  phase?: 'Start position' | 'End position';
+}
+
 export interface ExercisePhotoItem {
   id: string;
   name: string;
-  muscle: 'chest' | 'back' | 'shoulders' | 'legs' | 'arms';
+  muscle: PhotoMuscle;
   muscleLabel: string;
   muscleUrdu: string;
   targetArea: string;
   image: string;
+  /** More angles of the same game: start and end photo of each variation. */
+  gallery: GalleryPhoto[];
   sets: string;
   reps: string;
   howTo: string;
@@ -27,6 +37,26 @@ export interface ExercisePhotoItem {
   goodFormTips: string[];
   mistakesToAvoid: string[];
 }
+
+/**
+ * The start and end photo of each variation, kept in
+ * public/exercises/gallery/<game>/<file>_0.jpg and _1.jpg. The photos come
+ * from free-exercise-db (github.com/yuhonas/free-exercise-db, public domain).
+ */
+const angles = (game: string, variants: Record<string, string>): GalleryPhoto[] =>
+  Object.entries(variants).flatMap(([file, variant]) =>
+    (['Start position', 'End position'] as const).map((phase, i) => ({
+      src: `/exercises/gallery/${game}/${file}_${i}.jpg`,
+      variant,
+      phase,
+    }))
+  );
+
+/** Every photo of a game: its main photo first, then the gallery. */
+export const gamePhotos = (ex: ExercisePhotoItem): GalleryPhoto[] => [
+  { src: ex.image, variant: ex.name },
+  ...ex.gallery.filter(p => p.src !== ex.image),
+];
 
 export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
   // CHEST
@@ -38,6 +68,12 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
     muscleUrdu: 'Seena (Overall Chest Mass)',
     targetArea: 'Mid Chest & Overall Thickness',
     image: '/exercises/flat_bench.jpg',
+    gallery: angles('flat_bench', {
+      'Barbell_Bench_Press_-_Medium_Grip': 'Barbell Bench Press - Medium Grip',
+      'Wide-Grip_Barbell_Bench_Press': 'Wide-Grip Barbell Bench Press',
+      'Dumbbell_Bench_Press': 'Dumbbell Bench Press',
+      'Smith_Machine_Bench_Press': 'Smith Machine Bench Press',
+    }),
     sets: '4 Sets',
     reps: '6-10 Reps',
     howTo: 'Lie on the bench, lower the bar with control to between the collarbone and the nipple line, and press it up with the strength of your chest.',
@@ -61,6 +97,12 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
     muscleUrdu: 'Upper Chest (Seenay ka Oopri Hissa)',
     targetArea: 'Upper Clavicular Chest Shelf',
     image: '/exercises/incline_bench.jpg',
+    gallery: angles('incline_bench', {
+      'Barbell_Incline_Bench_Press_-_Medium_Grip': 'Barbell Incline Bench Press - Medium Grip',
+      'Incline_Dumbbell_Press': 'Incline Dumbbell Press',
+      'Smith_Machine_Incline_Bench_Press': 'Smith Machine Incline Bench Press',
+      'Hammer_Grip_Incline_DB_Bench_Press': 'Hammer Grip Incline DB Bench Press',
+    }),
     sets: '3-4 Sets',
     reps: '8-10 Reps',
     howTo: 'Set the bench at a 30° to 45° incline. Lower the weight with control near the collarbone and push with the upper chest.',
@@ -83,6 +125,12 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
     muscleUrdu: 'Nichla Seena aur Triceps',
     targetArea: 'Lower Pec Line',
     image: '/exercises/dips.jpg',
+    gallery: angles('dips', {
+      'Dips_-_Chest_Version': 'Dips - Chest Version',
+      'Parallel_Bar_Dip': 'Parallel Bar Dip',
+      'Dip_Machine': 'Dip Machine',
+      'Ring_Dips': 'Ring Dips',
+    }),
     sets: '3 Sets',
     reps: '10-12 Reps',
     howTo: 'On the parallel bars, lean the body slightly forward and go down so the load lands on the lower chest.',
@@ -105,6 +153,12 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
     muscleUrdu: 'Seenay ki Lakeer (Inner & Outer Pecs)',
     targetArea: 'Chest Line & Blood Pump',
     image: '/exercises/cable_flyes.jpg',
+    gallery: angles('cable_flyes', {
+      'Cable_Crossover': 'Cable Crossover',
+      'Low_Cable_Crossover': 'Low Cable Crossover',
+      'Flat_Bench_Cable_Flyes': 'Flat Bench Cable Flyes',
+      'Incline_Cable_Flye': 'Incline Cable Flye',
+    }),
     sets: '3 Sets',
     reps: '12-15 Reps',
     howTo: 'Hold the handles of both pulleys, bring the hands together in front of the chest and squeeze the chest tight.',
@@ -129,6 +183,12 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
     muscleUrdu: 'Peeth aur Spine (Back Thickness & Power)',
     targetArea: 'Overall Back, Spinal Erectors, Traps & Glutes',
     image: '/exercises/deadlift.jpg',
+    gallery: angles('deadlift', {
+      'Barbell_Deadlift': 'Barbell Deadlift',
+      'Sumo_Deadlift': 'Sumo Deadlift',
+      'Romanian_Deadlift': 'Romanian Deadlift',
+      'Trap_Bar_Deadlift': 'Trap Bar Deadlift',
+    }),
     sets: '4 Sets',
     reps: '5-6 Reps (Heavy)',
     howTo: 'Stand right next to the barbell, keep the back straight and the chest up, and lift the weight by pushing the floor away with your feet.',
@@ -151,6 +211,12 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
     muscleUrdu: 'Lats (Peeth ki Choorai / V-Taper)',
     targetArea: 'Upper Lats & V-Shape Width',
     image: '/exercises/lat_pulldown.jpg',
+    gallery: angles('lat_pulldown', {
+      'Wide-Grip_Lat_Pulldown': 'Wide-Grip Lat Pulldown',
+      'Close-Grip_Front_Lat_Pulldown': 'Close-Grip Front Lat Pulldown',
+      'V-Bar_Pulldown': 'V-Bar Pulldown',
+      'Underhand_Cable_Pulldowns': 'Underhand Cable Pulldowns',
+    }),
     sets: '4 Sets',
     reps: '8-12 Reps',
     howTo: 'Sit on the machine, take the bar with a wide grip and pull it to the top of the chest (collarbone).',
@@ -173,6 +239,12 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
     muscleUrdu: 'Peeth ki Motai (Mid-Back & Rhomboids)',
     targetArea: 'Middle Back Density & Thickness',
     image: '/exercises/bent_over_row.jpg',
+    gallery: angles('bent_over_row', {
+      'Bent_Over_Barbell_Row': 'Bent Over Barbell Row',
+      'Reverse_Grip_Bent-Over_Rows': 'Reverse Grip Bent-Over Rows',
+      'Bent_Over_Two-Dumbbell_Row': 'Bent Over Two-Dumbbell Row',
+      'One-Arm_Dumbbell_Row': 'One-Arm Dumbbell Row',
+    }),
     sets: '3-4 Sets',
     reps: '8-10 Reps',
     howTo: 'Bend 45° forward at the waist, pull the bar toward the belly button and squeeze both sides of the back together.',
@@ -197,6 +269,12 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
     muscleUrdu: 'Kandhay (Front Deltoids & Shoulder Power)',
     targetArea: 'Overall Shoulder Mass & Overhead Strength',
     image: '/exercises/overhead_press.jpg',
+    gallery: angles('overhead_press', {
+      'Standing_Military_Press': 'Standing Military Press',
+      'Seated_Barbell_Military_Press': 'Seated Barbell Military Press',
+      'Dumbbell_Shoulder_Press': 'Dumbbell Shoulder Press',
+      'Arnold_Dumbbell_Press': 'Arnold Dumbbell Press',
+    }),
     sets: '4 Sets',
     reps: '6-8 Reps',
     howTo: 'Press the barbell from the upper chest to a lockout straight overhead, and lower it slowly with control to the chin.',
@@ -219,6 +297,12 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
     muscleUrdu: 'Side Delts (Kandhon ki Choorai / Boulders)',
     targetArea: 'Side Lateral Deltoid Width',
     image: '/exercises/lateral_raise.jpg',
+    gallery: angles('lateral_raise', {
+      'Side_Lateral_Raise': 'Side Lateral Raise',
+      'Seated_Side_Lateral_Raise': 'Seated Side Lateral Raise',
+      'Cable_Seated_Lateral_Raise': 'Cable Seated Lateral Raise',
+      'One-Arm_Incline_Lateral_Raise': 'One-Arm Incline Lateral Raise',
+    }),
     sets: '4 Sets',
     reps: '12-15 Reps',
     howTo: 'Hold a dumbbell in each hand, raise them out to both sides up to shoulder height and lower them with control.',
@@ -243,6 +327,12 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
     muscleUrdu: 'Taangein (Quads, Hamstrings & Glutes)',
     targetArea: 'Overall Lower Body Mass & Testosterone Booster',
     image: '/exercises/barbell_squats.jpg',
+    gallery: angles('barbell_squats', {
+      'Barbell_Squat': 'Barbell Squat',
+      'Barbell_Full_Squat': 'Barbell Full Squat',
+      'Front_Barbell_Squat': 'Front Barbell Squat',
+      'Goblet_Squat': 'Goblet Squat',
+    }),
     sets: '4 Sets',
     reps: '8-10 Reps',
     howTo: 'With the barbell on your upper back, slowly sit down until the thighs are parallel to the floor, then stand back up.',
@@ -266,6 +356,12 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
     muscleUrdu: 'Quads & Thighs (Raan ki Mazbooti)',
     targetArea: 'Quad Sweep & Leg Thickness',
     image: '/exercises/leg_press.jpg',
+    gallery: angles('leg_press', {
+      'Leg_Press': 'Leg Press',
+      'Narrow_Stance_Leg_Press': 'Narrow Stance Leg Press',
+      'Smith_Machine_Leg_Press': 'Smith Machine Leg Press',
+      'Hack_Squat': 'Hack Squat',
+    }),
     sets: '4 Sets',
     reps: '10-12 Reps',
     howTo: 'Sit on the machine, place the feet shoulder-width apart on the platform, lower the weight with control and push.',
@@ -290,6 +386,12 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
     muscleUrdu: 'Biceps (Dola / Baazu ka Oopri Hissa)',
     targetArea: 'Bicep Peak & Arm Thickness',
     image: '/exercises/bicep_curl.jpg',
+    gallery: angles('bicep_curl', {
+      'Barbell_Curl': 'Barbell Curl',
+      'Dumbbell_Bicep_Curl': 'Dumbbell Bicep Curl',
+      'Hammer_Curls': 'Hammer Curls',
+      'EZ-Bar_Curl': 'EZ-Bar Curl',
+    }),
     sets: '4 Sets',
     reps: '8-12 Reps',
     howTo: 'Keeping the elbows pinned to the body, curl the barbell toward the shoulders and squeeze the bicep for 1 second at the top.',
@@ -312,6 +414,12 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
     muscleUrdu: 'Triceps (Baazu ka Pichla Hissa - Baazu ka 60%)',
     targetArea: 'Tricep Horseshoe & Lateral Head',
     image: '/exercises/tricep_pushdown.jpg',
+    gallery: angles('tricep_pushdown', {
+      'Triceps_Pushdown_-_Rope_Attachment': 'Triceps Pushdown - Rope Attachment',
+      'Triceps_Pushdown': 'Triceps Pushdown',
+      'Triceps_Pushdown_-_V-Bar_Attachment': 'Triceps Pushdown - V-Bar Attachment',
+      'Reverse_Grip_Triceps_Pushdown': 'Reverse Grip Triceps Pushdown',
+    }),
     sets: '4 Sets',
     reps: '10-12 Reps',
     howTo: 'Hold the rope on the cable machine, push straight down and spread the rope out to both sides at the end.',
@@ -326,13 +434,102 @@ export const WORKOUT_GAMES_PHOTOS: ExercisePhotoItem[] = [
       'Pushing the weight down with the shoulders.',
     ],
   },
+
+  // ABS
+  {
+    id: 'crunches',
+    name: 'Crunches',
+    muscle: 'abs',
+    muscleLabel: 'Upper Abs (Six Pack)',
+    muscleUrdu: 'Pait ke Oopri Muscles (Six Pack)',
+    targetArea: 'Upper Abs & Rectus Abdominis',
+    image: '/exercises/gallery/crunches/Crunches_1.jpg',
+    gallery: angles('crunches', {
+      'Crunches': 'Crunches',
+      'Weighted_Crunches': 'Weighted Crunches',
+      'Cable_Crunch': 'Cable Crunch',
+      'Decline_Crunch': 'Decline Crunch',
+      'Oblique_Crunches_-_On_The_Floor': 'Oblique Crunches - On The Floor',
+    }),
+    sets: '3 Sets',
+    reps: '15-20 Reps',
+    howTo: 'Lie on your back with the knees bent, and curl the shoulders off the floor by squeezing the abs, not by pulling the neck.',
+    howToUrdu: 'Kamar ke bal let kar ghutne mor lein, aur gardan kheenchne ke bajaye pait ko squeeze kar ke kandhay zameen se oopar uthayein.',
+    goodFormTips: [
+      'Keep the lower back pressed into the floor the whole time.',
+      'Breathe out as you come up and squeeze the abs for 1 second at the top.',
+      'Keep a fist of space between the chin and the chest.',
+    ],
+    mistakesToAvoid: [
+      'Pulling the head up with the hands, which strains the neck.',
+      'Swinging up with momentum instead of the abs.',
+    ],
+  },
+  {
+    id: 'hanging_leg_raise',
+    name: 'Hanging Leg Raise',
+    muscle: 'abs',
+    muscleLabel: 'Lower Abs',
+    muscleUrdu: 'Pait ke Nichle Muscles (Lower Abs)',
+    targetArea: 'Lower Abs & Hip Flexors',
+    image: '/exercises/gallery/hanging_leg_raise/Hanging_Leg_Raise_1.jpg',
+    gallery: angles('hanging_leg_raise', {
+      'Hanging_Leg_Raise': 'Hanging Leg Raise',
+      'Flat_Bench_Lying_Leg_Raise': 'Flat Bench Lying Leg Raise',
+      'Reverse_Crunch': 'Reverse Crunch',
+      'Decline_Reverse_Crunch': 'Decline Reverse Crunch',
+      'Flutter_Kicks': 'Flutter Kicks',
+    }),
+    sets: '3 Sets',
+    reps: '10-15 Reps',
+    howTo: 'Hang from the pull-up bar and raise the legs up by curling the hips toward the chest, then lower them slowly.',
+    howToUrdu: 'Pull-up bar se latak kar hips ko seenay ki taraf mor kar taangein oopar uthayein, phir aahista niche layein.',
+    goodFormTips: [
+      'Tilt the pelvis up at the top so the lower abs do the work.',
+      'Lower the legs slowly in 2-3 seconds without swinging.',
+      'Beginners can start with bent knees.',
+    ],
+    mistakesToAvoid: [
+      'Swinging the whole body back and forth.',
+      'Only lifting the legs to 90° without curling the hips.',
+    ],
+  },
+  {
+    id: 'plank',
+    name: 'Plank & Core Stability',
+    muscle: 'abs',
+    muscleLabel: 'Full Core',
+    muscleUrdu: 'Poora Core (Pait aur Kamar)',
+    targetArea: 'Deep Core, Obliques & Lower Back',
+    image: '/exercises/gallery/plank/Plank_1.jpg',
+    gallery: angles('plank', {
+      'Plank': 'Plank',
+      'Push_Up_to_Side_Plank': 'Push Up to Side Plank',
+      'Ab_Roller': 'Ab Roller',
+      'Barbell_Ab_Rollout_-_On_Knees': 'Barbell Ab Rollout - On Knees',
+      'Russian_Twist': 'Russian Twist',
+    }),
+    sets: '3 Sets',
+    reps: '30-60 Seconds',
+    howTo: 'Rest on the forearms and toes and hold the body in one straight line from head to heels while squeezing the abs and glutes.',
+    howToUrdu: 'Forearms aur panjon par tik kar sar se aeriyon tak jism ko aik seedhi line mein rakhein aur pait aur hips ko squeeze kar ke hold karein.',
+    goodFormTips: [
+      'Keep the elbows directly under the shoulders.',
+      'Squeeze the glutes and abs so the hips stay level.',
+      'Keep breathing normally; do not hold your breath.',
+    ],
+    mistakesToAvoid: [
+      'Letting the hips sag down, which loads the lower back.',
+      'Pushing the hips too high into the air.',
+    ],
+  },
 ];
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   initialExerciseId?: string;
-  initialMuscle?: 'chest' | 'back' | 'shoulders' | 'legs' | 'arms';
+  initialMuscle?: PhotoMuscle;
 }
 
 export default function ExercisePhotoModal({
@@ -342,7 +539,7 @@ export default function ExercisePhotoModal({
   initialMuscle = 'chest',
 }: Props) {
   const { lang, t } = useLanguage();
-  const [selectedMuscle, setSelectedMuscle] = useState<'chest' | 'back' | 'shoulders' | 'legs' | 'arms'>(initialMuscle);
+  const [selectedMuscle, setSelectedMuscle] = useState<PhotoMuscle>(initialMuscle);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string>(
     initialExerciseId || 'flat_bench'
   );
@@ -367,7 +564,15 @@ export default function ExercisePhotoModal({
     filteredExercises[0] ||
     WORKOUT_GAMES_PHOTOS[0]!;
 
-  const handleMuscleChange = (muscle: 'chest' | 'back' | 'shoulders' | 'legs' | 'arms') => {
+  // The photo shown within the game; it goes back to the first photo when the game changes.
+  const [shownPhoto, setShownPhoto] = useState({ id: '', index: 0 });
+  const photos = gamePhotos(activeExercise);
+  const photoIndex = shownPhoto.id === activeExercise.id ? shownPhoto.index : 0;
+  const activePhoto = photos[photoIndex] ?? photos[0]!;
+  const showPhoto = (index: number) =>
+    setShownPhoto({ id: activeExercise.id, index: (index + photos.length) % photos.length });
+
+  const handleMuscleChange = (muscle: PhotoMuscle) => {
     setSelectedMuscle(muscle);
     const firstInMuscle = WORKOUT_GAMES_PHOTOS.find(e => e.muscle === muscle);
     if (firstInMuscle) setSelectedExerciseId(firstInMuscle.id);
@@ -442,6 +647,7 @@ export default function ExercisePhotoModal({
                 { key: 'shoulders', label: '⚡ Shoulders' },
                 { key: 'legs', label: '🦵 Legs' },
                 { key: 'arms', label: '💪 Arms' },
+                { key: 'abs', label: '🧱 Abs' },
               ] as const
             ).map(tab => (
               <button
@@ -482,9 +688,10 @@ export default function ExercisePhotoModal({
           <div className="relative rounded-2xl overflow-hidden border-2 border-slate-800 bg-slate-950 shadow-xl group">
             {/* The Exercise Photo */}
             <img
-              src={activeExercise.image}
-              alt={t(activeExercise.name)}
-              className="w-full h-auto object-cover max-h-[380px] sm:max-h-[440px] mx-auto select-none"
+              key={activePhoto.src}
+              src={activePhoto.src}
+              alt={t(activePhoto.variant)}
+              className="w-full h-64 sm:h-[420px] object-contain mx-auto select-none animate-fade-in"
               loading="eager"
             />
 
@@ -498,27 +705,51 @@ export default function ExercisePhotoModal({
               <span>{t(activeExercise.sets)} · {t(activeExercise.reps)}</span>
             </div>
 
-            {/* Next / Previous Overlay Arrows */}
+            {/* Next / Previous Photo Arrows */}
             <button
               type="button"
-              onClick={handlePrev}
-              aria-label={t('Previous Exercise')}
+              onClick={() => showPhoto(photoIndex - 1)}
+              aria-label={t('Previous Photo')}
               className="absolute left-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 transition shadow-lg"
             >
               <ChevronLeft size={22} />
             </button>
             <button
               type="button"
-              onClick={handleNext}
-              aria-label={t('Next Exercise')}
+              onClick={() => showPhoto(photoIndex + 1)}
+              aria-label={t('Next Photo')}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-xs border border-white/20 transition shadow-lg"
             >
               <ChevronRight size={22} />
             </button>
 
-            <div className="absolute bottom-2 right-3 text-[11px] text-slate-300 bg-black/70 px-2.5 py-1 rounded-md backdrop-blur-xs">
+            <div className="absolute bottom-2 left-3 max-w-[60%] text-[11px] font-bold text-white bg-black/70 px-2.5 py-1 rounded-md backdrop-blur-xs truncate">
+              {photoIndex + 1}/{photos.length} · {t(activePhoto.variant)}
+              {activePhoto.phase && <span className="text-blue-300"> · {t(activePhoto.phase)}</span>}
+            </div>
+            <div className="absolute bottom-2 right-3 text-[11px] text-slate-300 bg-black/70 px-2.5 py-1 rounded-md backdrop-blur-xs hidden sm:block">
               {t('Target: {area}', { area: t(activeExercise.targetArea) })}
             </div>
+          </div>
+
+          {/* All Photos of this Game */}
+          <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label={t('Photos of this game')}>
+            {photos.map((p, i) => (
+              <button
+                key={p.src}
+                type="button"
+                onClick={() => showPhoto(i)}
+                aria-label={`${t(p.variant)}${p.phase ? ` · ${t(p.phase)}` : ''}`}
+                aria-pressed={i === photoIndex}
+                className={`shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition ${
+                  i === photoIndex
+                    ? 'border-blue-600 ring-2 ring-blue-500/30'
+                    : 'border-transparent opacity-70 hover:opacity-100'
+                }`}
+              >
+                <img src={p.src} alt="" loading="lazy" className="w-full h-full object-cover select-none" />
+              </button>
+            ))}
           </div>
 
           {/* HOW TO PERFORM GUIDE */}

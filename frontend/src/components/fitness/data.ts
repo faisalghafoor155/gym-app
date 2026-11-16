@@ -119,6 +119,8 @@ export type Gender = 'male' | 'female';
 export type Goal = 'cut_aggressive' | 'cut_moderate' | 'maintenance' | 'bulk_lean' | 'bulk_aggressive';
 export type DietPreference = 'pakistani_desi' | 'high_protein_bodybuilding' | 'budget_friendly' | 'vegetarian';
 export type Muscle = 'chest' | 'back' | 'shoulders' | 'legs' | 'arms';
+/** The photo guide also has abs games; the angle guide does not. */
+export type PhotoMuscle = Muscle | 'abs';
 
 export interface AiAnswer { question: string; answer: string; tag: string }
 
