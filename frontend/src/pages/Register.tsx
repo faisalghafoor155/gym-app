@@ -129,7 +129,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-dvh bg-gray-50 dark:bg-slate-950 py-10 px-4 sm:px-6">
+    <div className="min-h-dvh bg-gradient-to-b from-blue-50 via-slate-50 to-slate-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950 py-10 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-end mb-2">
           <LanguageToggle />
@@ -154,7 +154,7 @@ export default function Register() {
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Step 1: Choose Plan — skipped while subscriptions are switched off */}
           {SUBSCRIPTIONS_ENABLED && (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 p-6 sm:p-8">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lifted border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8">
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
@@ -266,7 +266,7 @@ export default function Register() {
           )}
 
           {/* Step 2: Gym Details */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 p-6 sm:p-8">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lifted border border-slate-200/80 dark:border-slate-800 p-6 sm:p-8">
             <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2 mb-4">
               <span className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center justify-center">{SUBSCRIPTIONS_ENABLED ? 2 : 1}</span>
               {t('Gym & Owner Details')}

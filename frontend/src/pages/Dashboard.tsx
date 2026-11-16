@@ -40,6 +40,12 @@ const shortMoney = (n: number): string => {
   return String(Math.round(n));
 };
 
+/** Morning until noon, afternoon until five, evening after — by the device's clock. */
+const greeting = (): string => {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+};
+
 const money = (n: number): string => `Rs. ${n.toLocaleString('en-PK')}`;
 
 /** 14 → "2 PM". */
@@ -60,11 +66,11 @@ function QuickAction({ to, icon: Icon, label }: {
   return (
     <Link
       to={to}
-      className={`group flex items-center gap-2.5 sm:gap-3 px-3 sm:px-3.5 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800
+      className={`group flex items-center gap-2.5 sm:gap-3 px-3 sm:px-3.5 py-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-card
         text-sm font-semibold text-slate-700 dark:text-slate-200 hover:border-blue-500/40 hover:text-blue-600 dark:hover:text-blue-400
-        hover:shadow-sm hover:-translate-y-0.5 transition-all duration-200 ${focusRing}`}
+        hover:shadow-lifted hover:-translate-y-0.5 transition-all duration-200 ${focusRing}`}
     >
-      <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-200 shadow-2xs">
+      <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-200">
         <Icon size={16} />
       </div>
       <span className="font-semibold tracking-tight leading-tight sm:truncate">{t(label)}</span>
@@ -98,7 +104,7 @@ function PanelHeader({ icon: Icon, tone, title, count, to }: {
 export default function Dashboard() {
   const [imgIndex] = useState(() => Math.floor(Math.random() * GYM_IMAGES.length));
   const [quoteIndex] = useState(() => Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length));
-  const { gym, isOwner } = useAuth();
+  const { gym, user, isOwner } = useAuth();
   const { t } = useLanguage();
 
   const { data: stats, loading } = useFetch<DashboardStats>(
@@ -135,31 +141,34 @@ export default function Dashboard() {
     <Page>
       <div className="space-y-5 sm:space-y-6">
 
-      {/* Hero Banner */}
-      <div className="relative rounded-3xl overflow-hidden h-44 sm:h-52 shadow-md ring-1 ring-black/5 dark:ring-white/10 group">
+      {/* Greeting banner: who is signed in, today's date, and the gym */}
+      <div className="relative overflow-hidden rounded-2xl bg-slate-950 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 px-5 py-6 sm:px-8 sm:py-7 text-white shadow-lifted">
         <img
           src={GYM_IMAGES[imgIndex]}
-          alt={t('Gym')}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-y-0 right-0 w-2/3 sm:w-1/2 h-full object-cover opacity-30 [mask-image:linear-gradient(to_left,black_30%,transparent)]"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-black/20" />
-        <div className="absolute inset-0 flex flex-col justify-center px-6 sm:px-8">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/30 text-[11px] font-bold uppercase tracking-wider backdrop-blur-md">
-              <Zap size={12} className="fill-yellow-400" />
-              {t('Gym Dashboard')}
-            </span>
+        <div className="absolute -top-20 -left-10 w-64 h-64 rounded-full bg-blue-500/20 blur-3xl" aria-hidden="true" />
+        <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-blue-300">
+              {new Date().toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+            <h1 className="mt-1 text-2xl sm:text-3xl font-bold font-heading tracking-tight truncate">
+              {t(greeting())}{user?.name ? `, ${user.name.split(' ')[0]}` : ''} 👋
+            </h1>
+            <p className="mt-1.5 text-sm text-slate-300 max-w-lg line-clamp-2 italic">
+              "{t(MOTIVATIONAL_QUOTES[quoteIndex] ?? '')}"
+            </p>
           </div>
-          <h1 className="text-2xl sm:text-4xl font-extrabold text-white leading-tight pr-24 sm:pr-0 font-heading tracking-tight drop-shadow-sm">
-            {gym?.name || 'GymFlow'}
-          </h1>
-          <p className="text-white/80 text-xs sm:text-sm mt-1.5 italic max-w-lg line-clamp-2 drop-shadow-sm font-medium">
-            "{t(MOTIVATIONAL_QUOTES[quoteIndex] ?? '')}"
-          </p>
-        </div>
-        <div className="absolute top-4 right-4 sm:top-5 sm:right-6 bg-white/10 backdrop-blur-md rounded-2xl px-3.5 py-2 text-right border border-white/20 max-w-[45%] sm:max-w-none shadow-sm">
-          <p className="text-white/60 text-[11px] font-medium uppercase tracking-wider">{t('Owner')}</p>
-          <p className="text-white font-bold text-xs sm:text-sm truncate font-heading">{gym?.ownerName || t('Admin')}</p>
+          <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto rounded-xl bg-white/10 border border-white/10 px-3.5 py-2 backdrop-blur-md">
+            <Zap size={15} className="text-yellow-300 fill-yellow-300 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">{t('Gym Dashboard')}</p>
+              <p className="text-sm font-bold truncate max-w-[200px] font-heading">{gym?.name || 'GymFlow'}</p>
+            </div>
+          </div>
         </div>
       </div>
 

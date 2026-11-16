@@ -247,6 +247,13 @@ html.dark {
   }
 }
 
+/** The dark sidebar's scroll rail: thin and dim, so a long nav does not grow a
+ *  light-grey bar down the side of a near-black column. */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / 0.12) transparent;
+}
+
 /* Hide scrollbar for Chrome, Safari, Opera and touch scroll rails */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

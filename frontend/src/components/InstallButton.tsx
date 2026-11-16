@@ -48,7 +48,7 @@ export default function InstallButton({ className = '', variant = 'navbar' }: In
         type="button"
         className={`inline-flex items-center justify-center gap-1 sm:gap-1.5 font-semibold transition-all active:scale-95 cursor-pointer shadow-sm ${
           variant === 'navbar'
-            ? 'px-2 sm:px-3 py-1.5 text-xs rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white shadow-blue-500/30 ring-1 ring-white/20'
+            ? 'px-2 sm:px-3 py-1.5 text-xs rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20'
             : variant === 'sidebar'
             ? 'w-full px-3 py-2 text-xs rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-md shadow-blue-600/20'
             : variant === 'compact'

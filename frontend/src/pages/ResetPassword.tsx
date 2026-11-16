@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import AuthShell from '../components/AuthShell';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import { inputClass, primaryButton } from '../components/ui';
@@ -36,8 +37,8 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-dvh bg-gray-50 dark:bg-slate-800/60 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-800 w-full max-w-md p-6 sm:p-8">
+    <AuthShell>
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-lifted border border-slate-200/80 dark:border-slate-800 w-full max-w-md p-6 sm:p-9">
         <div className="flex items-center justify-between gap-2 mb-8">
           <div className="flex items-center gap-2">
             <img src="/logo.svg" alt="" className="w-9 h-9" />
@@ -98,7 +99,7 @@ export default function ResetPassword() {
           </>
         )}
       </div>
-    </div>
+    </AuthShell>
   );
 }
 
