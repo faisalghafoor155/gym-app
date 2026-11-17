@@ -52,6 +52,7 @@ import aiRoutes from "./routes/ai.js";
 import promoCodesRoutes from "./routes/promoCodes.js";
 import referralsRoutes from "./routes/referrals.js";
 import lockersRoutes from "./routes/lockers.js";
+import leadsRoutes from "./routes/leads.js";
 import { hasLiveGateway } from "./services/gateways/index.js";
 import { hasPlatformGateway } from "./services/gateways/platform.js";
 import { biometricKeyStatus } from "./services/fingerprint/crypto.js";
@@ -393,6 +394,7 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/promo-codes", promoCodesRoutes);
 app.use("/api/referrals", referralsRoutes);
 app.use("/api/lockers", lockersRoutes);
+app.use("/api/leads", leadsRoutes);
 
 app.get("/api/health", async (req, res) => {
   // Whether mail is configured, and nothing about how. A dead transport is

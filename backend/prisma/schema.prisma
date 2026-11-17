@@ -203,6 +203,7 @@ model Gym {
   referralRewards ReferralReward[]
   promoCodes      PromoCode[]
   lockers         Locker[]
+  leads           Lead[]
 
   /// What this gym pays *us*, as opposed to everything above, which is what
   /// its members pay it. Optional because a gym is only given a billing row
@@ -301,6 +302,7 @@ model User {
   member               Member?             @relation(fields: [memberId], references: [id])
   recordedPayments     Payment[]           @relation("PaymentRecordedBy")
   recordedExpenses     Expense[]           @relation("ExpenseRecordedBy")
+  leadsCreated         Lead[]              @relation("LeadsCreated")
   recordedMeasurements MemberMeasurement[] @relation("MeasurementRecordedBy")
 
   @@index([gymId])
@@ -379,6 +381,7 @@ model Member {
   referredReward   ReferralReward?   @relation("RewardReferred")
   promoRedemptions PromoRedemption[]
   locker           Locker?
+  lead             Lead?
 
   @@unique([gymId, memberNo])
   @@index([gymId])
@@ -394,22 +397,22 @@ model Member {
 /// arithmetic is unambiguous — "31 January + 1 month" has no single right
 /// answer, "31 January + 30 days" has exactly one.
 model MembershipPlan {
-  id           String   @id @default(uuid())
-  gymId        String
-  name         String
+  id             String   @id @default(uuid())
+  gymId          String
+  name           String
   /// Money is Decimal, never Float: a gym's books have to add up to the paisa,
   /// and binary floating point cannot represent 0.1 exactly. Scale 2 matches
   /// how prices are actually quoted.
-  price        Decimal  @db.Decimal(10, 2)
-  durationDays Int
+  price          Decimal  @db.Decimal(10, 2)
+  durationDays   Int
   /// What the plan covers beyond the gym floor. A plan with a locker means a
   /// locker handed to its members carries no separate fee.
-  includesCardio Boolean @default(false)
-  includesLocker Boolean @default(false)
+  includesCardio Boolean  @default(false)
+  includesLocker Boolean  @default(false)
   /// Retired plans stay for the memberships already sold under them; they
   /// just stop being offered. Plans are never hard-deleted.
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
 
   gym            Gym             @relation(fields: [gymId], references: [id])
   memberships    Membership[]
@@ -1435,4 +1438,44 @@ model Locker {
   member Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
 
   @@unique([gymId, number])
+}
+
+/// Somebody who asked about the gym and has not joined yet — a walk-in, a call,
+/// a message off the Facebook page. Kept until they join or the desk gives up,
+/// so "who should we ring back today?" has an answer.
+model Lead {
+  id    String @id @default(uuid())
+  gymId String
+
+  name     String
+  phone    String?
+  /// Where they heard of the gym: walk-in, facebook, instagram, referral,
+  /// call, other. Free text like expense categories — the client suggests.
+  source   String  @default("walk-in")
+  /// What they came asking about — "weight loss", "PT", "ladies timing".
+  interest String?
+  notes    String?
+
+  /// new | contacted | trial | joined | lost
+  status     String    @default("new")
+  /// The day somebody should next ring them. Null once there is nothing left
+  /// to chase.
+  followUpOn DateTime?
+  /// Why they did not join, when status is lost.
+  lostReason String?
+
+  /// The member they became. `SetNull` so deleting that member leaves the
+  /// enquiry on record as joined rather than deleting it.
+  memberId String? @unique
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  gym       Gym     @relation(fields: [gymId], references: [id])
+  member    Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  createdBy User?   @relation("LeadsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([gymId, status])
+  @@index([gymId, followUpOn])
 }

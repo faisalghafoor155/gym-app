@@ -136,6 +136,9 @@ export default function Members() {
     openWhatsApp(m.phone, text);
   };
   const [showModal, setShowModal] = useState(false);
+  /** The enquiry being registered, when the form was opened from Leads. The
+   *  lead is linked to the member once the form saves. */
+  const [fromLead, setFromLead] = useState<{ id: string; prefill: { name: string; phone: string } } | null>(null);
   /** The member whose check-in code is on screen. The code itself is the
    *  modal's business. */
   const [qrMember, setQrMember] = useState<Member | null>(null);
@@ -316,11 +319,20 @@ export default function Members() {
         // updates land in the same render, so the modal mounts with the list
         // already set rather than seeing an empty one. The param is then
         // cleared so a refresh does not reopen the modal.
-        if (params.get('new')) {
+        // The leads page's "Make member" arrives the same way, carrying the
+        // enquiry's name and phone so the desk does not type them twice.
+        const leadId = params.get('lead');
+        if (params.get('new') || leadId) {
+          if (leadId) {
+            setFromLead({
+              id: leadId,
+              prefill: { name: params.get('name') ?? '', phone: params.get('phone') ?? '' },
+            });
+          }
           openAdd();
           setParams(prev => {
             const next = new URLSearchParams(prev);
-            next.delete('new');
+            for (const k of ['new', 'lead', 'name', 'phone']) next.delete(k);
             return next;
           }, { replace: true });
         }
@@ -832,9 +844,16 @@ export default function Members() {
           trainers={activeTrainers}
           settings={settings}
           fingerprintReady={fingerprintReady}
-          onClose={() => setShowModal(false)}
+          prefill={editing ? undefined : fromLead?.prefill}
+          onClose={() => { setShowModal(false); setFromLead(null); }}
           onSaved={(created, enrolFingerprint) => {
             setShowModal(false);
+            if (created && fromLead) {
+              void api.post(`/leads/${fromLead.id}/convert`, { memberId: created.id })
+                .then(() => toast.success(t('Lead marked as joined')))
+                .catch(err => toast.error(apiError(err, t('Member added, but the lead could not be marked as joined'))));
+            }
+            setFromLead(null);
             // Enrolment needs a member id, which only exists once the save has
             // returned — so the scan cannot happen inside the form and has to
             // follow it. Opening the dialog here keeps it one errand for the

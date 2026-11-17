@@ -1644,6 +1644,50 @@ export const inactiveQuerySchema = z.object({
   days: z.coerce.number().int().min(3).max(365).optional(),
 });
 
+// --- leads -------------------------------------------------------------
+
+/** Where an enquiry came from. Suggestions, not an enum — like expense
+ *  categories, a gym's channels are its own. */
+export const LEAD_SOURCES = [
+  "walk-in", "call", "whatsapp", "facebook", "instagram", "referral", "other",
+] as const;
+
+export const LEAD_STATUSES = ["new", "contacted", "trial", "joined", "lost"] as const;
+
+const leadFields = {
+  name,
+  phone: optionalText(30),
+  source: z.string().trim().min(1, "is required").max(30, "is too long").default("walk-in"),
+  interest: optionalText(120),
+  notes: optionalText(500),
+  /** "joined" is not set by hand: it is what converting a lead does, so the
+   *  enquiry is always linked to the member it became. */
+  status: z.enum(["new", "contacted", "trial", "lost"], { error: "is not a valid status" }).default("new"),
+  followUpOn: date.or(z.literal("").transform(() => null)).nullish(),
+  lostReason: optionalText(200),
+};
+
+export const createLeadSchema = z.object(leadFields);
+
+/** Partial, and without the defaults — an update that leaves `source` out must
+ *  not quietly reset it to walk-in. */
+export const updateLeadSchema = z.object({
+  ...leadFields,
+  source: leadFields.source.removeDefault().optional(),
+  status: leadFields.status.removeDefault().optional(),
+}).partial();
+
+export const leadQuerySchema = z.object({
+  status: z.enum(LEAD_STATUSES).or(blankToUndefined).optional(),
+  source: z.string().trim().max(30).transform((v) => v || undefined).optional(),
+  search: z.string().trim().max(100, "is too long").transform((v) => v || undefined).optional(),
+  /** Only the leads whose follow-up is today or already overdue. */
+  due: z.enum(["true", "false"]).optional().transform((v) => v === "true"),
+  ...pageParams(),
+});
+
+export const convertLeadSchema = z.object({ memberId: uuid });
+
 // --- lockers -----------------------------------------------------------
 
 const lockerNumber = z.string().trim().min(1, "is required").max(20, "is too long");
@@ -1714,3 +1758,8 @@ export type CreateLockersBody = z.infer<typeof createLockersSchema>;
 export type UpdateLockerBody = z.infer<typeof updateLockerSchema>;
 export type AssignLockerBody = z.infer<typeof assignLockerSchema>;
 export type SupplementProfitQuery = z.infer<typeof supplementProfitQuerySchema>;
+
+export type CreateLeadBody = z.infer<typeof createLeadSchema>;
+export type UpdateLeadBody = z.infer<typeof updateLeadSchema>;
+export type LeadQuery = z.infer<typeof leadQuerySchema>;
+export type ConvertLeadBody = z.infer<typeof convertLeadSchema>;

@@ -16,7 +16,7 @@ import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
   BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText, Sparkles, Calculator,
-  HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, ChevronDown, Settings,
+  HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, ChevronDown, Settings, PhoneCall,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -30,6 +30,8 @@ const staffNavItems: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/members', label: 'Members', icon: Users },
+  // Before they are members: who asked, and who to ring back today.
+  { to: '/leads', label: 'Leads & Enquiries', icon: PhoneCall },
   // Next to Members: an enquiry is a member who has not happened yet.
   { to: '/referrals', label: 'Referrals', icon: Gift },
   { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
@@ -100,7 +102,7 @@ const securityNavItem: NavItem = { to: '/security', label: 'Security', icon: Shi
  * listed here stays at the top level.
  */
 const NAV_GROUPS: { label: string; icon: LucideIcon; paths: string[] }[] = [
-  { label: 'Members', icon: Users, paths: ['/members', '/inactive', '/referrals', '/lockers'] },
+  { label: 'Members', icon: Users, paths: ['/members', '/leads', '/inactive', '/referrals', '/lockers'] },
   { label: 'Payments', icon: CreditCard, paths: ['/payments', '/dues', '/monthly-collection', '/expenses'] },
   { label: 'Plans', icon: Tag, paths: ['/membership-plans', '/promo-codes', '/plans'] },
   { label: 'Supplements', icon: FlaskConical, paths: ['/supplements', '/supplement-sales'] },
@@ -162,6 +164,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const navItemPermissions: Record<string, keyof PermissionRequirements> = {
     '/members': 'canManageMembers',
     '/referrals': 'canManageMembers',
+    '/leads': 'canManageMembers',
     '/lockers': 'canManageMembers',
     '/inactive': 'canViewAttendance',
     '/promo-codes': 'canManageMemberships',

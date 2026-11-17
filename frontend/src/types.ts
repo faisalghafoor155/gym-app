@@ -1164,3 +1164,33 @@ export interface SupplementProfit {
   data: SupplementProfitRow[];
   totals: { revenue: number; cost: number; profit: number; uncostedUnits: number };
 }
+
+export type LeadStatus = 'new' | 'contacted' | 'trial' | 'joined' | 'lost';
+
+/** Somebody who asked about the gym and has not joined yet. */
+export interface Lead {
+  id: string;
+  name: string;
+  phone: string | null;
+  source: string;
+  interest: string | null;
+  notes: string | null;
+  status: LeadStatus;
+  /** Date-only, the day somebody should next ring them. */
+  followUpOn: string | null;
+  lostReason: string | null;
+  createdAt: string;
+  /** The member they became, once converted. */
+  member: { id: string; name: string; memberNo: string } | null;
+  createdBy: { id: string; name: string } | null;
+}
+
+export interface LeadList {
+  data: Lead[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  counts: Record<LeadStatus | 'all' | 'due', number>;
+  bySource: { source: string; total: number; joined: number }[];
+}
