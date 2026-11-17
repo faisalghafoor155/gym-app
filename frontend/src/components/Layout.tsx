@@ -218,8 +218,8 @@ export default function Layout({ children }: { children: ReactNode }) {
       className={({ isActive }) =>
         `group relative flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors ${
           isActive
-            ? 'bg-white/10 text-white'
-            : 'text-slate-400 hover:bg-white/5 hover:text-white'
+            ? 'bg-blue-50 text-blue-700 dark:bg-white/10 dark:text-white'
+            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white'
         }`
       }
     >
@@ -230,12 +230,12 @@ export default function Layout({ children }: { children: ReactNode }) {
               only mark that breaks the column's left margin. */}
           <span
             aria-hidden="true"
-            className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-blue-400
+            className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-blue-600 dark:bg-blue-400
               transition-all ${isActive ? 'h-5 opacity-100' : 'h-0 opacity-0'}`}
           />
           <Icon
             size={17}
-            className={`shrink-0 transition-colors ${isActive ? 'text-blue-400' : 'text-slate-500 group-hover:text-slate-300'}`}
+            className={`shrink-0 transition-colors ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300'}`}
           />
           {t(label)}
         </>
@@ -244,15 +244,15 @@ export default function Layout({ children }: { children: ReactNode }) {
   );
 
   const roleBadge = isOwner ? (
-    <span className="shrink-0 inline-flex items-center gap-1 bg-amber-400/15 text-amber-300 text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+    <span className="shrink-0 inline-flex items-center gap-1 bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300 text-[10px] font-bold px-1.5 py-0.5 rounded-md">
       <Crown size={9} /> {t('Owner')}
     </span>
   ) : isStaff ? (
-    <span className="shrink-0 inline-flex items-center gap-1 bg-blue-400/15 text-blue-300 text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+    <span className="shrink-0 inline-flex items-center gap-1 bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-300 text-[10px] font-bold px-1.5 py-0.5 rounded-md">
       <Shield size={9} /> {t('Staff')}
     </span>
   ) : (
-    <span className="shrink-0 inline-flex items-center gap-1 bg-white/10 text-slate-300 text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+    <span className="shrink-0 inline-flex items-center gap-1 bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300 text-[10px] font-bold px-1.5 py-0.5 rounded-md">
       <User size={9} /> {t('Member')}
     </span>
   );
@@ -268,15 +268,15 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Gym Info */}
       <div className="px-4 pt-5 pb-4">
         <div className="flex items-center gap-3 p-2 -m-2 rounded-xl">
-          {gymLogo('w-10 h-10 rounded-xl ring-1 ring-white/10 shadow-lg shadow-black/30')}
+          {gymLogo('w-10 h-10 rounded-xl ring-1 ring-black/5 shadow-md dark:ring-white/10 dark:shadow-black/30')}
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <p className="font-bold text-white text-sm leading-tight truncate font-heading">{gym?.name || 'GymFlow'}</p>
+              <p className="font-bold text-slate-900 dark:text-white text-sm leading-tight truncate font-heading">{gym?.name || 'GymFlow'}</p>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)] shrink-0" title={t('System Online')} />
             </div>
             <div className="flex items-center gap-1.5 mt-1 min-w-0">
               {roleBadge}
-              <p className="text-[11px] text-slate-500 truncate">{gym?.ownerName || t('Fitness Portal')}</p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-500 truncate">{gym?.ownerName || t('Fitness Portal')}</p>
             </div>
           </div>
         </div>
@@ -284,7 +284,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 pb-3 space-y-0.5 overflow-y-auto sidebar-scroll">
-        <p className="px-3 pt-1 pb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-600">{t('Menu')}</p>
+        <p className="px-3 pt-1 pb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-600">{t('Menu')}</p>
         {groupNav(navItems).map(entry => {
           if (entry.kind === 'link') return renderLink(entry.item);
           const holdsCurrent = entry.items.some(i => pathname.startsWith(i.to));
@@ -297,18 +297,20 @@ export default function Layout({ children }: { children: ReactNode }) {
                 onClick={() => toggleGroup(entry.label)}
                 aria-expanded={open}
                 className={`group w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors ${
-                  holdsCurrent ? 'text-white' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                  holdsCurrent
+                    ? 'text-slate-900 dark:text-white'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white'
                 }`}
               >
                 <GroupIcon
                   size={17}
-                  className={`shrink-0 ${holdsCurrent ? 'text-blue-400' : 'text-slate-500 group-hover:text-slate-300'}`}
+                  className={`shrink-0 ${holdsCurrent ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300'}`}
                 />
                 <span className="flex-1 text-left">{t(entry.label)}</span>
-                <ChevronDown size={14} className={`shrink-0 text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} className={`shrink-0 text-slate-400 dark:text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
               </button>
               {open && (
-                <div className="mt-0.5 mb-1 ml-[1.35rem] pl-2.5 border-l border-white/10 space-y-0.5">
+                <div className="mt-0.5 mb-1 ml-[1.35rem] pl-2.5 border-l border-slate-200 dark:border-white/10 space-y-0.5">
                   {entry.items.map(renderLink)}
                 </div>
               )}
@@ -318,20 +320,20 @@ export default function Layout({ children }: { children: ReactNode }) {
       </nav>
 
       {/* Bottom: who is signed in, and the way out */}
-      <div className="p-3 border-t border-white/5">
-        <div className="flex items-center gap-3 p-2 rounded-xl bg-white/[0.04]">
+      <div className="p-3 border-t border-slate-200 dark:border-white/5">
+        <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-200/80 dark:bg-white/[0.04] dark:border-transparent">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold flex items-center justify-center text-xs shrink-0">
             {(user?.name || user?.email || '?').slice(0, 1).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-white truncate">{user?.name || user?.email}</p>
+            <p className="text-[13px] font-semibold text-slate-900 dark:text-white truncate">{user?.name || user?.email}</p>
             {user?.email && <p className="text-[11px] text-slate-500 truncate">{user.email}</p>}
           </div>
           <button
             onClick={handleLogout}
             aria-label={t('Logout')}
             title={t('Logout')}
-            className="p-2 rounded-lg text-slate-400 hover:bg-red-500/15 hover:text-red-400 transition-colors shrink-0"
+            className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/15 dark:hover:text-red-400 transition-colors shrink-0"
           >
             <LogOut size={16} />
           </button>
@@ -357,7 +359,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     <div className="flex h-dvh bg-slate-100/70 dark:bg-slate-950">
 
       {/* Desktop sidebar — always present from lg up */}
-      <aside className="hidden lg:flex w-64 flex-col shrink-0 bg-slate-950 bg-gradient-to-b from-slate-950 via-slate-950 to-blue-950/40 border-r border-white/5">
+      <aside className="hidden lg:flex w-64 flex-col shrink-0 bg-white border-r border-slate-200 dark:bg-slate-950 dark:bg-gradient-to-b dark:from-slate-950 dark:via-slate-950 dark:to-blue-950/40 dark:border-white/5">
         {sidebar}
       </aside>
 
@@ -374,12 +376,12 @@ export default function Layout({ children }: { children: ReactNode }) {
             role="dialog"
             aria-modal="true"
             aria-label={t('Navigation menu')}
-            className="relative flex flex-col w-72 max-w-[85vw] h-full bg-slate-950 bg-gradient-to-b from-slate-950 via-slate-950 to-blue-950/40 shadow-2xl z-10"
+            className="relative flex flex-col w-72 max-w-[85vw] h-full bg-white dark:bg-slate-950 dark:bg-gradient-to-b dark:from-slate-950 dark:via-slate-950 dark:to-blue-950/40 shadow-2xl z-10"
           >
             <button
               onClick={() => setDrawerOpen(false)}
               aria-label={t('Close navigation menu')}
-              className="absolute top-5 right-3 text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              className="absolute top-5 right-3 text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-white dark:hover:bg-white/10 p-1.5 rounded-lg transition-colors"
             >
               <X size={20} />
             </button>
