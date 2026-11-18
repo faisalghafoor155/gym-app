@@ -78,7 +78,7 @@ export default function CommandPalette({ items, open, onClose }: {
           {results.map((i, n) => {
             const Icon = i.icon;
             return (
-              <li key={i.to} role="option" aria-selected={n === active}>
+              <li key={i.to} role="option" aria-selected={n === active} className="animate-rise" style={{ animationDelay: `${Math.min(n, 8) * 20}ms` }}>
                 <button
                   type="button"
                   onMouseEnter={() => setActive(n)}

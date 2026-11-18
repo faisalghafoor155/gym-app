@@ -120,7 +120,7 @@ export function PageHeader({ icon: Icon, title, subtitle, action }: PageProps) {
   return (
     <div className="flex items-start sm:items-center justify-between gap-3 mb-5 sm:mb-7">
       <div className="flex items-center gap-3.5 min-w-0">
-        <div className="hidden sm:flex w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-600/25 ring-1 ring-white/20 items-center justify-center shrink-0">
+        <div className="hidden sm:flex w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-600/25 ring-1 ring-white/20 items-center justify-center shrink-0 animate-pop">
           <Icon size={22} strokeWidth={2.2} />
         </div>
         <div className="min-w-0">
@@ -162,7 +162,7 @@ export function IconTile({ icon: Icon, tone = 'blue', size = 'md' }: {
 }) {
   const box = size === 'sm' ? 'w-8 h-8 sm:w-10 sm:h-10 rounded-xl' : 'w-10 h-10 sm:w-12 sm:h-12 rounded-2xl';
   return (
-    <div className={`${box} ${toneTile[tone]} flex items-center justify-center shrink-0 ring-1 ring-inset ring-black/5 dark:ring-white/10`}>
+    <div className={`${box} ${toneTile[tone]} flex items-center justify-center shrink-0 ring-1 ring-inset ring-black/5 dark:ring-white/10 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6`}>
       <Icon size={size === 'sm' ? 15 : 19} className="sm:hidden" />
       <Icon size={size === 'sm' ? 16 : 21} className="hidden sm:block" />
     </div>
@@ -203,7 +203,7 @@ export function StatTile({ icon: Icon, label, value, format, tone = 'blue', hint
 }) {
   const { t } = useLanguage();
   return (
-    <Card className="p-4 sm:p-5 relative overflow-hidden group hover:shadow-lifted hover:-translate-y-0.5 transition-[box-shadow,transform] duration-200">
+    <Card className="stat-tile p-4 sm:p-5 relative overflow-hidden group hover:shadow-lifted hover:-translate-y-0.5 transition-[box-shadow,transform] duration-200">
       <div className={`pointer-events-none absolute -right-8 -top-8 w-28 h-28 rounded-full blur-2xl opacity-60 dark:opacity-30 ${toneGlow[tone]}`} aria-hidden="true" />
       <div className="relative flex items-start justify-between gap-3">
         <p className="text-xs sm:text-[13px] font-medium leading-tight text-slate-500 dark:text-slate-400 sm:truncate pt-1">{t(label)}</p>

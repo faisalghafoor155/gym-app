@@ -86,6 +86,7 @@
   --animate-scale-out: scale-out 150ms ease-in forwards;
   --animate-pop: pop 320ms cubic-bezier(0.2, 0.9, 0.3, 1.2) backwards;
   --animate-draw: draw 400ms 120ms ease-out backwards;
+  --animate-page: page-in 320ms cubic-bezier(0.2, 0.8, 0.3, 1) backwards;
 
   @keyframes fade-in {
     from { opacity: 0; }
@@ -107,6 +108,9 @@
   }
   @keyframes draw {
     from { stroke-dashoffset: 24; }
+  }
+  @keyframes page-in {
+    from { opacity: 0; transform: translateY(10px); }
   }
 }
 
@@ -150,6 +154,53 @@
 .stagger > :nth-child(8) { animation-delay: 210ms; }
 .stagger > :nth-child(9) { animation-delay: 240ms; }
 .stagger > :nth-child(10) { animation-delay: 270ms; }
+
+/**
+ * Stat tiles arrive one after another, wherever a row of them sits — the
+ * pages lay them out in a grid, so the delay keys off their place in it.
+ */
+.stat-tile {
+  animation: var(--animate-rise);
+}
+:nth-child(2) > .stat-tile, .stat-tile:nth-child(2) { animation-delay: 60ms; }
+:nth-child(3) > .stat-tile, .stat-tile:nth-child(3) { animation-delay: 120ms; }
+:nth-child(4) > .stat-tile, .stat-tile:nth-child(4) { animation-delay: 180ms; }
+:nth-child(5) > .stat-tile, .stat-tile:nth-child(5) { animation-delay: 240ms; }
+
+/**
+ * Primary buttons catch the light when hovered: a soft sheen sweeps across.
+ * Pure decoration, so it is the first thing reduced motion drops.
+ */
+button.bg-gradient-to-br.from-blue-500.to-indigo-600,
+a.bg-gradient-to-br.from-blue-500.to-indigo-600 {
+  position: relative;
+  overflow: hidden;
+}
+button.bg-gradient-to-br.from-blue-500.to-indigo-600::after,
+a.bg-gradient-to-br.from-blue-500.to-indigo-600::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.28) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 600ms ease;
+  pointer-events: none;
+}
+button.bg-gradient-to-br.from-blue-500.to-indigo-600:hover::after,
+a.bg-gradient-to-br.from-blue-500.to-indigo-600:hover::after {
+  transform: translateX(120%);
+}
+
+/* Somebody who asked their device for less motion gets none of the above. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+}
 
 /* A printed card or receipt is a still image; never catch it mid-animation. */
 @media print {

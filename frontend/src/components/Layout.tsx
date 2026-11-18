@@ -298,15 +298,17 @@ export default function Layout({ children }: { children: ReactNode }) {
       {({ isActive }) => (
         <>
           {opts.tone || opts.rail ? (
-            <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+            <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-[transform,background-color,color] duration-200 group-hover:scale-110 group-hover:-rotate-3 ${
               isActive ? 'bg-white/20 text-white' : opts.tone ?? toneOf(label)}`}>
               <Icon size={16} strokeWidth={2.2} />
             </span>
           ) : (
-            <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
-              isActive ? 'bg-white' : 'bg-slate-300 group-hover:bg-slate-500 dark:bg-slate-600'}`} />
+            <Icon size={16} strokeWidth={2.1} aria-hidden="true" className={`shrink-0 transition-[transform,color] duration-200 group-hover:scale-110 ${
+              isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-700 dark:text-slate-500 dark:group-hover:text-slate-200'}`} />
           )}
-          {!opts.rail && <span className="truncate">{t(label)}</span>}
+          {!opts.rail && (
+            <span className={`truncate transition-transform duration-200 ${isActive ? '' : 'group-hover:translate-x-0.5'}`}>{t(label)}</span>
+          )}
         </>
       )}
     </NavLink>
@@ -412,11 +414,17 @@ export default function Layout({ children }: { children: ReactNode }) {
                   <span className="flex-1 text-left">{t(entry.label)}</span>
                   <ChevronDown size={14} className={`shrink-0 text-slate-400 dark:text-slate-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
                 </button>
-                {open && (
-                  <div className="mt-1 mb-1.5 ml-[1.45rem] pl-3 border-l-2 border-slate-100 dark:border-white/10 space-y-0.5 animate-fade-in">
-                    {entry.items.map(i => renderLink(i))}
+                {/* Grid rows 0fr → 1fr is the one way to animate to an
+                    unknown height in CSS; `inert` keeps the folded links out
+                    of the tab order. */}
+                <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+                  inert={!open}>
+                  <div className="overflow-hidden">
+                    <div className="mt-1 mb-1.5 ml-[1.45rem] pl-2 border-l-2 border-slate-100 dark:border-white/10 space-y-0.5">
+                      {entry.items.map(i => renderLink(i))}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           );
@@ -577,7 +585,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </header>
 
         <main className="flex-1 overflow-auto pb-24 lg:pb-0">
-          {children}
+          <div key={pathname} className="animate-page">{children}</div>
         </main>
 
         <CommandPalette
@@ -608,7 +616,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             >
               {({ isActive }) => (
                 <>
-                  <div className={`px-3.5 py-1 rounded-xl transition-all ${isActive ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-600/30' : ''}`}>
+                  <div className={`px-3.5 py-1 rounded-xl transition-all ${isActive ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md shadow-blue-600/30 animate-pop' : ''}`}>
                     <Icon size={18} />
                   </div>
                   <span className="mt-0.5 tracking-tight">{t(label)}</span>
