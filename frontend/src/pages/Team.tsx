@@ -11,6 +11,7 @@ import { useLanguage } from '../context/LanguageContext';
 import type { GymUser, GymSettings, Member, Paginated, Role, StaffSeats, TeamResponse, StaffPermission } from '../types';
 import BackupPanel from '../components/team/BackupPanel';
 import GymSettingsCard from '../components/team/GymSettingsCard';
+import BranchesCard from '../components/team/BranchesCard';
 import AccountCard from '../components/team/AccountCard';
 import AddStaffModal from '../components/team/AddStaffModal';
 import MemberLoginModal from '../components/team/MemberLoginModal';
@@ -406,6 +407,8 @@ export default function Team() {
           </div>
         ) : undefined}
       />
+
+      {isOwner && <div className="mb-4"><BranchesCard /></div>}
 
       {isOwner && (
         <GymSettingsCard

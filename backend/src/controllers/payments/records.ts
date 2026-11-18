@@ -42,14 +42,18 @@ export const getAll = async (
           ...(to && { lte: endOfDayUtc(to) }),
         },
       }),
-      // Staff search by whatever they have to hand — a name or a phone.
-      ...(search && {
+      // Staff search by whatever they have to hand — a name or a phone. At
+      // one branch, only payments by that branch's own members.
+      ...((search || req.branchId) && {
         member: {
-          OR: [
-            { name: { contains: search, mode: "insensitive" as const } },
-            { phone: { contains: search, mode: "insensitive" as const } },
-            { memberNo: { contains: search, mode: "insensitive" as const } },
-          ],
+          ...(req.branchId && { branchId: req.branchId }),
+          ...(search && {
+            OR: [
+              { name: { contains: search, mode: "insensitive" as const } },
+              { phone: { contains: search, mode: "insensitive" as const } },
+              { memberNo: { contains: search, mode: "insensitive" as const } },
+            ],
+          }),
         },
       }),
     };

@@ -1,4 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react';
+import { BranchProvider } from './context/BranchContext';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SubscriptionProvider, useSubscription } from './context/SubscriptionContext';
@@ -285,7 +286,9 @@ export default function App() {
         {/* Inside the auth provider: the endpoint is behind `auth`, and there
             is no gym to have a plan until somebody is signed in. */}
         <SubscriptionProvider>
-          <AppRoutes />
+          <BranchProvider>
+            <AppRoutes />
+          </BranchProvider>
         </SubscriptionProvider>
       </AuthProvider>
     </BrowserRouter>

@@ -40,6 +40,8 @@ const AUDITED_MEMBER_FIELDS = [
   // it back and when.
   "whatsappOptOut",
   "status",
+  "branchId",
+  "allBranches",
 ] as const;
 
 export const update = async (
@@ -60,8 +62,14 @@ export const update = async (
     trainerId,
     ptFee,
     ptFeePaid,
+    branchId,
+    allBranches,
   } = req.body;
   try {
+    if (branchId && !(await prisma.branch.findFirst({ where: { id: branchId, gymId: req.gymId }, select: { id: true } }))) {
+      res.status(404).json({ error: "Branch not found" });
+      return;
+    }
     const existing = await prisma.member.findFirst({
       where: { id, gymId: req.gymId },
       select: memberFields,
@@ -174,6 +182,8 @@ export const update = async (
           ...(emergencyContact !== undefined && { emergencyContact }),
           ...(whatsappOptOut !== undefined && { whatsappOptOut }),
           ...(trainerId !== undefined && { trainerId }),
+          ...(branchId !== undefined && { branchId }),
+          ...(allBranches !== undefined && { allBranches }),
         },
       });
     });

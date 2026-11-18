@@ -58,6 +58,7 @@ import salariesRoutes from "./routes/salaries.js";
 import staffAttendanceRoutes from "./routes/staffAttendance.js";
 import equipmentRoutes from "./routes/equipment.js";
 import feedbackRoutes from "./routes/feedback.js";
+import branchesRoutes from "./routes/branches.js";
 import { hasLiveGateway } from "./services/gateways/index.js";
 import { hasPlatformGateway } from "./services/gateways/platform.js";
 import { biometricKeyStatus } from "./services/fingerprint/crypto.js";
@@ -405,6 +406,7 @@ app.use("/api/salaries", salariesRoutes);
 app.use("/api/staff-attendance", staffAttendanceRoutes);
 app.use("/api/equipment", equipmentRoutes);
 app.use("/api/feedback", feedbackRoutes);
+app.use("/api/branches", branchesRoutes);
 
 app.get("/api/health", async (req, res) => {
   // Whether mail is configured, and nothing about how. A dead transport is

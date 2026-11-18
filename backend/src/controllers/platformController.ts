@@ -370,6 +370,7 @@ export const deleteGym = async (
       await tx.auditLog.deleteMany({ where: { gymId } });
       await tx.subscriptionInvoice.deleteMany({ where: { gymId } });
       await tx.gymSubscription.deleteMany({ where: { gymId } });
+      await tx.branch.deleteMany({ where: { gymId } });
       await tx.gym.delete({ where: { id: gymId } });
     }, { timeout: 120_000 });
 

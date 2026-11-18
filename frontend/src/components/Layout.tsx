@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import BranchSwitcher from './BranchSwitcher';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useDialog } from '../hooks/useDialog';
@@ -298,6 +299,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             </div>
           </div>
         </div>
+        {user?.role !== 'member' && <BranchSwitcher />}
       </div>
 
       {/* Nav */}

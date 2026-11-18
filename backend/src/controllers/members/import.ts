@@ -1,6 +1,7 @@
 /** @format */
 
 import type { Response } from "express";
+import { branchForNew } from "../../services/branches.js";
 import prisma from "../../db.js";
 import { formatMemberNo } from "../../services/membership.js";
 import {
@@ -156,6 +157,8 @@ export const importMembers = async (
     }
 
     const createdMembers = [] as string[];
+    // Imported members are filed at the branch the desk is working in.
+    const branchId = await branchForNew(req);
     for (const memberData of createData) {
       // Claimed per row rather than once for the file. An import is not
       // atomic — each member is written on its own — so checking upfront would
@@ -178,6 +181,7 @@ export const importMembers = async (
               gymId: req.gymId,
               memberNo: formatMemberNo(gym.memberSeq),
               ...memberData,
+              branchId,
             },
             select: { id: true },
           });

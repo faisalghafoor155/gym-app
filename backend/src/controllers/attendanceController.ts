@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import { inBranch } from '../services/branches.js';
 import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { currentMembershipWhere, toView, withPlan } from '../services/membership.js';
@@ -98,7 +99,7 @@ export const checkin = async (
   res: Response,
 ): Promise<void> => {
   try {
-    await recordCheckin(req.gymId, req.body.memberId, res);
+    await recordCheckin(req.gymId, req.body.memberId, res, req.branchId);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -163,12 +164,23 @@ export const getGymQr = (req: AuthedRequest, res: Response): void => {
   });
 };
 
-/** The check-in itself, shared by the desk and the member's own phone. */
-const recordCheckin = async (gymId: string, memberId: string, res: Response): Promise<void> => {
+/**
+ * The check-in itself, shared by the desk and the member's own phone.
+ *
+ * `atBranch` is the branch the desk is working in. A member tied to another
+ * branch is turned away there — that is the point of tying them to one — while
+ * a member allowed at every branch is let in anywhere. The phone's QR names
+ * only the gym, so a self check-in is filed at the member's home branch.
+ */
+const recordCheckin = async (gymId: string, memberId: string, res: Response, atBranch?: string): Promise<void> => {
   const member = await prisma.member.findFirst({
     where: { id: memberId, gymId },
     select: {
       id: true,
+      name: true,
+      branchId: true,
+      allBranches: true,
+      branch: { select: { name: true } },
       memberships: {
         where: currentMembershipWhere,
         orderBy: { createdAt: 'desc' },
@@ -183,6 +195,13 @@ const recordCheckin = async (gymId: string, memberId: string, res: Response): Pr
   });
   if (!member) {
     res.status(404).json({ error: 'Member not found' });
+    return;
+  }
+  if (atBranch && member.branchId && member.branchId !== atBranch && !member.allBranches) {
+    res.status(403).json({
+      error: `${member.name} is a member of ${member.branch?.name ?? 'another branch'} only`,
+      reason: 'other_branch',
+    });
     return;
   }
 
@@ -207,7 +226,7 @@ const recordCheckin = async (gymId: string, memberId: string, res: Response): Pr
 
   try {
     const record = await prisma.attendance.create({
-      data: { memberId, gymId: gymId },
+      data: { memberId, gymId: gymId, branchId: atBranch ?? member.branchId },
       include: memberSummary,
     });
     res.status(201).json({
@@ -243,7 +262,7 @@ export const getToday = async (req: AuthedRequest, res: Response): Promise<void>
     const { start, end } = dayBounds(new Date());
 
     const records = await prisma.attendance.findMany({
-      where: { gymId: req.gymId, checkedInAt: { gte: start, lte: end } },
+      where: { gymId: req.gymId, ...inBranch(req), checkedInAt: { gte: start, lte: end } },
       include: memberSummary,
       orderBy: { checkedInAt: 'desc' },
     });

@@ -21,6 +21,8 @@ export interface AuthedRequest<
   role: Role;
   /** Staff permission level (only set when role is 'staff') */
   staffPermission?: StaffPermission;
+  /** The branch this request is scoped to; absent means every branch. */
+  branchId?: string;
   /** The actor's display name, carried so audit entries can copy it in
    *  without a second lookup on every mutation. */
   actorName: string;

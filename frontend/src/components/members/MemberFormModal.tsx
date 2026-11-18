@@ -16,6 +16,7 @@ import PromoCodeField from './PromoCodeField';
 import ReferrerPicker, { type Referrer } from './ReferrerPicker';
 import toast from 'react-hot-toast';
 import { localToday } from '../../utils/dates';
+import { useBranch } from '../../context/BranchContext';
 
 /** What the desk fills in to register somebody, or to correct their details. */
 interface MemberForm {
@@ -27,6 +28,10 @@ interface MemberForm {
   dateOfBirth: string;
   address: string;
   emergencyContact: string;
+  /** Home branch; blank files them at the branch in use. */
+  branchId: string;
+  /** May check in at every branch. */
+  allBranches: boolean;
   /** Only ever sent from an edit — see the field in the form. */
   whatsappOptOut: boolean;
   /** Only sent when adding — an existing member's membership is changed from
@@ -52,6 +57,7 @@ interface MemberForm {
 const emptyForm: MemberForm = {
   name: '', email: '', phone: '', photo: '',
   gender: '', dateOfBirth: '', address: '', emergencyContact: '',
+  branchId: '', allBranches: false,
   whatsappOptOut: false,
   planId: '', startDate: '', trainerId: '', ptFee: '', ptFeePaid: false,
   feeAmount: '', feeMethod: 'cash', feeChannel: '', feeReference: '',
@@ -123,6 +129,8 @@ function editDefaults(m: Member): MemberForm {
     dateOfBirth: m.dateOfBirth ? m.dateOfBirth.split('T')[0]! : '',
     address: m.address ?? '',
     emergencyContact: m.emergencyContact ?? '',
+    branchId: m.branchId ?? '',
+    allBranches: !!m.allBranches,
     whatsappOptOut: m.whatsappOptOut,
     trainerId: m.trainerId || '',
   };
@@ -163,6 +171,7 @@ export default function MemberFormModal({
   member, plans, trainers, settings, fingerprintReady = false, prefill, onClose, onSaved,
 }: Props) {
   const { t } = useLanguage();
+  const { branches, multi, current: currentBranch } = useBranch();
   const editing = member?.id ?? null;
   /** On by default: when a reader is there, taking the finger is the normal
    *  end of registering somebody. */
@@ -306,6 +315,8 @@ export default function MemberFormModal({
         ...(form.dateOfBirth && { dateOfBirth: form.dateOfBirth }),
         address: form.address,
         emergencyContact: form.emergencyContact,
+        // Only when the gym has branches to choose between.
+        ...(multi && { allBranches: form.allBranches, ...(form.branchId && { branchId: form.branchId }) }),
         // Only meaningful on an edit, and the create endpoint rejects what it
         // does not know — so it travels only where it is accepted.
         ...(editing && { whatsappOptOut: form.whatsappOptOut }),
@@ -487,6 +498,24 @@ export default function MemberFormModal({
               <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-1">{t('For birthday wishes (optional)')}</p>
             </div>
           </div>
+
+          {/* Branch — only when the gym has more than one. Blank on a new
+              member means the branch the desk is working in. */}
+          {multi && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+              <div>
+                <label htmlFor="member-branch" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">{t('Branch')}</label>
+                <select id="member-branch" value={form.branchId || currentBranch || ''} onChange={e => set('branchId')(e.target.value)} className={inputClass}>
+                  {!form.branchId && !currentBranch && <option value="">{t('Main branch')}</option>}
+                  {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300 pb-2">
+                <input type="checkbox" checked={form.allBranches} onChange={e => set('allBranches')(e.target.checked)} />
+                {t('Can use all branches')}
+              </label>
+            </div>
+          )}
 
           {/* Emergency contact — asked at registration; the full address is
               only kept on an edit. */}

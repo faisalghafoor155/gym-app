@@ -272,6 +272,10 @@ const memberBase = {
   dateOfBirth: birthDate,
   address: optionalText(500),
   emergencyContact: optionalText(100),
+  /** The member's home branch. Absent on create files them at the branch in use. */
+  branchId: uuid.or(z.literal("").transform(() => undefined)).optional(),
+  /** May check in at every branch, not only their own. */
+  allBranches: z.boolean().optional(),
   trainerId: uuid.or(z.literal("").transform(() => null)).nullish(),
   /**
    * What the front desk agreed for the trainer assignment, when it was
@@ -1901,6 +1905,21 @@ export const updateFeedbackSchema = z.object({
   response: optionalText(1000),
 });
 
+// --- branches ----------------------------------------------------------
+
+export const createBranchSchema = z.object({
+  name,
+  address: optionalText(200),
+  phone: optionalText(30),
+});
+
+export const updateBranchSchema = createBranchSchema.partial();
+
+/** Places a staff account at one branch, or (null) at all of them. */
+export const assignStaffBranchSchema = z.object({
+  branchId: uuid.nullable(),
+});
+
 // --- lockers -----------------------------------------------------------
 
 const lockerNumber = z.string().trim().min(1, "is required").max(20, "is too long");
@@ -1997,3 +2016,6 @@ export type FaultQuery = z.infer<typeof faultQuerySchema>;
 export type CreateFeedbackBody = z.infer<typeof createFeedbackSchema>;
 export type FeedbackQuery = z.infer<typeof feedbackQuerySchema>;
 export type UpdateFeedbackBody = z.infer<typeof updateFeedbackSchema>;
+export type CreateBranchBody = z.infer<typeof createBranchSchema>;
+export type UpdateBranchBody = z.infer<typeof updateBranchSchema>;
+export type AssignStaffBranchBody = z.infer<typeof assignStaffBranchSchema>;

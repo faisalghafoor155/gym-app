@@ -1,6 +1,7 @@
 /** @format */
 
 import type { Response } from "express";
+import { branchForNew } from "../../services/branches.js";
 import prisma from "../../db.js";
 import { audit } from "../../services/audit.js";
 import { addDays, formatMemberNo } from "../../services/membership.js";
@@ -61,9 +62,24 @@ export const create = async (
     feeReference,
     referredById,
     promoCode,
+    branchId: askedBranch,
     ...fields
   } = req.body;
   try {
+    // Filed at the branch asked for, or the one the desk is working in, or
+    // the main branch. A branch from another gym is refused, not ignored.
+    let branchId: string;
+    if (askedBranch) {
+      const branch = await prisma.branch.findFirst({ where: { id: askedBranch, gymId: req.gymId }, select: { id: true } });
+      if (!branch) {
+        res.status(404).json({ error: "Branch not found" });
+        return;
+      }
+      branchId = branch.id;
+    } else {
+      branchId = await branchForNew(req);
+    }
+
     if (planId) {
       const plan = await prisma.membershipPlan.findFirst({
         where: { id: planId, gymId: req.gymId },
@@ -144,6 +160,7 @@ export const create = async (
           gymId: req.gymId,
           memberNo: formatMemberNo(gym.memberSeq),
           ...fields,
+          branchId,
           ...photoData,
           referredById: referredById ?? null,
         },

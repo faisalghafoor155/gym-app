@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import { homeMembers, inBranch, viaMember } from '../services/branches.js';
 import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import {
@@ -61,7 +62,10 @@ export const getStats = async (req: AuthedRequest, res: Response): Promise<void>
     // Counts run off Membership now that a member's dates live there. Only
     // `active` rows are measured against the calendar — a cancelled or
     // superseded membership is not "expired", it is simply over.
-    const live = { gymId, status: 'active' } as const;
+    const live = { gymId, status: 'active', ...viaMember(req) } as const;
+    // At one branch: its own members, its own check-ins and spending.
+    const home = homeMembers(req);
+    const here = inBranch(req);
 
     const revenueSince = startOfMonth(now, REVENUE_MONTHS - 1);
     const attendanceSince = addDays(todayStart, -(ATTENDANCE_DAYS - 1));
@@ -73,7 +77,7 @@ export const getStats = async (req: AuthedRequest, res: Response): Promise<void>
       attendanceRows, memberPaymentRows, dueAmount, monthMemberships, gym,
       expenseRows, dayPassRows,
     ] = await Promise.all([
-      prisma.member.count({ where: { gymId } }),
+      prisma.member.count({ where: { gymId, ...home } }),
       prisma.membership.count({ where: { ...live, expiryDate: { gt: soon } } }),
       prisma.membership.findMany({
         // From the start of today, not from this moment: the follow-up list
@@ -84,10 +88,10 @@ export const getStats = async (req: AuthedRequest, res: Response): Promise<void>
         orderBy: { expiryDate: 'asc' },
       }),
       prisma.attendance.count({
-        where: { gymId, checkedInAt: { gte: todayStart, lte: todayEnd } },
+        where: { gymId, ...here, checkedInAt: { gte: todayStart, lte: todayEnd } },
       }),
       prisma.member.findMany({
-        where: { gymId },
+        where: { gymId, ...home },
         orderBy: { createdAt: 'desc' },
         take: 5,
         select: {
@@ -112,13 +116,13 @@ export const getStats = async (req: AuthedRequest, res: Response): Promise<void>
       prisma.membership.count({ where: { ...live, expiryDate: { lt: lapsedBefore } } }),
 
       prisma.attendance.findMany({
-        where: { gymId, checkedInAt: { gte: attendanceSince, lte: todayEnd } },
+        where: { gymId, ...here, checkedInAt: { gte: attendanceSince, lte: todayEnd } },
         select: { checkedInAt: true },
       }),
 
       canViewReports
         ? prisma.payment.findMany({
-            where: { gymId, status: 'paid', paymentDate: { gte: revenueSince } },
+            where: { gymId, ...viaMember(req), status: 'paid', paymentDate: { gte: revenueSince } },
             // `type` comes along so this month's takings can be split by what
             // they were for, rather than needing a second pass over the same
             // rows.
@@ -127,7 +131,7 @@ export const getStats = async (req: AuthedRequest, res: Response): Promise<void>
         : Promise.resolve([]),
       canViewReports
         ? prisma.payment.aggregate({
-            where: { gymId, status: 'due' },
+            where: { gymId, ...viaMember(req), status: 'due' },
             _sum: { amount: true },
           })
         : Promise.resolve(null),
@@ -140,6 +144,7 @@ export const getStats = async (req: AuthedRequest, res: Response): Promise<void>
         ? prisma.membership.findMany({
             where: {
               gymId,
+              ...viaMember(req),
               status: { in: ['active', 'expired', 'suspended'] },
               startDate: { lte: endOfMonth(now) },
               expiryDate: { gte: startOfMonth(now) },
@@ -161,7 +166,7 @@ export const getStats = async (req: AuthedRequest, res: Response): Promise<void>
       // same reason revenue is: it is the gym's books, not the day's work.
       canViewReports
         ? prisma.expense.findMany({
-            where: { gymId, spentOn: { gte: revenueSince } },
+            where: { gymId, ...here, spentOn: { gte: revenueSince } },
             select: { amount: true, spentOn: true },
           })
         : Promise.resolve([]),
@@ -170,7 +175,7 @@ export const getStats = async (req: AuthedRequest, res: Response): Promise<void>
       // payments table — see DayPass in the schema.
       canViewReports
         ? prisma.dayPass.findMany({
-            where: { gymId, visitedAt: { gte: revenueSince } },
+            where: { gymId, ...here, visitedAt: { gte: revenueSince } },
             select: { amount: true, visitedAt: true },
           })
         : Promise.resolve([]),

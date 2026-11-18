@@ -440,6 +440,26 @@ const team: Record<string, string> = {
     'Is liye maanga jata hai taake chori shuda session woh hifazat na hata sake jo usay istemaal hone se rokti hai.',
   'Keep it on': 'On rehne dein',
   'Disabling...': 'Band ho raha hai...',
+  // --- branches ---
+  'Branch': 'Branch',
+  'All branches': 'Sab branches',
+  'Branches': 'Branches',
+  'Add branch': 'Branch shamil karein',
+  'Edit branch': 'Branch tabdeel karein',
+  'Delete branch': 'Branch delete karein',
+  'e.g. DHA Phase 6': 'maslan DHA Phase 6',
+  'Each member belongs to a branch. Pick the branch you are working in from the menu; "All branches" shows the whole gym.': 'Har member kisi branch ka hota hai. Menu se wo branch chunein jahan aap kaam kar rahe hain; "Sab branches" poori gym dikhata hai.',
+  'Main': 'Main',
+  '{count} staff': '{count} staff',
+  'Where staff work': 'Staff kahan kaam karta hai',
+  'Staff placed at a branch only see that branch.': 'Jo staff kisi branch par lagaya ho wo sirf wohi branch dekhta hai.',
+  'Delete {name}? Only a branch with no members, staff or check-ins can be deleted.': '{name} delete karein? Sirf wo branch delete hoti hai jis mein koi member, staff ya check-in na ho.',
+  'Main branch': 'Main branch',
+  'Can use all branches': 'Sab branches use kar sakta hai',
+  'Branches this month': 'Is mahine branches',
+  'Check-ins today': 'Aaj ke check-ins',
+  'Spent': 'Kharch',
+  'Plus {amount} spent for the whole gym.': 'Is ke ilawa {amount} poori gym ke liye kharch hue.',
 };
 
 export default team;

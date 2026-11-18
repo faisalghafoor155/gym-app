@@ -11,6 +11,7 @@ import AssignTrainerModal from '../components/members/AssignTrainerModal';
 import FreezeModal from '../components/members/FreezeModal';
 import ProgressModal from '../components/members/ProgressModal';
 import HealthModal from '../components/members/HealthModal';
+import { useBranch } from '../context/BranchContext';
 import { CONDITION_SHORT } from '../utils/health';
 import {
   Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl,
@@ -216,6 +217,8 @@ export default function Members() {
   const [freezing, setFreezing] = useState<Member | null>(null);
   const [unfreezing, setUnfreezing] = useState<Member | null>(null);
   const [progressMember, setProgressMember] = useState<Member | null>(null);
+  const { multi: multiBranch, branches } = useBranch();
+  const branchName = (id: string) => branches.find(b => b.id === id)?.name ?? '';
   // The health questionnaire, with a line saying why it opened on its own.
   const [healthFor, setHealthFor] = useState<{ member: Member; prompt?: string } | null>(null);
 
@@ -598,7 +601,14 @@ export default function Members() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-gray-900 dark:text-slate-100 truncate">{m.name}</h3>
-                    <p className="text-xs font-medium text-gray-400 dark:text-slate-500 mt-0.5">{m.memberNo}</p>
+                    <p className="text-xs font-medium text-gray-400 dark:text-slate-500 mt-0.5">
+                      {m.memberNo}
+                      {multiBranch && m.branchId && (
+                        <span className="ml-1.5 text-emerald-700 dark:text-emerald-400">
+                          · {m.allBranches ? t('All branches') : branchName(m.branchId)}
+                        </span>
+                      )}
+                    </p>
                     {m.health && m.health.conditions.length > 0 && (
                       <button type="button" onClick={() => setHealthFor({ member: m })}
                         title={t('Health conditions declared — tap to read')}

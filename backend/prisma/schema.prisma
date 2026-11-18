@@ -236,6 +236,7 @@ model Gym {
   equipmentServices  EquipmentService[]
   equipmentFaults    EquipmentFault[]
   feedback           Feedback[]
+  branches           Branch[]
 
   /// What this gym pays *us*, as opposed to everything above, which is what
   /// its members pay it. Optional because a gym is only given a billing row
@@ -326,6 +327,11 @@ model User {
   /// a level — a default here would silently hand every hire that access.
   staffPermission StaffPermission?
 
+  /// The branch a staff account works at; it sees only that branch. Null
+  /// for the owner and for staff who cover every branch.
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
   lastLoginAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -393,6 +399,11 @@ model Member {
   /// opting out of both.
   whatsappOptOut Boolean @default(false)
 
+  /// The member's home branch. Their payments count towards it.
+  branchId    String?
+  /// Whether they may check in at every branch, not just their own.
+  allBranches Boolean @default(false)
+
   /// The member who brought this one in. `SetNull` so deleting the referrer
   /// does not delete the people they referred.
   referredById String?
@@ -427,8 +438,10 @@ model Member {
   healthDeclarations HealthDeclaration[]
   equipmentFaults    EquipmentFault[]
   feedback           Feedback[]
+  branch             Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   @@unique([gymId, memberNo])
+  @@index([gymId, branchId])
   @@index([gymId])
   /// Filtering the roster by trainer runs on every page load of that view, and
   /// without this it scans every member the gym has.
@@ -559,11 +572,15 @@ model Attendance {
   /// pass before either insert lands. A guard that only ever holds when nothing
   /// is happening at once is not a guard.
   checkedInOn DateTime @default(dbgenerated()) @db.Date
+  /// The branch they came in at.
+  branchId    String?
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   member Member @relation(fields: [memberId], references: [id])
   gym    Gym    @relation(fields: [gymId], references: [id])
 
   @@unique([memberId, checkedInOn])
+  @@index([branchId, checkedInAt])
   @@index([gymId, checkedInAt])
   @@index([memberId])
 }
@@ -1119,6 +1136,9 @@ model Expense {
   /// Who entered it. `SetNull` for the same reason Payment uses it: removing
   /// a staff account must never delete the gym's books.
   recordedById String?
+  /// The branch it was spent for, when one was chosen. Null is gym-wide.
+  branchId     String?
+  branch       Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
@@ -1560,6 +1580,9 @@ model DayPass {
 
   notes        String?
   recordedById String?
+  /// The branch it was sold at. Null for passes from before branches.
+  branchId     String?
+  branch       Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
 
   gym        Gym     @relation(fields: [gymId], references: [id])
@@ -1876,4 +1899,27 @@ model Feedback {
   @@index([gymId, status])
   @@index([gymId, createdAt])
   @@index([memberId])
+}
+
+/// One location of a gym. Every gym has at least one, its main branch;
+/// members, staff, check-ins, expenses and day passes can belong to one.
+model Branch {
+  id      String  @id @default(uuid())
+  gymId   String
+  name    String
+  address String?
+  phone   String?
+  /// The branch everything from before branches existed was filed under.
+  isMain  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  gym        Gym          @relation(fields: [gymId], references: [id])
+  members    Member[]
+  staff      User[]
+  attendance Attendance[]
+  expenses   Expense[]
+  dayPasses  DayPass[]
+
+  @@index([gymId])
 }

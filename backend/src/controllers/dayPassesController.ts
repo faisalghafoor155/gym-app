@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import { branchForNew, inBranch } from '../services/branches.js';
 import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { audit } from '../services/audit.js';
@@ -39,6 +40,7 @@ export const getAll = async (
 
     const where: Prisma.DayPassWhereInput = {
       gymId: req.gymId,
+      ...inBranch(req),
       visitedAt: { gte: start, lte: end },
       ...(search && {
         OR: [
@@ -121,6 +123,7 @@ export const create = async (
         hostMemberId: host?.id ?? null,
         notes,
         recordedById: req.userId,
+        branchId: await branchForNew(req),
       },
       include,
     });

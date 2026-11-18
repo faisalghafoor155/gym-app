@@ -5,7 +5,7 @@ Tick a box when a task ships.
 
 **Status legend:** `[x]` done · `[ ]` not started · 🟠 partly there (note says what exists)
 
-_Last checked against the code: 2026-11-18 (after Member Feedback)._
+_Last checked against the code: 2026-11-18 (after Multi-Branch phase 1)._
 
 ---
 
@@ -93,10 +93,15 @@ Split a membership fee across dates.
   ✅ "Member satisfaction" card: this month's average vs last month, % happy, replies waiting; the inbox also scores each topic
 
 ### 8. Multi-Branch
-- [ ] `Branch` under one gym owner; members, staff and payments scoped by branch
-- [ ] Branch switcher in the sidebar
-- [ ] Combined owner dashboard across branches
-- [ ] Option for a member to use all branches or one
+- [x] `Branch` under one gym owner; members, staff and payments scoped by branch
+  ✅ `/api/branches`; every gym has a Main Branch (existing data filed there). Members, payments (through the member), check-ins, the dashboard, day passes and new expenses follow the branch in use; staff can be placed at one branch and then see only it.
+  🟠 Phase 1: other pages (supplements, classes, lockers, salaries, equipment, leads, reports) are still gym-wide.
+- [x] Branch switcher in the sidebar
+  ✅ "All branches" or one; branches are added on Staff & Logins
+- [x] Combined owner dashboard across branches
+  ✅ "Branches this month" on the dashboard with All branches selected: members, today's check-ins, collected, spent
+- [x] Option for a member to use all branches or one
+  ✅ "Can use all branches" on the member form; otherwise check-in at another branch is refused
 
 ---
 
@@ -137,11 +142,11 @@ Split a membership fee across dates.
 | P2: Health Waiver | 4 | 0 | 0 |
 | P2: Equipment | 4 | 0 | 0 |
 | P2: Feedback | 3 | 0 | 0 |
-| P2: Multi-Branch | 0 | 0 | 4 |
+| P2: Multi-Branch | 4 | 0 | 0 |
 | P3: Challenges | 0 | 1 | 2 |
 | P3: Bulk WhatsApp | 0 | 1 | 2 |
 | Technical | 0 | 0 | 2 |
-| **Total** | **22** | **10** | **11** |
+| **Total** | **26** | **10** | **7** |
 
 ## ✅ Already built (for reference)
 Members, memberships, freeze · Payments, dues, receipts, promo codes, online payments · Expenses, supplement sales ·

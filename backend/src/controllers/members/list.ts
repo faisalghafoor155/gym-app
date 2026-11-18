@@ -1,6 +1,7 @@
 /** @format */
 
 import type { Response } from "express";
+import { membersAt } from "../../services/branches.js";
 import prisma from "../../db.js";
 import {
   expiredOverGraceWhere,
@@ -41,6 +42,8 @@ export const getAll = async (
 
     const where = {
       gymId: req.gymId,
+      // At one branch: its own members, and those allowed at every branch.
+      ...(req.branchId && { AND: [membersAt(req)] }),
       // Applies to every view of the roster, paged or not — a filtered list
       // that quietly went back to everyone on the next page would be worse
       // than no filter.
@@ -108,6 +111,7 @@ export const getAll = async (
     // would land on 18.
     const searchWhere = {
       gymId: req.gymId,
+      ...(where.AND && { AND: where.AND }),
       ...(gender && { gender }),
       ...(trainerId && { trainerId: trainerId === "none" ? null : trainerId }),
       ...(where.OR && { OR: where.OR }),

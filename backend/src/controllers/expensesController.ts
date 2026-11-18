@@ -118,6 +118,8 @@ export const create = async (
         vendor,
         notes,
         recordedById: req.userId,
+        // Filed at the branch in use; with every branch selected it is gym-wide.
+        branchId: req.branchId ?? null,
       },
       include: { recordedBy: { select: { id: true, name: true } } },
     });

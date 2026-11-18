@@ -68,6 +68,7 @@ export const requireAuth = async (
         memberId: true,
         tokenVersion: true,
         staffPermission: true,
+        branchId: true,
         emailVerifiedAt: true,
         // A join on the row already being fetched, so the suspension check
         // below costs no extra round trip.
@@ -130,6 +131,7 @@ export const requireAuth = async (
       staffPermission?: typeof user.staffPermission;
       actorName: string;
       memberId: string | null;
+      branchId?: string;
     };
     r.gymId = user.gymId;
     r.userId = user.id;
@@ -140,6 +142,24 @@ export const requireAuth = async (
     r.memberId = user.memberId;
     if (user.role === "staff") {
       r.staffPermission = user.staffPermission;
+    }
+
+    // Which branch this request is about. Staff placed at one branch always
+    // see that branch, whatever the client asks for. Everyone else may pick
+    // one with the X-Branch-Id header, or send none for every branch. A
+    // branch id from another gym is ignored rather than refused: a stale
+    // choice left in the browser must not lock somebody out.
+    if (user.branchId && user.role === "staff") {
+      r.branchId = user.branchId;
+    } else if (user.role !== "member") {
+      const asked = req.header("x-branch-id");
+      if (asked) {
+        const branch = await prisma.branch.findFirst({
+          where: { id: asked, gymId: user.gymId },
+          select: { id: true },
+        });
+        if (branch) r.branchId = branch.id;
+      }
     }
     next();
   } catch (err) {

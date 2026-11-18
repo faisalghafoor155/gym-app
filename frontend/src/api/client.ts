@@ -1,4 +1,5 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { readBranch } from '../utils/branch';
 
 // Same-origin by default: locally Vite proxies /api, and in the Docker image
 // nginx does. Split deployments (frontend and backend on separate hosts, as on
@@ -40,6 +41,10 @@ api.interceptors.request.use((config) => {
       ),
     );
   }
+  // The branch this browser is working in, for every request. The server
+  // checks it belongs to the gym and overrides it for staff placed elsewhere.
+  const branch = readBranch();
+  if (branch) config.headers.set('X-Branch-Id', branch);
   return config;
 });
 

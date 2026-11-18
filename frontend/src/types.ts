@@ -342,6 +342,10 @@ export interface Member {
   fingerprint?: FingerprintEnrolment | null;
   /** The latest health declaration's conditions and date, or null if never signed. */
   health?: { conditions: HealthCondition[]; signedAt: string } | null;
+  /** Home branch; null for members from before branches. */
+  branchId?: string | null;
+  /** May check in at every branch. */
+  allBranches?: boolean;
 }
 
 export interface MemberSummary {
@@ -1460,4 +1464,28 @@ export interface FeedbackSummary {
   lastMonth: FeedbackScore;
   open: number;
   byCategory: { category: FeedbackCategory; count: number; average: number | null }[];
+}
+
+/** One location of the gym. */
+export interface Branch {
+  id: string;
+  name: string;
+  address: string | null;
+  phone: string | null;
+  isMain: boolean;
+  createdAt: string;
+  members: number;
+  staff: number;
+}
+
+export interface BranchList {
+  branches: Branch[];
+  /** The branch the server is scoping to; null is every branch. */
+  current: string | null;
+  fixed: boolean;
+}
+
+export interface BranchOverview {
+  branches: { id: string; name: string; isMain: boolean; members: number; checkinsToday: number; collectedThisMonth: number; spentThisMonth: number }[];
+  sharedSpentThisMonth: number;
 }

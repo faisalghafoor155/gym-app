@@ -29,6 +29,8 @@ export const memberFields = {
   dateOfBirth: true,
   address: true,
   emergencyContact: true,
+  branchId: true,
+  allBranches: true,
   whatsappOptOut: true,
   status: true,
   createdAt: true,
