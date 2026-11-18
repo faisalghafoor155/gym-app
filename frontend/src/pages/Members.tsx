@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, CalendarPlus, QrCode, Fingerprint, PauseCircle, PlayCircle, XCircle, Dumbbell, UserPlus, MessageCircle, X, Snowflake, Activity } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Users, User, Phone, Calendar, CreditCard, CalendarPlus, QrCode, Fingerprint, PauseCircle, PlayCircle, XCircle, Dumbbell, UserPlus, MessageCircle, X, Snowflake, Activity, HeartPulse } from 'lucide-react';
 import Badge from '../components/Badge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FingerprintEnrollModal from '../components/FingerprintEnrollModal';
@@ -10,6 +10,8 @@ import RenewModal from '../components/members/RenewModal';
 import AssignTrainerModal from '../components/members/AssignTrainerModal';
 import FreezeModal from '../components/members/FreezeModal';
 import ProgressModal from '../components/members/ProgressModal';
+import HealthModal from '../components/members/HealthModal';
+import { CONDITION_SHORT } from '../utils/health';
 import {
   Page, PageHeader, Card, PageLoader, EmptyState, SegmentedControl,
   inputClass, primaryButton, secondaryButton, focusRing,
@@ -23,7 +25,7 @@ import { useFingerprintReader } from '../hooks/useFingerprintReader';
 import { cachedResponse, cacheResponse } from '../hooks/useFetch';
 import type {
   GymSettings, Member, MembershipPlan, MemberCounts, PaginatedMembers, Trainer,
-  Paginated,
+  Paginated, MemberHealth,
 } from '../types';
 import toast from 'react-hot-toast';
 
@@ -214,6 +216,19 @@ export default function Members() {
   const [freezing, setFreezing] = useState<Member | null>(null);
   const [unfreezing, setUnfreezing] = useState<Member | null>(null);
   const [progressMember, setProgressMember] = useState<Member | null>(null);
+  // The health questionnaire, with a line saying why it opened on its own.
+  const [healthFor, setHealthFor] = useState<{ member: Member; prompt?: string } | null>(null);
+
+  /** After a renewal: ask for the waiver again if the gym wants that. */
+  const askWaiverIfDue = (m: Member) => {
+    void api.get<MemberHealth>(`/members/${m.id}/health`)
+      .then(r => {
+        if (r.data.needsSigning) {
+          setHealthFor({ member: m, prompt: t('Renewed. Please have {name} sign the health declaration and waiver again.', { name: m.name }) });
+        }
+      })
+      .catch(() => { /* the card still shows the waiver is due */ });
+  };
 
   const debouncedSearch = useDebounced(search);
 
@@ -584,6 +599,13 @@ export default function Members() {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-gray-900 dark:text-slate-100 truncate">{m.name}</h3>
                     <p className="text-xs font-medium text-gray-400 dark:text-slate-500 mt-0.5">{m.memberNo}</p>
+                    {m.health && m.health.conditions.length > 0 && (
+                      <button type="button" onClick={() => setHealthFor({ member: m })}
+                        title={t('Health conditions declared — tap to read')}
+                        className="mt-1 inline-flex items-center gap-1 rounded-full bg-red-50 dark:bg-red-500/15 text-red-700 dark:text-red-300 px-2 py-0.5 text-[11px] font-semibold">
+                        <HeartPulse size={11} /> {m.health.conditions.map(c => t(CONDITION_SHORT[c])).join(' · ')}
+                      </button>
+                    )}
                     <div className="flex items-center gap-2 mt-0.5">
                       <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1">
                         <Phone size={11} /> {m.phone || t('No phone')}
@@ -712,6 +734,20 @@ export default function Members() {
                       }`}
                     >
                       <Fingerprint size={14} />
+                    </button>
+                    <button
+                      onClick={() => setHealthFor({ member: m })}
+                      aria-label={t("{name}'s health declaration", { name: m.name })}
+                      title={!m.health ? t('Health declaration not signed') : m.health.conditions.length ? t('Health conditions declared') : t('Health declaration signed')}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-medium border active:scale-95 transition-all shrink-0 ${focusRing} ${
+                        !m.health
+                          ? 'border-amber-300 dark:border-amber-500/40 text-amber-600 bg-amber-50/60 dark:bg-amber-950/20'
+                          : m.health.conditions.length
+                            ? 'border-red-200 dark:border-red-500/30 text-red-600 bg-red-50/50 dark:bg-red-950/20'
+                            : 'border-green-200 dark:border-green-500/30 text-green-600 bg-green-50/50 dark:bg-green-950/20'
+                      }`}
+                    >
+                      <HeartPulse size={14} />
                     </button>
                     <button
                       onClick={() => setProgressMember(m)}
@@ -864,6 +900,11 @@ export default function Members() {
               setFingerprintAfterRegister(true);
               setFingerprintMember(created);
             }
+            // The waiver is signed at joining. It opens over the fingerprint
+            // dialog, so the desk does the paper first and the finger after.
+            if (created) {
+              setHealthFor({ member: created, prompt: t('New member: fill in the health questions and have them sign the waiver.') });
+            }
             void load();
           }}
         />
@@ -878,7 +919,7 @@ export default function Members() {
           trainers={activeTrainers}
           settings={settings}
           onClose={() => setRenewing(null)}
-          onRenewed={() => { setRenewing(null); void load(); }}
+          onRenewed={() => { const m = renewing; setRenewing(null); void load(); askWaiverIfDue(m); }}
         />
       )}
 
@@ -979,6 +1020,17 @@ export default function Members() {
           onClose={() => { setFingerprintMember(null); setFingerprintAfterRegister(false); }}
           // Reload so the button's enrolled state matches what just happened.
           onChanged={() => { void load(); }}
+        />
+      )}
+
+      {/* Health declaration and waiver — last, so it sits over the
+          fingerprint dialog when both open after registering. */}
+      {healthFor && (
+        <HealthModal
+          member={healthFor.member}
+          prompt={healthFor.prompt}
+          onClose={() => setHealthFor(null)}
+          onSaved={() => { void load(); }}
         />
       )}
     </Page>

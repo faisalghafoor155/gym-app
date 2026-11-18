@@ -340,6 +340,8 @@ export interface Member {
   /** The member's fingerprint enrolment, or null. Never carries the template
    *  itself — the roster only needs to know one exists. */
   fingerprint?: FingerprintEnrolment | null;
+  /** The latest health declaration's conditions and date, or null if never signed. */
+  health?: { conditions: HealthCondition[]; signedAt: string } | null;
 }
 
 export interface MemberSummary {
@@ -886,11 +888,16 @@ export interface GymSettings {
   staffWeeklyOff?: number | null;
   /** Whether unmarked working days are cut from staff salaries. */
   staffAbsenceDeduction?: boolean;
+  /** The waiver members sign; null for the standard wording. */
+  waiverText?: string | null;
+  /** Ask members to sign again on every renewal. */
+  waiverOnRenewal?: boolean;
 }
 
 export interface PtSession {
   id: string;
-  member: { id: string; name: string; memberNo?: string | null };
+  /** `healthConditions`: what the member last declared, for the trainer. */
+  member: { id: string; name: string; memberNo?: string | null; healthConditions?: HealthCondition[] };
   trainer: { id: string; name: string; specialization?: string | null };
   sessionDate: string;
   priceCharged: number;
@@ -1336,4 +1343,29 @@ export interface StaffAttendanceMonth {
     days: Record<string, StaffDayStatus>;
     summary: StaffAttendanceSummary;
   }[];
+}
+
+export type HealthCondition = 'bp' | 'diabetes' | 'heart' | 'asthma' | 'injury' | 'surgery' | 'pregnancy' | 'other';
+
+/** One signing of the health questionnaire and waiver. */
+export interface HealthDeclaration {
+  id: string;
+  conditions: HealthCondition[];
+  details: string | null;
+  medications: string | null;
+  waiverText: string;
+  signature: string;
+  signedName: string;
+  signedAt: string;
+  membershipId: string | null;
+  recordedBy: { id: string; name: string } | null;
+}
+
+export interface MemberHealth {
+  current: HealthDeclaration | null;
+  history: HealthDeclaration[];
+  /** The wording the next signing will agree to. */
+  waiverText: string;
+  /** Never signed, or the gym asks again on renewal and they have renewed. */
+  needsSigning: boolean;
 }

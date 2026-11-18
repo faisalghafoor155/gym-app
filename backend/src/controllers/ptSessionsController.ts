@@ -33,7 +33,14 @@ export const getAll = async (
       prisma.ptSession.findMany({
         where,
         include: {
-          member: { select: { id: true, name: true, memberNo: true } },
+          member: {
+            select: {
+              id: true, name: true, memberNo: true,
+              // What the trainer must know before the session: the conditions
+              // the member last declared.
+              healthDeclarations: { orderBy: { signedAt: 'desc' }, take: 1, select: { conditions: true } },
+            },
+          },
           trainer: { select: { id: true, name: true, specialization: true } },
         },
         orderBy: { sessionDate: 'desc' },
@@ -45,7 +52,12 @@ export const getAll = async (
 
     const result = sessions.map(s => ({
       id: s.id,
-      member: s.member,
+      member: {
+        id: s.member.id,
+        name: s.member.name,
+        memberNo: s.member.memberNo,
+        healthConditions: s.member.healthDeclarations[0]?.conditions ?? [],
+      },
       trainer: s.trainer,
       sessionDate: s.sessionDate,
       priceCharged: Number(s.priceCharged),

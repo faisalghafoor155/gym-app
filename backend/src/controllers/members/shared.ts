@@ -44,6 +44,15 @@ export const memberFields = {
   fingerprint: {
     select: { id: true, enrolledAt: true, finger: true, format: true },
   },
+  /**
+   * The latest health declaration, for the badge on the member's card — the
+   * conditions and when it was signed, never the signature image.
+   */
+  healthDeclarations: {
+    orderBy: { signedAt: "desc" },
+    take: 1,
+    select: { conditions: true, signedAt: true },
+  },
 } as const;
 
 /**
@@ -72,12 +81,13 @@ export type MemberRow = Prisma.MemberGetPayload<{
  * tell a hand-deactivated member from one the calendar retired.
  */
 export const decorate = (
-  { memberships, ...member }: MemberRow,
+  { memberships, healthDeclarations, ...member }: MemberRow,
   now: Date = new Date(),
 ) => {
   const current = memberships[0] ?? null;
   return {
     ...member,
+    health: healthDeclarations[0] ?? null,
     status: effectiveMemberStatus(member.status, current, now),
     storedStatus: member.status,
     currentMembership: current ? toView(current, now) : null,

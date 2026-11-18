@@ -165,6 +165,11 @@ model Gym {
   /// that does not mark staff attendance would otherwise pay nobody.
   staffAbsenceDeduction Boolean @default(false)
 
+  /// The terms a member signs at joining. Null uses the app's standard text.
+  waiverText      String?
+  /// Whether a member is asked to sign again each time they renew.
+  waiverOnRenewal Boolean @default(false)
+
   /// Free days a member earns for each friend who joins on their referral,
   /// added to their membership when the desk grants the reward. Zero means the
   /// gym tracks referrals but rewards them some other way (a shaker, a shirt).
@@ -197,35 +202,36 @@ model Gym {
   /// pointing at somebody else would be worse than a gap in the sequence.
   memberSeq Int @default(0)
 
-  users             User[]
-  members           Member[]
-  attendance        Attendance[]
-  payments          Payment[]
-  workoutPlans      WorkoutPlan[]
-  dietPlans         DietPlan[]
-  supplements       Supplement[]
-  supplementSales   SupplementSale[]
-  membershipPlans   MembershipPlan[]
-  memberships       Membership[]
-  auditLogs         AuditLog[]
-  trainers          Trainer[]
-  ptSessions        PtSession[]
-  classes           Class[]
-  classSchedules    ClassSchedule[]
-  classBookings     ClassBooking[]
-  paymentIntents    PaymentIntent[]
-  expenses          Expense[]
-  fingerprints      FingerprintTemplate[]
-  measurements      MemberMeasurement[]
-  referralRewards   ReferralReward[]
-  promoCodes        PromoCode[]
-  lockers           Locker[]
-  leads             Lead[]
-  dayPasses         DayPass[]
-  staffMembers      StaffMember[]
-  salaryAdjustments SalaryAdjustment[]
-  salaryPayments    SalaryPayment[]
-  staffAttendance   StaffAttendance[]
+  users              User[]
+  members            Member[]
+  attendance         Attendance[]
+  payments           Payment[]
+  workoutPlans       WorkoutPlan[]
+  dietPlans          DietPlan[]
+  supplements        Supplement[]
+  supplementSales    SupplementSale[]
+  membershipPlans    MembershipPlan[]
+  memberships        Membership[]
+  auditLogs          AuditLog[]
+  trainers           Trainer[]
+  ptSessions         PtSession[]
+  classes            Class[]
+  classSchedules     ClassSchedule[]
+  classBookings      ClassBooking[]
+  paymentIntents     PaymentIntent[]
+  expenses           Expense[]
+  fingerprints       FingerprintTemplate[]
+  measurements       MemberMeasurement[]
+  referralRewards    ReferralReward[]
+  promoCodes         PromoCode[]
+  lockers            Locker[]
+  leads              Lead[]
+  dayPasses          DayPass[]
+  staffMembers       StaffMember[]
+  salaryAdjustments  SalaryAdjustment[]
+  salaryPayments     SalaryPayment[]
+  staffAttendance    StaffAttendance[]
+  healthDeclarations HealthDeclaration[]
 
   /// What this gym pays *us*, as opposed to everything above, which is what
   /// its members pay it. Optional because a gym is only given a billing row
@@ -320,17 +326,18 @@ model User {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  gym                       Gym                 @relation(fields: [gymId], references: [id])
-  member                    Member?             @relation(fields: [memberId], references: [id])
-  recordedPayments          Payment[]           @relation("PaymentRecordedBy")
-  recordedExpenses          Expense[]           @relation("ExpenseRecordedBy")
-  leadsCreated              Lead[]              @relation("LeadsCreated")
-  recordedDayPasses         DayPass[]           @relation("DayPassRecordedBy")
-  staffProfile              StaffMember?        @relation("StaffProfileLogin")
-  recordedSalaryAdjustments SalaryAdjustment[]  @relation("SalaryAdjustmentRecordedBy")
-  recordedSalaryPayments    SalaryPayment[]     @relation("SalaryPaymentRecordedBy")
-  recordedStaffAttendance   StaffAttendance[]   @relation("StaffAttendanceRecordedBy")
-  recordedMeasurements      MemberMeasurement[] @relation("MeasurementRecordedBy")
+  gym                        Gym                 @relation(fields: [gymId], references: [id])
+  member                     Member?             @relation(fields: [memberId], references: [id])
+  recordedPayments           Payment[]           @relation("PaymentRecordedBy")
+  recordedExpenses           Expense[]           @relation("ExpenseRecordedBy")
+  leadsCreated               Lead[]              @relation("LeadsCreated")
+  recordedDayPasses          DayPass[]           @relation("DayPassRecordedBy")
+  staffProfile               StaffMember?        @relation("StaffProfileLogin")
+  recordedSalaryAdjustments  SalaryAdjustment[]  @relation("SalaryAdjustmentRecordedBy")
+  recordedSalaryPayments     SalaryPayment[]     @relation("SalaryPaymentRecordedBy")
+  recordedStaffAttendance    StaffAttendance[]   @relation("StaffAttendanceRecordedBy")
+  recordedHealthDeclarations HealthDeclaration[] @relation("HealthDeclarationRecordedBy")
+  recordedMeasurements       MemberMeasurement[] @relation("MeasurementRecordedBy")
 
   @@index([gymId])
   @@index([gymId, role])
@@ -402,14 +409,15 @@ model Member {
   fingerprint    FingerprintTemplate?
   measurements   MemberMeasurement[]
 
-  referredBy       Member?           @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
-  referrals        Member[]          @relation("Referrals")
-  referralRewards  ReferralReward[]  @relation("RewardReferrer")
-  referredReward   ReferralReward?   @relation("RewardReferred")
-  promoRedemptions PromoRedemption[]
-  locker           Locker?
-  lead             Lead?
-  guestPasses      DayPass[]
+  referredBy         Member?             @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals          Member[]            @relation("Referrals")
+  referralRewards    ReferralReward[]    @relation("RewardReferrer")
+  referredReward     ReferralReward?     @relation("RewardReferred")
+  promoRedemptions   PromoRedemption[]
+  locker             Locker?
+  lead               Lead?
+  guestPasses        DayPass[]
+  healthDeclarations HealthDeclaration[]
 
   @@unique([gymId, memberNo])
   @@index([gymId])
@@ -1693,4 +1701,41 @@ model StaffAttendance {
 
   @@unique([staffMemberId, day])
   @@index([gymId, day])
+}
+
+/// A member's health questionnaire and signed waiver, as of one signing.
+///
+/// A new row each time they sign — at joining, and on renewal when the gym asks
+/// for it — so the latest is what applies today and the earlier ones are the
+/// record of what they declared before. Never edited: a signed statement that
+/// could be changed afterwards would prove nothing.
+model HealthDeclaration {
+  id       String @id @default(uuid())
+  gymId    String
+  memberId String
+
+  /// bp | diabetes | heart | asthma | injury | surgery | pregnancy | other.
+  /// Empty means they declared none.
+  conditions  String[]
+  details     String?
+  medications String?
+
+  /// The waiver as it read when they signed, so a later edit to the gym's
+  /// wording does not change what this member agreed to.
+  waiverText String
+  /// The drawn signature, a PNG data URL.
+  signature  String
+  signedName String
+  signedAt   DateTime @default(now())
+
+  /// The membership that was current when they signed, if any.
+  membershipId String?
+  recordedById String?
+
+  gym        Gym    @relation(fields: [gymId], references: [id])
+  member     Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  recordedBy User?  @relation("HealthDeclarationRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([memberId, signedAt])
+  @@index([gymId])
 }

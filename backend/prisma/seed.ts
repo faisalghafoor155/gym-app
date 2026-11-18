@@ -33,6 +33,8 @@ import { PrismaClient, type MembershipStatus, type PromoCode } from '@prisma/cli
 import { PrismaPg } from '@prisma/adapter-pg';
 import { encryptTemplate } from '../src/services/fingerprint/crypto.js';
 import { summarise } from '../src/services/staffAttendance.js';
+import { waiverFor } from '../src/services/waiver.js';
+import { crc32, deflateSync } from 'node:zlib';
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env['DATABASE_URL']! }),
@@ -281,6 +283,55 @@ const STAFF = [
 
 /** One row of the members created this run, kept for the sections after the
  *  member loop that hang things off them. */
+/**
+ * A drawn-looking signature as a PNG data URL: a looping pen line across a
+ * white strip, different for every member. Encoded by hand (zlib does the
+ * compression) so the seed needs no image library.
+ */
+const signaturePng = (): string => {
+  const w = 240;
+  const h = 70;
+  const px = Buffer.alloc(w * h, 255);
+  const ink = (x: number, y: number) => {
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      const xi = Math.round(x) + dx;
+      const yi = Math.round(y) + dy;
+      if (xi >= 0 && xi < w && yi >= 0 && yi < h) px[yi * w + xi] = 20;
+    }
+  };
+  const a = 8 + rand() * 10;
+  const f1 = 0.05 + rand() * 0.06;
+  const f2 = 0.15 + rand() * 0.15;
+  for (let t = 0; t <= 1; t += 0.0015) {
+    const x = 15 + t * (w - 40) + Math.sin(t * 40 * f2) * 6;
+    const y = h / 2 + Math.sin(t * 200 * f1) * a + Math.cos(t * 90 * f2) * 6;
+    ink(x, y);
+  }
+  // Each row starts with filter byte 0 (none).
+  const raw = Buffer.alloc((w + 1) * h);
+  for (let y = 0; y < h; y++) px.copy(raw, y * (w + 1) + 1, y * w, (y + 1) * w);
+  const chunk = (type: string, data: Buffer) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body) >>> 0);
+    return Buffer.concat([len, body, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 0; // greyscale
+  const png = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', deflateSync(raw)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+  return `data:image/png;base64,${png.toString('base64')}`;
+};
+
 type Seeded = {
   id: string;
   name: string;
@@ -1517,6 +1568,49 @@ async function main(): Promise<void> {
     }
   }
 
+  // --- health declarations -------------------------------------------------------
+  // Most members signed the questionnaire and waiver the day they joined; a
+  // few never did, so the "not signed" state shows too. Around one in five
+  // declared something a trainer should know about.
+  let declarationsMade = 0;
+  const waiverText = waiverFor(settings);
+  const CONDITION_NOTES: Record<string, string> = {
+    bp: 'High BP, on medication', diabetes: 'Type 2, controlled with tablets', heart: 'Mild arrhythmia — doctor says light cardio only',
+    asthma: 'Uses an inhaler before cardio', injury: 'Lower back pain, avoid heavy deadlifts', surgery: 'Knee arthroscopy last year',
+    pregnancy: 'Second trimester, light training only', other: 'Migraines',
+  };
+  for (const m of seeded) {
+    if (rand() < 0.12) continue;
+    const declared: string[] = [];
+    if (rand() < 0.22) {
+      const pool = m.gender === 'female'
+        ? ['bp', 'diabetes', 'asthma', 'injury', 'surgery', 'pregnancy', 'other']
+        : ['bp', 'diabetes', 'heart', 'asthma', 'injury', 'surgery', 'other'];
+      declared.push(pick(pool));
+      if (rand() < 0.3) {
+        const second = pick(pool);
+        if (!declared.includes(second)) declared.push(second);
+      }
+    }
+    const signedAt = notAfterNow(new Date(m.createdAt.getTime() + between(5, 40) * 60_000));
+    await prisma.healthDeclaration.create({
+      data: {
+        gymId,
+        memberId: m.id,
+        conditions: declared,
+        details: declared.length ? declared.map(c => CONDITION_NOTES[c]).join('; ') : null,
+        medications: declared.includes('bp') ? 'Amlodipine 5mg' : declared.includes('diabetes') ? 'Metformin' : null,
+        waiverText,
+        signature: signaturePng(),
+        signedName: m.name,
+        signedAt,
+        membershipId: m.membership?.id ?? null,
+        recordedById: desk(),
+      },
+    });
+    declarationsMade++;
+  }
+
   // --- staff salaries ------------------------------------------------------------------
   // Profiles for the people the gym pays, the last few months paid, and the
   // current month still open with an advance, a deduction and a bonus on it.
@@ -1782,7 +1876,7 @@ async function main(): Promise<void> {
       `${lockersAssigned} lockers handed out (${lockerPayments} rent payments)`,
       `${freezesMade} freezes`,
       `${measurementsMade} measurements`,
-      `${staffMade} staff profiles, ${adjustmentsMade} salary adjustments, ${salaryPaymentsMade} salaries paid, ${staffDaysMade} staff attendance days`,
+      `${staffMade} staff profiles, ${adjustmentsMade} salary adjustments, ${salaryPaymentsMade} salaries paid, ${staffDaysMade} staff attendance days, ${declarationsMade} health declarations`,
       `${audits} audit entries`,
     ].join(', ') + '.',
   );

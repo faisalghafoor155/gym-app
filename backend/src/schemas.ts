@@ -1346,6 +1346,10 @@ export const updateGymSettingsSchema = z.object({
   staffWeeklyOff: z.coerce.number().int().min(0).max(6, "must be a day of the week").nullable().optional(),
   /** Cut salary for unmarked working days. */
   staffAbsenceDeduction: z.boolean().optional(),
+  /** The waiver members sign. Blank goes back to the standard wording. */
+  waiverText: optionalText(5000),
+  /** Ask members to sign again on every renewal. */
+  waiverOnRenewal: z.boolean().optional(),
 });
 
 // --- online payments ---------------------------------------------------
@@ -1795,6 +1799,29 @@ export const markStaffAttendanceSchema = z.object({
   status: z.enum(STAFF_ATTENDANCE_STATUSES, { error: "must be present, half, leave or absent" }),
 });
 
+// --- health declarations ---------------------------------------------
+
+export const HEALTH_CONDITIONS = [
+  "bp", "diabetes", "heart", "asthma", "injury", "surgery", "pregnancy", "other",
+] as const;
+
+export const createHealthDeclarationSchema = z.object({
+  conditions: z
+    .array(z.enum(HEALTH_CONDITIONS, { error: "is not a condition we ask about" }))
+    .max(HEALTH_CONDITIONS.length)
+    .transform((c) => [...new Set(c)]),
+  details: optionalText(1000),
+  medications: optionalText(500),
+  signedName: name,
+  /** A drawn signature: a PNG data URL, kept small. */
+  signature: z
+    .string()
+    .startsWith("data:image/png;base64,", "must be a drawn signature")
+    .max(300_000, "is too large"),
+  /** The member must tick the waiver; nothing is saved otherwise. */
+  waiverAccepted: z.literal(true, { error: "must be accepted" }),
+});
+
 // --- lockers -----------------------------------------------------------
 
 const lockerNumber = z.string().trim().min(1, "is required").max(20, "is too long");
@@ -1881,3 +1908,4 @@ export type PaySalaryBody = z.infer<typeof paySalarySchema>;
 export type StaffCheckBody = z.infer<typeof staffCheckSchema>;
 export type StaffDayQuery = z.infer<typeof staffDayQuerySchema>;
 export type MarkStaffAttendanceBody = z.infer<typeof markStaffAttendanceSchema>;
+export type CreateHealthDeclarationBody = z.infer<typeof createHealthDeclarationSchema>;

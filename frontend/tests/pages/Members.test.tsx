@@ -782,8 +782,11 @@ describe('Members — the member form', () => {
     // The id only exists once POST answered, so this prompt has to cross back
     // from the form to the page rather than live inside the form. It is the
     // newly-created member being enrolled, not whoever was on the roster.
-    expect(await screen.findByText(/zainab malik/i)).toBeInTheDocument();
+    const enrol = await screen.findByRole('dialog', { name: /enrol fingerprint/i });
+    expect(within(enrol).getByText(/zainab malik/i)).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: /add new member/i })).not.toBeInTheDocument();
+    // The waiver is asked for at joining too, over the fingerprint dialog.
+    expect(await screen.findByRole('dialog', { name: /health & waiver · zainab malik/i })).toBeInTheDocument();
   });
 
   it('opens the form ready to register when the dashboard deep-links to it', async () => {

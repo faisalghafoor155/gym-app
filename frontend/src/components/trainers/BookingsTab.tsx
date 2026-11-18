@@ -1,8 +1,21 @@
-import { BookOpen, Clock } from 'lucide-react';
+import { BookOpen, Clock, HeartPulse } from 'lucide-react';
 import Badge from '../Badge';
 import { Card, EmptyState, DataRow } from '../ui';
 import type { PtSession } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
+import { CONDITION_SHORT } from '../../utils/health';
+
+/** What the member declared, for the trainer to see before the session. */
+function HealthFlag({ conditions }: { conditions?: PtSession['member']['healthConditions'] }) {
+  const { t } = useLanguage();
+  if (!conditions?.length) return null;
+  return (
+    <span title={t('Health conditions declared')}
+      className="ml-2 inline-flex items-center gap-1 rounded-full bg-red-50 dark:bg-red-500/15 text-red-700 dark:text-red-300 px-2 py-0.5 text-[11px] font-semibold align-middle">
+      <HeartPulse size={11} /> {conditions.map(c => t(CONDITION_SHORT[c])).join(' · ')}
+    </span>
+  );
+}
 
 interface Props {
   sessions: PtSession[];
@@ -43,6 +56,7 @@ export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid
                   <tr key={s.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/20">
                     <td className="px-6 py-4 font-semibold text-gray-900 dark:text-slate-200">
                       {s.member.name}
+                      <HealthFlag conditions={s.member.healthConditions} />
                     </td>
                     <td className="px-6 py-4">
                       {s.trainer.name}
@@ -118,6 +132,7 @@ export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid
                   <div className="min-w-0">
                     <p className="font-semibold text-gray-900 dark:text-slate-200 truncate">
                       {s.member.name}
+                      <HealthFlag conditions={s.member.healthConditions} />
                     </p>
                     <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
                       {t('with {name}', { name: s.trainer.name })}

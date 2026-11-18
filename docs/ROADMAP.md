@@ -5,7 +5,7 @@ Tick a box when a task ships.
 
 **Status legend:** `[x]` done · `[ ]` not started · 🟠 partly there (note says what exists)
 
-_Last checked against the code: 2026-11-18 (after Staff Salaries and Staff Attendance)._
+_Last checked against the code: 2026-11-18 (after Health Declaration / Waiver)._
 
 ---
 
@@ -65,11 +65,14 @@ Split a membership fee across dates.
 ## 🟡 Priority 2: smoother operations
 
 ### 5. Health Declaration / Waiver
-- [ ] Health questionnaire at join (BP, diabetes, heart, injuries, pregnancy)
-  ℹ️ Only `emergencyContact` exists on Member today; "Injury" appears only as a freeze reason.
-- [ ] Terms & liability waiver with on-screen signature
-- [ ] Health flag badge on the member profile and the trainer view
-- [ ] Stored per member; re-sign on renewal (optional)
+- [x] Health questionnaire at join (BP, diabetes, heart, injuries, pregnancy)
+  ✅ Opens after registering a member; also from the heart button on every member card (`/api/members/:id/health`)
+- [x] Terms & liability waiver with on-screen signature
+  ✅ Drawn signature (finger, stylus or mouse); wording editable in Gym settings, each signing keeps the wording it was signed under; printable
+- [x] Health flag badge on the member profile and the trainer view
+  ✅ Red badge with the conditions on the member card and next to the member in PT bookings; the heart button is amber until signed
+- [x] Stored per member; re-sign on renewal (optional)
+  ✅ Every signing kept as history; "Ask members to sign again when they renew" in Gym settings prompts after a renewal
 
 ### 6. Equipment & Maintenance
 - [ ] Equipment list: name, brand, purchase date, cost, warranty end
@@ -125,14 +128,14 @@ Split a membership fee across dates.
 | P1: Day Pass | 3 | 1 | 0 |
 | P1: Installments | 0 | 3 | 1 |
 | P1: Staff Salary | 4 | 1 | 0 |
-| P2: Health Waiver | 0 | 0 | 4 |
+| P2: Health Waiver | 4 | 0 | 0 |
 | P2: Equipment | 0 | 1 | 3 |
 | P2: Feedback | 0 | 0 | 3 |
 | P2: Multi-Branch | 0 | 0 | 4 |
 | P3: Challenges | 0 | 1 | 2 |
 | P3: Bulk WhatsApp | 0 | 1 | 2 |
 | Technical | 0 | 0 | 2 |
-| **Total** | **11** | **11** | **21** |
+| **Total** | **15** | **11** | **17** |
 
 ## ✅ Already built (for reference)
 Members, memberships, freeze · Payments, dues, receipts, promo codes, online payments · Expenses, supplement sales ·

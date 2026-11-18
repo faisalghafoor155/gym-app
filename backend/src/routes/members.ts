@@ -20,7 +20,9 @@ import {
   freezeMembershipSchema,
   createMeasurementSchema,
   measurementParams,
+  createHealthDeclarationSchema,
 } from "../schemas.js";
+import { getForMember as getHealth, createForMember as signHealth } from "../controllers/healthController.js";
 import {
   listForMember as listMeasurements,
   createForMember as createMeasurement,
@@ -168,6 +170,18 @@ router.delete(
   requirePermission("canManageMembers"),
   validate(measurementParams, "params"),
   authed(removeMeasurement),
+);
+
+// Health declaration and waiver. Readable by any staff — a trainer has to know
+// about a bad heart before the session, not after — and signed at the desk by
+// whoever registers members.
+router.get("/:id/health", validate(idParam, "params"), authed(getHealth));
+router.post(
+  "/:id/health",
+  requirePermission("canManageMembers"),
+  validate(idParam, "params"),
+  validate(createHealthDeclarationSchema),
+  authed(signHealth),
 );
 
 export default router;

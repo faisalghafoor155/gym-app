@@ -5,7 +5,12 @@ import { useLanguage } from '../../context/LanguageContext';
 import type { GymProfile, PaymentAccounts } from './types';
 
 /** The gym's rules for keeping and admitting people, as the form holds them. */
-type Retention = { referralRewardDays: string; inactivityDays: string; dayPassFee: string; guestPassesPerMonth: string };
+type Retention = {
+  referralRewardDays: string; inactivityDays: string; dayPassFee: string; guestPassesPerMonth: string;
+  /** Blank for the standard wording. */
+  waiverText: string;
+  waiverOnRenewal: boolean;
+};
 
 export default function GymSettingsCard({
   profile, setProfile, handleLogoChange, handleRemoveLogo,
@@ -246,6 +251,32 @@ export default function GymSettingsCard({
               {t('How many guests one member may bring in a month. 0 for no limit.')}
             </p>
           </div>
+        </div>
+
+        <div className="border-t border-gray-100 dark:border-slate-800 pt-4">
+          <label htmlFor="waiver-text" className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+            {t('Health waiver wording')}
+          </label>
+          <textarea
+            id="waiver-text"
+            rows={4}
+            maxLength={5000}
+            value={retention.waiverText}
+            onChange={e => setRetention(r => ({ ...r, waiverText: e.target.value }))}
+            placeholder={t('Leave blank to use the standard waiver.')}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+            {t('What members agree to when they sign the health declaration. Each signing keeps the wording it was signed under.')}
+          </p>
+          <label className="mt-2 flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
+            <input
+              type="checkbox"
+              checked={retention.waiverOnRenewal}
+              onChange={e => setRetention(r => ({ ...r, waiverOnRenewal: e.target.checked }))}
+            />
+            {t('Ask members to sign again when they renew')}
+          </label>
         </div>
 
         <div className="border-t border-gray-100 dark:border-slate-800 pt-4">
