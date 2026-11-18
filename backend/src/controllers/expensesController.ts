@@ -39,6 +39,14 @@ const expenseWhere = (
   }),
 });
 
+/** Whether the Salaries page booked this expense — and so owns it. */
+const salaryLink = {
+  salaryPayment: { select: { id: true } },
+  salaryAdjustment: { select: { id: true } },
+} as const;
+
+const SALARY_OWNED = 'This expense was booked from Staff Salaries. Change or undo it there.';
+
 export const getAll = async (
   req: AuthedRequest<Record<string, string>, unknown, unknown, ExpenseQuery>,
   res: Response,
@@ -50,7 +58,7 @@ export const getAll = async (
     const [expenses, total, totals, byCategory] = await Promise.all([
       prisma.expense.findMany({
         where,
-        include: { recordedBy: { select: { id: true, name: true } } },
+        include: { recordedBy: { select: { id: true, name: true } }, ...salaryLink },
         orderBy: { spentOn: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -68,7 +76,10 @@ export const getAll = async (
     ]);
 
     res.json({
-      data: expenses.map((e) => withMoney(e, 'amount')),
+      data: expenses.map(({ salaryPayment, salaryAdjustment, ...e }) => ({
+        ...withMoney(e, 'amount'),
+        fromSalaries: !!(salaryPayment || salaryAdjustment),
+      })),
       total,
       page,
       limit,
@@ -126,9 +137,15 @@ export const update = async (
   const { id } = req.params;
   const { category, amount, spentOn, vendor, notes } = req.body;
   try {
-    const existing = await prisma.expense.findFirst({ where: { id, gymId: req.gymId } });
+    const existing = await prisma.expense.findFirst({ where: { id, gymId: req.gymId }, include: salaryLink });
     if (!existing) {
       res.status(404).json({ error: 'Expense not found' });
+      return;
+    }
+    // Editing it here would leave the salary sheet saying one thing and the
+    // books another.
+    if (existing.salaryPayment || existing.salaryAdjustment) {
+      res.status(409).json({ error: SALARY_OWNED });
       return;
     }
 
@@ -144,7 +161,8 @@ export const update = async (
       include: { recordedBy: { select: { id: true, name: true } } },
     });
 
-    const changed = diff(existing, updated, ['category', 'amount', 'spentOn', 'vendor', 'notes']);
+    const { salaryPayment: _p, salaryAdjustment: _a, ...before } = existing;
+    const changed = diff(before, updated, ['category', 'amount', 'spentOn', 'vendor', 'notes']);
     if (changed) {
       await audit(req, {
         action: 'expense.update',
@@ -169,9 +187,15 @@ export const remove = async (
 ): Promise<void> => {
   const { id } = req.params;
   try {
-    const existing = await prisma.expense.findFirst({ where: { id, gymId: req.gymId } });
+    const existing = await prisma.expense.findFirst({ where: { id, gymId: req.gymId }, include: salaryLink });
     if (!existing) {
       res.status(404).json({ error: 'Expense not found' });
+      return;
+    }
+    // Editing it here would leave the salary sheet saying one thing and the
+    // books another.
+    if (existing.salaryPayment || existing.salaryAdjustment) {
+      res.status(409).json({ error: SALARY_OWNED });
       return;
     }
 

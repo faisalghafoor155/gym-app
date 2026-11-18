@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Wallet, Plus, Search, X, Pencil, Trash2, TrendingUp, TrendingDown,
   Receipt, AlertCircle, ChevronLeft, ChevronRight,
@@ -381,6 +382,12 @@ export default function Expenses() {
                         {e.recordedBy?.name ?? '—'}
                       </td>
                       <td className="px-4 py-3">
+                        {e.fromSalaries ? (
+                          // Booked from Staff Salaries, and only changed there.
+                          <div className="text-right">
+                            <Link to="/salaries" className="text-xs font-medium text-blue-600 hover:underline">{t('Staff Salaries')}</Link>
+                          </div>
+                        ) : (
                         <div className="flex gap-1 justify-end">
                           <button
                             onClick={() => openEdit(e)}
@@ -397,6 +404,7 @@ export default function Expenses() {
                             <Trash2 size={15} />
                           </button>
                         </div>
+                        )}
                       </td>
                     </tr>
                   ))}

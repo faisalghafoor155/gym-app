@@ -334,6 +334,9 @@ export const deleteGym = async (
       await tx.locker.deleteMany({ where: { gymId } });
       await tx.lead.deleteMany({ where: { gymId } });
       await tx.dayPass.deleteMany({ where: { gymId } });
+      await tx.salaryPayment.deleteMany({ where: { gymId } });
+      await tx.salaryAdjustment.deleteMany({ where: { gymId } });
+      await tx.staffMember.deleteMany({ where: { gymId } });
       await tx.memberMeasurement.deleteMany({ where: { gymId } });
       await tx.membershipFreeze.deleteMany({ where: { gymId } });
       await tx.greetingLog.deleteMany({ where: { gymId } });

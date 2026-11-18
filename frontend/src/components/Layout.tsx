@@ -16,7 +16,7 @@ import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
   BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText, Sparkles, Calculator,
-  HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, ChevronDown, Settings, PhoneCall,
+  HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, ChevronDown, Settings, PhoneCall, Banknote,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -55,6 +55,8 @@ const staffNavItems: NavItem[] = [
   // Not in the owner-only list below, because an accountant needs it too —
   // the permission gate rather than the role is what decides who sees it.
   { to: '/expenses', label: 'Expenses', icon: Wallet },
+  // Who the gym pays each month; payday lands in Expenses as salaries.
+  { to: '/salaries', label: 'Staff Salaries', icon: Banknote },
   { to: '/trainers', label: 'Trainers & PT', icon: Award },
   { to: '/lockers', label: 'Lockers', icon: KeyRound },
   { to: '/classes', label: 'Classes & Schedules', icon: Calendar },
@@ -105,7 +107,7 @@ const securityNavItem: NavItem = { to: '/security', label: 'Security', icon: Shi
  */
 const NAV_GROUPS: { label: string; icon: LucideIcon; paths: string[] }[] = [
   { label: 'Members', icon: Users, paths: ['/members', '/leads', '/inactive', '/referrals', '/lockers'] },
-  { label: 'Payments', icon: CreditCard, paths: ['/payments', '/dues', '/day-passes', '/monthly-collection', '/expenses'] },
+  { label: 'Payments', icon: CreditCard, paths: ['/payments', '/dues', '/day-passes', '/monthly-collection', '/expenses', '/salaries'] },
   { label: 'Plans', icon: Tag, paths: ['/membership-plans', '/promo-codes', '/plans'] },
   { label: 'Supplements', icon: FlaskConical, paths: ['/supplements', '/supplement-sales'] },
   { label: 'Training', icon: Award, paths: ['/trainers', '/classes', '/calculator'] },
@@ -179,6 +181,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     '/dues': 'canViewPayments',
     '/day-passes': 'canRecordPayments',
     '/expenses': 'canManageExpenses',
+    '/salaries': 'canManageExpenses',
     '/trainers': 'canManageTrainers',
     '/classes': 'canManageClasses',
   };

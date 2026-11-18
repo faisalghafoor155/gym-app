@@ -1721,6 +1721,60 @@ export const dayPassQuerySchema = z
     }
   });
 
+// --- staff salaries ----------------------------------------------------
+
+export const STAFF_ROLES = ["receptionist", "trainer", "cleaner", "manager", "security", "other"] as const;
+export const SALARY_ADJUSTMENT_KINDS = ["advance", "deduction", "bonus"] as const;
+
+/** A calendar month as "2026-11". */
+const yearMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "must be a month like 2026-11");
+
+export const createStaffMemberSchema = z.object({
+  name,
+  phone: optionalText(30),
+  role: z.enum(STAFF_ROLES, { error: "is not a staff role" }).default("other"),
+  monthlySalary: money,
+  joinedOn: date.or(blankToUndefined).nullish(),
+  /** The login this person uses, when they have one. */
+  userId: uuid.or(blankToUndefined).nullish(),
+  notes: optionalText(300),
+});
+
+export const updateStaffMemberSchema = createStaffMemberSchema
+  .extend({ isActive: z.boolean() })
+  .partial();
+
+export const staffMemberQuerySchema = z.object({
+  /** Off by default: the list is who is on the payroll now. */
+  includeInactive: z
+    .enum(["true", "false"])
+    .transform((v) => v === "true")
+    .optional(),
+});
+
+export const salaryMonthQuerySchema = z.object({
+  /** Absent means the gym's current month. */
+  month: yearMonth.or(blankToUndefined).optional(),
+});
+
+export const createSalaryAdjustmentSchema = z.object({
+  staffMemberId: uuid,
+  month: yearMonth,
+  kind: z.enum(SALARY_ADJUSTMENT_KINDS, { error: "must be advance, deduction or bonus" }),
+  amount: money.positive("must be more than zero"),
+  notes: optionalText(200),
+});
+
+export const paySalarySchema = z
+  .object({
+    staffMemberId: uuid,
+    month: yearMonth,
+    method: z.enum(PAYMENT_METHODS, { error: "must be cash or online" }).default("cash"),
+    ...paymentChannelFields,
+    notes: optionalText(200),
+  })
+  .superRefine(rejectChannelOnCash);
+
 // --- lockers -----------------------------------------------------------
 
 const lockerNumber = z.string().trim().min(1, "is required").max(20, "is too long");
@@ -1798,3 +1852,9 @@ export type LeadQuery = z.infer<typeof leadQuerySchema>;
 export type ConvertLeadBody = z.infer<typeof convertLeadSchema>;
 export type CreateDayPassBody = z.infer<typeof createDayPassSchema>;
 export type DayPassQuery = z.infer<typeof dayPassQuerySchema>;
+export type CreateStaffMemberBody = z.infer<typeof createStaffMemberSchema>;
+export type UpdateStaffMemberBody = z.infer<typeof updateStaffMemberSchema>;
+export type StaffMemberQuery = z.infer<typeof staffMemberQuerySchema>;
+export type SalaryMonthQuery = z.infer<typeof salaryMonthQuerySchema>;
+export type CreateSalaryAdjustmentBody = z.infer<typeof createSalaryAdjustmentSchema>;
+export type PaySalaryBody = z.infer<typeof paySalarySchema>;

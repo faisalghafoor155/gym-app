@@ -987,6 +987,8 @@ export interface Expense {
   notes: string | null;
   createdAt: string;
   recordedBy: { id: string; name: string } | null;
+  /** Booked from Staff Salaries (a salary or an advance), and changed only there. */
+  fromSalaries?: boolean;
 }
 
 export interface ExpenseList {
@@ -1223,4 +1225,66 @@ export interface DayPassList {
   to: string;
   data: DayPass[];
   totals: { count: number; amount: number; guests: number };
+}
+
+export type StaffRole = 'receptionist' | 'trainer' | 'cleaner' | 'manager' | 'security' | 'other';
+export type SalaryAdjustmentKind = 'advance' | 'deduction' | 'bonus';
+
+/** Somebody the gym pays a monthly salary, with or without a login. */
+export interface StaffMember {
+  id: string;
+  name: string;
+  phone: string | null;
+  role: StaffRole;
+  monthlySalary: number;
+  joinedOn: string | null;
+  isActive: boolean;
+  notes: string | null;
+  userId: string | null;
+  user: { id: string; name: string; email: string } | null;
+}
+
+export interface SalaryAdjustment {
+  id: string;
+  kind: SalaryAdjustmentKind;
+  amount: number;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface SalaryFigures {
+  baseSalary: number;
+  bonuses: number;
+  advances: number;
+  deductions: number;
+  netPay: number;
+}
+
+export interface SalaryPayment extends SalaryFigures {
+  id: string;
+  method: 'cash' | 'online';
+  channel: PaymentChannel | null;
+  reference: string | null;
+  paidAt: string;
+  notes: string | null;
+  recordedBy: { id: string; name: string } | null;
+}
+
+export interface SalarySheetRow extends SalaryFigures {
+  staffMember: StaffMember;
+  adjustments: SalaryAdjustment[];
+  payment: SalaryPayment | null;
+}
+
+export interface SalarySheet {
+  month: string;
+  rows: SalarySheetRow[];
+  totals: { staff: number; payroll: number; advances: number; paid: number; unpaid: number; paidCount: number };
+}
+
+/** A paid month, as a salary slip prints it. */
+export interface SalarySlip extends SalaryPayment {
+  month: string;
+  staffMember: { id: string; name: string; phone: string | null; role: StaffRole; joinedOn: string | null };
+  adjustments: SalaryAdjustment[];
 }
