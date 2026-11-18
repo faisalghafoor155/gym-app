@@ -59,6 +59,7 @@ const Leads = lazy(() => import('./pages/Leads'));
 const DayPasses = lazy(() => import('./pages/DayPasses'));
 const Salaries = lazy(() => import('./pages/Salaries'));
 const StaffAttendance = lazy(() => import('./pages/StaffAttendance'));
+const Equipment = lazy(() => import('./pages/Equipment'));
 const InactiveMembers = lazy(() => import('./pages/InactiveMembers'));
 const Lockers = lazy(() => import('./pages/Lockers'));
 
@@ -253,6 +254,8 @@ function AppRoutes() {
                 <Route path="/expenses" element={<PermissionRoute action="canManageExpenses"><Expenses /></PermissionRoute>} />
                 <Route path="/salaries" element={<PermissionRoute action="canManageExpenses"><Salaries /></PermissionRoute>} />
                 <Route path="/staff-attendance" element={<PermissionRoute action="canCheckIn"><StaffAttendance /></PermissionRoute>} />
+                {/* Any staff member: anyone on the floor can report a broken machine. */}
+                <Route path="/equipment" element={<StaffRoute><Equipment /></StaffRoute>} />
                 <Route path="/team" element={<OwnerRoute><Team /></OwnerRoute>} />
                 {/* Owner-only: what the gym pays for is a billing matter. */}
                 {SUBSCRIPTIONS_ENABLED && (

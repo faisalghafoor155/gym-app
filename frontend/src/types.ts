@@ -1000,6 +1000,8 @@ export interface Expense {
   recordedBy: { id: string; name: string } | null;
   /** Booked from Staff Salaries (a salary or an advance), and changed only there. */
   fromSalaries?: boolean;
+  /** Booked from Equipment (a service or a repair), and changed only there. */
+  fromEquipment?: boolean;
 }
 
 export interface ExpenseList {
@@ -1368,4 +1370,65 @@ export interface MemberHealth {
   waiverText: string;
   /** Never signed, or the gym asks again on renewal and they have renewed. */
   needsSigning: boolean;
+}
+
+export type EquipmentCategory = 'cardio' | 'strength' | 'free_weights' | 'functional' | 'other';
+export type ServiceState = 'none' | 'ok' | 'due_soon' | 'overdue';
+
+/** A machine the gym owns, with where its service schedule stands. */
+export interface Equipment {
+  id: string;
+  name: string;
+  category: EquipmentCategory;
+  brand: string | null;
+  model: string | null;
+  serialNo: string | null;
+  location: string | null;
+  purchasedOn: string | null;
+  cost: number | null;
+  warrantyUntil: string | null;
+  serviceEveryDays: number | null;
+  lastServicedOn: string | null;
+  isActive: boolean;
+  notes: string | null;
+  openFaults: number;
+  underWarranty: boolean;
+  service: { dueOn: string | null; daysLeft: number | null; state: ServiceState };
+}
+
+export interface EquipmentList {
+  data: Equipment[];
+  totals: { machines: number; overdue: number; dueSoon: number; openFaults: number };
+}
+
+export interface EquipmentService {
+  id: string;
+  servicedOn: string;
+  cost: number | null;
+  vendor: string | null;
+  notes: string | null;
+  recordedBy: { id: string; name: string } | null;
+}
+
+export interface EquipmentFault {
+  id: string;
+  description: string;
+  status: 'open' | 'fixed';
+  reportedAt: string;
+  fixedAt: string | null;
+  fixNotes: string | null;
+  repairCost: number | null;
+  equipment: { id: string; name: string; location: string | null };
+  reportedBy: { id: string; name: string } | null;
+  reportedByMember: { id: string; name: string; memberNo: string } | null;
+}
+
+export interface EquipmentDetail extends Equipment {
+  services: EquipmentService[];
+  faults: EquipmentFault[];
+}
+
+export interface EquipmentAlerts {
+  serviceDue: { id: string; name: string; location: string | null; dueOn: string; daysLeft: number; state: ServiceState }[];
+  faults: EquipmentFault[];
 }

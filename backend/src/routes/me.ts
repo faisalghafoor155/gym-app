@@ -16,6 +16,8 @@ import {
 } from "../controllers/meController.js";
 import { selfCheckin } from "../controllers/attendanceController.js";
 import { createMine, listMine, removeMine } from "../controllers/measurementsController.js";
+import { listForMember as listMyEquipment, reportFaultAsMember } from "../controllers/equipmentController.js";
+import { reportFaultSchema } from "../schemas.js";
 import {
   bookMyClassSchema,
   createMeasurementSchema,
@@ -94,5 +96,9 @@ router.delete(
   validate(idParam, "params"),
   authed(removeMine),
 );
+
+// Telling the gym a machine is broken. Members see the machine names only.
+router.get("/equipment", authed(listMyEquipment));
+router.post("/equipment-faults", validate(reportFaultSchema), authed(reportFaultAsMember));
 
 export default router;

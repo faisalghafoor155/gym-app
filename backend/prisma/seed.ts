@@ -17,6 +17,8 @@
  *   npm run db:seed -- --email demo@gymflow.pk  # the gym that account owns —
  *                                               # created, with that owner, if
  *                                               # nobody has the address yet
+ *   npm run db:seed -- --email x@y.pk --only equipment  # machines and
+ *                                               # upkeep only, no new members
  *
  * Every account the seed creates signs in with `password123`.
  *
@@ -343,6 +345,134 @@ type Seeded = {
   membership: { id: string; startDate: Date; expiryDate: Date; durationDays: number; includesLocker: boolean } | null;
 };
 
+/**
+ * The gym's machines with a year of upkeep: services on schedule (and a few
+ * that slipped), faults reported by staff and members, some fixed with a
+ * repair bill. Every service or repair that cost money is booked as a
+ * "maintenance" expense linked to it, as the Equipment page does.
+ *
+ * Only when the gym has no equipment yet, so running the seed again does not
+ * buy the same treadmill twice. Returns what it added.
+ */
+async function seedEquipment(gymId: string, desk: () => string, books: () => string) {
+  const made = { machines: 0, services: 0, faults: 0 };
+  if (await prisma.equipment.count({ where: { gymId } })) return made;
+
+  const today = gymDate(0);
+  const dayOffset = (n: number) => new Date(today.getTime() + n * 86_400_000);
+  const MACHINES: {
+    name: string; category: string; brand: string | null; model: string | null; location: string;
+    cost: number; every: number | null; lastAgo: number | null; boughtAgo: number; warrantyDays: number | null;
+  }[] = [
+    { name: 'Treadmill 1', category: 'cardio', brand: 'Life Fitness', model: 'T5', location: 'Cardio zone', cost: 480000, every: 90, lastAgo: 104, boughtAgo: 700, warrantyDays: 1095 },
+    { name: 'Treadmill 2', category: 'cardio', brand: 'Life Fitness', model: 'T5', location: 'Cardio zone', cost: 480000, every: 90, lastAgo: 86, boughtAgo: 700, warrantyDays: 1095 },
+    { name: 'Treadmill 3', category: 'cardio', brand: 'Technogym', model: 'Run 600', location: 'Cardio zone', cost: 620000, every: 90, lastAgo: 30, boughtAgo: 200, warrantyDays: 730 },
+    { name: 'Elliptical', category: 'cardio', brand: 'Precor', model: 'EFX 635', location: 'Cardio zone', cost: 350000, every: 120, lastAgo: 40, boughtAgo: 500, warrantyDays: 365 },
+    { name: 'Spin Bike 1', category: 'cardio', brand: 'Keiser', model: 'M3i', location: 'Spin room', cost: 210000, every: 60, lastAgo: 55, boughtAgo: 400, warrantyDays: 730 },
+    { name: 'Spin Bike 2', category: 'cardio', brand: 'Keiser', model: 'M3i', location: 'Spin room', cost: 210000, every: 60, lastAgo: 20, boughtAgo: 400, warrantyDays: 730 },
+    { name: 'Rowing Machine', category: 'cardio', brand: 'Concept2', model: 'RowErg', location: 'Cardio zone', cost: 180000, every: 180, lastAgo: 150, boughtAgo: 300, warrantyDays: 1825 },
+    { name: 'Cable Crossover', category: 'strength', brand: 'Hammer Strength', model: null, location: 'Weights floor', cost: 750000, every: 120, lastAgo: 128, boughtAgo: 900, warrantyDays: 365 },
+    { name: 'Leg Press', category: 'strength', brand: 'Hammer Strength', model: 'Linear', location: 'Weights floor', cost: 520000, every: 120, lastAgo: 60, boughtAgo: 900, warrantyDays: 365 },
+    { name: 'Lat Pulldown', category: 'strength', brand: 'Matrix', model: 'G3', location: 'Weights floor', cost: 280000, every: 120, lastAgo: 115, boughtAgo: 600, warrantyDays: 365 },
+    { name: 'Smith Machine', category: 'strength', brand: 'Matrix', model: 'Magnum', location: 'Weights floor', cost: 390000, every: 180, lastAgo: 90, boughtAgo: 600, warrantyDays: 365 },
+    { name: 'Power Rack', category: 'free_weights', brand: 'Rogue', model: 'R-3', location: 'Weights floor', cost: 160000, every: 365, lastAgo: 100, boughtAgo: 800, warrantyDays: null },
+    { name: 'Dumbbell Set 2.5-40 kg', category: 'free_weights', brand: 'Eleiko', model: null, location: 'Weights floor', cost: 300000, every: null, lastAgo: null, boughtAgo: 800, warrantyDays: null },
+    { name: 'Battle Ropes & Kettlebells', category: 'functional', brand: null, model: null, location: 'Functional area', cost: 45000, every: null, lastAgo: null, boughtAgo: 250, warrantyDays: null },
+    { name: 'Ladies Treadmill', category: 'cardio', brand: 'Johnson', model: 'T8', location: 'Ladies section', cost: 330000, every: 90, lastAgo: 70, boughtAgo: 450, warrantyDays: 730 },
+  ];
+
+  const byName: Record<string, { id: string }> = {};
+  for (const m of MACHINES) {
+    const purchasedOn = dayOffset(-m.boughtAgo);
+    const machine = await prisma.equipment.create({
+      data: {
+        gymId,
+        name: m.name,
+        category: m.category,
+        brand: m.brand,
+        model: m.model,
+        serialNo: m.brand ? `${m.brand.slice(0, 3).toUpperCase()}-${between(100000, 999999)}` : null,
+        location: m.location,
+        purchasedOn,
+        cost: m.cost,
+        warrantyUntil: m.warrantyDays ? new Date(purchasedOn.getTime() + m.warrantyDays * 86_400_000) : null,
+        serviceEveryDays: m.every,
+        createdAt: purchasedOn,
+      },
+    });
+    byName[m.name] = machine;
+    made.machines++;
+
+    // Services back from the last one, a schedule's length apart, as far as
+    // the purchase date. The last-serviced date is the newest of them.
+    if (m.every && m.lastAgo !== null) {
+      for (let ago = m.lastAgo; ago < m.boughtAgo; ago += m.every + between(-5, 10)) {
+        const servicedOn = dayOffset(-ago);
+        const cost = pick([0, 2500, 3500, 4000, 6000]);
+        const vendor = pick(['FitFix Services', 'ProGym Technicians', 'Ali Fitness Repairs']);
+        const expense = cost
+          ? await prisma.expense.create({
+            data: {
+              gymId, category: 'maintenance', amount: cost, spentOn: servicedOn, vendor,
+              notes: `Service — ${m.name}`, recordedById: books(), createdAt: servicedOn,
+            },
+          })
+          : null;
+        await prisma.equipmentService.create({
+          data: {
+            gymId, equipmentId: machine.id, servicedOn, cost: cost || null, vendor,
+            notes: pick(['Belt and motor checked', 'Lubricated, cables tightened', 'General service', null]),
+            expenseId: expense?.id ?? null, recordedById: books(), createdAt: servicedOn,
+          },
+        });
+        made.services++;
+      }
+      await prisma.equipment.update({ where: { id: machine.id }, data: { lastServicedOn: dayOffset(-m.lastAgo) } });
+    }
+  }
+
+  // Faults: a few still open, the rest fixed — two reported by a member.
+  const member = await prisma.member.findFirst({ where: { gymId }, orderBy: { createdAt: 'desc' }, select: { id: true } });
+  const FAULTS: { machine: string; text: string; ago: number; fixed: boolean; cost?: number; note?: string; byMember: boolean }[] = [
+    { machine: 'Treadmill 2', text: 'Belt slips when running above speed 10', ago: 2, fixed: false, byMember: true },
+    { machine: 'Cable Crossover', text: 'Left cable frayed near the pulley, taped off', ago: 1, fixed: false, byMember: false },
+    { machine: 'Spin Bike 1', text: 'Resistance knob loose', ago: 0, fixed: false, byMember: false },
+    { machine: 'Elliptical', text: 'Console screen not turning on', ago: 40, fixed: true, cost: 8500, note: 'Replaced display board', byMember: false },
+    { machine: 'Lat Pulldown', text: 'Seat pad torn', ago: 75, fixed: true, cost: 3000, note: 'New seat cushion', byMember: true },
+    { machine: 'Treadmill 1', text: 'Squeaking at low speed', ago: 120, fixed: true, cost: 0, note: 'Lubricated the deck', byMember: false },
+    { machine: 'Smith Machine', text: 'Safety catch sticking', ago: 200, fixed: true, cost: 4500, note: 'Catch replaced', byMember: false },
+  ];
+  for (const f of FAULTS) {
+    const machine = byName[f.machine]!;
+    const reportedAt = notAfterNow(atHour(daysAgo(f.ago), 9, 20));
+    const fixedAt = f.fixed ? notAfterNow(atHour(daysAgo(Math.max(0, f.ago - between(1, 4))), 11, 18)) : null;
+    const expense = f.fixed && f.cost
+      ? await prisma.expense.create({
+        data: {
+          gymId, category: 'maintenance', amount: f.cost, spentOn: fixedAt!, vendor: f.machine,
+          notes: `Repair — ${f.machine}: ${f.text}`.slice(0, 300), recordedById: books(), createdAt: fixedAt!,
+        },
+      })
+      : null;
+    await prisma.equipmentFault.create({
+      data: {
+        gymId,
+        equipmentId: machine.id,
+        description: f.text,
+        status: f.fixed ? 'fixed' : 'open',
+        ...(f.byMember && member ? { reportedByMemberId: member.id } : { reportedById: desk() }),
+        reportedAt,
+        fixedAt,
+        fixNotes: f.fixed ? f.note : null,
+        repairCost: f.fixed && f.cost ? f.cost : null,
+        expenseId: expense?.id ?? null,
+      },
+    });
+    made.faults++;
+  }
+  return made;
+}
+
 async function main(): Promise<void> {
   const email = arg('--email');
   let gym;
@@ -449,6 +579,14 @@ async function main(): Promise<void> {
   const deskUsers = [logins['reception']!, logins['reception']!, ...(owner ? [owner] : [])];
   const desk = (): string => pick(deskUsers).id;
   const books = (): string => (owner && rand() > 0.5 ? owner.id : logins['accounts']!.id);
+
+  // `--only equipment`: just the machines and their upkeep, for a gym seeded
+  // before the Equipment page existed — without another batch of members.
+  if (arg('--only') === 'equipment') {
+    const e = await seedEquipment(gymId, desk, books);
+    console.log(`Done — ${e.machines} machines, ${e.services} services, ${e.faults} faults.`);
+    return;
+  }
 
   /**
    * An audit entry, as the app would have written it for what the seed just
@@ -1611,6 +1749,8 @@ async function main(): Promise<void> {
     declarationsMade++;
   }
 
+  const equipmentMade = await seedEquipment(gymId, desk, books);
+
   // --- staff salaries ------------------------------------------------------------------
   // Profiles for the people the gym pays, the last few months paid, and the
   // current month still open with an advance, a deduction and a bonus on it.
@@ -1876,7 +2016,7 @@ async function main(): Promise<void> {
       `${lockersAssigned} lockers handed out (${lockerPayments} rent payments)`,
       `${freezesMade} freezes`,
       `${measurementsMade} measurements`,
-      `${staffMade} staff profiles, ${adjustmentsMade} salary adjustments, ${salaryPaymentsMade} salaries paid, ${staffDaysMade} staff attendance days, ${declarationsMade} health declarations`,
+      `${staffMade} staff profiles, ${adjustmentsMade} salary adjustments, ${salaryPaymentsMade} salaries paid, ${staffDaysMade} staff attendance days, ${declarationsMade} health declarations, ${equipmentMade.machines} machines (${equipmentMade.services} services, ${equipmentMade.faults} faults)`,
       `${audits} audit entries`,
     ].join(', ') + '.',
   );

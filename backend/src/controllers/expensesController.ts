@@ -39,13 +39,19 @@ const expenseWhere = (
   }),
 });
 
-/** Whether the Salaries page booked this expense — and so owns it. */
+/**
+ * Whether another page booked this expense — Staff Salaries for wages, the
+ * Equipment page for services and repairs — and so owns it.
+ */
 const salaryLink = {
   salaryPayment: { select: { id: true } },
   salaryAdjustment: { select: { id: true } },
+  equipmentService: { select: { id: true } },
+  equipmentFault: { select: { id: true } },
 } as const;
 
 const SALARY_OWNED = 'This expense was booked from Staff Salaries. Change or undo it there.';
+const EQUIPMENT_OWNED = 'This expense was booked from Equipment. Change or remove it there.';
 
 export const getAll = async (
   req: AuthedRequest<Record<string, string>, unknown, unknown, ExpenseQuery>,
@@ -76,9 +82,10 @@ export const getAll = async (
     ]);
 
     res.json({
-      data: expenses.map(({ salaryPayment, salaryAdjustment, ...e }) => ({
+      data: expenses.map(({ salaryPayment, salaryAdjustment, equipmentService, equipmentFault, ...e }) => ({
         ...withMoney(e, 'amount'),
         fromSalaries: !!(salaryPayment || salaryAdjustment),
+        fromEquipment: !!(equipmentService || equipmentFault),
       })),
       total,
       page,
@@ -148,6 +155,10 @@ export const update = async (
       res.status(409).json({ error: SALARY_OWNED });
       return;
     }
+    if (existing.equipmentService || existing.equipmentFault) {
+      res.status(409).json({ error: EQUIPMENT_OWNED });
+      return;
+    }
 
     const updated = await prisma.expense.update({
       where: { id },
@@ -161,7 +172,7 @@ export const update = async (
       include: { recordedBy: { select: { id: true, name: true } } },
     });
 
-    const { salaryPayment: _p, salaryAdjustment: _a, ...before } = existing;
+    const { salaryPayment: _p, salaryAdjustment: _a, equipmentService: _s, equipmentFault: _f, ...before } = existing;
     const changed = diff(before, updated, ['category', 'amount', 'spentOn', 'vendor', 'notes']);
     if (changed) {
       await audit(req, {
@@ -196,6 +207,10 @@ export const remove = async (
     // books another.
     if (existing.salaryPayment || existing.salaryAdjustment) {
       res.status(409).json({ error: SALARY_OWNED });
+      return;
+    }
+    if (existing.equipmentService || existing.equipmentFault) {
+      res.status(409).json({ error: EQUIPMENT_OWNED });
       return;
     }
 

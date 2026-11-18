@@ -232,6 +232,9 @@ model Gym {
   salaryPayments     SalaryPayment[]
   staffAttendance    StaffAttendance[]
   healthDeclarations HealthDeclaration[]
+  equipment          Equipment[]
+  equipmentServices  EquipmentService[]
+  equipmentFaults    EquipmentFault[]
 
   /// What this gym pays *us*, as opposed to everything above, which is what
   /// its members pay it. Optional because a gym is only given a billing row
@@ -337,6 +340,8 @@ model User {
   recordedSalaryPayments     SalaryPayment[]     @relation("SalaryPaymentRecordedBy")
   recordedStaffAttendance    StaffAttendance[]   @relation("StaffAttendanceRecordedBy")
   recordedHealthDeclarations HealthDeclaration[] @relation("HealthDeclarationRecordedBy")
+  recordedEquipmentServices  EquipmentService[]  @relation("EquipmentServiceRecordedBy")
+  reportedEquipmentFaults    EquipmentFault[]    @relation("EquipmentFaultReportedBy")
   recordedMeasurements       MemberMeasurement[] @relation("MeasurementRecordedBy")
 
   @@index([gymId])
@@ -418,6 +423,7 @@ model Member {
   lead               Lead?
   guestPasses        DayPass[]
   healthDeclarations HealthDeclaration[]
+  equipmentFaults    EquipmentFault[]
 
   @@unique([gymId, memberNo])
   @@index([gymId])
@@ -1120,6 +1126,8 @@ model Expense {
   /// Staff Salaries page. Those rows are edited and removed there, not here.
   salaryPayment    SalaryPayment?
   salaryAdjustment SalaryAdjustment?
+  equipmentService EquipmentService?
+  equipmentFault   EquipmentFault?
 
   @@index([gymId])
   /// Serves the list and every date-bounded total.
@@ -1738,4 +1746,97 @@ model HealthDeclaration {
 
   @@index([memberId, signedAt])
   @@index([gymId])
+}
+
+/// A machine or piece of kit the gym owns: a treadmill, a cable crossover, a
+/// rack of dumbbells.
+model Equipment {
+  id    String @id @default(uuid())
+  gymId String
+
+  name     String
+  /// cardio | strength | free_weights | functional | other
+  category String  @default("strength")
+  brand    String?
+  model    String?
+  serialNo String?
+  /// Where it stands — "Cardio zone", "Ladies' section".
+  location String?
+
+  purchasedOn   DateTime? @db.Date
+  cost          Decimal?  @db.Decimal(10, 2)
+  warrantyUntil DateTime? @db.Date
+
+  /// How often it is serviced, in days. Null when it has no schedule.
+  serviceEveryDays Int?
+  /// The last service recorded; the next is due this many days after it (or
+  /// after purchase, before the first).
+  lastServicedOn   DateTime? @db.Date
+
+  /// Retired kit stays listed for its history but drops out of alerts.
+  isActive  Boolean  @default(true)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gym      Gym                @relation(fields: [gymId], references: [id])
+  services EquipmentService[]
+  faults   EquipmentFault[]
+
+  @@index([gymId, isActive])
+}
+
+/// A service carried out on a machine. With a cost, it is booked as a
+/// "maintenance" expense, linked here.
+model EquipmentService {
+  id          String @id @default(uuid())
+  gymId       String
+  equipmentId String
+
+  servicedOn DateTime @db.Date
+  cost       Decimal? @db.Decimal(10, 2)
+  vendor     String?
+  notes      String?
+
+  expenseId    String?  @unique
+  recordedById String?
+  createdAt    DateTime @default(now())
+
+  gym        Gym       @relation(fields: [gymId], references: [id])
+  equipment  Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  expense    Expense?  @relation(fields: [expenseId], references: [id])
+  recordedBy User?     @relation("EquipmentServiceRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([equipmentId, servicedOn])
+}
+
+/// Something wrong with a machine, reported by staff or by a member, until it
+/// is fixed. The repair's cost, if any, is booked as a "maintenance" expense.
+model EquipmentFault {
+  id          String @id @default(uuid())
+  gymId       String
+  equipmentId String
+
+  description String
+  /// open | fixed
+  status      String @default("open")
+
+  /// Exactly one of these says who reported it.
+  reportedById       String?
+  reportedByMemberId String?
+  reportedAt         DateTime @default(now())
+
+  fixedAt    DateTime?
+  fixNotes   String?
+  repairCost Decimal?  @db.Decimal(10, 2)
+  expenseId  String?   @unique
+
+  gym              Gym       @relation(fields: [gymId], references: [id])
+  equipment        Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  reportedBy       User?     @relation("EquipmentFaultReportedBy", fields: [reportedById], references: [id], onDelete: SetNull)
+  reportedByMember Member?   @relation(fields: [reportedByMemberId], references: [id], onDelete: SetNull)
+  expense          Expense?  @relation(fields: [expenseId], references: [id])
+
+  @@index([gymId, status])
+  @@index([equipmentId])
 }

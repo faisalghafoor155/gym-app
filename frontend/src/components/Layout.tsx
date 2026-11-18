@@ -16,7 +16,7 @@ import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
   BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText, Sparkles, Calculator,
-  HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, ChevronDown, Settings, PhoneCall, Banknote, UserCheck,
+  HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, ChevronDown, Settings, PhoneCall, Banknote, UserCheck, Wrench,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -46,6 +46,8 @@ const staffNavItems: NavItem[] = [
   { to: '/plans', label: 'Workout & Diet Plans', icon: ClipboardList },
   { to: '/calculator', label: 'Fitness Calculator', icon: Calculator },
   { to: '/supplements', label: 'Supplements', icon: FlaskConical },
+  // Machines and their upkeep. Open to all staff, who report faults here.
+  { to: '/equipment', label: 'Equipment', icon: Wrench },
   // Taking a fee is counter work, so the page is staff's. What they see on it
   // is not: the server narrows their list to the payments they recorded
   // themselves, and refuses them the gym's totals outright.

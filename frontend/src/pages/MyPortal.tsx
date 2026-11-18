@@ -9,6 +9,7 @@ import {
   primaryButton, secondaryButton,
 } from '../components/ui';
 import MyClasses from '../components/portal/MyClasses';
+import ReportMachine from '../components/portal/ReportMachine';
 import MyCheckInCode from '../components/portal/MyCheckInCode';
 import { MyMemberships, MyPayments, MyPurchases } from '../components/portal/MyHistory';
 import MyProfileForm from '../components/portal/MyProfileForm';
@@ -201,11 +202,14 @@ export default function MyPortal() {
       )}
 
       {tab === 'checkin' && (
-        <MyCheckInCode
-          memberId={member.id}
-          memberNo={member.memberNo}
-          name={member.name}
-        />
+        <div className="space-y-4">
+          <MyCheckInCode
+            memberId={member.id}
+            memberNo={member.memberNo}
+            name={member.name}
+          />
+          <ReportMachine />
+        </div>
       )}
 
       {tab === 'history' && (

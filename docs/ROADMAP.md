@@ -5,7 +5,7 @@ Tick a box when a task ships.
 
 **Status legend:** `[x]` done · `[ ]` not started · 🟠 partly there (note says what exists)
 
-_Last checked against the code: 2026-11-18 (after Health Declaration / Waiver)._
+_Last checked against the code: 2026-11-18 (after Equipment & Maintenance)._
 
 ---
 
@@ -75,11 +75,14 @@ Split a membership fee across dates.
   ✅ Every signing kept as history; "Ask members to sign again when they renew" in Gym settings prompts after a renewal
 
 ### 6. Equipment & Maintenance
-- [ ] Equipment list: name, brand, purchase date, cost, warranty end
-- [ ] Service schedule with "service due" alerts
-- [ ] Fault report (staff or member) → status Open / Fixed
-- [ ] Repair cost linked to Expenses
-  🟠 Expenses already has `maintenance` and `equipment` categories; they just aren't linked to a specific machine.
+- [x] Equipment list: name, brand, purchase date, cost, warranty end
+  ✅ Equipment page (sidebar) + `/api/equipment`; also model, serial no., location; retire instead of delete once it has history
+- [x] Service schedule with "service due" alerts
+  ✅ "Service every N days" from the last service; overdue / due-this-week on the page and in the dashboard's "Equipment needs attention" card
+- [x] Fault report (staff or member) → status Open / Fixed
+  ✅ Any staff from the Equipment page; members from the portal's Check-in tab
+- [x] Repair cost linked to Expenses
+  ✅ A service or repair with a cost is booked as a linked "maintenance" expense; the Expenses page will not edit or delete it
 
 ### 7. Member Feedback / Complaints
 - [ ] Feedback form in the member portal (rating + text, optional anonymous)
@@ -129,13 +132,13 @@ Split a membership fee across dates.
 | P1: Installments | 0 | 3 | 1 |
 | P1: Staff Salary | 4 | 1 | 0 |
 | P2: Health Waiver | 4 | 0 | 0 |
-| P2: Equipment | 0 | 1 | 3 |
+| P2: Equipment | 4 | 0 | 0 |
 | P2: Feedback | 0 | 0 | 3 |
 | P2: Multi-Branch | 0 | 0 | 4 |
 | P3: Challenges | 0 | 1 | 2 |
 | P3: Bulk WhatsApp | 0 | 1 | 2 |
 | Technical | 0 | 0 | 2 |
-| **Total** | **15** | **11** | **17** |
+| **Total** | **19** | **10** | **14** |
 
 ## ✅ Already built (for reference)
 Members, memberships, freeze · Payments, dues, receipts, promo codes, online payments · Expenses, supplement sales ·

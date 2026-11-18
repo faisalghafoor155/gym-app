@@ -1822,6 +1822,55 @@ export const createHealthDeclarationSchema = z.object({
   waiverAccepted: z.literal(true, { error: "must be accepted" }),
 });
 
+// --- equipment ---------------------------------------------------------
+
+export const EQUIPMENT_CATEGORIES = ["cardio", "strength", "free_weights", "functional", "other"] as const;
+
+const equipmentFields = {
+  name,
+  category: z.enum(EQUIPMENT_CATEGORIES, { error: "is not an equipment category" }).default("strength"),
+  brand: optionalText(60),
+  model: optionalText(60),
+  serialNo: optionalText(60),
+  location: optionalText(60),
+  purchasedOn: date.or(blankToUndefined).nullish(),
+  cost: money.nullish(),
+  warrantyUntil: date.or(blankToUndefined).nullish(),
+  /** Days between services; null for no schedule. */
+  serviceEveryDays: wholeNumber.min(1, "must be at least 1 day").max(730, "cannot be more than 2 years").nullish(),
+  lastServicedOn: date.or(blankToUndefined).nullish(),
+  notes: optionalText(300),
+};
+
+export const createEquipmentSchema = z.object(equipmentFields);
+
+export const updateEquipmentSchema = z
+  .object({ ...equipmentFields, isActive: z.boolean() })
+  .partial();
+
+export const recordServiceSchema = z.object({
+  servicedOn: date,
+  /** Booked as a "maintenance" expense when more than zero. */
+  cost: money.nullish(),
+  vendor: optionalText(100),
+  notes: optionalText(300),
+});
+
+export const reportFaultSchema = z.object({
+  equipmentId: uuid,
+  description: z.string().trim().min(3, "is too short").max(500, "is too long"),
+});
+
+export const fixFaultSchema = z.object({
+  fixNotes: optionalText(300),
+  /** Booked as a "maintenance" expense when more than zero. */
+  repairCost: money.nullish(),
+});
+
+export const faultQuerySchema = z.object({
+  status: z.enum(["open", "fixed", "all"]).default("open"),
+});
+
 // --- lockers -----------------------------------------------------------
 
 const lockerNumber = z.string().trim().min(1, "is required").max(20, "is too long");
@@ -1909,3 +1958,9 @@ export type StaffCheckBody = z.infer<typeof staffCheckSchema>;
 export type StaffDayQuery = z.infer<typeof staffDayQuerySchema>;
 export type MarkStaffAttendanceBody = z.infer<typeof markStaffAttendanceSchema>;
 export type CreateHealthDeclarationBody = z.infer<typeof createHealthDeclarationSchema>;
+export type CreateEquipmentBody = z.infer<typeof createEquipmentSchema>;
+export type UpdateEquipmentBody = z.infer<typeof updateEquipmentSchema>;
+export type RecordServiceBody = z.infer<typeof recordServiceSchema>;
+export type ReportFaultBody = z.infer<typeof reportFaultSchema>;
+export type FixFaultBody = z.infer<typeof fixFaultSchema>;
+export type FaultQuery = z.infer<typeof faultQuerySchema>;

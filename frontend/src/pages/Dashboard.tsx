@@ -8,6 +8,7 @@ import {
 import Badge from '../components/Badge';
 import CelebrationsCard from '../components/dashboard/CelebrationsCard';
 import LowStockCard from '../components/dashboard/LowStockCard';
+import MaintenanceCard from '../components/dashboard/MaintenanceCard';
 import {
   Page, Card, StatTile, CountUp, PageLoader, LoadFailed, EmptyState, BarChart, LineChart,
   primaryButton, focusRing,
@@ -234,6 +235,7 @@ export default function Dashboard() {
 
       <CelebrationsCard />
       <LowStockCard />
+      <MaintenanceCard />
 
       {/* This month's takings, broken down by what they were for. The whole
           block keys off `revenue`, which the server omits for staff — so there

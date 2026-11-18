@@ -382,10 +382,12 @@ export default function Expenses() {
                         {e.recordedBy?.name ?? '—'}
                       </td>
                       <td className="px-4 py-3">
-                        {e.fromSalaries ? (
-                          // Booked from Staff Salaries, and only changed there.
+                        {e.fromSalaries || e.fromEquipment ? (
+                          // Booked from another page, and only changed there.
                           <div className="text-right">
-                            <Link to="/salaries" className="text-xs font-medium text-blue-600 hover:underline">{t('Staff Salaries')}</Link>
+                            <Link to={e.fromSalaries ? '/salaries' : '/equipment'} className="text-xs font-medium text-blue-600 hover:underline">
+                              {e.fromSalaries ? t('Staff Salaries') : t('Equipment')}
+                            </Link>
                           </div>
                         ) : (
                         <div className="flex gap-1 justify-end">
