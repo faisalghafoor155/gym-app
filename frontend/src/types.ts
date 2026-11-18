@@ -540,6 +540,8 @@ export interface PaymentMonth {
   supplement: number;
   locker: number;
   other: number;
+  /** Walk-ins' day passes, which sit outside the payments table. */
+  daypass: number;
   total: number;
   count: number;
 }
@@ -756,6 +758,8 @@ export interface MonthToDate {
   supplement: number;
   locker: number;
   other: number;
+  /** Walk-ins' day passes, which sit outside the payments table. */
+  daypass: number;
   total: number;
   /** How many payments make up the total. */
   count: number;
@@ -874,6 +878,10 @@ export interface GymSettings {
   referralRewardDays?: number;
   /** Days without a visit before a member shows as inactive. */
   inactivityDays?: number;
+  /** Prefilled on the Day Pass form. Zero means none set. */
+  dayPassFee?: number;
+  /** Guests one member may bring a month. Zero means no limit. */
+  guestPassesPerMonth?: number;
 }
 
 export interface PtSession {
@@ -1193,4 +1201,26 @@ export interface LeadList {
   hasMore: boolean;
   counts: Record<LeadStatus | 'all' | 'due', number>;
   bySource: { source: string; total: number; joined: number }[];
+}
+
+/** One day's entry sold to a walk-in or a member's guest. */
+export interface DayPass {
+  id: string;
+  name: string;
+  phone: string | null;
+  amount: number;
+  method: 'cash' | 'online';
+  channel: PaymentChannel | null;
+  reference: string | null;
+  visitedAt: string;
+  notes: string | null;
+  hostMember: { id: string; name: string; memberNo: string } | null;
+  recordedBy: { id: string; name: string } | null;
+}
+
+export interface DayPassList {
+  from: string;
+  to: string;
+  data: DayPass[];
+  totals: { count: number; amount: number; guests: number };
 }

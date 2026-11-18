@@ -50,6 +50,8 @@ const staffNavItems: NavItem[] = [
   { to: '/payments', label: 'Payments', icon: CreditCard },
   // Who still owes part of a fee — the list the counter collects from.
   { to: '/dues', label: 'Pending Dues', icon: HandCoins },
+  // Walk-ins and guests who pay for one visit, outside any membership.
+  { to: '/day-passes', label: 'Day Passes', icon: Ticket },
   // Not in the owner-only list below, because an accountant needs it too —
   // the permission gate rather than the role is what decides who sees it.
   { to: '/expenses', label: 'Expenses', icon: Wallet },
@@ -103,7 +105,7 @@ const securityNavItem: NavItem = { to: '/security', label: 'Security', icon: Shi
  */
 const NAV_GROUPS: { label: string; icon: LucideIcon; paths: string[] }[] = [
   { label: 'Members', icon: Users, paths: ['/members', '/leads', '/inactive', '/referrals', '/lockers'] },
-  { label: 'Payments', icon: CreditCard, paths: ['/payments', '/dues', '/monthly-collection', '/expenses'] },
+  { label: 'Payments', icon: CreditCard, paths: ['/payments', '/dues', '/day-passes', '/monthly-collection', '/expenses'] },
   { label: 'Plans', icon: Tag, paths: ['/membership-plans', '/promo-codes', '/plans'] },
   { label: 'Supplements', icon: FlaskConical, paths: ['/supplements', '/supplement-sales'] },
   { label: 'Training', icon: Award, paths: ['/trainers', '/classes', '/calculator'] },
@@ -175,6 +177,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     '/supplements': 'canManageSupplements',
     '/payments': 'canViewPayments',
     '/dues': 'canViewPayments',
+    '/day-passes': 'canRecordPayments',
     '/expenses': 'canManageExpenses',
     '/trainers': 'canManageTrainers',
     '/classes': 'canManageClasses',

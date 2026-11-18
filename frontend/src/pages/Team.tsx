@@ -86,7 +86,7 @@ export default function Team() {
   const [ptFeeInput, setPtFeeInput] = useState('');
   const [joiningFeeInput, setJoiningFeeInput] = useState('');
   /** Referral reward and inactivity threshold, as typed. */
-  const [retention, setRetention] = useState({ referralRewardDays: '0', inactivityDays: '10' });
+  const [retention, setRetention] = useState({ referralRewardDays: '0', inactivityDays: '10', dayPassFee: '0', guestPassesPerMonth: '0' });
   /**
    * Where members are told to send money, per channel. Read out at the front
    * desk when somebody pays online, so what matters is that it is exactly what
@@ -142,6 +142,8 @@ export default function Team() {
         setRetention({
           referralRewardDays: String(r.data.referralRewardDays ?? 0),
           inactivityDays: String(r.data.inactivityDays ?? 10),
+          dayPassFee: String(r.data.dayPassFee ?? 0),
+          guestPassesPerMonth: String(r.data.guestPassesPerMonth ?? 0),
         });
         setAccounts({
           easypaisa: r.data.easypaisaAccount ?? '',
@@ -170,6 +172,8 @@ export default function Team() {
         joiningFee: Number(joiningFeeInput) || 0,
         referralRewardDays: Number(retention.referralRewardDays) || 0,
         inactivityDays: Number(retention.inactivityDays) || 10,
+        dayPassFee: Number(retention.dayPassFee) || 0,
+        guestPassesPerMonth: Number(retention.guestPassesPerMonth) || 0,
         // Blank clears the channel's published details — the channel is still
         // offered at the counter, just without an account line to read out.
         easypaisaAccount: accounts.easypaisa.trim(),

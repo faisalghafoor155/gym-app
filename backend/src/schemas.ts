@@ -1338,6 +1338,10 @@ export const updateGymSettingsSchema = z.object({
   referralRewardDays: wholeNumber.max(90, "cannot be more than 90").optional(),
   /** Days without a visit before a member shows as inactive. */
   inactivityDays: wholeNumber.min(3, "must be at least 3").max(90, "cannot be more than 90").optional(),
+  /** Prefilled on the Day Pass form. Zero means the desk types it each time. */
+  dayPassFee: money.optional(),
+  /** Guests one member may bring a month. Zero means no limit. */
+  guestPassesPerMonth: wholeNumber.max(31, "cannot be more than 31").optional(),
 });
 
 // --- online payments ---------------------------------------------------
@@ -1688,6 +1692,35 @@ export const leadQuerySchema = z.object({
 
 export const convertLeadSchema = z.object({ memberId: uuid });
 
+// --- day passes --------------------------------------------------------
+
+export const createDayPassSchema = z
+  .object({
+    name,
+    phone: optionalText(30),
+    /** Zero is allowed: a guest the gym lets in free is still worth counting. */
+    amount: money,
+    method: z.enum(PAYMENT_METHODS, { error: "must be cash or online" }).default("cash"),
+    ...paymentChannelFields,
+    /** The member who brought them, when they are a guest. */
+    hostMemberId: uuid.or(blankToUndefined).nullish(),
+    notes: optionalText(300),
+  })
+  .superRefine(rejectChannelOnCash);
+
+export const dayPassQuerySchema = z
+  .object({
+    /** Both date-only, in the gym's calendar. Absent means today. */
+    from: date.or(blankToUndefined).optional(),
+    to: date.or(blankToUndefined).optional(),
+    search: z.string().trim().max(100, "is too long").transform((v) => v || undefined).optional(),
+  })
+  .superRefine((d, ctx) => {
+    if (d.from && d.to && d.to < d.from) {
+      ctx.addIssue({ code: "custom", path: ["to"], message: "must be after the from date" });
+    }
+  });
+
 // --- lockers -----------------------------------------------------------
 
 const lockerNumber = z.string().trim().min(1, "is required").max(20, "is too long");
@@ -1763,3 +1796,5 @@ export type CreateLeadBody = z.infer<typeof createLeadSchema>;
 export type UpdateLeadBody = z.infer<typeof updateLeadSchema>;
 export type LeadQuery = z.infer<typeof leadQuerySchema>;
 export type ConvertLeadBody = z.infer<typeof convertLeadSchema>;
+export type CreateDayPassBody = z.infer<typeof createDayPassSchema>;
+export type DayPassQuery = z.infer<typeof dayPassQuerySchema>;

@@ -22,6 +22,8 @@ const gymSettingsFields = {
   logo: true,
   defaultPtFee: true,
   joiningFee: true,
+  dayPassFee: true,
+  guestPassesPerMonth: true,
   easypaisaAccount: true,
   jazzcashAccount: true,
   bankAccount: true,
@@ -38,6 +40,8 @@ const AUDITED_SETTINGS = [
   'logo',
   'defaultPtFee',
   'joiningFee',
+  'dayPassFee',
+  'guestPassesPerMonth',
   'easypaisaAccount',
   'jazzcashAccount',
   'bankAccount',
@@ -55,6 +59,7 @@ export const get = async (req: AuthedRequest, res: Response): Promise<void> => {
       ...gym,
       defaultPtFee: toNumber(gym.defaultPtFee),
       joiningFee: toNumber(gym.joiningFee),
+      dayPassFee: toNumber(gym.dayPassFee),
     });
   } catch (err) {
     console.error(err);
@@ -74,6 +79,8 @@ export const update = async (
     logo,
     defaultPtFee,
     joiningFee,
+    dayPassFee,
+    guestPassesPerMonth,
     easypaisaAccount,
     jazzcashAccount,
     bankAccount,
@@ -105,6 +112,8 @@ export const update = async (
         // Required by the schema, so always present — unlike the rest.
         defaultPtFee,
         ...(joiningFee !== undefined && { joiningFee }),
+        ...(dayPassFee !== undefined && { dayPassFee }),
+        ...(guestPassesPerMonth !== undefined && { guestPassesPerMonth }),
         ...(easypaisaAccount !== undefined && { easypaisaAccount }),
         ...(jazzcashAccount !== undefined && { jazzcashAccount }),
         ...(bankAccount !== undefined && { bankAccount }),
@@ -134,6 +143,7 @@ export const update = async (
       ...after,
       defaultPtFee: toNumber(after.defaultPtFee),
       joiningFee: toNumber(after.joiningFee),
+      dayPassFee: toNumber(after.dayPassFee),
     });
   } catch (err) {
     console.error(err);

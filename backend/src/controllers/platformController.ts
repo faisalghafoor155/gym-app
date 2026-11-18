@@ -333,6 +333,7 @@ export const deleteGym = async (
       await tx.referralReward.deleteMany({ where: { gymId } });
       await tx.locker.deleteMany({ where: { gymId } });
       await tx.lead.deleteMany({ where: { gymId } });
+      await tx.dayPass.deleteMany({ where: { gymId } });
       await tx.memberMeasurement.deleteMany({ where: { gymId } });
       await tx.membershipFreeze.deleteMany({ where: { gymId } });
       await tx.greetingLog.deleteMany({ where: { gymId } });

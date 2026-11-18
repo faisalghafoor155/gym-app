@@ -56,6 +56,7 @@ const Plans = lazy(() => import('./pages/Plans'));
 const PromoCodes = lazy(() => import('./pages/PromoCodes'));
 const Referrals = lazy(() => import('./pages/Referrals'));
 const Leads = lazy(() => import('./pages/Leads'));
+const DayPasses = lazy(() => import('./pages/DayPasses'));
 const InactiveMembers = lazy(() => import('./pages/InactiveMembers'));
 const Lockers = lazy(() => import('./pages/Lockers'));
 
@@ -232,6 +233,7 @@ function AppRoutes() {
                 <Route path="/members" element={<PermissionRoute action="canManageMembers"><Members /></PermissionRoute>} />
                 <Route path="/referrals" element={<PermissionRoute action="canManageMembers"><Referrals /></PermissionRoute>} />
                 <Route path="/leads" element={<PermissionRoute action="canManageMembers"><Leads /></PermissionRoute>} />
+                <Route path="/day-passes" element={<PermissionRoute action="canRecordPayments"><DayPasses /></PermissionRoute>} />
                 <Route path="/lockers" element={<PermissionRoute action="canManageMembers"><Lockers /></PermissionRoute>} />
                 {/* Open to staff so the counter can take a fee. The page is not
                     the same for both: the API narrows staff to their own

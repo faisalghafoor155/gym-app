@@ -4,6 +4,9 @@ import { Card, FieldLabel, inputClass, primaryButton } from '../ui';
 import { useLanguage } from '../../context/LanguageContext';
 import type { GymProfile, PaymentAccounts } from './types';
 
+/** The gym's rules for keeping and admitting people, as the form holds them. */
+type Retention = { referralRewardDays: string; inactivityDays: string; dayPassFee: string; guestPassesPerMonth: string };
+
 export default function GymSettingsCard({
   profile, setProfile, handleLogoChange, handleRemoveLogo,
   joiningFeeInput, setJoiningFeeInput, ptFeeInput, setPtFeeInput, retention, setRetention,
@@ -17,8 +20,8 @@ export default function GymSettingsCard({
   setJoiningFeeInput: (v: string) => void;
   ptFeeInput: string;
   setPtFeeInput: (v: string) => void;
-  retention: { referralRewardDays: string; inactivityDays: string };
-  setRetention: Dispatch<SetStateAction<{ referralRewardDays: string; inactivityDays: string }>>;
+  retention: Retention;
+  setRetention: Dispatch<SetStateAction<Retention>>;
   accounts: PaymentAccounts;
   setAccounts: Dispatch<SetStateAction<PaymentAccounts>>;
   savingSettings: boolean;
@@ -206,6 +209,41 @@ export default function GymSettingsCard({
             />
             <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
               {t('Members with a running membership who have not checked in for this long show on the Inactive Members list.')}
+            </p>
+          </div>
+          <div>
+            <label htmlFor="day-pass-fee" className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+              {t('Day pass fee (Rs.)')}
+            </label>
+            <input
+              id="day-pass-fee"
+              type="number"
+              min="0"
+              step="1"
+              value={retention.dayPassFee}
+              onChange={e => setRetention(r => ({ ...r, dayPassFee: e.target.value }))}
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+              {t('Filled in on the Day Pass form for a walk-in. 0 to type it each time.')}
+            </p>
+          </div>
+          <div>
+            <label htmlFor="guest-limit" className="block text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+              {t('Guests per member a month')}
+            </label>
+            <input
+              id="guest-limit"
+              type="number"
+              min="0"
+              max="31"
+              step="1"
+              value={retention.guestPassesPerMonth}
+              onChange={e => setRetention(r => ({ ...r, guestPassesPerMonth: e.target.value }))}
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+              {t('How many guests one member may bring in a month. 0 for no limit.')}
             </p>
           </div>
         </div>

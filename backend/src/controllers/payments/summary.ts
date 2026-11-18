@@ -37,7 +37,7 @@ export const getSummary = async (
     const now = new Date();
     const since = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
 
-    const [rows, dueAgg] = await Promise.all([
+    const [paymentRows, dueAgg, dayPasses] = await Promise.all([
       prisma.payment.findMany({
         where: {
           gymId: req.gymId,
@@ -53,7 +53,16 @@ export const getSummary = async (
         _sum: { amount: true },
         _count: true,
       }),
+      // Walk-ins pay outside the payments table; counted here as their own type.
+      prisma.dayPass.findMany({
+        where: { gymId: req.gymId, visitedAt: { gte: since } },
+        select: { amount: true, visitedAt: true },
+      }),
     ]);
+    const rows = [
+      ...paymentRows,
+      ...dayPasses.map((d) => ({ amount: d.amount, paymentDate: d.visitedAt, type: "daypass" as const })),
+    ];
 
     // Local parts, matching how the gym reads a date. Building the key from
     // toISOString would bucket a late-evening payment into the next month for
@@ -66,6 +75,7 @@ export const getSummary = async (
       supplement: Prisma.Decimal;
       locker: Prisma.Decimal;
       other: Prisma.Decimal;
+      daypass: Prisma.Decimal;
       total: Prisma.Decimal;
       count: number;
     };
@@ -74,6 +84,7 @@ export const getSummary = async (
       supplement: new Prisma.Decimal(0),
       locker: new Prisma.Decimal(0),
       other: new Prisma.Decimal(0),
+      daypass: new Prisma.Decimal(0),
       total: new Prisma.Decimal(0),
       count: 0,
     });
@@ -110,6 +121,7 @@ export const getSummary = async (
       supplement: b.supplement.toNumber(),
       locker: b.locker.toNumber(),
       other: b.other.toNumber(),
+      daypass: b.daypass.toNumber(),
       total: b.total.toNumber(),
       count: b.count,
     }));

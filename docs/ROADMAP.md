@@ -5,7 +5,7 @@ Tick a box when a task ships.
 
 **Status legend:** `[x]` done · `[ ]` not started · 🟠 partly there (note says what exists)
 
-_Last checked against the code: 2026-11-17 (after Leads CRM v1)._
+_Last checked against the code: 2026-11-17 (after Leads CRM v1 and Day Pass)._
 
 ---
 
@@ -29,11 +29,14 @@ People who walk in to ask about the gym, followed up until they join.
 
 ### 2. Day Pass / Guest Entry
 Walk-ins who pay for a single day.
-- [ ] Day pass sale (name, phone, amount) with no full member record
-  ℹ️ Walk-in buyers exist only for supplement sales, not for gym entry.
+- [x] Day pass sale (name, phone, amount) with no full member record
+  ✅ Day Passes page (Payments menu) + `/api/day-passes`; cash or online with channel
 - [ ] Shows in today's attendance and in the payment/collection reports
-- [ ] Guest of a member (bring-a-friend), with an optional limit per member
-- [ ] Day-pass price setting per gym
+  🟠 Counted in the dashboard, payment summary (own "Day passes" column) and profit. Not in the Attendance page; the Day Passes page shows each day's walk-ins instead. Monthly Collection is member-by-member, so they don't appear there by design.
+- [x] Guest of a member (bring-a-friend), with an optional limit per member
+  ✅ Pick the host member when selling; the monthly limit is refused with a clear message
+- [x] Day-pass price setting per gym
+  ✅ Staff & Logins → Gym settings: day pass fee (prefilled) and guests per member a month
 
 ### 3. Installments
 Split a membership fee across dates.
@@ -114,7 +117,7 @@ Split a membership fee across dates.
 | Section | Done | Partly there | Not started |
 |---|---|---|---|
 | P1: Leads CRM | 4 | 2 | 1 |
-| P1: Day Pass | 0 | 0 | 4 |
+| P1: Day Pass | 3 | 1 | 0 |
 | P1: Installments | 0 | 3 | 1 |
 | P1: Staff Salary | 0 | 0 | 5 |
 | P2: Health Waiver | 0 | 0 | 4 |
@@ -124,7 +127,7 @@ Split a membership fee across dates.
 | P3: Challenges | 0 | 1 | 2 |
 | P3: Bulk WhatsApp | 0 | 1 | 2 |
 | Technical | 0 | 0 | 2 |
-| **Total** | **4** | **8** | **31** |
+| **Total** | **7** | **9** | **27** |
 
 ## ✅ Already built (for reference)
 Members, memberships, freeze · Payments, dues, receipts, promo codes, online payments · Expenses, supplement sales ·

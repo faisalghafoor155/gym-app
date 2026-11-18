@@ -218,7 +218,7 @@ export const getProfit = async (
         ? { [field]: { ...(from && { gte: from }), ...(to && { lte: endOfDayUtc(to) }) } }
         : {};
 
-    const [revenue, outstanding, expenses, expensesByCategory, revenueByType] =
+    const [revenue, outstanding, expenses, expensesByCategory, revenueByType, dayPasses] =
       await Promise.all([
         prisma.payment.aggregate({
           where: { gymId: req.gymId, status: 'paid', ...dateFilter('paymentDate') },
@@ -245,9 +245,20 @@ export const getProfit = async (
           where: { gymId: req.gymId, status: 'paid', ...dateFilter('paymentDate') },
           _sum: { amount: true },
         }),
+        // Walk-ins' day passes: revenue that lives outside the payments table.
+        prisma.dayPass.aggregate({
+          where: {
+            gymId: req.gymId,
+            ...((from || to) && {
+              visitedAt: { ...(from && { gte: from }), ...(to && { lte: endOfDayUtc(to) }) },
+            }),
+          },
+          _sum: { amount: true },
+        }),
       ]);
 
-    const totalRevenue = sum([revenue._sum.amount]);
+    const dayPassRevenue = sum([dayPasses._sum.amount]);
+    const totalRevenue = sum([revenue._sum.amount]) + dayPassRevenue;
     const totalExpenses = sum([expenses._sum.amount]);
 
     res.json({
@@ -260,10 +271,13 @@ export const getProfit = async (
       // holds two decimal places without error.
       profit: totalRevenue - totalExpenses,
       outstanding: sum([outstanding._sum.amount]),
-      revenueByType: revenueByType.map((r) => ({
-        type: r.type,
-        total: sum([r._sum.amount]),
-      })),
+      revenueByType: [
+        ...revenueByType.map((r) => ({
+          type: r.type as string,
+          total: sum([r._sum.amount]),
+        })),
+        ...(dayPassRevenue > 0 ? [{ type: 'daypass', total: dayPassRevenue }] : []),
+      ],
       expensesByCategory: expensesByCategory.map((c) => ({
         category: c.category,
         total: sum([c._sum.amount]),

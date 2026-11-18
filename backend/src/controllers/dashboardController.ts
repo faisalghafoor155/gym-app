@@ -70,8 +70,8 @@ export const getStats = async (req: AuthedRequest, res: Response): Promise<void>
       totalMembers, activeMembers, expiringMemberships,
       todayAttendance, recentMembers, duePayments,
       followUpMemberships, lapsedCount,
-      attendanceRows, paymentRows, dueAmount, monthMemberships, gym,
-      expenseRows,
+      attendanceRows, memberPaymentRows, dueAmount, monthMemberships, gym,
+      expenseRows, dayPassRows,
     ] = await Promise.all([
       prisma.member.count({ where: { gymId } }),
       prisma.membership.count({ where: { ...live, expiryDate: { gt: soon } } }),
@@ -165,7 +165,23 @@ export const getStats = async (req: AuthedRequest, res: Response): Promise<void>
             select: { amount: true, spentOn: true },
           })
         : Promise.resolve([]),
+
+      // Walk-ins' day passes are revenue too, though they sit outside the
+      // payments table — see DayPass in the schema.
+      canViewReports
+        ? prisma.dayPass.findMany({
+            where: { gymId, visitedAt: { gte: revenueSince } },
+            select: { amount: true, visitedAt: true },
+          })
+        : Promise.resolve([]),
     ]);
+
+    // One list of money in, so every figure below — the chart, the month's
+    // breakdown, its total — counts day passes without each having to remember.
+    const paymentRows = [
+      ...memberPaymentRows,
+      ...dayPassRows.map(d => ({ amount: d.amount, paymentDate: d.visitedAt, type: 'daypass' as const })),
+    ];
 
     // ------------------------------------------------------------- charts
 
@@ -249,7 +265,7 @@ export const getStats = async (req: AuthedRequest, res: Response): Promise<void>
     // reconcile against their own books.
     const monthStart = startOfMonth(now);
     const monthRows = paymentRows.filter(p => p.paymentDate >= monthStart);
-    const byType = (t: 'membership' | 'supplement' | 'locker' | 'other'): number =>
+    const byType = (t: 'membership' | 'supplement' | 'locker' | 'other' | 'daypass'): number =>
       sum(monthRows.filter(p => p.type === t).map(p => p.amount));
 
     /**
@@ -286,6 +302,7 @@ export const getStats = async (req: AuthedRequest, res: Response): Promise<void>
       supplement: byType('supplement'),
       locker: byType('locker'),
       other: byType('other'),
+      daypass: byType('daypass'),
       // Summed from the rows rather than from the three figures above, so a
       // payment type added later cannot silently drop out of the grand total.
       total: sum(monthRows.map(p => p.amount)),

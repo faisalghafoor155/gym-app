@@ -283,6 +283,14 @@ export default function Dashboard() {
                 </p>
               </div>
             )}
+            {(revenue.monthToDate.daypass ?? 0) > 0 && (
+              <div className="rounded-xl bg-cyan-50 dark:bg-cyan-500/15 border border-cyan-100 dark:border-cyan-500/20 px-4 py-3">
+                <p className="text-xs font-medium text-cyan-700">{t('Day passes')}</p>
+                <p className="text-lg font-bold text-cyan-900 mt-0.5">
+                  <CountUp value={revenue.monthToDate.daypass} format={money} />
+                </p>
+              </div>
+            )}
             {revenue.monthToDate.other > 0 && (
               <div className="rounded-xl bg-gray-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 px-4 py-3">
                 <p className="text-xs font-medium text-gray-600 dark:text-slate-300">{t('Other')}</p>

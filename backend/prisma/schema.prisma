@@ -148,6 +148,14 @@ model Gym {
   /// Zero means the gym has no fixed joining fee and the field starts blank.
   joiningFee Decimal @default(0.00) @db.Decimal(10, 2)
 
+  /// What a walk-in pays for one day's entry, prefilled on the Day Pass form.
+  /// Zero means the gym has not set one and the desk types it each time.
+  dayPassFee Decimal @default(0.00) @db.Decimal(10, 2)
+
+  /// How many guests one member may bring in a calendar month. Zero means no
+  /// limit — the gym tracks guests without capping them.
+  guestPassesPerMonth Int @default(0)
+
   /// Free days a member earns for each friend who joins on their referral,
   /// added to their membership when the desk grants the reward. Zero means the
   /// gym tracks referrals but rewards them some other way (a shaker, a shirt).
@@ -204,6 +212,7 @@ model Gym {
   promoCodes      PromoCode[]
   lockers         Locker[]
   leads           Lead[]
+  dayPasses       DayPass[]
 
   /// What this gym pays *us*, as opposed to everything above, which is what
   /// its members pay it. Optional because a gym is only given a billing row
@@ -303,6 +312,7 @@ model User {
   recordedPayments     Payment[]           @relation("PaymentRecordedBy")
   recordedExpenses     Expense[]           @relation("ExpenseRecordedBy")
   leadsCreated         Lead[]              @relation("LeadsCreated")
+  recordedDayPasses    DayPass[]           @relation("DayPassRecordedBy")
   recordedMeasurements MemberMeasurement[] @relation("MeasurementRecordedBy")
 
   @@index([gymId])
@@ -382,6 +392,7 @@ model Member {
   promoRedemptions PromoRedemption[]
   locker           Locker?
   lead             Lead?
+  guestPasses      DayPass[]
 
   @@unique([gymId, memberNo])
   @@index([gymId])
@@ -1478,4 +1489,42 @@ model Lead {
 
   @@index([gymId, status])
   @@index([gymId, followUpOn])
+}
+
+/// One day's entry sold to somebody who is not a member — a traveller, a
+/// friend trying the gym, a member's guest.
+///
+/// Its own table rather than a Payment: the books hang every payment off a
+/// member, and a walk-in has none. The money is still the gym's, so the
+/// revenue reports add these in alongside payments, as their own type.
+model DayPass {
+  id    String @id @default(uuid())
+  gymId String
+
+  name  String
+  phone String?
+
+  amount    Decimal @db.Decimal(10, 2)
+  /// cash | online, as on payments.
+  method    String  @default("cash")
+  channel   String?
+  reference String?
+
+  /// When they came in. Day passes are listed and counted by this.
+  visitedAt DateTime @default(now())
+
+  /// The member who brought them, when they are a guest. `SetNull` so
+  /// deleting that member keeps the sale on the books.
+  hostMemberId String?
+
+  notes        String?
+  recordedById String?
+  createdAt    DateTime @default(now())
+
+  gym        Gym     @relation(fields: [gymId], references: [id])
+  hostMember Member? @relation(fields: [hostMemberId], references: [id], onDelete: SetNull)
+  recordedBy User?   @relation("DayPassRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@index([gymId, visitedAt])
+  @@index([hostMemberId, visitedAt])
 }
