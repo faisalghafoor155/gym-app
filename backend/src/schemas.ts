@@ -1342,6 +1342,10 @@ export const updateGymSettingsSchema = z.object({
   dayPassFee: money.optional(),
   /** Guests one member may bring a month. Zero means no limit. */
   guestPassesPerMonth: wholeNumber.max(31, "cannot be more than 31").optional(),
+  /** Staff's weekly day off, 0 = Sunday … 6 = Saturday; null for none. */
+  staffWeeklyOff: z.coerce.number().int().min(0).max(6, "must be a day of the week").nullable().optional(),
+  /** Cut salary for unmarked working days. */
+  staffAbsenceDeduction: z.boolean().optional(),
 });
 
 // --- online payments ---------------------------------------------------
@@ -1775,6 +1779,22 @@ export const paySalarySchema = z
   })
   .superRefine(rejectChannelOnCash);
 
+export const STAFF_ATTENDANCE_STATUSES = ["present", "half", "leave", "absent"] as const;
+
+export const staffCheckSchema = z.object({ staffMemberId: uuid });
+
+export const staffDayQuerySchema = z.object({
+  /** Date-only, in the gym's calendar. Absent means today. */
+  day: date.or(blankToUndefined).optional(),
+});
+
+export const markStaffAttendanceSchema = z.object({
+  staffMemberId: uuid,
+  day: date,
+  /** "absent" clears the day. */
+  status: z.enum(STAFF_ATTENDANCE_STATUSES, { error: "must be present, half, leave or absent" }),
+});
+
 // --- lockers -----------------------------------------------------------
 
 const lockerNumber = z.string().trim().min(1, "is required").max(20, "is too long");
@@ -1858,3 +1878,6 @@ export type StaffMemberQuery = z.infer<typeof staffMemberQuerySchema>;
 export type SalaryMonthQuery = z.infer<typeof salaryMonthQuerySchema>;
 export type CreateSalaryAdjustmentBody = z.infer<typeof createSalaryAdjustmentSchema>;
 export type PaySalaryBody = z.infer<typeof paySalarySchema>;
+export type StaffCheckBody = z.infer<typeof staffCheckSchema>;
+export type StaffDayQuery = z.infer<typeof staffDayQuerySchema>;
+export type MarkStaffAttendanceBody = z.infer<typeof markStaffAttendanceSchema>;

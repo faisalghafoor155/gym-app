@@ -5,7 +5,7 @@ Tick a box when a task ships.
 
 **Status legend:** `[x]` done · `[ ]` not started · 🟠 partly there (note says what exists)
 
-_Last checked against the code: 2026-11-18 (after Staff Salaries v1)._
+_Last checked against the code: 2026-11-18 (after Staff Salaries and Staff Attendance)._
 
 ---
 
@@ -52,8 +52,9 @@ Split a membership fee across dates.
 - [x] Staff profile: monthly salary, joining date, role (receptionist, cleaner, etc.)
   ✅ Staff Salaries page (Payments menu) + `/api/salaries`; a profile needs no login but can be linked to one
 - [ ] Staff check-in/out (QR or fingerprint, reusing existing attendance hardware)
-- [ ] Monthly salary sheet: present days, advances, deductions, net pay
-  🟠 Sheet with advances, deductions, bonuses and net pay; the first month is pro-rated from the joining date. Present days wait on staff check-in.
+  🟠 One-tap check-in/out at the desk (Staff Attendance page, `canCheckIn`) and a monthly register on Staff Salaries (present / half day / leave). QR and fingerprint for staff not yet.
+- [x] Monthly salary sheet: present days, advances, deductions, net pay
+  ✅ Present, leave and absent days on each line; with "Cut salary for absent days" on, absences cost salary ÷ days in month. Weekly day off is a setting.
 - [x] Mark salary paid → recorded as an expense automatically
   ✅ Payday and each advance are booked as "salaries" expenses; the Expenses page will not edit or delete them, undo is on the Salaries page
 - [x] Salary slip (printable / PDF)
@@ -123,7 +124,7 @@ Split a membership fee across dates.
 | P1: Leads CRM | 4 | 2 | 1 |
 | P1: Day Pass | 3 | 1 | 0 |
 | P1: Installments | 0 | 3 | 1 |
-| P1: Staff Salary | 3 | 1 | 1 |
+| P1: Staff Salary | 4 | 1 | 0 |
 | P2: Health Waiver | 0 | 0 | 4 |
 | P2: Equipment | 0 | 1 | 3 |
 | P2: Feedback | 0 | 0 | 3 |
@@ -131,7 +132,7 @@ Split a membership fee across dates.
 | P3: Challenges | 0 | 1 | 2 |
 | P3: Bulk WhatsApp | 0 | 1 | 2 |
 | Technical | 0 | 0 | 2 |
-| **Total** | **10** | **10** | **23** |
+| **Total** | **11** | **11** | **21** |
 
 ## ✅ Already built (for reference)
 Members, memberships, freeze · Payments, dues, receipts, promo codes, online payments · Expenses, supplement sales ·

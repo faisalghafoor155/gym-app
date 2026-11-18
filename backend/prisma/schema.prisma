@@ -156,6 +156,15 @@ model Gym {
   /// limit — the gym tracks guests without capping them.
   guestPassesPerMonth Int @default(0)
 
+  /// The staff's weekly day off, 0 = Sunday … 6 = Saturday. Null when staff
+  /// work every day. Not counted as an absence on the salary sheet.
+  staffWeeklyOff Int?
+
+  /// Whether a day a staff member neither came nor was on leave is cut from
+  /// their salary (salary ÷ days in the month, per day). Off by default: a gym
+  /// that does not mark staff attendance would otherwise pay nobody.
+  staffAbsenceDeduction Boolean @default(false)
+
   /// Free days a member earns for each friend who joins on their referral,
   /// added to their membership when the desk grants the reward. Zero means the
   /// gym tracks referrals but rewards them some other way (a shaker, a shirt).
@@ -216,6 +225,7 @@ model Gym {
   staffMembers      StaffMember[]
   salaryAdjustments SalaryAdjustment[]
   salaryPayments    SalaryPayment[]
+  staffAttendance   StaffAttendance[]
 
   /// What this gym pays *us*, as opposed to everything above, which is what
   /// its members pay it. Optional because a gym is only given a billing row
@@ -319,6 +329,7 @@ model User {
   staffProfile              StaffMember?        @relation("StaffProfileLogin")
   recordedSalaryAdjustments SalaryAdjustment[]  @relation("SalaryAdjustmentRecordedBy")
   recordedSalaryPayments    SalaryPayment[]     @relation("SalaryPaymentRecordedBy")
+  recordedStaffAttendance   StaffAttendance[]   @relation("StaffAttendanceRecordedBy")
   recordedMeasurements      MemberMeasurement[] @relation("MeasurementRecordedBy")
 
   @@index([gymId])
@@ -1570,6 +1581,7 @@ model StaffMember {
   gym         Gym                @relation(fields: [gymId], references: [id])
   user        User?              @relation("StaffProfileLogin", fields: [userId], references: [id], onDelete: SetNull)
   adjustments SalaryAdjustment[]
+  attendance  StaffAttendance[]
   payments    SalaryPayment[]
 
   @@index([gymId, isActive])
@@ -1619,13 +1631,19 @@ model SalaryPayment {
   /// The first day of the month this pays for.
   month         DateTime @db.Date
 
-  baseSalary Decimal @db.Decimal(10, 2)
-  bonuses    Decimal @db.Decimal(10, 2)
-  advances   Decimal @db.Decimal(10, 2)
-  deductions Decimal @db.Decimal(10, 2)
+  baseSalary       Decimal @db.Decimal(10, 2)
+  bonuses          Decimal @db.Decimal(10, 2)
+  advances         Decimal @db.Decimal(10, 2)
+  deductions       Decimal @db.Decimal(10, 2)
+  /// The days marked for the month when it was paid, and what the absences
+  /// cost. Present counts a half day as 0.5; leave is paid and not absent.
+  presentDays      Decimal @default(0) @db.Decimal(5, 1)
+  leaveDays        Int     @default(0)
+  absentDays       Decimal @default(0) @db.Decimal(5, 1)
+  absenceDeduction Decimal @default(0) @db.Decimal(10, 2)
   /// What was handed over on payday: base + bonuses − advances − deductions,
   /// never below zero.
-  netPay     Decimal @db.Decimal(10, 2)
+  netPay           Decimal @db.Decimal(10, 2)
 
   method    String   @default("cash")
   channel   String?
@@ -1646,4 +1664,33 @@ model SalaryPayment {
 
   @@unique([staffMemberId, month])
   @@index([gymId, month])
+}
+
+/// One staff member's day: when they came and went, or that they were on leave.
+///
+/// A day with no row is an absence, unless it is the gym's weekly off. One row
+/// per person per day — checking in twice returns the first.
+model StaffAttendance {
+  id            String @id @default(uuid())
+  gymId         String
+  staffMemberId String
+
+  /// The gym's calendar day.
+  day        DateTime  @db.Date
+  /// present | half | leave
+  status     String    @default("present")
+  checkInAt  DateTime?
+  checkOutAt DateTime?
+  notes      String?
+
+  recordedById String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  gym         Gym         @relation(fields: [gymId], references: [id])
+  staffMember StaffMember @relation(fields: [staffMemberId], references: [id], onDelete: Cascade)
+  recordedBy  User?       @relation("StaffAttendanceRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  @@unique([staffMemberId, day])
+  @@index([gymId, day])
 }

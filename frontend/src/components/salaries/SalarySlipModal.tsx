@@ -71,6 +71,7 @@ export default function SalarySlipModal({ paymentId, onClose }: { paymentId: str
               {line(t('Paid on:'), new Date(slip.paidAt).toLocaleDateString('en-PK', { dateStyle: 'medium' }))}
               {line(t('Paid by:'), slip.method === 'cash' ? t('Cash') : (channelLabel(slip.channel) || t('Online')))}
               {slip.reference && line(t('Reference:'), slip.reference)}
+              {line(t('Attendance:'), t('Present {p} · Leave {l} · Absent {a}', { p: slip.presentDays, l: slip.leaveDays, a: slip.absentDays }))}
             </div>
 
             <div className="border-t border-b border-gray-100 dark:border-slate-800 py-4 space-y-1.5">
@@ -78,6 +79,7 @@ export default function SalarySlipModal({ paymentId, onClose }: { paymentId: str
               {slip.bonuses > 0 && line(t('Bonus'), `+ ${money(slip.bonuses)}`)}
               {slip.advances > 0 && line(t('Advance already given'), `− ${money(slip.advances)}`)}
               {slip.deductions > 0 && line(t('Deductions'), `− ${money(slip.deductions)}`)}
+              {slip.absenceDeduction > 0 && line(t('Absent {days} days', { days: slip.absentDays }), `− ${money(slip.absenceDeduction)}`)}
               {slip.adjustments.filter(a => a.notes).map(a => (
                 <p key={a.id} className="text-xs text-gray-400 print:text-gray-600">
                   {t(a.kind)} {money(a.amount)}: {a.notes}

@@ -882,6 +882,10 @@ export interface GymSettings {
   dayPassFee?: number;
   /** Guests one member may bring a month. Zero means no limit. */
   guestPassesPerMonth?: number;
+  /** Staff's weekly day off, 0 = Sunday … 6 = Saturday; null for none. */
+  staffWeeklyOff?: number | null;
+  /** Whether unmarked working days are cut from staff salaries. */
+  staffAbsenceDeduction?: boolean;
 }
 
 export interface PtSession {
@@ -1257,6 +1261,12 @@ export interface SalaryFigures {
   bonuses: number;
   advances: number;
   deductions: number;
+  /** A half day counts 0.5. */
+  presentDays: number;
+  leaveDays: number;
+  absentDays: number;
+  /** What the absences cost, when the gym cuts them; otherwise 0. */
+  absenceDeduction: number;
   netPay: number;
 }
 
@@ -1278,6 +1288,8 @@ export interface SalarySheetRow extends SalaryFigures {
 
 export interface SalarySheet {
   month: string;
+  /** Whether absences are being cut from salaries. */
+  absenceDeduction: boolean;
   rows: SalarySheetRow[];
   totals: { staff: number; payroll: number; advances: number; paid: number; unpaid: number; paidCount: number };
 }
@@ -1287,4 +1299,41 @@ export interface SalarySlip extends SalaryPayment {
   month: string;
   staffMember: { id: string; name: string; phone: string | null; role: StaffRole; joinedOn: string | null };
   adjustments: SalaryAdjustment[];
+}
+
+export type StaffDayStatus = 'present' | 'half' | 'leave';
+
+export interface StaffAttendanceRecord {
+  id: string;
+  day: string;
+  status: StaffDayStatus;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+  notes: string | null;
+}
+
+/** One day at the desk: every staff member and their row, if any. */
+export interface StaffAttendanceDay {
+  day: string;
+  rows: { staffMember: { id: string; name: string; role: StaffRole; phone: string | null }; record: StaffAttendanceRecord | null }[];
+  totals: { staff: number; in: number; present: number; leave: number };
+}
+
+export interface StaffAttendanceSummary {
+  workingDays: number;
+  presentDays: number;
+  leaveDays: number;
+  absentDays: number;
+}
+
+/** The month's register, keyed by yyyy-mm-dd. */
+export interface StaffAttendanceMonth {
+  month: string;
+  weeklyOff: number | null;
+  rows: {
+    staffMember: { id: string; name: string; role: StaffRole; joinedOn: string | null; isActive: boolean };
+    paid: boolean;
+    days: Record<string, StaffDayStatus>;
+    summary: StaffAttendanceSummary;
+  }[];
 }

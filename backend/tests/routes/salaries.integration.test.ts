@@ -152,4 +152,79 @@ describe('staff salaries', () => {
       .send({ staffMemberId: ali.id, month: MONTH });
     expect(res.status).toBe(404);
   });
+
+  it('counts the days marked and, when the gym says so, cuts absences from the salary', async () => {
+    const owner = await makeGym();
+    const ali = await addStaff(owner.cookie);
+    // October 2026 has 31 days and no weekly off is set: 31 working days.
+    for (const [day, status] of [['2026-10-01', 'present'], ['2026-10-02', 'half'], ['2026-10-03', 'leave']] as const) {
+      const res = await api().put('/api/staff-attendance/mark').set('Cookie', owner.cookie)
+        .send({ staffMemberId: ali.id, day, status });
+      expect(res.status).toBe(200);
+    }
+
+    // Off by default: the days are shown, nothing is cut.
+    const before = (await sheet(owner.cookie)).body.rows[0];
+    expect(before).toMatchObject({ presentDays: 1.5, leaveDays: 1, absentDays: 28.5, absenceDeduction: 0, netPay: 30000 });
+
+    await prisma.gym.update({ where: { id: owner.gymId }, data: { staffAbsenceDeduction: true } });
+    const after = (await sheet(owner.cookie)).body.rows[0];
+    // Rs. 30,000 / 31 days × 28.5 days.
+    expect(after.absenceDeduction).toBe(Math.round((30000 / 31) * 28.5));
+    expect(after.netPay).toBe(30000 - after.absenceDeduction);
+
+    const paid = await api().post('/api/salaries/pay').set('Cookie', owner.cookie)
+      .send({ staffMemberId: ali.id, month: MONTH });
+    expect(paid.body).toMatchObject({ presentDays: 1.5, absentDays: 28.5, netPay: after.netPay });
+
+    // A paid month's register is closed.
+    const late = await api().put('/api/staff-attendance/mark').set('Cookie', owner.cookie)
+      .send({ staffMemberId: ali.id, day: '2026-10-05', status: 'present' });
+    expect(late.status).toBe(409);
+  });
+});
+
+describe('staff check-in', () => {
+  it('checks staff in once a day and out again, from the desk', async () => {
+    const owner = await makeGym();
+    const ali = await addStaff(owner.cookie);
+    const desk = await addUser(owner.gymId, { staffPermission: 'receptionist' });
+
+    const first = await api().post('/api/staff-attendance/check-in').set('Cookie', desk.cookie).send({ staffMemberId: ali.id });
+    expect(first.status).toBe(201);
+    const again = await api().post('/api/staff-attendance/check-in').set('Cookie', desk.cookie).send({ staffMemberId: ali.id });
+    expect(again.status).toBe(200);
+    expect(again.body.id).toBe(first.body.id);
+
+    const out = await api().post('/api/staff-attendance/check-out').set('Cookie', desk.cookie).send({ staffMemberId: ali.id });
+    expect(out.status).toBe(200);
+    expect(out.body.checkOutAt).toBeTruthy();
+
+    const today = await api().get('/api/staff-attendance').set('Cookie', desk.cookie);
+    expect(today.body.totals).toMatchObject({ staff: 1, present: 1, in: 0 });
+
+    // The desk can check in, but not rewrite the register that decides pay.
+    const mark = await api().put('/api/staff-attendance/mark').set('Cookie', desk.cookie)
+      .send({ staffMemberId: ali.id, day: '2026-10-01', status: 'leave' });
+    expect(mark.status).toBe(403);
+  });
+
+  it('refuses to check out someone who never checked in, or to mark the future', async () => {
+    const owner = await makeGym();
+    const ali = await addStaff(owner.cookie);
+    expect((await api().post('/api/staff-attendance/check-out').set('Cookie', owner.cookie).send({ staffMemberId: ali.id })).status).toBe(409);
+    expect((await api().put('/api/staff-attendance/mark').set('Cookie', owner.cookie)
+      .send({ staffMemberId: ali.id, day: '2999-01-01', status: 'present' })).status).toBe(400);
+  });
+
+  it("builds the month's register", async () => {
+    const owner = await makeGym();
+    const ali = await addStaff(owner.cookie);
+    await api().put('/api/staff-attendance/mark').set('Cookie', owner.cookie)
+      .send({ staffMemberId: ali.id, day: '2026-10-07', status: 'present' });
+    const res = await api().get('/api/staff-attendance/month?month=2026-10').set('Cookie', owner.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.rows[0].days).toEqual({ '2026-10-07': 'present' });
+    expect(res.body.rows[0].summary).toMatchObject({ workingDays: 31, presentDays: 1, absentDays: 30 });
+  });
 });

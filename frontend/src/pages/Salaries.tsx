@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SalarySlipModal, { monthName } from '../components/salaries/SalarySlipModal';
+import AttendanceRegister from '../components/salaries/AttendanceRegister';
 import {
   Page, PageHeader, Card, StatTile, PageLoader, LoadFailed, EmptyState, Refetching, SegmentedControl,
   FieldLabel, IconButton, inputClass, primaryButton, secondaryButton,
@@ -226,6 +227,7 @@ function PayModal({ row, month, onClose, onDone }: {
           {row.bonuses > 0 && line(t('Bonus'), `+ ${money(row.bonuses)}`)}
           {row.advances > 0 && line(t('Advance already given'), `− ${money(row.advances)}`)}
           {row.deductions > 0 && line(t('Deductions'), `− ${money(row.deductions)}`)}
+          {row.absenceDeduction > 0 && line(t('Absent {days} days', { days: row.absentDays }), `− ${money(row.absenceDeduction)}`)}
           <div className="flex justify-between pt-2 mt-2 border-t border-gray-200 dark:border-slate-700 text-base">
             <span className="font-semibold">{t('To pay now')}</span>
             <span className="font-extrabold tabular-nums">{money(row.netPay)}</span>
@@ -280,6 +282,10 @@ function SheetRow({ row, onAdjust, onPay, onSlip, onUndo, onRemoveAdjustment }: 
           </p>
           <p className="text-xs text-gray-500 dark:text-slate-400 truncate capitalize">
             {t(row.staffMember.role)} · {t('Salary')} {money(row.baseSalary)}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
+            {t('Present {p} · Leave {l} · Absent {a}', { p: row.presentDays, l: row.leaveDays, a: row.absentDays })}
+            {row.absenceDeduction > 0 && <span className="text-red-600"> (− {money(row.absenceDeduction)})</span>}
           </p>
         </div>
         <div className="text-right shrink-0">
@@ -504,24 +510,28 @@ function StaffTab({ onEdit, version }: { onEdit: (s: StaffMember) => void; versi
  */
 export default function Salaries() {
   const { t } = useLanguage();
-  const [tab, setTab] = useState<'sheet' | 'staff'>('sheet');
+  const [tab, setTab] = useState<'sheet' | 'attendance' | 'staff'>('sheet');
   const [editing, setEditing] = useState<StaffMember | 'new' | null>(null);
   // Bumped after a save so whichever tab is showing reloads.
   const [version, setVersion] = useState(0);
 
   return (
     <Page>
-      <PageHeader icon={Banknote} title={t('Staff Salaries')} subtitle={t('Monthly pay, advances and salary slips')}
+      <PageHeader icon={Banknote} title={t('Staff Salaries')} subtitle={t('Monthly pay, attendance, advances and salary slips')}
         action={<button onClick={() => setEditing('new')} className={primaryButton}><Plus size={16} /> {t('Add staff member')}</button>} />
 
       <div className="mb-4">
         <SegmentedControl value={tab} onChange={setTab}
-          options={[{ value: 'sheet', label: 'Salary sheet' }, { value: 'staff', label: 'Staff' }]} />
+          options={[
+            { value: 'sheet', label: 'Salary sheet' },
+            { value: 'attendance', label: 'Attendance' },
+            { value: 'staff', label: 'Staff' },
+          ]} />
       </div>
 
-      {tab === 'sheet'
-        ? <SheetTab version={version} onAddStaff={() => setEditing('new')} />
-        : <StaffTab version={version} onEdit={setEditing} />}
+      {tab === 'sheet' && <SheetTab version={version} onAddStaff={() => setEditing('new')} />}
+      {tab === 'attendance' && <AttendanceRegister />}
+      {tab === 'staff' && <StaffTab version={version} onEdit={setEditing} />}
 
       {editing && (
         <StaffModal staff={editing === 'new' ? null : editing} onClose={() => setEditing(null)}

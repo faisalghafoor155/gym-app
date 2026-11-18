@@ -2,7 +2,9 @@ import type { Response } from 'express';
 import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { audit } from '../services/audit.js';
-import { gymDay } from '../services/dates.js';
+import {
+  absenceCost, currentMonth, daysIn, monthEnd, monthKey, monthStart, summarise, type AttendanceDay,
+} from '../services/staffAttendance.js';
 import { sum, toNumber, withMoney } from '../services/money.js';
 import type { AuthedRequest } from '../types.js';
 import type {
@@ -20,19 +22,6 @@ import type {
  */
 
 // --- months --------------------------------------------------------------
-
-/** "2026-11" → 2026-11-01 as UTC midnight, the form a `@db.Date` holds. */
-const monthStart = (ym: string): Date => {
-  const [y, m] = ym.split('-').map(Number);
-  return new Date(Date.UTC(y!, m! - 1, 1));
-};
-
-const monthKey = (d: Date): string => d.toISOString().slice(0, 7);
-
-const currentMonth = (): string => monthKey(gymDay(new Date()));
-
-const daysIn = (month: Date): number =>
-  new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 0)).getUTCDate();
 
 const monthLabel = (month: Date): string =>
   month.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
@@ -61,15 +50,45 @@ const staffSelect = {
 
 type AdjustmentRow = { kind: string; amount: Prisma.Decimal };
 
-/** Bonuses, advances and deductions of a month, and the net they leave. */
-const figures = (base: number, adjustments: readonly AdjustmentRow[]) => {
-  const of = (kind: string) => sum(adjustments.filter((a) => a.kind === kind).map((a) => a.amount));
+type StaffForMonth = {
+  monthlySalary: Prisma.Decimal;
+  joinedOn: Date | null;
+  adjustments: readonly AdjustmentRow[];
+  attendance: readonly AttendanceDay[];
+};
+
+type AttendanceRules = { staffWeeklyOff: number | null; staffAbsenceDeduction: boolean };
+
+/**
+ * A month's figures for one person: salary, adjustments, the days they were
+ * marked, and the net all of that leaves.
+ *
+ * Absences only cost money when the gym has turned that on; otherwise the
+ * days are shown and the desk adds a deduction by hand if it wants one.
+ */
+const figures = (person: StaffForMonth, month: Date, rules: AttendanceRules) => {
+  const base = baseFor(person.monthlySalary, person.joinedOn, month);
+  const of = (kind: string) => sum(person.adjustments.filter((a) => a.kind === kind).map((a) => a.amount));
   const bonuses = of('bonus');
   const advances = of('advance');
   const deductions = of('deduction');
-  const net = Math.max(0, Math.round((base + bonuses - advances - deductions) * 100) / 100);
-  return { baseSalary: base, bonuses, advances, deductions, netPay: net };
+  const days = summarise(month, person.attendance, { joinedOn: person.joinedOn, weeklyOff: rules.staffWeeklyOff });
+  const absenceDeduction = rules.staffAbsenceDeduction
+    ? absenceCost(person.monthlySalary.toNumber(), month, days.absentDays)
+    : 0;
+  const net = Math.max(0, Math.round((base + bonuses - advances - deductions - absenceDeduction) * 100) / 100);
+  return {
+    baseSalary: base, bonuses, advances, deductions,
+    presentDays: days.presentDays, leaveDays: days.leaveDays, absentDays: days.absentDays,
+    absenceDeduction, netPay: net,
+  };
 };
+
+const attendanceRules = (gymId: string): Promise<AttendanceRules> =>
+  prisma.gym.findUniqueOrThrow({
+    where: { id: gymId },
+    select: { staffWeeklyOff: true, staffAbsenceDeduction: true },
+  });
 
 const isUniqueViolation = (err: unknown): boolean =>
   err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
@@ -239,11 +258,13 @@ export const removeStaff = async (
 
 const paymentSelect = {
   id: true, month: true, baseSalary: true, bonuses: true, advances: true, deductions: true,
-  netPay: true, method: true, channel: true, reference: true, paidAt: true, notes: true,
+  netPay: true, presentDays: true, leaveDays: true, absentDays: true, absenceDeduction: true, method: true, channel: true, reference: true, paidAt: true, notes: true,
   recordedBy: { select: { id: true, name: true } },
 } as const;
 
-const PAYMENT_MONEY = ['baseSalary', 'bonuses', 'advances', 'deductions', 'netPay'] as const;
+const PAYMENT_MONEY = [
+  'baseSalary', 'bonuses', 'advances', 'deductions', 'netPay', 'presentDays', 'absentDays', 'absenceDeduction',
+] as const;
 
 /**
  * One line per person for a month: what they are owed, what has been taken
@@ -258,15 +279,16 @@ export const getSheet = async (
 ): Promise<void> => {
   const key = req.query.month ?? currentMonth();
   const month = monthStart(key);
-  const monthEnd = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth(), daysIn(month)));
+  const end = monthEnd(month);
   try {
+    const rules = await attendanceRules(req.gymId);
     const staff = await prisma.staffMember.findMany({
       where: {
         gymId: req.gymId,
         // Nobody who had not joined yet; anyone who has left, only if they
         // were paid or given something this month.
         AND: [
-          { OR: [{ joinedOn: null }, { joinedOn: { lte: monthEnd } }] },
+          { OR: [{ joinedOn: null }, { joinedOn: { lte: end } }] },
           {
             OR: [
               { isActive: true },
@@ -284,11 +306,12 @@ export const getSheet = async (
           orderBy: { createdAt: 'asc' },
         },
         payments: { where: { month }, select: paymentSelect },
+        attendance: { where: { day: { gte: month, lte: end } }, select: { day: true, status: true } },
       },
       orderBy: { name: 'asc' },
     });
 
-    const rows = staff.map(({ adjustments, payments, ...person }) => {
+    const rows = staff.map(({ adjustments, payments, attendance, ...person }) => {
       const payment = payments[0] ?? null;
       const owed = payment
         ? {
@@ -296,9 +319,13 @@ export const getSheet = async (
           bonuses: toNumber(payment.bonuses),
           advances: toNumber(payment.advances),
           deductions: toNumber(payment.deductions),
+          presentDays: toNumber(payment.presentDays),
+          leaveDays: payment.leaveDays,
+          absentDays: toNumber(payment.absentDays),
+          absenceDeduction: toNumber(payment.absenceDeduction),
           netPay: toNumber(payment.netPay),
         }
-        : figures(baseFor(person.monthlySalary, person.joinedOn, month), adjustments);
+        : figures({ ...person, adjustments, attendance }, month, rules);
       return {
         staffMember: withMoney(person, 'monthlySalary'),
         ...owed,
@@ -310,10 +337,13 @@ export const getSheet = async (
     const paid = rows.filter((r) => r.payment);
     res.json({
       month: key,
+      absenceDeduction: rules.staffAbsenceDeduction,
       rows,
       totals: {
         staff: rows.length,
-        payroll: Math.round(rows.reduce((t, r) => t + r.baseSalary + r.bonuses - r.deductions, 0) * 100) / 100,
+        payroll: Math.round(
+          rows.reduce((t, r) => t + r.baseSalary + r.bonuses - r.deductions - r.absenceDeduction, 0) * 100,
+        ) / 100,
         advances: Math.round(rows.reduce((t, r) => t + r.advances, 0) * 100) / 100,
         paid: Math.round(paid.reduce((t, r) => t + r.netPay, 0) * 100) / 100,
         unpaid: Math.round(rows.filter((r) => !r.payment).reduce((t, r) => t + r.netPay, 0) * 100) / 100,
@@ -443,7 +473,10 @@ export const pay = async (
   try {
     const person = await prisma.staffMember.findFirst({
       where: { id: staffMemberId, gymId: req.gymId },
-      include: { adjustments: { where: { month }, select: { kind: true, amount: true } } },
+      include: {
+        adjustments: { where: { month }, select: { kind: true, amount: true } },
+        attendance: { where: { day: { gte: month, lte: monthEnd(month) } }, select: { day: true, status: true } },
+      },
     });
     if (!person) {
       res.status(404).json({ error: 'Staff member not found' });
@@ -454,7 +487,7 @@ export const pay = async (
       return;
     }
 
-    const f = figures(baseFor(person.monthlySalary, person.joinedOn, month), person.adjustments);
+    const f = figures(person, month, await attendanceRules(req.gymId));
 
     const payment = await prisma.$transaction(async (tx) => {
       const expense = f.netPay > 0

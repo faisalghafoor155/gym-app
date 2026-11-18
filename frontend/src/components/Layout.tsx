@@ -16,7 +16,7 @@ import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
   BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText, Sparkles, Calculator,
-  HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, ChevronDown, Settings, PhoneCall, Banknote,
+  HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, ChevronDown, Settings, PhoneCall, Banknote, UserCheck,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -35,6 +35,8 @@ const staffNavItems: NavItem[] = [
   // Next to Members: an enquiry is a member who has not happened yet.
   { to: '/referrals', label: 'Referrals', icon: Gift },
   { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
+  // Staff coming and going, checked in at the same desk as members.
+  { to: '/staff-attendance', label: 'Staff Attendance', icon: UserCheck },
   // Paying members who stopped coming — the list to call before they lapse.
   { to: '/inactive', label: 'Inactive Members', icon: UserX },
   // Two different kinds of "plan": what a member buys, and what they train
@@ -107,6 +109,7 @@ const securityNavItem: NavItem = { to: '/security', label: 'Security', icon: Shi
  */
 const NAV_GROUPS: { label: string; icon: LucideIcon; paths: string[] }[] = [
   { label: 'Members', icon: Users, paths: ['/members', '/leads', '/inactive', '/referrals', '/lockers'] },
+  { label: 'Attendance', icon: CalendarCheck, paths: ['/attendance', '/staff-attendance'] },
   { label: 'Payments', icon: CreditCard, paths: ['/payments', '/dues', '/day-passes', '/monthly-collection', '/expenses', '/salaries'] },
   { label: 'Plans', icon: Tag, paths: ['/membership-plans', '/promo-codes', '/plans'] },
   { label: 'Supplements', icon: FlaskConical, paths: ['/supplements', '/supplement-sales'] },
@@ -174,6 +177,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     '/promo-codes': 'canManageMemberships',
     '/plans': 'canManagePlans',
     '/attendance': 'canViewAttendance',
+    '/staff-attendance': 'canCheckIn',
     '/analytics': 'canViewReports',
     '/membership-plans': 'canManageMemberships',
     '/supplements': 'canManageSupplements',

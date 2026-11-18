@@ -58,6 +58,7 @@ const Referrals = lazy(() => import('./pages/Referrals'));
 const Leads = lazy(() => import('./pages/Leads'));
 const DayPasses = lazy(() => import('./pages/DayPasses'));
 const Salaries = lazy(() => import('./pages/Salaries'));
+const StaffAttendance = lazy(() => import('./pages/StaffAttendance'));
 const InactiveMembers = lazy(() => import('./pages/InactiveMembers'));
 const Lockers = lazy(() => import('./pages/Lockers'));
 
@@ -251,6 +252,7 @@ function AppRoutes() {
                     the books too, and the API gates it the same way. */}
                 <Route path="/expenses" element={<PermissionRoute action="canManageExpenses"><Expenses /></PermissionRoute>} />
                 <Route path="/salaries" element={<PermissionRoute action="canManageExpenses"><Salaries /></PermissionRoute>} />
+                <Route path="/staff-attendance" element={<PermissionRoute action="canCheckIn"><StaffAttendance /></PermissionRoute>} />
                 <Route path="/team" element={<OwnerRoute><Team /></OwnerRoute>} />
                 {/* Owner-only: what the gym pays for is a billing matter. */}
                 {SUBSCRIPTIONS_ENABLED && (
