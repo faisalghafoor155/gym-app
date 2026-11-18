@@ -415,6 +415,12 @@ const shell: Record<string, string> = {
   'Choose a password to activate your account.': 'Account active karne ke liye password chunein.',
   'Activating...': 'Active ho raha hai...',
   'Activate my account': 'Mera account active karein',
+  // --- app shell ---
+  'Search pages…': 'Page talash karein…',
+  'Go to a page': 'Kisi page par jayein',
+  'No page matches': 'Koi page nahi mila',
+  'Collapse sidebar': 'Sidebar chhota karein',
+  'Expand sidebar': 'Sidebar bara karein',
 };
 
 export default shell;

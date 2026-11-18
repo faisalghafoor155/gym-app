@@ -33,7 +33,17 @@ const toneTile: Record<Tone, string> = {
   purple: 'bg-purple-50 text-purple-600 dark:bg-purple-500/15 dark:text-purple-400',
 };
 
-/** The accent line a stat tile shows along its foot on hover. */
+/** The soft colour wash in a stat tile's corner. */
+const toneGlow: Record<Tone, string> = {
+  blue: 'bg-blue-200',
+  green: 'bg-lime-200',
+  red: 'bg-red-200',
+  yellow: 'bg-yellow-200',
+  gray: 'bg-slate-200',
+  purple: 'bg-purple-200',
+};
+
+/** The accent line along a stat tile's foot, full strength on hover. */
 const toneBar: Record<Tone, string> = {
   blue: 'bg-blue-500',
   green: 'bg-lime-500',
@@ -57,7 +67,7 @@ export const focusRing =
  * a focused field read as active rather than merely selected.
  */
 export const inputClass =
-  `w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm bg-white
+  `w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm bg-white
    placeholder:text-gray-400 ${focusRing} focus:border-blue-500
    focus:ring-blue-500/20 focus:ring-4 focus:ring-offset-0
    shadow-xs transition-[color,background-color,border-color,box-shadow] duration-150
@@ -72,16 +82,17 @@ export const inputClass =
  * still animates under the finger and reads as having worked.
  */
 export const primaryButton =
-  `inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5
-   rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-60
-   shadow-[inset_0_1px_0_rgb(255_255_255/0.15)]
+  `inline-flex items-center justify-center gap-2 text-white px-4 py-2.5
+   rounded-xl text-sm font-semibold disabled:opacity-60
+   bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700
+   shadow-[inset_0_1px_0_rgb(255_255_255/0.2)]
    disabled:cursor-not-allowed disabled:shadow-none disabled:active:scale-100
-   transition-all duration-150 shadow-sm shadow-blue-600/20
-   hover:shadow-md hover:shadow-blue-600/25 active:scale-[0.98] ${focusRing}`;
+   transition-all duration-150 shadow-md shadow-blue-600/25
+   hover:shadow-lg hover:shadow-blue-600/30 hover:-translate-y-px active:translate-y-0 active:scale-[0.98] ${focusRing}`;
 
 export const secondaryButton =
   `inline-flex items-center justify-center gap-2 bg-white text-slate-700 px-4 py-2.5
-   rounded-lg text-sm font-semibold border border-slate-300 hover:bg-slate-50
+   rounded-xl text-sm font-semibold border border-slate-200 hover:bg-slate-50
    hover:border-gray-400 disabled:opacity-60 disabled:active:scale-100
    transition-all duration-150 shadow-xs active:scale-[0.98] ${focusRing}
    dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700
@@ -89,7 +100,7 @@ export const secondaryButton =
 
 export const dangerButton =
   `inline-flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2.5
-   rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-60
+   rounded-xl text-sm font-semibold hover:bg-red-700 disabled:opacity-60
    disabled:shadow-none disabled:active:scale-100
    transition-all duration-150 shadow-sm shadow-red-600/20
    hover:shadow-md hover:shadow-red-600/25 active:scale-[0.98] ${focusRing}`;
@@ -109,11 +120,11 @@ export function PageHeader({ icon: Icon, title, subtitle, action }: PageProps) {
   return (
     <div className="flex items-start sm:items-center justify-between gap-3 mb-5 sm:mb-7">
       <div className="flex items-center gap-3.5 min-w-0">
-        <div className="hidden sm:flex w-12 h-12 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-card text-blue-600 dark:text-blue-400 items-center justify-center shrink-0">
-          <Icon size={22} />
+        <div className="hidden sm:flex w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-600/25 ring-1 ring-white/20 items-center justify-center shrink-0">
+          <Icon size={22} strokeWidth={2.2} />
         </div>
         <div className="min-w-0">
-          <h1 className="text-lg sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100 flex items-start sm:items-center gap-2 leading-tight font-heading">
+          <h1 className="text-lg sm:text-[26px] font-extrabold tracking-tight text-slate-900 dark:text-slate-100 flex items-start sm:items-center gap-2 leading-tight font-heading">
             <Icon size={20} className="sm:hidden text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
             <span className="sm:truncate">{t(title)}</span>
           </h1>
@@ -137,8 +148,8 @@ export function Card({ className = '', hover = false, children }: {
   children: ReactNode;
 }) {
   return (
-    <div className={`bg-white rounded-xl border border-slate-200/80 shadow-card
-      dark:bg-slate-900 dark:border-slate-800/80 ${
+    <div className={`bg-white rounded-2xl border border-slate-200/70 shadow-card
+      dark:bg-slate-900/80 dark:border-slate-800/80 ${
         hover ? 'transition-[transform,box-shadow] duration-150 ease-out hover:shadow-lifted hover:-translate-y-0.5 hover:border-slate-300 dark:hover:border-slate-700' : ''
       } ${className}`}>
       {children}
@@ -149,7 +160,7 @@ export function Card({ className = '', hover = false, children }: {
 export function IconTile({ icon: Icon, tone = 'blue', size = 'md' }: {
   icon: LucideIcon; tone?: Tone; size?: 'sm' | 'md';
 }) {
-  const box = size === 'sm' ? 'w-8 h-8 sm:w-9 sm:h-9 rounded-lg' : 'w-10 h-10 sm:w-12 sm:h-12 rounded-xl';
+  const box = size === 'sm' ? 'w-8 h-8 sm:w-10 sm:h-10 rounded-xl' : 'w-10 h-10 sm:w-12 sm:h-12 rounded-2xl';
   return (
     <div className={`${box} ${toneTile[tone]} flex items-center justify-center shrink-0 ring-1 ring-inset ring-black/5 dark:ring-white/10`}>
       <Icon size={size === 'sm' ? 15 : 19} className="sm:hidden" />
@@ -192,16 +203,17 @@ export function StatTile({ icon: Icon, label, value, format, tone = 'blue', hint
 }) {
   const { t } = useLanguage();
   return (
-    <Card className="p-4 sm:p-5 relative overflow-hidden group hover:shadow-lifted transition-shadow duration-200">
-      <div className="flex items-start justify-between gap-3">
+    <Card className="p-4 sm:p-5 relative overflow-hidden group hover:shadow-lifted hover:-translate-y-0.5 transition-[box-shadow,transform] duration-200">
+      <div className={`pointer-events-none absolute -right-8 -top-8 w-28 h-28 rounded-full blur-2xl opacity-60 dark:opacity-30 ${toneGlow[tone]}`} aria-hidden="true" />
+      <div className="relative flex items-start justify-between gap-3">
         <p className="text-xs sm:text-[13px] font-medium leading-tight text-slate-500 dark:text-slate-400 sm:truncate pt-1">{t(label)}</p>
         <IconTile icon={Icon} tone={tone} size="sm" />
       </div>
-      <p className="mt-2 sm:mt-3 text-xl sm:text-[28px] font-bold text-slate-900 dark:text-slate-100 truncate tracking-tight font-heading leading-none">
+      <p className="relative mt-2 sm:mt-3 text-xl sm:text-[30px] font-extrabold text-slate-900 dark:text-slate-100 truncate tracking-tight font-heading leading-none">
         {typeof value === 'number' ? <CountUp value={value} format={format} /> : value}
       </p>
       {hint && <p className="text-[11px] font-semibold leading-tight text-blue-600 dark:text-blue-400 mt-2 sm:truncate">{hint}</p>}
-      <div className={`absolute inset-x-0 bottom-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity ${toneBar[tone]}`} aria-hidden="true" />
+      <div className={`absolute inset-x-0 bottom-0 h-[3px] opacity-30 group-hover:opacity-100 transition-opacity ${toneBar[tone]}`} aria-hidden="true" />
     </Card>
   );
 }

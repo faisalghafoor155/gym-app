@@ -185,6 +185,25 @@ html.dark body {
   color: #f1f5f9;
 }
 
+/**
+ * The app's backdrop: a near-white page with a faint wash of the brand colour
+ * in two corners, so white cards stand off it without a heavy grey. Fixed to
+ * the viewport, so long pages do not stretch it.
+ */
+.app-canvas {
+  background-color: #f6f8fb;
+  background-image:
+    radial-gradient(60rem 30rem at 100% -10%, oklch(0.95 0.052 163.051 / 0.55), transparent 60%),
+    radial-gradient(40rem 26rem at -10% 110%, oklch(0.953 0.051 180.801 / 0.45), transparent 60%);
+  background-attachment: fixed;
+}
+html.dark .app-canvas {
+  background-color: #070b14;
+  background-image:
+    radial-gradient(60rem 30rem at 100% -10%, oklch(0.378 0.077 168.94 / 0.25), transparent 60%),
+    radial-gradient(40rem 26rem at -10% 110%, oklch(0.386 0.063 188.416 / 0.18), transparent 60%);
+}
+
 /* Glassmorphism helpers */
 .glass-panel {
   background: rgba(255, 255, 255, 0.85);

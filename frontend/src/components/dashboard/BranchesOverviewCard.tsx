@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { hasPermission } from '../../utils/permissions';
 import { Building2 } from 'lucide-react';
 import { Card } from '../ui';
 import api from '../../api/client';
@@ -16,11 +18,13 @@ const money = (n: number) => `Rs. ${n.toLocaleString()}`;
 export default function BranchesOverviewCard() {
   const { t } = useLanguage();
   const { multi, current, switchTo } = useBranch();
+  const { user, isOwner } = useAuth();
+  const allowed = isOwner || (!!user?.staffPermission && hasPermission(user.role, user.staffPermission, 'canViewReports'));
   const [data, setData] = useState<BranchOverview | null>(null);
   useEffect(() => {
-    if (!multi || current) return;
+    if (!multi || current || !allowed) return;
     void api.get<BranchOverview>('/branches/overview').then(r => setData(r.data)).catch(() => setData(null));
-  }, [multi, current]);
+  }, [multi, current, allowed]);
   if (!multi || current || !data) return null;
 
   return (

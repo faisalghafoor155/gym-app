@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { hasPermission } from '../../utils/permissions';
 import { Link } from 'react-router-dom';
 import { MessageSquareHeart, ArrowRight } from 'lucide-react';
 import { Card } from '../ui';
@@ -14,10 +16,13 @@ import type { FeedbackSummary } from '../../types';
  */
 export default function SatisfactionCard() {
   const { t } = useLanguage();
+  const { user, isOwner } = useAuth();
+  const allowed = isOwner || (!!user?.staffPermission && hasPermission(user.role, user.staffPermission, 'canManageMembers'));
   const [data, setData] = useState<FeedbackSummary | null>(null);
   useEffect(() => {
+    if (!allowed) return;
     void api.get<FeedbackSummary>('/feedback/summary').then(r => setData(r.data)).catch(() => setData(null));
-  }, []);
+  }, [allowed]);
   if (!data || (data.thisMonth.count === 0 && data.lastMonth.count === 0 && data.open === 0)) return null;
 
   const now = data.thisMonth.average;
