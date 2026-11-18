@@ -101,10 +101,13 @@ function LimitBar({ label, status }: { label: string; status: LimitStatus }) {
 export default function Subscription() {
   const { t } = useLanguage();
   const { status, loading, reload } = useSubscription();
-  const { isOwner } = useAuth();
+  const { isOwner, user } = useAuth();
   const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState<GymPlan | null>(null);
   const [subscribing, setSubscribing] = useState(false);
   const [supportModalOpen, setSupportModalOpen] = useState(false);
+  // Bumped after an invoice is issued or settled, so both billing panels
+  // fetch again instead of showing what they loaded on arrival.
+  const [billingVersion, setBillingVersion] = useState(0);
 
   if (loading) return <PageLoader />;
   if (!status) {
@@ -127,6 +130,7 @@ export default function Subscription() {
       toast.success(t('Invoice issued for {plan}! Pay below to activate.', { plan: status.plans.find(p => p.plan === plan)?.label ?? plan }));
       setSelectedPlanForUpgrade(null);
       await reload();
+      setBillingVersion(v => v + 1);
       // Scroll to billing section
       const billingEl = document.getElementById('billing-panel-section');
       if (billingEl) {
@@ -162,13 +166,13 @@ export default function Subscription() {
 
       {/* Super Admin Management Panel (Visible to Platform Owner) */}
       {isOwner && (
-        <AdminBillingPanel onApproved={() => void reload()} />
+        <AdminBillingPanel refreshKey={billingVersion} onApproved={() => { void reload(); setBillingVersion(v => v + 1); }} />
       )}
 
       {/* Billing Panel */}
       {isOwner && (
         <div id="billing-panel-section">
-          <BillingPanel />
+          <BillingPanel refreshKey={billingVersion} canActivate={!!user?.isPlatformAdmin} onSettled={() => { void reload(); setBillingVersion(v => v + 1); }} />
         </div>
       )}
 

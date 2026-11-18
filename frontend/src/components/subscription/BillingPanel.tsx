@@ -51,13 +51,44 @@ const postToProvider = (url: string, fields: Record<string, string>): void => {
   form.submit();
 };
 
-export default function BillingPanel() {
+export default function BillingPanel({ refreshKey = 0, onSettled, canActivate = false }: {
+  /** Bumped by the page after it issues an invoice, so the panel shows it. */
+  refreshKey?: number;
+  /** The platform owner, who may settle an invoice by hand. */
+  canActivate?: boolean;
+  /** Called once an invoice is settled here and the plan has changed. */
+  onSettled?: () => void;
+}) {
   const { t } = useLanguage();
   const { data, loading, reload } = useFetch<BillingResponse>(
     '/billing',
     t('Could not load billing'),
   );
   const [paying, setPaying] = useState(false);
+
+  // A subscribe on the page above issues the invoice this panel must show.
+  useEffect(() => {
+    if (refreshKey > 0) void reload();
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * The platform owner settling their own gym's invoice: with no payment
+   * gateway set up there is nobody else who could, and the plan would sit
+   * unpaid forever.
+   */
+  const activate = async (invoiceId: string): Promise<void> => {
+    setPaying(true);
+    try {
+      await api.post('/billing/admin/approve', { invoiceId });
+      toast.success(t('Plan activated.'));
+      await reload();
+      onSettled?.();
+    } catch (err) {
+      toast.error(apiError(err, t('Could not activate the plan')));
+    } finally {
+      setPaying(false);
+    }
+  };
 
   /**
    * The provider drops the browser back here with `?payment=…`. Read once and
@@ -190,7 +221,27 @@ export default function BillingPanel() {
                 )}
               </p>
 
+              {/* No gateway: say how the money gets paid instead of leaving
+                  the owner in front of an invoice with no button. */}
+              {providers.length === 0 && (
+                <p className="text-xs text-gray-700 dark:text-slate-300 mt-2">
+                  {canActivate
+                    ? t('Online payment is not set up yet. As the platform owner you can activate this plan now.')
+                    : t('Online payment is not set up yet. Send the amount to the platform owner; the plan switches on as soon as they confirm it.')}
+                </p>
+              )}
               <div className="flex flex-wrap gap-2 mt-3">
+                {providers.length === 0 && canActivate && (
+                  <button
+                    type="button"
+                    onClick={() => void activate(invoice.id)}
+                    disabled={paying}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700
+                      disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+                  >
+                    {paying ? t('Activating…') : t('Activate now (mark paid)')}
+                  </button>
+                )}
                 {providers.map(p => (
                   <button
                     key={p.provider}

@@ -39,7 +39,7 @@ interface AdminBillingResponse {
   allGyms: GymSummary[];
 }
 
-export default function AdminBillingPanel({ onApproved }: { onApproved?: () => void }) {
+export default function AdminBillingPanel({ onApproved, refreshKey = 0 }: { onApproved?: () => void; refreshKey?: number }) {
   const { t } = useLanguage();
   const [data, setData] = useState<AdminBillingResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,9 +63,11 @@ export default function AdminBillingPanel({ onApproved }: { onApproved?: () => v
     }
   };
 
+  // Again whenever the page issues or settles an invoice, so a request made a
+  // moment ago is in the list without a refresh.
   useEffect(() => {
     void fetchAdminData();
-  }, []);
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return null;
   if (!data || !data.isMasterAdmin) return null;

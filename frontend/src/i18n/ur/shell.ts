@@ -421,6 +421,13 @@ const shell: Record<string, string> = {
   'No page matches': 'Koi page nahi mila',
   'Collapse sidebar': 'Sidebar chhota karein',
   'Expand sidebar': 'Sidebar bara karein',
+  // --- billing ---
+  'Plan activated.': 'Plan activate ho gaya.',
+  'Could not activate the plan': 'Plan activate nahi ho saka',
+  'Online payment is not set up yet. As the platform owner you can activate this plan now.': 'Online payment abhi set nahi hai. Platform owner hone ke naate aap ye plan abhi activate kar sakte hain.',
+  'Online payment is not set up yet. Send the amount to the platform owner; the plan switches on as soon as they confirm it.': 'Online payment abhi set nahi hai. Raqam platform owner ko bhejein; wo tasdeeq karte hi plan on ho jayega.',
+  'Activating…': 'Activate ho raha hai…',
+  'Activate now (mark paid)': 'Abhi activate karein (ada shuda)',
 };
 
 export default shell;
