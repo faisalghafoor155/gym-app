@@ -17,7 +17,8 @@ import {
 import { selfCheckin } from "../controllers/attendanceController.js";
 import { createMine, listMine, removeMine } from "../controllers/measurementsController.js";
 import { listForMember as listMyEquipment, reportFaultAsMember } from "../controllers/equipmentController.js";
-import { reportFaultSchema } from "../schemas.js";
+import { createFeedbackSchema, reportFaultSchema } from "../schemas.js";
+import { createMine as sendFeedback, listMine as myFeedback } from "../controllers/feedbackController.js";
 import {
   bookMyClassSchema,
   createMeasurementSchema,
@@ -100,5 +101,10 @@ router.delete(
 // Telling the gym a machine is broken. Members see the machine names only.
 router.get("/equipment", authed(listMyEquipment));
 router.post("/equipment-faults", validate(reportFaultSchema), authed(reportFaultAsMember));
+
+// Rating the gym, or complaining about it. What they sent under their own
+// name comes back with the gym's replies; anonymous feedback cannot.
+router.get("/feedback", authed(myFeedback));
+router.post("/feedback", validate(createFeedbackSchema), authed(sendFeedback));
 
 export default router;

@@ -5,7 +5,7 @@ Tick a box when a task ships.
 
 **Status legend:** `[x]` done · `[ ]` not started · 🟠 partly there (note says what exists)
 
-_Last checked against the code: 2026-11-18 (after Equipment & Maintenance)._
+_Last checked against the code: 2026-11-18 (after Member Feedback)._
 
 ---
 
@@ -85,9 +85,12 @@ Split a membership fee across dates.
   ✅ A service or repair with a cost is booked as a linked "maintenance" expense; the Expenses page will not edit or delete it
 
 ### 7. Member Feedback / Complaints
-- [ ] Feedback form in the member portal (rating + text, optional anonymous)
-- [ ] Complaint inbox for owner/staff with Open / Resolved status
-- [ ] Monthly satisfaction score on the dashboard
+- [x] Feedback form in the member portal (rating + text, optional anonymous)
+  ✅ Portal → Feedback tab: 1–5 stars, topic, comment; anonymous stores no member at all; the member sees the gym's replies
+- [x] Complaint inbox for owner/staff with Open / Resolved status
+  ✅ Feedback page (Members menu, `canManageMembers`) + `/api/feedback`; reply, resolve, reopen
+- [x] Monthly satisfaction score on the dashboard
+  ✅ "Member satisfaction" card: this month's average vs last month, % happy, replies waiting; the inbox also scores each topic
 
 ### 8. Multi-Branch
 - [ ] `Branch` under one gym owner; members, staff and payments scoped by branch
@@ -133,12 +136,12 @@ Split a membership fee across dates.
 | P1: Staff Salary | 4 | 1 | 0 |
 | P2: Health Waiver | 4 | 0 | 0 |
 | P2: Equipment | 4 | 0 | 0 |
-| P2: Feedback | 0 | 0 | 3 |
+| P2: Feedback | 3 | 0 | 0 |
 | P2: Multi-Branch | 0 | 0 | 4 |
 | P3: Challenges | 0 | 1 | 2 |
 | P3: Bulk WhatsApp | 0 | 1 | 2 |
 | Technical | 0 | 0 | 2 |
-| **Total** | **19** | **10** | **14** |
+| **Total** | **22** | **10** | **11** |
 
 ## ✅ Already built (for reference)
 Members, memberships, freeze · Payments, dues, receipts, promo codes, online payments · Expenses, supplement sales ·

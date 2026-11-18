@@ -1871,6 +1871,36 @@ export const faultQuerySchema = z.object({
   status: z.enum(["open", "fixed", "all"]).default("open"),
 });
 
+// --- feedback ----------------------------------------------------------
+
+export const FEEDBACK_CATEGORIES = [
+  "general", "equipment", "cleanliness", "staff", "trainer", "classes", "timing", "other",
+] as const;
+
+export const createFeedbackSchema = z
+  .object({
+    rating: z.coerce.number().int("must be 1 to 5 stars").min(1, "must be 1 to 5 stars").max(5, "must be 1 to 5 stars"),
+    category: z.enum(FEEDBACK_CATEGORIES, { error: "is not a feedback category" }).default("general"),
+    message: optionalText(1000),
+    anonymous: z.boolean().default(false),
+  })
+  .superRefine((d, ctx) => {
+    // A low score with no words gives the gym nothing to fix.
+    if (d.rating <= 2 && !d.message) {
+      ctx.addIssue({ code: "custom", path: ["message"], message: "please tell us what went wrong" });
+    }
+  });
+
+export const feedbackQuerySchema = z.object({
+  status: z.enum(["open", "resolved", "all"]).default("open"),
+});
+
+export const updateFeedbackSchema = z.object({
+  status: z.enum(["open", "resolved"]).optional(),
+  /** Shown to the member. Blank clears it. */
+  response: optionalText(1000),
+});
+
 // --- lockers -----------------------------------------------------------
 
 const lockerNumber = z.string().trim().min(1, "is required").max(20, "is too long");
@@ -1964,3 +1994,6 @@ export type RecordServiceBody = z.infer<typeof recordServiceSchema>;
 export type ReportFaultBody = z.infer<typeof reportFaultSchema>;
 export type FixFaultBody = z.infer<typeof fixFaultSchema>;
 export type FaultQuery = z.infer<typeof faultQuerySchema>;
+export type CreateFeedbackBody = z.infer<typeof createFeedbackSchema>;
+export type FeedbackQuery = z.infer<typeof feedbackQuerySchema>;
+export type UpdateFeedbackBody = z.infer<typeof updateFeedbackSchema>;

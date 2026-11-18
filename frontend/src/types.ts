@@ -1432,3 +1432,32 @@ export interface EquipmentAlerts {
   serviceDue: { id: string; name: string; location: string | null; dueOn: string; daysLeft: number; state: ServiceState }[];
   faults: EquipmentFault[];
 }
+
+export type FeedbackCategory = 'general' | 'equipment' | 'cleanliness' | 'staff' | 'trainer' | 'classes' | 'timing' | 'other';
+
+/** A member's rating and comment, as the gym's inbox shows it. */
+export interface Feedback {
+  id: string;
+  rating: number;
+  category: FeedbackCategory;
+  message: string | null;
+  status: 'open' | 'resolved';
+  response: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  /** Null when sent anonymously. */
+  member: { id: string; name: string; memberNo: string; phone: string | null } | null;
+  resolvedBy: { id: string; name: string } | null;
+}
+
+/** What a member sees of what they sent. */
+export type MyFeedback = Pick<Feedback, 'id' | 'rating' | 'category' | 'message' | 'status' | 'response' | 'createdAt' | 'resolvedAt'>;
+
+export interface FeedbackScore { count: number; average: number | null; happyPct: number | null }
+
+export interface FeedbackSummary {
+  thisMonth: FeedbackScore;
+  lastMonth: FeedbackScore;
+  open: number;
+  byCategory: { category: FeedbackCategory; count: number; average: number | null }[];
+}

@@ -235,6 +235,7 @@ model Gym {
   equipment          Equipment[]
   equipmentServices  EquipmentService[]
   equipmentFaults    EquipmentFault[]
+  feedback           Feedback[]
 
   /// What this gym pays *us*, as opposed to everything above, which is what
   /// its members pay it. Optional because a gym is only given a billing row
@@ -342,6 +343,7 @@ model User {
   recordedHealthDeclarations HealthDeclaration[] @relation("HealthDeclarationRecordedBy")
   recordedEquipmentServices  EquipmentService[]  @relation("EquipmentServiceRecordedBy")
   reportedEquipmentFaults    EquipmentFault[]    @relation("EquipmentFaultReportedBy")
+  resolvedFeedback           Feedback[]          @relation("FeedbackResolvedBy")
   recordedMeasurements       MemberMeasurement[] @relation("MeasurementRecordedBy")
 
   @@index([gymId])
@@ -424,6 +426,7 @@ model Member {
   guestPasses        DayPass[]
   healthDeclarations HealthDeclaration[]
   equipmentFaults    EquipmentFault[]
+  feedback           Feedback[]
 
   @@unique([gymId, memberNo])
   @@index([gymId])
@@ -1839,4 +1842,38 @@ model EquipmentFault {
 
   @@index([gymId, status])
   @@index([equipmentId])
+}
+
+/// A member's rating of the gym, with a comment or a complaint.
+///
+/// Anonymous feedback keeps no link to the member at all — not hidden, absent
+/// — so "anonymous" is a promise the database keeps, not just the screen.
+model Feedback {
+  id       String  @id @default(uuid())
+  gymId    String
+  /// Null when sent anonymously.
+  memberId String?
+
+  /// 1 to 5 stars.
+  rating   Int
+  /// general | equipment | cleanliness | staff | trainer | classes | timing | other
+  category String  @default("general")
+  message  String?
+
+  /// open | resolved. Feedback with nothing to act on can be resolved at once.
+  status       String    @default("open")
+  /// The gym's reply, shown to the member when they were not anonymous.
+  response     String?
+  resolvedAt   DateTime?
+  resolvedById String?
+
+  createdAt DateTime @default(now())
+
+  gym        Gym     @relation(fields: [gymId], references: [id])
+  member     Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  resolvedBy User?   @relation("FeedbackResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([gymId, status])
+  @@index([gymId, createdAt])
+  @@index([memberId])
 }

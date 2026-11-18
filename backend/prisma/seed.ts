@@ -17,8 +17,8 @@
  *   npm run db:seed -- --email demo@gymflow.pk  # the gym that account owns —
  *                                               # created, with that owner, if
  *                                               # nobody has the address yet
- *   npm run db:seed -- --email x@y.pk --only equipment  # machines and
- *                                               # upkeep only, no new members
+ *   npm run db:seed -- --email x@y.pk --only equipment,feedback
+ *                                               # just those sections, no new members
  *
  * Every account the seed creates signs in with `password123`.
  *
@@ -473,6 +473,82 @@ async function seedEquipment(gymId: string, desk: () => string, books: () => str
   return made;
 }
 
+/**
+ * Three months of member feedback: mostly happy, some lukewarm, a few
+ * complaints — the older ones answered and resolved, this month's partly
+ * still open, so the inbox and the dashboard score both have something.
+ *
+ * Only when the gym has no feedback yet. Returns how many it added.
+ */
+async function seedFeedback(gymId: string, books: () => string): Promise<number> {
+  if (await prisma.feedback.count({ where: { gymId } })) return 0;
+  const members = await prisma.member.findMany({ where: { gymId }, select: { id: true }, take: 200, orderBy: { createdAt: 'desc' } });
+  if (members.length === 0) return 0;
+
+  const PRAISE = [
+    { category: 'trainer', message: 'Coach is very helpful, lost 6 kg in two months!' },
+    { category: 'general', message: null },
+    { category: 'classes', message: 'Love the evening HIIT class.' },
+    { category: 'staff', message: 'Front desk is always polite.' },
+    { category: 'equipment', message: 'New treadmills are great.' },
+    { category: 'general', message: 'Best gym in the area.' },
+  ];
+  const LUKEWARM = [
+    { category: 'timing', message: 'Please open at 5:30 instead of 6 in Ramadan.' },
+    { category: 'cleanliness', message: 'Changing room could be cleaner in the evening.' },
+    { category: 'equipment', message: 'Need more dumbbells, the 20 kg pair is always taken.' },
+    { category: 'classes', message: 'Yoga class is too crowded.' },
+  ];
+  const COMPLAINTS = [
+    { category: 'cleanliness', message: 'Showers were dirty all week.' },
+    { category: 'equipment', message: 'Treadmill 2 belt slips, nobody fixed it for days.' },
+    { category: 'staff', message: 'Was charged twice for the same month, took long to sort out.' },
+    { category: 'timing', message: 'Gym opened 40 minutes late on Sunday.' },
+    { category: 'other', message: 'Music is far too loud.' },
+  ];
+  const REPLIES = [
+    'Thank you for telling us — this is fixed now.',
+    'Sorry about that. We have spoken to the team and it will not happen again.',
+    'Thanks! We are adding more from next month.',
+    'Noted, we have changed the cleaning schedule.',
+  ];
+
+  let made = 0;
+  for (let back = 2; back >= 0; back--) {
+    const count = back === 0 ? 18 : 22;
+    for (let i = 0; i < count; i++) {
+      const roll = rand();
+      const kind = roll < 0.62 ? 'praise' : roll < 0.84 ? 'lukewarm' : 'complaint';
+      const rating = kind === 'praise' ? pick([4, 5, 5]) : kind === 'lukewarm' ? 3 : pick([1, 2]);
+      const item = pick(kind === 'praise' ? PRAISE : kind === 'lukewarm' ? LUKEWARM : COMPLAINTS);
+      const ago = back === 0 ? between(0, Math.max(0, new Date().getDate() - 1)) : back * 30 + between(-12, 12);
+      const createdAt = notAfterNow(atHour(daysAgo(ago), 8, 22));
+      const anonymous = kind === 'complaint' ? rand() < 0.35 : rand() < 0.1;
+      const needsAction = rating <= 3 || !!item.message;
+      // Last month's and older were dealt with; this month's complaints are
+      // mostly still waiting.
+      const resolved = !needsAction || back > 0 || rand() < 0.4;
+      const resolvedAt = resolved ? (needsAction ? new Date(createdAt.getTime() + between(2, 72) * 3_600_000) : createdAt) : null;
+      await prisma.feedback.create({
+        data: {
+          gymId,
+          memberId: anonymous ? null : pick(members).id,
+          rating,
+          category: item.category,
+          message: item.message,
+          status: resolved ? 'resolved' : 'open',
+          response: resolved && needsAction && !anonymous && rating <= 3 ? pick(REPLIES) : null,
+          resolvedAt: resolvedAt && resolvedAt > new Date() ? new Date() : resolvedAt,
+          resolvedById: resolved && needsAction ? books() : null,
+          createdAt,
+        },
+      });
+      made++;
+    }
+  }
+  return made;
+}
+
 async function main(): Promise<void> {
   const email = arg('--email');
   let gym;
@@ -580,11 +656,15 @@ async function main(): Promise<void> {
   const desk = (): string => pick(deskUsers).id;
   const books = (): string => (owner && rand() > 0.5 ? owner.id : logins['accounts']!.id);
 
-  // `--only equipment`: just the machines and their upkeep, for a gym seeded
-  // before the Equipment page existed — without another batch of members.
-  if (arg('--only') === 'equipment') {
-    const e = await seedEquipment(gymId, desk, books);
-    console.log(`Done — ${e.machines} machines, ${e.services} services, ${e.faults} faults.`);
+  // `--only equipment,feedback`: just those sections, for a gym seeded before
+  // they existed — without another batch of members.
+  const only = arg('--only')?.split(',');
+  if (only) {
+    if (only.includes('equipment')) {
+      const e = await seedEquipment(gymId, desk, books);
+      console.log(`Equipment: ${e.machines} machines, ${e.services} services, ${e.faults} faults.`);
+    }
+    if (only.includes('feedback')) console.log(`Feedback: ${await seedFeedback(gymId, books)} ratings.`);
     return;
   }
 
@@ -1750,6 +1830,7 @@ async function main(): Promise<void> {
   }
 
   const equipmentMade = await seedEquipment(gymId, desk, books);
+  const feedbackMade = await seedFeedback(gymId, books);
 
   // --- staff salaries ------------------------------------------------------------------
   // Profiles for the people the gym pays, the last few months paid, and the
@@ -2016,7 +2097,7 @@ async function main(): Promise<void> {
       `${lockersAssigned} lockers handed out (${lockerPayments} rent payments)`,
       `${freezesMade} freezes`,
       `${measurementsMade} measurements`,
-      `${staffMade} staff profiles, ${adjustmentsMade} salary adjustments, ${salaryPaymentsMade} salaries paid, ${staffDaysMade} staff attendance days, ${declarationsMade} health declarations, ${equipmentMade.machines} machines (${equipmentMade.services} services, ${equipmentMade.faults} faults)`,
+      `${staffMade} staff profiles, ${adjustmentsMade} salary adjustments, ${salaryPaymentsMade} salaries paid, ${staffDaysMade} staff attendance days, ${declarationsMade} health declarations, ${equipmentMade.machines} machines (${equipmentMade.services} services, ${equipmentMade.faults} faults), ${feedbackMade} feedback`,
       `${audits} audit entries`,
     ].join(', ') + '.',
   );

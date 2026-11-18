@@ -60,6 +60,7 @@ const DayPasses = lazy(() => import('./pages/DayPasses'));
 const Salaries = lazy(() => import('./pages/Salaries'));
 const StaffAttendance = lazy(() => import('./pages/StaffAttendance'));
 const Equipment = lazy(() => import('./pages/Equipment'));
+const Feedback = lazy(() => import('./pages/Feedback'));
 const InactiveMembers = lazy(() => import('./pages/InactiveMembers'));
 const Lockers = lazy(() => import('./pages/Lockers'));
 
@@ -236,6 +237,7 @@ function AppRoutes() {
                 <Route path="/members" element={<PermissionRoute action="canManageMembers"><Members /></PermissionRoute>} />
                 <Route path="/referrals" element={<PermissionRoute action="canManageMembers"><Referrals /></PermissionRoute>} />
                 <Route path="/leads" element={<PermissionRoute action="canManageMembers"><Leads /></PermissionRoute>} />
+                <Route path="/feedback" element={<PermissionRoute action="canManageMembers"><Feedback /></PermissionRoute>} />
                 <Route path="/day-passes" element={<PermissionRoute action="canRecordPayments"><DayPasses /></PermissionRoute>} />
                 <Route path="/lockers" element={<PermissionRoute action="canManageMembers"><Lockers /></PermissionRoute>} />
                 {/* Open to staff so the counter can take a fee. The page is not

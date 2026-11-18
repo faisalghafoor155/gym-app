@@ -10,6 +10,7 @@ import {
 } from '../components/ui';
 import MyClasses from '../components/portal/MyClasses';
 import ReportMachine from '../components/portal/ReportMachine';
+import MyFeedback from '../components/portal/MyFeedback';
 import MyCheckInCode from '../components/portal/MyCheckInCode';
 import { MyMemberships, MyPayments, MyPurchases } from '../components/portal/MyHistory';
 import MyProfileForm from '../components/portal/MyProfileForm';
@@ -51,7 +52,7 @@ const postToProvider = (url: string, fields: Record<string, string>): void => {
  * have buried the two things a member opens it for — when their membership
  * ends, and the code to get in.
  */
-type PortalTab = 'overview' | 'plans' | 'progress' | 'classes' | 'checkin' | 'history' | 'profile';
+type PortalTab = 'overview' | 'plans' | 'progress' | 'classes' | 'checkin' | 'history' | 'feedback' | 'profile';
 
 /** Labels in English; translated where the tabs are drawn. */
 const TABS: readonly { value: PortalTab; label: string }[] = [
@@ -61,6 +62,7 @@ const TABS: readonly { value: PortalTab; label: string }[] = [
   { value: 'classes', label: 'Classes' },
   { value: 'checkin', label: 'Check-in' },
   { value: 'history', label: 'History' },
+  { value: 'feedback', label: 'Feedback' },
   { value: 'profile', label: 'Profile' },
 ];
 
@@ -226,6 +228,8 @@ export default function MyPortal() {
           <MyPurchases />
         </div>
       )}
+
+      {tab === 'feedback' && <MyFeedback />}
 
       {tab === 'profile' && (
         // Updated from the PUT's own response rather than by reloading: the
