@@ -53,6 +53,14 @@ const BODIES: Record<string, (v: string[]) => string> = {
     `Congratulations ${member} on ${years} year(s) with ${gym}! Thank you for training with us.`,
   challenge_winner: ([member, gym, place, challenge]) =>
     `Congratulations ${member}! You finished ${place} in the ${challenge} challenge at ${gym}. Well done!`,
+  gym_offer: ([member, gym, offer, until]) =>
+    `Hi ${member}! ${gym} offer: ${offer}. Valid until ${until}. Visit the front desk.`,
+  gym_new_batch: ([member, gym, batch, starts]) =>
+    `Hi ${member}, ${gym} is starting a new ${batch} batch on ${starts}. Ask at the desk to join.`,
+  gym_closed_notice: ([member, gym, when, reason]) =>
+    `Hi ${member}, ${gym} will be closed on ${when} for ${reason}.`,
+  gym_announcement: ([member, gym, message]) =>
+    `Hi ${member}, an update from ${gym}: ${message}.`,
 };
 
 /** The SMS text for a templated message, or null for a template with none. */

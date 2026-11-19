@@ -164,6 +164,63 @@ Collect your prize at the front desk. Reply STOP to opt out of these messages.
 
 ---
 
+### 6–9. Broadcasts: `gym_offer`, `gym_new_batch`, `gym_closed_notice`, `gym_announcement`
+
+Sent in bulk from the **WhatsApp Broadcast** page. Create these four as
+category **Marketing**: Meta files offers and announcements there, and refuses
+them as Utility. Marketing messages cost more per message and Meta may hold
+back some to people who rarely engage, so a broadcast's "sent" count can be
+higher than what actually arrives.
+
+In each one `{{1}}` is the member's name and `{{2}}` the gym's name; the rest
+are what the desk types in. The bodies must match `services/broadcasts.ts`.
+
+**`gym_offer`**
+
+```
+Hi {{1}}! {{2}} has a special offer for you: {{3}}. Valid until {{4}}. Visit the front desk to avail it.
+
+Reply STOP to opt out of these messages.
+```
+
+Samples: Ali Khan · Iron House Gym · 20% off on all 3-month plans · 15 April
+
+**`gym_new_batch`**
+
+```
+Hi {{1}}, {{2}} is starting a new {{3}} batch on {{4}}. Ask at the front desk to join.
+
+Reply STOP to opt out of these messages.
+```
+
+Samples: Ali Khan · Iron House Gym · ladies morning yoga · Monday 1 December, 7 am
+
+**`gym_closed_notice`**
+
+```
+Hi {{1}}, {{2}} will be closed on {{3}} for {{4}}. We will be open as usual after that.
+
+Reply STOP to opt out of these messages.
+```
+
+Samples: Ali Khan · Iron House Gym · Friday 25 December · Quaid Day
+
+**`gym_announcement`**
+
+```
+Hi {{1}}, an update from {{2}}: {{3}}.
+
+Reply STOP to opt out of these messages.
+```
+
+Samples: Ali Khan · Iron House Gym · new AC has been installed in the cardio area
+
+> "Sent" in the send log means Meta accepted the message. Whether it was
+> delivered and read comes back only through Meta's webhook, which this app
+> does not receive yet.
+
+---
+
 ## Opting out
 
 Every template ends with "Reply STOP to opt out". That line is not decoration —

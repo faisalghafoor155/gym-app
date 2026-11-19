@@ -5,6 +5,7 @@ import { runGreetings } from './greetings.js';
 import { runFingerprintRetention } from './fingerprintRetention.js';
 import { runSubscriptionBilling } from './subscriptionBilling.js';
 import { subscriptionsEnabled } from '../services/subscription.js';
+import { resumeBroadcasts } from '../services/broadcasts.js';
 
 /**
  * The scheduler, kept apart from the work it schedules.
@@ -135,6 +136,11 @@ const subscriptionBilling = async (): Promise<string> => {
 
 export const startJobs = (): void => {
   if (!enabled) return;
+
+  // A broadcast cut off by a restart carries on from where it stopped.
+  void resumeBroadcasts()
+    .then(n => { if (n) console.log(`[jobs] resumed ${n} broadcast(s)`); })
+    .catch(err => { console.error('[jobs] resuming broadcasts failed:', err); });
 
   schedule('expiry reminders', 'REMINDER_CRON', SCHEDULE, expiryReminders);
 

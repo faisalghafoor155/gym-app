@@ -1542,3 +1542,57 @@ export interface MyChallenge extends ChallengeBase {
   /** The top places, plus the member's own row when they are further down. */
   leaderboard: { name: string; isMe: boolean; score: number | null; rank: number | null; completed: boolean }[];
 }
+
+export type BroadcastTemplateKey = 'offer' | 'new_batch' | 'closed' | 'announcement';
+export type BroadcastAudience = 'active' | 'expired' | 'inactive' | 'leads';
+
+export interface BroadcastTemplate {
+  key: BroadcastTemplateKey;
+  label: string;
+  fields: { key: string; label: string; example: string }[];
+  /** With {name}, {gym} and each field's {key} where the values go. */
+  body: string;
+}
+
+export interface BroadcastTemplates {
+  templates: BroadcastTemplate[];
+  /** Whether this install can send WhatsApp (or SMS) at all. */
+  canSend: boolean;
+  maxRecipients: number;
+}
+
+export interface BroadcastAudienceSummary {
+  total: number;
+  reachable: number;
+  optedOut: number;
+  noNumber: number;
+  duplicates: number;
+  sample: string[];
+}
+
+export type BroadcastCounts = { total: number; sent: number; failed: number; skipped: number; waiting: number };
+
+export interface Broadcast {
+  id: string;
+  template: BroadcastTemplateKey;
+  values: Record<string, string>;
+  audience: BroadcastAudience;
+  inactiveDays: number | null;
+  status: 'sending' | 'done';
+  createdAt: string;
+  finishedAt: string | null;
+  createdBy: { id: string; name: string } | null;
+  counts: BroadcastCounts;
+}
+
+export interface BroadcastDetail extends Broadcast {
+  recipients: {
+    id: string;
+    name: string;
+    phone: string;
+    status: 'pending' | 'sending' | 'sent' | 'failed' | 'skipped';
+    sentAt: string | null;
+    memberId: string | null;
+    leadId: string | null;
+  }[];
+}

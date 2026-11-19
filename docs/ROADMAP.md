@@ -5,7 +5,7 @@ Tick a box when a task ships.
 
 **Status legend:** `[x]` done · `[ ]` not started · 🟠 partly there (note says what exists)
 
-_Last checked against the code: 2026-11-19 (after Challenges / Leaderboard)._
+_Last checked against the code: 2026-11-19 (after Bulk WhatsApp)._
 
 ---
 
@@ -116,10 +116,12 @@ Split a membership fee across dates.
   ✅ Portal shows the top 10 (others as "Ali K.") plus the member's own place. "Announce winners" after the end messages the top three once (`challenge_winner` template, SMS fallback) and fixes the board. The template needs approving in Meta's console (`whatsapp-templates.md`).
 
 ### 10. Bulk WhatsApp / Offers
-- [ ] Broadcast composer with audience filters (active, expired, inactive 30+ days, leads)
-  🟠 WhatsApp sending and the inactive-members list exist; there is no bulk-send screen.
-- [ ] Templates (Eid offer, new batch, gym closed notice)
+- [x] Broadcast composer with audience filters (active, expired, inactive 30+ days, leads)
+  ✅ WhatsApp Broadcast page (Members menu, `canManageMembers`, plan needs WhatsApp) + `/api/broadcasts`. Shows how many will get it before sending, leaving out opted-out members and numbers that can't take WhatsApp, and messaging a shared number once. Follows the branch in use; leads are gym-wide.
+- [x] Templates (Eid offer, new batch, gym closed notice)
+  ✅ Four Meta templates (offer, new batch, gym closed, announcement) with presets incl. Eid offer, and a live preview. Each needs approving in Meta's console as Marketing (`whatsapp-templates.md`).
 - [ ] Send log with delivered/failed counts
+  🟠 Log shows sent / failed / skipped per broadcast and per person, filling in live as it sends in the background (resumes after a restart). "Delivered" and "read" need Meta's webhook, which the app doesn't receive yet.
 
 ---
 
@@ -146,9 +148,9 @@ Split a membership fee across dates.
 | P2: Feedback | 3 | 0 | 0 |
 | P2: Multi-Branch | 4 | 0 | 0 |
 | P3: Challenges | 3 | 0 | 0 |
-| P3: Bulk WhatsApp | 0 | 1 | 2 |
+| P3: Bulk WhatsApp | 2 | 1 | 0 |
 | Technical | 0 | 0 | 2 |
-| **Total** | **29** | **9** | **5** |
+| **Total** | **31** | **9** | **3** |
 
 ## ✅ Already built (for reference)
 Members, memberships, freeze · Payments, dues, receipts, promo codes, online payments · Expenses, supplement sales ·

@@ -237,6 +237,7 @@ model Gym {
   equipmentFaults    EquipmentFault[]
   feedback           Feedback[]
   challenges         Challenge[]
+  broadcasts         Broadcast[]
   branches           Branch[]
 
   /// What this gym pays *us*, as opposed to everything above, which is what
@@ -352,6 +353,7 @@ model User {
   reportedEquipmentFaults    EquipmentFault[]    @relation("EquipmentFaultReportedBy")
   resolvedFeedback           Feedback[]          @relation("FeedbackResolvedBy")
   createdChallenges          Challenge[]         @relation("ChallengeCreatedBy")
+  sentBroadcasts             Broadcast[]         @relation("BroadcastSentBy")
   recordedMeasurements       MemberMeasurement[] @relation("MeasurementRecordedBy")
 
   @@index([gymId])
@@ -429,10 +431,10 @@ model Member {
   fingerprint    FingerprintTemplate?
   measurements   MemberMeasurement[]
 
-  referredBy         Member?             @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
-  referrals          Member[]            @relation("Referrals")
-  referralRewards    ReferralReward[]    @relation("RewardReferrer")
-  referredReward     ReferralReward?     @relation("RewardReferred")
+  referredBy         Member?                @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals          Member[]               @relation("Referrals")
+  referralRewards    ReferralReward[]       @relation("RewardReferrer")
+  referredReward     ReferralReward?        @relation("RewardReferred")
   promoRedemptions   PromoRedemption[]
   locker             Locker?
   lead               Lead?
@@ -441,7 +443,7 @@ model Member {
   equipmentFaults    EquipmentFault[]
   feedback           Feedback[]
   challenges         ChallengeParticipant[]
-  branch             Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  branch             Branch?                @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   @@unique([gymId, memberNo])
   @@index([gymId, branchId])
@@ -1979,4 +1981,62 @@ model ChallengeParticipant {
 
   @@unique([challengeId, memberId])
   @@index([memberId])
+}
+
+/// One bulk WhatsApp message — an offer, a new batch, a closure notice — sent
+/// to a group of members or leads.
+///
+/// Meta only lets a business start a conversation with an approved template,
+/// so a broadcast is a template plus the words the gym filled into its slots,
+/// never free text. Each person it went to is a `BroadcastRecipient`, and the
+/// counts on the send log are read from those rows.
+model Broadcast {
+  id       String  @id @default(uuid())
+  gymId    String
+  /// The branch whose members it went to. Null for the whole gym.
+  branchId String?
+
+  /// offer | new_batch | closed | announcement (see services/broadcasts.ts)
+  template String
+  /// What staff filled into the template's slots, by field name.
+  values   Json
+
+  /// active | expired | inactive | leads
+  audience     String
+  /// For `inactive`: away this many days or more.
+  inactiveDays Int?
+
+  /// sending | done
+  status      String    @default("sending")
+  createdById String?
+  createdAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  gym        Gym                  @relation(fields: [gymId], references: [id])
+  createdBy  User?                @relation("BroadcastSentBy", fields: [createdById], references: [id], onDelete: SetNull)
+  recipients BroadcastRecipient[]
+
+  @@index([gymId, createdAt])
+  @@index([status])
+}
+
+/// One person a broadcast went to.
+///
+/// Name and number are copied in, not joined: the log has to say who was
+/// messaged even after the member is deleted or the lead changes number. So
+/// `memberId` and `leadId` are plain references, not foreign keys.
+model BroadcastRecipient {
+  id          String    @id @default(uuid())
+  broadcastId String
+  memberId    String?
+  leadId      String?
+  name        String
+  phone       String
+  /// pending | sending | sent | failed | skipped
+  status      String    @default("pending")
+  sentAt      DateTime?
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+
+  @@index([broadcastId, status])
 }

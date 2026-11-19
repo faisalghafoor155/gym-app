@@ -1978,6 +1978,31 @@ export const addParticipantSchema = z.object({ memberId: uuid });
 
 export const participantParams = z.object({ id: uuid, memberId: uuid });
 
+// --- broadcasts --------------------------------------------------------
+
+/**
+ * One slot of a WhatsApp template. Meta refuses a parameter with a line break,
+ * a tab or more than four spaces in a row, so those are caught here with a
+ * reason rather than as a failed send to every member.
+ */
+const templateSlot = z
+  .string()
+  .trim()
+  .min(1, "is required")
+  .max(200, "is too long")
+  .refine((v) => !/[\n\r\t]/.test(v) && !/ {5,}/.test(v), "must be one line");
+
+export const broadcastAudienceSchema = z.object({
+  audience: z.enum(["active", "expired", "inactive", "leads"], { error: "is not an audience" }),
+  /** For `inactive`: away this many days or more. */
+  inactiveDays: z.coerce.number().int("must be a whole number").min(7, "must be at least 7").max(365, "is too long").default(30),
+});
+
+export const createBroadcastSchema = broadcastAudienceSchema.extend({
+  template: z.enum(["offer", "new_batch", "closed", "announcement"], { error: "is not a broadcast template" }),
+  values: z.record(z.string(), templateSlot),
+});
+
 // --- lockers -----------------------------------------------------------
 
 const lockerNumber = z.string().trim().min(1, "is required").max(20, "is too long");
@@ -2081,3 +2106,5 @@ export type CreateChallengeBody = z.infer<typeof createChallengeSchema>;
 export type UpdateChallengeBody = z.infer<typeof updateChallengeSchema>;
 export type AddParticipantBody = z.infer<typeof addParticipantSchema>;
 export type ParticipantParams = z.infer<typeof participantParams>;
+export type BroadcastAudienceQuery = z.infer<typeof broadcastAudienceSchema>;
+export type CreateBroadcastBody = z.infer<typeof createBroadcastSchema>;
