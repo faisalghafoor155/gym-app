@@ -126,8 +126,9 @@ Split a membership fee across dates.
 ---
 
 ## 🔧 Technical housekeeping
-- [ ] Backend test suite is very slow (~2 hours for the full run on this machine)
-  ℹ️ Not hung: the earlier "no output" came from piping it through `tail`. With live output it ran ~13 of ~70 files in 25 minutes. Worth profiling (per-test `resetDb` truncating every table is the likely cost).
+- [x] Backend test suite is very slow (~2 hours for the full run on this machine)
+  Now ~13 minutes. `resetDb` deletes rows instead of truncating every table (~1s → ~3ms per test), test files run in parallel with a database per worker, and the test databases are kept between runs and rebuilt only when a migration changes. `TEST_WORKERS=1` runs the files one at a time.
+- [ ] Failing test: `tests/routes/retentionFeatures.integration.test.ts` "lists what a part-paid renewal still owes" expects a total outstanding of 3000 and gets 5500. It fails on the old test setup too, so it is not from the speed-up.
 - [ ] Fix lint warnings:
   - `frontend/src/components/subscription/AdminBillingPanel.tsx:67`: missing `fetchAdminData` dependency
   - `frontend/src/pages/MyPortal.tsx:99`: missing `loadData` dependency

@@ -39,19 +39,29 @@ export const rawApi = () => request(app);
 /**
  * Empties every table between tests.
  *
- * TRUNCATE ... CASCADE in one statement rather than ordered deletes, so it
- * cannot break when a new foreign key is added. The table list is read from
- * the catalogue for the same reason — a new model needs no change here.
- * `_prisma_migrations` is excluded, or the schema would look unmigrated.
+ * The table list is read from the catalogue, so a new model needs no change
+ * here. `_prisma_migrations` is excluded, or the schema would look unmigrated.
+ *
+ * DELETE rather than TRUNCATE: TRUNCATE gives every table a new file on disk,
+ * which on Windows cost about a second per test across fifty-odd tables, while
+ * a test only leaves a few rows behind. `session_replication_role = replica`
+ * switches off foreign-key checks for the duration, so the order the tables
+ * are emptied in does not matter and a new foreign key cannot break this. It
+ * needs a superuser, which a local Postgres login is (setup.ts refuses
+ * anything but a local database).
  */
 export const resetDb = async (): Promise<void> => {
-  const tables = await prisma.$queryRaw<{ tablename: string }[]>`
-    SELECT tablename FROM pg_tables
-    WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'
-  `;
-  if (tables.length === 0) return;
-  const list = tables.map(t => `"public"."${t.tablename}"`).join(', ');
-  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`);
+  await prisma.$executeRawUnsafe(`
+    DO $$
+    DECLARE r record;
+    BEGIN
+      SET LOCAL session_replication_role = replica;
+      FOR r IN SELECT tablename FROM pg_tables
+               WHERE schemaname = 'public' AND tablename <> '_prisma_migrations' LOOP
+        EXECUTE format('DELETE FROM public.%I', r.tablename);
+      END LOOP;
+    END $$
+  `);
 };
 
 /** A signed session cookie for a user id, as `setSessionCookie` would issue. */

@@ -1,5 +1,13 @@
 import 'dotenv/config';
+import { availableParallelism } from 'node:os';
 import { defineConfig } from 'vitest/config';
+
+// Test files run side by side, each worker on its own database (see
+// tests/setup.ts). Two cores are left for Postgres. TEST_WORKERS overrides it;
+// TEST_WORKERS=1 runs the files one at a time.
+const workers = Number(process.env.TEST_WORKERS) || Math.max(1, Math.min(6, availableParallelism() - 2));
+// Read by tests/setup.ts to know how many databases to create.
+process.env.TEST_WORKERS = String(workers);
 
 export default defineConfig({
   test: {
@@ -12,11 +20,9 @@ export default defineConfig({
     // any app module loads. Unit tests are unaffected — they import nothing
     // that connects.
     globalSetup: ['./tests/setup.ts'],
-
-    // One process for the whole suite. The integration tests truncate shared
-    // tables between cases, so two files running at once would delete each
-    // other's fixtures mid-request.
-    fileParallelism: false,
+    // Points each worker at its own copy of the test database.
+    setupFiles: ['./tests/workerDb.ts'],
+    maxWorkers: workers,
 
     // Migrations on a cold database push the first file past the 5s default.
     testTimeout: 20_000,
