@@ -11,6 +11,7 @@ import {
 import MyClasses from '../components/portal/MyClasses';
 import ReportMachine from '../components/portal/ReportMachine';
 import MyFeedback from '../components/portal/MyFeedback';
+import MyChallenges from '../components/portal/MyChallenges';
 import MyCheckInCode from '../components/portal/MyCheckInCode';
 import { MyMemberships, MyPayments, MyPurchases } from '../components/portal/MyHistory';
 import MyProfileForm from '../components/portal/MyProfileForm';
@@ -52,7 +53,7 @@ const postToProvider = (url: string, fields: Record<string, string>): void => {
  * have buried the two things a member opens it for — when their membership
  * ends, and the code to get in.
  */
-type PortalTab = 'overview' | 'plans' | 'progress' | 'classes' | 'checkin' | 'history' | 'feedback' | 'profile';
+type PortalTab = 'overview' | 'plans' | 'progress' | 'classes' | 'checkin' | 'history' | 'challenges' | 'feedback' | 'profile';
 
 /** Labels in English; translated where the tabs are drawn. */
 const TABS: readonly { value: PortalTab; label: string }[] = [
@@ -62,6 +63,7 @@ const TABS: readonly { value: PortalTab; label: string }[] = [
   { value: 'classes', label: 'Classes' },
   { value: 'checkin', label: 'Check-in' },
   { value: 'history', label: 'History' },
+  { value: 'challenges', label: 'Challenges' },
   { value: 'feedback', label: 'Feedback' },
   { value: 'profile', label: 'Profile' },
 ];
@@ -228,6 +230,8 @@ export default function MyPortal() {
           <MyPurchases />
         </div>
       )}
+
+      {tab === 'challenges' && <MyChallenges />}
 
       {tab === 'feedback' && <MyFeedback />}
 

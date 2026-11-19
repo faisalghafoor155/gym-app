@@ -336,6 +336,7 @@ export const deleteGym = async (
       await tx.dayPass.deleteMany({ where: { gymId } });
       await tx.healthDeclaration.deleteMany({ where: { gymId } });
       await tx.feedback.deleteMany({ where: { gymId } });
+      await tx.challenge.deleteMany({ where: { gymId } });
       await tx.equipmentFault.deleteMany({ where: { gymId } });
       await tx.equipmentService.deleteMany({ where: { gymId } });
       await tx.equipment.deleteMany({ where: { gymId } });

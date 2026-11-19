@@ -5,7 +5,7 @@ Tick a box when a task ships.
 
 **Status legend:** `[x]` done · `[ ]` not started · 🟠 partly there (note says what exists)
 
-_Last checked against the code: 2026-11-18 (after Multi-Branch phase 1)._
+_Last checked against the code: 2026-11-19 (after Challenges / Leaderboard)._
 
 ---
 
@@ -108,10 +108,12 @@ Split a membership fee across dates.
 ## 🟢 Priority 3: retention & engagement
 
 ### 9. Challenges / Leaderboard
-- [ ] Create a challenge (e.g. 30-day attendance streak, weight-loss %)
-- [ ] Members join from the portal; progress updates from attendance/measurements
-- [ ] Leaderboard in the portal; winners announced on WhatsApp
-  🟠 A leaderboard exists for referrals only (`referralsController.ts`).
+- [x] Create a challenge (e.g. 30-day attendance streak, weight-loss %)
+  ✅ Challenges page (Members menu, `canManageMembers`) + `/api/challenges`: most visits, attendance streak (days in a row) or weight loss %, between two dates, with an optional target and prize
+- [x] Members join from the portal; progress updates from attendance/measurements
+  ✅ Portal → Challenges tab: join / leave until it ends; the desk can also sign members up. Scores are worked out on read from check-ins and weigh-ins, nothing to resync (`services/challenges.ts`)
+- [x] Leaderboard in the portal; winners announced on WhatsApp
+  ✅ Portal shows the top 10 (others as "Ali K.") plus the member's own place. "Announce winners" after the end messages the top three once (`challenge_winner` template, SMS fallback) and fixes the board. The template needs approving in Meta's console (`whatsapp-templates.md`).
 
 ### 10. Bulk WhatsApp / Offers
 - [ ] Broadcast composer with audience filters (active, expired, inactive 30+ days, leads)
@@ -143,10 +145,10 @@ Split a membership fee across dates.
 | P2: Equipment | 4 | 0 | 0 |
 | P2: Feedback | 3 | 0 | 0 |
 | P2: Multi-Branch | 4 | 0 | 0 |
-| P3: Challenges | 0 | 1 | 2 |
+| P3: Challenges | 3 | 0 | 0 |
 | P3: Bulk WhatsApp | 0 | 1 | 2 |
 | Technical | 0 | 0 | 2 |
-| **Total** | **26** | **10** | **7** |
+| **Total** | **29** | **9** | **5** |
 
 ## ✅ Already built (for reference)
 Members, memberships, freeze · Payments, dues, receipts, promo codes, online payments · Expenses, supplement sales ·

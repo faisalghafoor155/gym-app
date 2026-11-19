@@ -1489,3 +1489,56 @@ export interface BranchOverview {
   branches: { id: string; name: string; isMain: boolean; members: number; checkinsToday: number; collectedThisMonth: number; spentThisMonth: number }[];
   sharedSpentThisMonth: number;
 }
+
+export type ChallengeKind = 'visits' | 'streak' | 'weight_loss';
+export type ChallengeStatus = 'upcoming' | 'running' | 'ended';
+
+interface ChallengeBase {
+  id: string;
+  name: string;
+  description: string | null;
+  kind: ChallengeKind;
+  /** Visits, days in a row, or percent of weight. Null for a plain ranking. */
+  target: number | null;
+  /** yyyy-mm-dd at UTC midnight: the gym's calendar days, both included. */
+  startsOn: string;
+  endsOn: string;
+  prize: string | null;
+  announcedAt: string | null;
+  status: ChallengeStatus;
+}
+
+/** A challenge in the gym's list. */
+export interface Challenge extends ChallengeBase {
+  participantCount: number;
+  leader: { id: string; name: string; score: number | null } | null;
+}
+
+export interface ChallengeStanding {
+  memberId: string;
+  joinedAt: string;
+  score: number | null;
+  rank: number | null;
+  completed: boolean;
+  member: { id: string; name: string; memberNo: string; phone: string | null };
+}
+
+export interface ChallengeDetail extends ChallengeBase {
+  createdBy: { id: string; name: string } | null;
+  standings: ChallengeStanding[];
+}
+
+export interface ChallengeAnnouncement {
+  winners: { memberId: string; name: string; rank: number; score: number | null; result: 'sent' | 'skipped' | 'failed' }[];
+  sent: number;
+  notSent: number;
+}
+
+/** A challenge as a member sees it in the portal. */
+export interface MyChallenge extends ChallengeBase {
+  joined: boolean;
+  participantCount: number;
+  me: { score: number | null; rank: number | null; completed: boolean } | null;
+  /** The top places, plus the member's own row when they are further down. */
+  leaderboard: { name: string; isMe: boolean; score: number | null; rank: number | null; completed: boolean }[];
+}

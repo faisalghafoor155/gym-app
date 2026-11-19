@@ -51,6 +51,8 @@ const BODIES: Record<string, (v: string[]) => string> = {
     `Happy Birthday ${member}! Best wishes from everyone at ${gym}.`,
   member_anniversary: ([member, gym, years]) =>
     `Congratulations ${member} on ${years} year(s) with ${gym}! Thank you for training with us.`,
+  challenge_winner: ([member, gym, place, challenge]) =>
+    `Congratulations ${member}! You finished ${place} in the ${challenge} challenge at ${gym}. Well done!`,
 };
 
 /** The SMS text for a templated message, or null for a template with none. */

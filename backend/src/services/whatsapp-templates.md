@@ -139,6 +139,31 @@ Thank you. Reply STOP to opt out of these messages.
 
 ---
 
+### 5. `challenge_winner`
+
+Sent when the desk announces a challenge's winners (top three).
+
+**Body:**
+
+```
+Congratulations {{1}}! You finished {{3}} in the {{4}} challenge at {{2}}.
+
+Collect your prize at the front desk. Reply STOP to opt out of these messages.
+```
+
+| Slot | Value | Sample for approval |
+|------|-------|---------------------|
+| `{{1}}` | Member name | Ali Khan |
+| `{{2}}` | Gym name | Iron House Gym |
+| `{{3}}` | Place | 1st |
+| `{{4}}` | Challenge name | November Attendance |
+
+> Meta may file this one under **Marketing** rather than Utility, since it is
+> not about the member's account. If it does, accept it: the cost is a little
+> higher, and it is sent to three people per challenge.
+
+---
+
 ## Opting out
 
 Every template ends with "Reply STOP to opt out". That line is not decoration —

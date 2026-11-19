@@ -236,6 +236,7 @@ model Gym {
   equipmentServices  EquipmentService[]
   equipmentFaults    EquipmentFault[]
   feedback           Feedback[]
+  challenges         Challenge[]
   branches           Branch[]
 
   /// What this gym pays *us*, as opposed to everything above, which is what
@@ -350,6 +351,7 @@ model User {
   recordedEquipmentServices  EquipmentService[]  @relation("EquipmentServiceRecordedBy")
   reportedEquipmentFaults    EquipmentFault[]    @relation("EquipmentFaultReportedBy")
   resolvedFeedback           Feedback[]          @relation("FeedbackResolvedBy")
+  createdChallenges          Challenge[]         @relation("ChallengeCreatedBy")
   recordedMeasurements       MemberMeasurement[] @relation("MeasurementRecordedBy")
 
   @@index([gymId])
@@ -438,6 +440,7 @@ model Member {
   healthDeclarations HealthDeclaration[]
   equipmentFaults    EquipmentFault[]
   feedback           Feedback[]
+  challenges         ChallengeParticipant[]
   branch             Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   @@unique([gymId, memberNo])
@@ -1922,4 +1925,58 @@ model Branch {
   dayPasses  DayPass[]
 
   @@index([gymId])
+}
+
+/// A contest between members over a fixed stretch of days: the most visits,
+/// the longest run of days in a row, or the most body weight lost.
+///
+/// Nothing about progress is stored. Scores are worked out from attendance and
+/// measurements whenever the leaderboard is read, so a check-in recorded late
+/// or a weigh-in corrected afterwards is counted without anything to resync.
+model Challenge {
+  id          String  @id @default(uuid())
+  gymId       String
+  name        String
+  description String?
+
+  /// visits | streak | weight_loss
+  kind   String
+  /// What counts as finishing: visits, days in a row, or percent of body
+  /// weight. Null when the challenge is only a ranking.
+  target Int?
+
+  /// The gym's calendar days it runs over, both included.
+  startsOn DateTime @db.Date
+  endsOn   DateTime @db.Date
+
+  /// What the winner gets, in the gym's words ("1 month free").
+  prize String?
+
+  /// When the winners were announced. Set once, so nobody is congratulated twice.
+  announcedAt DateTime?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  gym          Gym                    @relation(fields: [gymId], references: [id])
+  createdBy    User?                  @relation("ChallengeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  participants ChallengeParticipant[]
+
+  @@index([gymId, endsOn])
+}
+
+/// A member taking part in a challenge, whether they joined from the portal or
+/// the desk signed them up.
+model ChallengeParticipant {
+  id          String   @id @default(uuid())
+  challengeId String
+  memberId    String
+  joinedAt    DateTime @default(now())
+
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  /// Cascade: a deleted member leaves the leaderboard with them.
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, memberId])
+  @@index([memberId])
 }

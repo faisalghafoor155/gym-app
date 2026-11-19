@@ -19,6 +19,7 @@ import { createMine, listMine, removeMine } from "../controllers/measurementsCon
 import { listForMember as listMyEquipment, reportFaultAsMember } from "../controllers/equipmentController.js";
 import { createFeedbackSchema, reportFaultSchema } from "../schemas.js";
 import { createMine as sendFeedback, listMine as myFeedback } from "../controllers/feedbackController.js";
+import { joinMine as joinChallenge, listMine as myChallenges } from "../controllers/challengesController.js";
 import {
   bookMyClassSchema,
   createMeasurementSchema,
@@ -106,5 +107,11 @@ router.post("/equipment-faults", validate(reportFaultSchema), authed(reportFault
 // name comes back with the gym's replies; anonymous feedback cannot.
 router.get("/feedback", authed(myFeedback));
 router.post("/feedback", validate(createFeedbackSchema), authed(sendFeedback));
+
+// Challenges the member can join, with the leaderboard. Joining and leaving
+// stop once a challenge has ended.
+router.get("/challenges", authed(myChallenges));
+router.post("/challenges/:id/join", validate(idParam, "params"), authed(joinChallenge));
+router.delete("/challenges/:id/join", validate(idParam, "params"), authed(joinChallenge));
 
 export default router;

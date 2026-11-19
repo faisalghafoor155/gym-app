@@ -17,7 +17,7 @@
  *   npm run db:seed -- --email demo@gymflow.pk  # the gym that account owns —
  *                                               # created, with that owner, if
  *                                               # nobody has the address yet
- *   npm run db:seed -- --email x@y.pk --only equipment,feedback
+ *   npm run db:seed -- --email x@y.pk --only equipment,feedback,challenges
  *                                               # just those sections, no new members
  *
  * Every account the seed creates signs in with `password123`.
@@ -36,6 +36,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { encryptTemplate } from '../src/services/fingerprint/crypto.js';
 import { summarise } from '../src/services/staffAttendance.js';
 import { waiverFor } from '../src/services/waiver.js';
+import { gymDay } from '../src/services/dates.js';
 import { crc32, deflateSync } from 'node:zlib';
 
 const prisma = new PrismaClient({
@@ -549,6 +550,76 @@ async function seedFeedback(gymId: string, books: () => string): Promise<number>
   return made;
 }
 
+/**
+ * Three challenges: this month's visits race (running, regulars signed up),
+ * last month's weight-loss challenge (over, winners announced), and a streak
+ * starting next week. Scores come from the attendance and measurements
+ * already seeded, so the leaderboards have real numbers.
+ *
+ * Only when the gym has no challenges yet. Returns how many sign-ups it made.
+ */
+async function seedChallenges(gymId: string, books: () => string): Promise<number> {
+  if (await prisma.challenge.count({ where: { gymId } })) return 0;
+  const today = gymDay(new Date());
+  const y = today.getUTCFullYear();
+  const m = today.getUTCMonth();
+  const day = (month: number, d: number) => new Date(Date.UTC(y, month, d));
+
+  // The regulars: whoever checked in most in the last month.
+  const regulars = await prisma.attendance.groupBy({
+    by: ['memberId'],
+    where: { gymId, checkedInAt: { gte: daysAgo(30) } },
+    _count: { _all: true },
+    orderBy: { _count: { memberId: 'desc' } },
+    take: 40,
+  });
+  const weighed = await prisma.memberMeasurement.groupBy({
+    by: ['memberId'],
+    where: { gymId, weightKg: { not: null }, measuredOn: { gte: daysAgo(75) } },
+    _count: { _all: true },
+    having: { memberId: { _count: { gte: 2 } } },
+    orderBy: { memberId: 'asc' },
+    take: 20,
+  });
+  if (!regulars.length) return 0;
+
+  const visitors = regulars.filter(() => rand() < 0.6).map(r => r.memberId);
+  const streakers = regulars.slice(0, 15).filter(() => rand() < 0.4).map(r => r.memberId);
+  const joined = (ids: string[], from: Date) =>
+    ids.map(memberId => ({ memberId, joinedAt: notAfterNow(addDays(from, between(0, 3))) }));
+
+  await prisma.challenge.create({
+    data: {
+      gymId, name: `${day(m, 1).toLocaleString('en', { month: 'long', timeZone: 'UTC' })} Visits Race`,
+      kind: 'visits', target: 20, startsOn: day(m, 1), endsOn: day(m + 1, 0),
+      prize: '1 month free for the top 3', description: 'Every day you check in counts. Reach 20 visits to finish.',
+      createdById: books(), createdAt: day(m, 1),
+      participants: { create: joined(visitors, day(m, 1)) },
+    },
+  });
+  if (weighed.length) {
+    await prisma.challenge.create({
+      data: {
+        gymId, name: 'Weight Loss Challenge', kind: 'weight_loss', target: 5,
+        startsOn: day(m - 2, 15), endsOn: day(m - 1, 15),
+        prize: 'Free supplement pack', createdById: books(), createdAt: day(m - 2, 10),
+        announcedAt: day(m - 1, 16),
+        participants: { create: joined(weighed.map(w => w.memberId), day(m - 2, 10)) },
+      },
+    });
+  }
+  await prisma.challenge.create({
+    data: {
+      gymId, name: '30-Day Streak', kind: 'streak', target: 30,
+      startsOn: addDays(today, 5), endsOn: addDays(today, 34),
+      description: 'Check in every single day for 30 days.', prize: 'Gym T-shirt and shaker',
+      createdById: books(),
+      participants: { create: streakers.map(memberId => ({ memberId })) },
+    },
+  });
+  return visitors.length + weighed.length + streakers.length;
+}
+
 async function main(): Promise<void> {
   const email = arg('--email');
   let gym;
@@ -665,6 +736,7 @@ async function main(): Promise<void> {
       console.log(`Equipment: ${e.machines} machines, ${e.services} services, ${e.faults} faults.`);
     }
     if (only.includes('feedback')) console.log(`Feedback: ${await seedFeedback(gymId, books)} ratings.`);
+    if (only.includes('challenges')) console.log(`Challenges: ${await seedChallenges(gymId, books)} sign-ups.`);
     return;
   }
 
@@ -1831,6 +1903,7 @@ async function main(): Promise<void> {
 
   const equipmentMade = await seedEquipment(gymId, desk, books);
   const feedbackMade = await seedFeedback(gymId, books);
+  const challengesMade = await seedChallenges(gymId, books);
 
   // --- staff salaries ------------------------------------------------------------------
   // Profiles for the people the gym pays, the last few months paid, and the
@@ -2097,7 +2170,7 @@ async function main(): Promise<void> {
       `${lockersAssigned} lockers handed out (${lockerPayments} rent payments)`,
       `${freezesMade} freezes`,
       `${measurementsMade} measurements`,
-      `${staffMade} staff profiles, ${adjustmentsMade} salary adjustments, ${salaryPaymentsMade} salaries paid, ${staffDaysMade} staff attendance days, ${declarationsMade} health declarations, ${equipmentMade.machines} machines (${equipmentMade.services} services, ${equipmentMade.faults} faults), ${feedbackMade} feedback`,
+      `${staffMade} staff profiles, ${adjustmentsMade} salary adjustments, ${salaryPaymentsMade} salaries paid, ${staffDaysMade} staff attendance days, ${declarationsMade} health declarations, ${equipmentMade.machines} machines (${equipmentMade.services} services, ${equipmentMade.faults} faults), ${feedbackMade} feedback, ${challengesMade} challenge sign-ups`,
       `${audits} audit entries`,
     ].join(', ') + '.',
   );

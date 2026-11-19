@@ -199,4 +199,12 @@ export const templates = {
     template: 'member_anniversary',
     variables: [member, gym, years],
   }),
+
+  /** Placed in a challenge. `place` is already written for a person ("1st"). */
+  challengeWinner: (
+    member: string, gym: string, place: string, challenge: string,
+  ): Omit<WhatsAppMessage, 'to'> => ({
+    template: 'challenge_winner',
+    variables: [member, gym, place, challenge],
+  }),
 } as const;

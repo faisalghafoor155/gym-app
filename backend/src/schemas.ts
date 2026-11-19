@@ -1920,6 +1920,64 @@ export const assignStaffBranchSchema = z.object({
   branchId: uuid.nullable(),
 });
 
+// --- challenges --------------------------------------------------------
+
+export const CHALLENGE_KINDS = ["visits", "streak", "weight_loss"] as const;
+
+const challengeFields = {
+  name: z.string().trim().min(1, "is required").max(80, "is too long"),
+  description: optionalText(500),
+  /** Visits, days in a row, or percent of body weight. Blank for a plain ranking. */
+  target: z.coerce
+    .number({ error: "must be a number" })
+    .int("must be a whole number")
+    .min(1, "must be at least 1")
+    .max(366, "is unrealistically large")
+    .or(blankToUndefined)
+    .nullish(),
+  startsOn: date,
+  endsOn: date,
+  prize: optionalText(200),
+};
+
+/** Ends on or after it starts, and lasts no longer than a year. */
+const challengeDates = (d: { startsOn?: Date; endsOn?: Date }, ctx: z.RefinementCtx) => {
+  if (!d.startsOn || !d.endsOn) return;
+  if (d.endsOn < d.startsOn) {
+    ctx.addIssue({ code: "custom", path: ["endsOn"], message: "must be on or after the start date" });
+  } else if (d.endsOn.getTime() - d.startsOn.getTime() > 366 * 86_400_000) {
+    ctx.addIssue({ code: "custom", path: ["endsOn"], message: "a challenge can run for a year at most" });
+  }
+};
+
+export const createChallengeSchema = z
+  .object({
+    ...challengeFields,
+    kind: z.enum(CHALLENGE_KINDS, { error: "is not a challenge type" }),
+  })
+  .superRefine((d, ctx) => {
+    challengeDates(d, ctx);
+    // Nobody loses more than half their weight in a gym challenge; a 50 here is a typo for 5.
+    if (d.kind === "weight_loss" && d.target != null && d.target > 30) {
+      ctx.addIssue({ code: "custom", path: ["target"], message: "weight loss target is a percent, 30 at most" });
+    }
+  });
+
+/** The type is fixed once made: scores of a different kind would mean nothing. */
+export const updateChallengeSchema = z
+  .object({
+    name: challengeFields.name.optional(),
+    description: challengeFields.description,
+    target: challengeFields.target,
+    startsOn: date.optional(),
+    endsOn: date.optional(),
+    prize: challengeFields.prize,
+  });
+
+export const addParticipantSchema = z.object({ memberId: uuid });
+
+export const participantParams = z.object({ id: uuid, memberId: uuid });
+
 // --- lockers -----------------------------------------------------------
 
 const lockerNumber = z.string().trim().min(1, "is required").max(20, "is too long");
@@ -2019,3 +2077,7 @@ export type UpdateFeedbackBody = z.infer<typeof updateFeedbackSchema>;
 export type CreateBranchBody = z.infer<typeof createBranchSchema>;
 export type UpdateBranchBody = z.infer<typeof updateBranchSchema>;
 export type AssignStaffBranchBody = z.infer<typeof assignStaffBranchSchema>;
+export type CreateChallengeBody = z.infer<typeof createChallengeSchema>;
+export type UpdateChallengeBody = z.infer<typeof updateChallengeSchema>;
+export type AddParticipantBody = z.infer<typeof addParticipantSchema>;
+export type ParticipantParams = z.infer<typeof participantParams>;

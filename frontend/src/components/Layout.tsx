@@ -18,7 +18,7 @@ import {
   LayoutDashboard, Users, CalendarCheck, CreditCard,
   LogOut, Shield, ShieldCheck, User, FlaskConical, Menu, X, UserCog, Crown, Tag,
   BarChart3, CalendarRange, Award, Calendar, Wallet, ScrollText, Sparkles, Calculator,
-  HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, ChevronDown, Settings, PhoneCall, Banknote, UserCheck, Wrench, MessageSquareHeart,
+  HandCoins, ClipboardList, Ticket, Gift, UserX, KeyRound, ChevronDown, Settings, PhoneCall, Banknote, UserCheck, Wrench, MessageSquareHeart, Trophy,
   Search, PanelLeftClose, PanelLeftOpen,
   type LucideIcon,
 } from 'lucide-react';
@@ -39,6 +39,8 @@ const staffNavItems: NavItem[] = [
   { to: '/referrals', label: 'Referrals', icon: Gift },
   // What members think of the gym, and complaints waiting for a reply.
   { to: '/feedback', label: 'Feedback', icon: MessageSquareHeart },
+  // Streaks and weight-loss contests that keep members coming back.
+  { to: '/challenges', label: 'Challenges', icon: Trophy },
   { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
   // Staff coming and going, checked in at the same desk as members.
   { to: '/staff-attendance', label: 'Staff Attendance', icon: UserCheck },
@@ -115,7 +117,7 @@ const securityNavItem: NavItem = { to: '/security', label: 'Security', icon: Shi
  * listed here stays at the top level.
  */
 const NAV_GROUPS: { label: string; icon: LucideIcon; paths: string[] }[] = [
-  { label: 'Members', icon: Users, paths: ['/members', '/leads', '/inactive', '/referrals', '/lockers', '/feedback'] },
+  { label: 'Members', icon: Users, paths: ['/members', '/leads', '/inactive', '/referrals', '/lockers', '/feedback', '/challenges'] },
   { label: 'Attendance', icon: CalendarCheck, paths: ['/attendance', '/staff-attendance'] },
   { label: 'Payments', icon: CreditCard, paths: ['/payments', '/dues', '/day-passes', '/monthly-collection', '/expenses', '/salaries'] },
   { label: 'Plans', icon: Tag, paths: ['/membership-plans', '/promo-codes', '/plans'] },
@@ -228,6 +230,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     '/attendance': 'canViewAttendance',
     '/staff-attendance': 'canCheckIn',
     '/feedback': 'canManageMembers',
+    '/challenges': 'canManageMembers',
     '/analytics': 'canViewReports',
     '/membership-plans': 'canManageMemberships',
     '/supplements': 'canManageSupplements',

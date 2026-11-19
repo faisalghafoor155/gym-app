@@ -5,6 +5,7 @@ import { canWhatsApp } from './phone.js';
 import { planFor, planHasFeature } from './subscription.js';
 import { templates } from './whatsapp.js';
 import { messagingEnabled, sendMemberMessage } from './messaging.js';
+import type { SendResult } from './whatsapp.js';
 
 /**
  * The messages that follow something happening, rather than something being
@@ -123,5 +124,31 @@ export const notifyPaymentReceipt = async (
     });
   } catch (err) {
     console.error('[notify] payment receipt failed:', err);
+  }
+};
+
+/**
+ * Congratulates a challenge winner on their place.
+ *
+ * Unlike the others this reports what happened, because the desk pressed a
+ * button to send it and should hear back how many winners were reached. A
+ * member who cannot be messaged — no mobile, opted out, or no WhatsApp on this
+ * install or plan — is `skipped`, not `failed`.
+ */
+export const notifyChallengeWinner = async (
+  gymId: string,
+  member: { name: string; phone: string | null; whatsappOptOut: boolean },
+  place: string,
+  challenge: string,
+): Promise<SendResult> => {
+  try {
+    if (!(await reachable(gymId, member))) return 'skipped';
+    return await sendMemberMessage({
+      to: member.phone!,
+      ...templates.challengeWinner(member.name, await gymName(gymId), place, challenge),
+    });
+  } catch (err) {
+    console.error('[notify] challenge winner failed:', err);
+    return 'failed';
   }
 };
