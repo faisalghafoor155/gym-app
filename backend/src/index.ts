@@ -20,6 +20,7 @@ import {
 } from "./services/observability.js";
 import cors from "cors";
 import helmet from "helmet";
+import compression from "compression";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 
@@ -277,6 +278,10 @@ app.use(
 
 // Member photos are sent as base64 data-URLs inside JSON. The client caps the
 // file at 2MB and base64 adds ~33%, so the default 100kb limit rejects them.
+// On Railway there is no nginx in front, so Express itself serves the bundle
+// and the member lists: gzipped, they are about a third of the bytes on a
+// phone's mobile data.
+app.use(compression());
 app.use(express.json({ limit: "4mb" }));
 app.use(cookieParser());
 
@@ -314,14 +319,32 @@ const registerLimiter = rateLimit({
     req.headers["x-test-skip-ratelimit"] === "1",
 });
 
+// A reset request always answers 200 (so it cannot tell anyone which
+// addresses exist), which means a failures-only limiter never counts it. This
+// one counts every request, so a script cannot mail somebody a reset link
+// hundreds of times from one address.
+const resetRequestLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Please try again in 15 minutes." },
+  skip: (req) =>
+    process.env.NODE_ENV === "test" &&
+    req.headers["x-test-skip-ratelimit"] === "1",
+});
+
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", registerLimiter);
-app.use("/api/auth/forgot-password", authLimiter);
+app.use("/api/auth/forgot-password", resetRequestLimiter);
 app.use("/api/auth/reset-password", authLimiter);
 // Invite tokens are credentials too — guessing one must cost the same as
 // guessing a password.
 app.use("/api/auth/invite", authLimiter);
 app.use("/api/auth/accept-invite", authLimiter);
+// Changing the password asks for the current one, so a stolen session cookie
+// could guess it here and then turn 2FA off with it.
+app.use("/api/auth/change-password", authLimiter);
 // The 2FA challenge proves the password already, so each attempt here is a
 // guess at the second factor — it must cost the same as guessing a password.
 app.use("/api/auth/two-factor/verify-login", authLimiter);

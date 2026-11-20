@@ -177,14 +177,19 @@ export const verifyBackupCode = async (
 };
 
 /**
- * Enable 2FA for a user (confirms the temporary setup)
+ * Enable 2FA for a user (confirms the temporary setup).
+ *
+ * Every other session is signed out: one stolen before 2FA went on would
+ * otherwise keep working without ever being asked for a code. Returns the new
+ * token version so the caller can re-issue the cookie of the session that
+ * turned it on.
  */
 export const enableTwoFactor = async (
   userId: string,
   tempSecret: string,
   hashedBackupCodes: string,
-): Promise<void> => {
-  await prisma.user.update({
+): Promise<number> => {
+  const { tokenVersion } = await prisma.user.update({
     where: { id: userId },
     data: {
       // Re-encrypted rather than moved across as stored: the temp secret is
@@ -200,8 +205,11 @@ export const enableTwoFactor = async (
       twoFactorFailedAttempts: 0,
       twoFactorLockedUntil: null,
       twoFactorLastStep: null,
+      tokenVersion: { increment: 1 },
     },
+    select: { tokenVersion: true },
   });
+  return tokenVersion;
 };
 
 /**

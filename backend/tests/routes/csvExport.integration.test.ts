@@ -58,6 +58,25 @@ describe('the CSV itself', () => {
     expect(res.text).toContain('"paid 2,500 in ""cash"", short"');
     expect(rowsOf(res.text)).toHaveLength(1);
   });
+
+  it('turns a typed-in formula into plain text, leaving negative numbers alone', async () => {
+    const owner = await makeGym();
+    // The portal lets a member set their own phone number, so this is text
+    // any member can put in front of the owner's spreadsheet.
+    const member = await addMember(owner.gymId, { phone: '=HYPERLINK("http://x")' });
+    await prisma.payment.create({
+      data: {
+        gymId: owner.gymId, memberId: member.id, amount: 100, type: 'membership',
+        notes: '@SUM(1)',
+      },
+    });
+
+    const res = await api().get('/api/payments/export/csv').set('Cookie', owner.cookie);
+
+    expect(res.text).toContain(`"'=HYPERLINK(""http://x"")"`);
+    expect(res.text).toContain("'@SUM(1)");
+    expect(res.text).not.toMatch(/,=HYPERLINK|,@SUM/);
+  });
 });
 
 describe('exporting a month of collection', () => {

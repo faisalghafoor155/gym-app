@@ -360,4 +360,16 @@ describe('POST /api/auth/forgot-password', () => {
     // A SHA-256 hex digest, not a token anyone could present.
     expect(user!.resetTokenHash).toMatch(/^[a-f0-9]{64}$/);
   });
+
+  it('keeps the first link working when asked again within a minute', async () => {
+    const owner = await makeGym();
+
+    await api().post('/api/auth/forgot-password').send({ email: owner.email });
+    const first = await prisma.user.findUniqueOrThrow({ where: { id: owner.userId } });
+    const again = await api().post('/api/auth/forgot-password').send({ email: owner.email });
+    const second = await prisma.user.findUniqueOrThrow({ where: { id: owner.userId } });
+
+    expect(again.status).toBe(200);
+    expect(second.resetTokenHash).toBe(first.resetTokenHash);
+  });
 });

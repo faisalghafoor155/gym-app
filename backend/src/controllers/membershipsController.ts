@@ -215,6 +215,20 @@ export const renew = async (
       return;
     }
 
+    // A trainer named on the renewal is written onto the member card below, so
+    // it is checked first, as on create and edit: an id from another gym, or
+    // somebody who has left, must not end up on this member.
+    if (trainerId && trainerId !== membership.member.trainerId) {
+      const trainer = await prisma.trainer.findFirst({
+        where: { id: trainerId, gymId: req.gymId, isActive: true },
+        select: { id: true },
+      });
+      if (!trainer) {
+        res.status(404).json({ error: 'Trainer not found' });
+        return;
+      }
+    }
+
     const start = renewalStart(membership.expiryDate);
     const expiry = addDays(start, plan.durationDays);
 

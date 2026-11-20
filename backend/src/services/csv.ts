@@ -25,7 +25,16 @@ const escape = (value: string): string =>
 /** A cell, in the shapes the callers actually hold. */
 export type Cell = string | number | null | undefined;
 
-const cell = (v: Cell): string => (v == null ? '' : String(v));
+/**
+ * Excel and Sheets run a cell that starts with `=`, `+`, `-` or `@` as a
+ * formula, and names and phone numbers are typed by members themselves. A
+ * leading apostrophe makes the spreadsheet show the text as text. Plain
+ * numbers such as a refund of -500 are left alone so they still add up.
+ */
+const defuse = (value: string): string =>
+  /^[=+\-@\t\r]/.test(value) && !/^[+-]?\d+(\.\d+)?$/.test(value) ? `'${value}` : value;
+
+const cell = (v: Cell): string => (v == null ? '' : defuse(String(v)));
 
 /** Headers and rows, joined into a CSV document. */
 export const toCsv = (

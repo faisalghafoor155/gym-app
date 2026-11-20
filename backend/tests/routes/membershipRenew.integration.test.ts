@@ -346,6 +346,27 @@ describe("POST /members/:id/memberships/:membershipId/renew", () => {
     expect(res.status).toBe(404);
   });
 
+  it("refuses putting another gym's trainer on the member", async () => {
+    const a = await makeGym();
+    const b = await makeGym({ gymName: "Other Gym" });
+    const { member, membership } = await memberDueForRenewal(a.gymId);
+    const foreign = await prisma.trainer.create({
+      data: { gymId: b.gymId, name: "Their Coach", commissionPercentage: 10 },
+    });
+
+    const res = await renew(
+      a.gymId,
+      a.cookie,
+      { memberId: member.id, membershipId: membership.id },
+      { amount: 2500, method: "cash", includeTrainer: true, trainerId: foreign.id },
+    );
+
+    expect(res.status).toBe(404);
+    const after = await prisma.member.findUniqueOrThrow({ where: { id: member.id } });
+    expect(after.trainerId).toBeNull();
+    expect(await prisma.membership.count({ where: { memberId: member.id } })).toBe(1);
+  });
+
   it("leaves nothing behind when the payment is rejected", async () => {
     const owner = await makeGym();
     const { member, membership } = await memberDueForRenewal(owner.gymId);

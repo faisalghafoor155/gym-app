@@ -18,6 +18,7 @@ import {
 } from "../services/twoFactor.js";
 import { verifyTwoFactorLogin } from "../controllers/authController.js";
 import prisma from "../db.js";
+import { setSessionCookie } from "../services/session.js";
 
 const router = Router();
 
@@ -126,12 +127,14 @@ router.post(
         return;
       }
 
-      // Enable 2FA
-      await enableTwoFactor(
+      // Enable 2FA. That signs out every other session, so this one gets a
+      // fresh cookie to stay signed in.
+      const tokenVersion = await enableTwoFactor(
         authReq.userId,
         tempSecret,
         user.twoFactorTempBackupCodes,
       );
+      setSessionCookie(res, authReq.userId, tokenVersion);
 
       res.json({ success: true, message: "2FA enabled successfully" });
     } catch (error) {

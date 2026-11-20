@@ -29,6 +29,8 @@ import {
 
 /** A reset link is short-lived; an old inbox should not be a way in. */
 const RESET_TTL_MS = 60 * 60 * 1000;
+/** The shortest gap between two reset links for the same account. */
+const RESET_COOLDOWN_MS = 60 * 1000;
 
 /** Compared against when no account matches, at the same cost as a real one. */
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
@@ -492,7 +494,9 @@ export const googleAuth = async (
     // First Google sign-in on an existing password account links the two.
     await prisma.user.update({
       where: { id: user.id },
-      data: { googleId: profile.googleId, lastLoginAt: new Date() },
+      // Signing in proves the address, so a pending invite has done its job;
+      // left alive it would let the link's holder set a password later.
+      data: { googleId: profile.googleId, lastLoginAt: new Date(), inviteTokenHash: null, inviteTokenAt: null },
     });
 
     res.json(startSession(res, user));
@@ -517,6 +521,14 @@ export const forgotPassword = async (
       include: { gym: { select: { name: true } } },
     });
     if (!user || !user.isActive) {
+      res.json(reply);
+      return;
+    }
+
+    // One link a minute per account, whichever network asks. Every request
+    // replaces the token, so without this anyone could keep a victim's inbox
+    // full and each link they open already dead.
+    if (user.resetTokenAt && Date.now() - user.resetTokenAt.getTime() < RESET_COOLDOWN_MS) {
       res.json(reply);
       return;
     }
@@ -573,6 +585,10 @@ export const resetPassword = async (
         passwordHash: await bcrypt.hash(password, 10),
         resetTokenHash: null,
         resetTokenAt: null,
+        // An unused invite link would set the password again over this one,
+        // so whoever still holds it must not be able to.
+        inviteTokenHash: null,
+        inviteTokenAt: null,
         tokenVersion: { increment: 1 },
       },
     });
@@ -683,6 +699,8 @@ export const changePassword = async (
       where: { id: user.id },
       data: {
         passwordHash: await bcrypt.hash(newPassword, 10),
+        inviteTokenHash: null,
+        inviteTokenAt: null,
         tokenVersion: { increment: 1 },
       },
       select: { tokenVersion: true },

@@ -167,8 +167,17 @@ export interface Mail {
  */
 export const sendMail = async (mail: Mail): Promise<boolean> => {
   if (!mailEnabled) {
+    // In production the body stays out of the log: it carries live reset and
+    // invite links, and server logs are read by more people (and tools) than
+    // should be able to take over an account.
+    if (process.env.NODE_ENV === 'production') {
+      console.warn(
+        `[mail] No mail transport configured — "${mail.subject}" to ${mail.to} was not sent.`,
+      );
+      return false;
+    }
     // Not an error: the link is the whole point of these messages, so printing
-    // it keeps invites and resets working before mail is set up.
+    // it keeps invites and resets working in development before mail is set up.
     console.log(
       `[mail] No mail transport configured — message not sent.\n` +
       `  to:      ${mail.to}\n` +

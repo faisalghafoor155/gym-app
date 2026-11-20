@@ -70,7 +70,14 @@ describe('2FA setup', () => {
       .send({ code: totp(setup.body.secret), backupCodes: setup.body.backupCodes });
     expect(confirm.status).toBe(200);
 
-    const status = await api().get('/api/auth/two-factor/status').set('Cookie', account.cookie);
+    // Turning 2FA on signs out every other session, and this tab carries on
+    // with the fresh cookie it was handed.
+    const fresh = sessionCookie(confirm);
+    expect(fresh).toBeDefined();
+    const stale = await api().get('/api/auth/two-factor/status').set('Cookie', account.cookie);
+    expect(stale.status).toBe(401);
+
+    const status = await api().get('/api/auth/two-factor/status').set('Cookie', fresh!.split(';')[0]!);
     expect(status.body).toEqual({ enabled: true, remainingBackupCodes: 8 });
 
     // Only the hashes are kept — a database leak must not hand over live codes.

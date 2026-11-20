@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import prisma from '../../src/db.js';
@@ -59,6 +60,25 @@ describe('staff invites', () => {
     const ok = await api().post('/api/auth/accept-invite')
       .send({ token: fresh, password: 'a-new-password-123' });
     expect(ok.status).toBe(200);
+  });
+
+  it('kills the invite link once the password is set by a reset instead', async () => {
+    const owner = await makeGym();
+    const created = await invite(owner.cookie);
+
+    // The reset token is only stored hashed, so the test plants a known one.
+    const resetToken = 'a'.repeat(64);
+    await prisma.user.update({
+      where: { id: created.id },
+      data: { resetTokenHash: createHash('sha256').update(resetToken).digest('hex'), resetTokenAt: new Date() },
+    });
+    const reset = await api().post('/api/auth/reset-password')
+      .send({ token: resetToken, password: 'chosen-by-the-helper-1' });
+    expect(reset.status).toBe(200);
+
+    const late = await api().post('/api/auth/accept-invite')
+      .send({ token: tokenOf(created.invite.link), password: 'set-by-someone-else-1' });
+    expect(late.status).toBe(400);
   });
 
   it('refuses to re-invite an account that already has a password', async () => {
