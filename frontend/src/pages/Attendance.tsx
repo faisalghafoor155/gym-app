@@ -14,7 +14,7 @@ import type {
   FingerprintStatus, FingerprintIdentifyResult,
 } from '../types';
 import toast from 'react-hot-toast';
-import { Html5Qrcode } from 'html5-qrcode';
+import type { Html5Qrcode } from 'html5-qrcode';
 
 function getInitials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -313,6 +313,9 @@ export default function Attendance() {
   /** Start the camera scanner. */
   const startScanner = useCallback(async () => {
     try {
+      // The scanner library is most of this page's weight and only the
+      // camera needs it, so it is fetched on the first Start, not with the page.
+      const { Html5Qrcode } = await import('html5-qrcode');
       const scanner = new Html5Qrcode('qr-reader');
       scannerRef.current = scanner;
       await scanner.start(

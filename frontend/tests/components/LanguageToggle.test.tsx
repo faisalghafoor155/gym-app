@@ -38,7 +38,8 @@ describe('LanguageToggle', () => {
 
     await userEvent.click(screen.getByRole('radio', { name: 'UR' }));
 
-    expect(screen.getByRole('heading', { name: 'Haazri' })).toBeInTheDocument();
+    // The Urdu words arrive with their own chunk, a moment after the switch.
+    expect(await screen.findByRole('heading', { name: 'Haazri' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Sab' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Something untranslated' })).toBeInTheDocument();
     expect(document.documentElement.lang).toBe('ur');
@@ -51,7 +52,8 @@ describe('LanguageToggle', () => {
     unmount();
 
     render(<Screen />);
-    expect(screen.getByRole('heading', { name: 'Haazri' })).toBeInTheDocument();
+    // The Urdu words arrive with their own chunk, a moment after the switch.
+    expect(await screen.findByRole('heading', { name: 'Haazri' })).toBeInTheDocument();
   });
 
   it('renders English outside the provider instead of throwing', () => {

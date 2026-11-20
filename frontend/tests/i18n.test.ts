@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { UR } from '../src/i18n/ur';
 import { translate } from '../src/context/LanguageContext';
+import { loadUrdu } from '../src/i18n/urduLoader';
 
 /**
  * The Roman Urdu dictionary is edited by hand across several files, and its
@@ -29,6 +30,9 @@ describe('Roman Urdu dictionary', () => {
 });
 
 describe('translate', () => {
+  // The dictionary is its own chunk, fetched the first time Urdu is on.
+  beforeAll(loadUrdu);
+
   it('falls back to the English, filled in, when there is no entry', () => {
     expect(translate('ur', 'No such key {n}', { n: 3 })).toBe('No such key 3');
   });

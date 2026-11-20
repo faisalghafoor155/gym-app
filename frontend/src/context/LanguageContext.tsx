@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { UR } from '../i18n/ur';
+import { loadUrdu, urduFor } from '../i18n/urduLoader';
 
 export type Language = 'en' | 'ur';
 
@@ -22,7 +22,7 @@ const fill = (text: string, vars?: TVars): string =>
  * builders — which is handed the language rather than reading the context.
  */
 export const translate = (lang: Language, english: string, vars?: TVars): string =>
-  fill(lang === 'ur' ? UR[english] ?? english : english, vars);
+  fill(lang === 'ur' ? urduFor(english) ?? english : english, vars);
 
 const STORAGE_KEY = 'gym_language';
 
@@ -45,6 +45,9 @@ const readStored = (): Language => {
   }
 };
 
+// Started while the rest of the app is still loading, not once it renders.
+if (readStored() === 'ur') void loadUrdu();
+
 /**
  * The staff screens' language, remembered per device: the desk computer can
  * be in Urdu while the owner's phone stays in English.
@@ -55,6 +58,17 @@ const readStored = (): Language => {
  */
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Language>(readStored);
+  // Whether the Urdu dictionary is in memory (or failed to load, offline
+  // before it was ever cached, in which case English is shown).
+  const [urReady, setUrReady] = useState(false);
+  const [startedInUrdu] = useState(lang === 'ur');
+
+  useEffect(() => {
+    if (lang !== 'ur' || urReady) return;
+    let live = true;
+    void loadUrdu().catch(() => {}).finally(() => { if (live) setUrReady(true); });
+    return () => { live = false; };
+  }, [lang, urReady]);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -66,9 +80,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     try { localStorage.setItem(STORAGE_KEY, next); } catch { /* the choice just is not remembered */ }
   }, []);
 
-  const t = useCallback((english: string, vars?: TVars) => translate(lang, english, vars), [lang]);
+  // `urReady` is a dependency so every `t` user re-renders once the dictionary
+  // arrives after switching to Urdu.
+  const t = useCallback((english: string, vars?: TVars) => translate(lang, english, vars), [lang, urReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
+  // On a device left in Urdu, wait the moment it takes to read the dictionary
+  // rather than flash every screen in English first. Switching later keeps
+  // the screen up and swaps the words in when they arrive.
+  if (startedInUrdu && !urReady) return null;
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }
 
