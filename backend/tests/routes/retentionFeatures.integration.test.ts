@@ -87,6 +87,11 @@ describe("part-payments and the dues list", () => {
     const member = await addMember(owner.gymId);
     const plan = await addPlan(owner.gymId, { price: 5000 });
     const ms = await addMembership(owner.gymId, member.id, { planId: plan.id, expiresInDays: 2 });
+    // The term being renewed is settled, so its balance does not carry over
+    // and the only debt left is what the renewal itself leaves unpaid.
+    await prisma.payment.create({
+      data: { gymId: owner.gymId, memberId: member.id, membershipId: ms.id, amount: 2500, status: "paid", type: "membership" },
+    });
     const res = await api()
       .post(`/api/members/${member.id}/memberships/${ms.id}/renew`)
       .set("Cookie", owner.cookie)

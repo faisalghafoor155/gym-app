@@ -102,7 +102,7 @@ export default function MyPortal() {
 
   useEffect(() => {
     void loadData();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * The provider drops the member back here with `?payment=…` once they are

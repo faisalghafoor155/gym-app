@@ -13,3 +13,7 @@ export const localDateInput = (d: Date): string => {
   const local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
   return local.toISOString().split('T')[0]!;
 };
+
+/** A `YYYY-MM` month as "May 2026". */
+export const monthName = (ym: string): string =>
+  new Date(`${ym}-01T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });

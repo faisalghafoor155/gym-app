@@ -28,7 +28,7 @@ export interface ExerciseAngleGuide {
   dangerZoneText: string;
 }
 
-export const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
+const EXERCISE_ANGLES_DATA: ExerciseAngleGuide[] = [
   // CHEST EXERCISES (Primary focus requested by user)
   {
     id: 'incline_bench_press',

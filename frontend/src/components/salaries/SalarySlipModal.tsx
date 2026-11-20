@@ -6,11 +6,9 @@ import { useLanguage } from '../../context/LanguageContext';
 import { channelLabel } from '../../utils/paymentChannels';
 import { Spinner } from '../ui';
 import type { SalarySlip } from '../../types';
+import { monthName } from '../../utils/dates';
 
 const money = (n: number) => `Rs. ${n.toLocaleString()}`;
-
-export const monthName = (ym: string) =>
-  new Date(`${ym}-01T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 /**
  * A printable salary slip for one paid month.

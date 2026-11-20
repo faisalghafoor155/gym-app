@@ -83,7 +83,7 @@ export default function Plans() {
       .catch(err => toast.error(apiError(err, t('Could not load plans'))))
       .finally(() => setLoading(false));
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const plans = tab === 'workout' ? workoutPlans : dietPlans;
   const TabIcon = tab === 'workout' ? Dumbbell : Utensils;

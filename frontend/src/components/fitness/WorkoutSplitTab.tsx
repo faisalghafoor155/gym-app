@@ -1,7 +1,7 @@
 import { Dumbbell, Award, Activity, CheckCircle2, ChevronRight, Calendar, Layers, Compass, Image as ImageIcon } from 'lucide-react';
 import { Card, FieldLabel, inputClass } from '../ui';
 import { WORKOUT_SPLIT_DAYS, type Muscle, type MacroResult, type OneRmResult, type PhotoMuscle } from './data';
-import { WORKOUT_GAMES_PHOTOS, PHOTO_MUSCLE_TABS, gameVariations } from './ExercisePhotoModal';
+import { WORKOUT_GAMES_PHOTOS, PHOTO_MUSCLE_TABS, gameVariations } from './exercisePhotos';
 import { useLanguage } from '../../context/LanguageContext';
 
 interface WorkoutSplitTabProps {

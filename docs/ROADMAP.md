@@ -128,12 +128,11 @@ Split a membership fee across dates.
 ## 🔧 Technical housekeeping
 - [x] Backend test suite is very slow (~2 hours for the full run on this machine)
   Now ~13 minutes. `resetDb` deletes rows instead of truncating every table (~1s → ~3ms per test), test files run in parallel with a database per worker, and the test databases are kept between runs and rebuilt only when a migration changes. `TEST_WORKERS=1` runs the files one at a time.
-- [ ] Failing test: `tests/routes/retentionFeatures.integration.test.ts` "lists what a part-paid renewal still owes" expects a total outstanding of 3000 and gets 5500. It fails on the old test setup too, so it is not from the speed-up.
-- [ ] Fix lint warnings:
-  - `frontend/src/components/subscription/AdminBillingPanel.tsx:67`: missing `fetchAdminData` dependency
-  - `frontend/src/pages/MyPortal.tsx:99`: missing `loadData` dependency
-  - `frontend/src/components/fitness/ExerciseAnglesModal.tsx:31`: move constants out of the component file
-  - `frontend/src/main.tsx:36`: fast-refresh export warning
+- [x] Failing test: `tests/routes/retentionFeatures.integration.test.ts` "lists what a part-paid renewal still owes" expected 3000 outstanding and got 5500
+  The app was right: the test renewed an unpaid Rs. 2,500 membership, and renewing carries that balance over. The test now settles the old term first.
+- [x] Fix lint warnings
+  Mount-only effects marked like the rest of the code; `ThemedToaster`, the exercise photo data and `monthName` moved into their own modules.
+  🟠 Left as is: the `useAuth` / `useTheme` style hooks exported next to their providers in `src/context/`. Only fast refresh is affected (a full reload instead of a hot swap when editing those files).
 
 ---
 
@@ -150,8 +149,8 @@ Split a membership fee across dates.
 | P2: Multi-Branch | 4 | 0 | 0 |
 | P3: Challenges | 3 | 0 | 0 |
 | P3: Bulk WhatsApp | 2 | 1 | 0 |
-| Technical | 0 | 0 | 2 |
-| **Total** | **31** | **9** | **3** |
+| Technical | 3 | 0 | 0 |
+| **Total** | **34** | **9** | **1** |
 
 ## ✅ Already built (for reference)
 Members, memberships, freeze · Payments, dues, receipts, promo codes, online payments · Expenses, supplement sales ·

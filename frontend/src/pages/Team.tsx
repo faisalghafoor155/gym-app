@@ -158,7 +158,7 @@ export default function Team() {
       .catch(err => toast.error(apiError(err, t('Could not load accounts'))))
       .finally(() => setLoading(false));
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSettingsSave = async (e: FormEvent) => {
     e.preventDefault();

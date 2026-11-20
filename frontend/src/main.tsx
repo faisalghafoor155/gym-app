@@ -1,13 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Toaster } from 'react-hot-toast'
 import './index.css'
 import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary.tsx'
 import UpdatePrompt from './components/UpdatePrompt.tsx'
-import { ThemeProvider, useTheme } from './context/ThemeContext.tsx'
+import ThemedToaster from './components/ThemedToaster.tsx'
+import { ThemeProvider } from './context/ThemeContext.tsx'
 import { LanguageProvider } from './context/LanguageContext.tsx'
-import { SuccessCheck } from './components/ui.tsx'
 import { installKeyboardAvoidance } from './utils/mobileKeyboard.ts'
 
 // Phones only: keeps the field being typed into above the on-screen keyboard
@@ -27,33 +26,6 @@ window.addEventListener('vite:preloadError', (event) => {
   event.preventDefault()
   window.location.reload()
 })
-
-/**
- * The toasts render into a portal outside the styled tree, so they take their
- * colours from props rather than from a `dark:` class. Split into its own
- * component because it has to sit inside the provider to read the theme.
- */
-function ThemedToaster() {
-  const { resolved } = useTheme()
-  const dark = resolved === 'dark'
-  return (
-    <Toaster
-      position="top-right"
-      toastOptions={{
-        style: {
-          background: dark ? '#1e293b' : '#ffffff',
-          color: dark ? '#e2e8f0' : '#1e293b',
-          border: `1px solid ${dark ? '#334155' : '#e2e8f0'}`,
-        },
-        // Every saved payment, member and check-in that reports through a
-        // toast gets the same drawn tick as the check-in panel.
-        success: {
-          icon: <SuccessCheck size={20} className={dark ? 'text-green-400' : 'text-green-600'} />,
-        },
-      }}
-    />
-  )
-}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

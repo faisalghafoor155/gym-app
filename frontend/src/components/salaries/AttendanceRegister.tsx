@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useFetch } from '../../hooks/useFetch';
 import { Card, EmptyState, FieldLabel, LoadFailed, PageLoader, Refetching, inputClass, primaryButton } from '../ui';
-import { monthName } from './SalarySlipModal';
+import { monthName } from '../../utils/dates';
 import type { GymSettings, StaffAttendanceMonth, StaffDayStatus } from '../../types';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

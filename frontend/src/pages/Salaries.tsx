@@ -5,7 +5,8 @@ import {
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
-import SalarySlipModal, { monthName } from '../components/salaries/SalarySlipModal';
+import SalarySlipModal from '../components/salaries/SalarySlipModal';
+import { monthName } from '../utils/dates';
 import AttendanceRegister from '../components/salaries/AttendanceRegister';
 import {
   Page, PageHeader, Card, StatTile, PageLoader, LoadFailed, EmptyState, Refetching, SegmentedControl,
