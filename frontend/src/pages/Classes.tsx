@@ -387,7 +387,7 @@ export default function Classes() {
                   </p>
                 </div>
                 <div className="mt-5 text-xs text-gray-400">
-                  {t('Registered on: {date}', { date: new Date(c.createdAt).toLocaleDateString() })}
+                  {t('Registered on: {date}', { date: new Date(c.createdAt).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }) })}
                 </div>
               </Card>
             ))}

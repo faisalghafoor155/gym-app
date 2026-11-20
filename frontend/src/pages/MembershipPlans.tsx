@@ -228,7 +228,7 @@ export default function MembershipPlans() {
       {unpriced > 0 && (
         <div className="bg-yellow-50 dark:bg-yellow-500/15 border border-yellow-200 dark:border-yellow-500/20 rounded-xl px-4 py-3 mb-5 flex items-start gap-2.5">
           <Wallet size={16} className="text-yellow-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-yellow-800">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">
             {unpriced === 1
               ? t('One plan has no price set. Members signed up on it will be recorded as paying Rs. 0.')
               : t('{count} plans have no price set. Members signed up on them will be recorded as paying Rs. 0.', { count: unpriced })}

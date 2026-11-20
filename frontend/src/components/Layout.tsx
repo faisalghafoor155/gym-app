@@ -375,8 +375,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       </div>
 
       {/* Nav */}
-      <nav className={`flex-1 pb-3 space-y-1 overflow-y-auto sidebar-scroll ${collapsed ? 'px-3 lg:px-2.5' : 'px-3'}`}>
-        <p className={`px-3 pt-1 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-600 ${collapsed ? 'lg:hidden' : ''}`}>{t('Menu')}</p>
+      <nav className={`flex-1 pt-1 pb-3 space-y-1 overflow-y-auto sidebar-scroll ${collapsed ? 'px-3 lg:px-2.5' : 'px-3'}`}>
         {groupNav(navItems).map(entry => {
           if (entry.kind === 'link') {
             return (

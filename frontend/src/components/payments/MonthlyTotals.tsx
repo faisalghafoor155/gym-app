@@ -67,13 +67,13 @@ export default function MonthlyTotals({
                 className={`border-b border-gray-100 dark:border-slate-800 last:border-0 ${
                   // The current month is still being earned, so it reads as
                   // a running figure rather than a closed one.
-                  i === summary.byMonth.length - 1 ? "bg-blue-50/40" : ""
+                  i === summary.byMonth.length - 1 ? "bg-blue-50/40 dark:bg-blue-500/10" : ""
                 }`}
               >
                 <td className="px-3 py-2 font-medium text-gray-900 dark:text-slate-100 whitespace-nowrap">
                   {m.label}
                   {i === summary.byMonth.length - 1 && (
-                    <span className="ml-2 text-xs font-normal text-blue-600">
+                    <span className="ml-2 text-xs font-normal text-blue-600 dark:text-blue-400">
                       {t("so far")}
                     </span>
                   )}

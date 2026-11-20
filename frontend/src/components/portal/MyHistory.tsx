@@ -106,8 +106,8 @@ export function MyMemberships() {
                     {m.planName}
                   </p>
                   <p className="text-xs text-gray-400 dark:text-slate-500">
-                    {new Date(m.startDate).toLocaleDateString()} –{' '}
-                    {new Date(m.expiryDate).toLocaleDateString()}
+                    {new Date(m.startDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })} –{' '}
+                    {new Date(m.expiryDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
                     {' · '}Rs. {m.pricePaid.toLocaleString()}
                   </p>
                 </div>
@@ -161,7 +161,7 @@ export function MyPurchases() {
                     {p.supplementName}
                   </p>
                   <p className="text-xs text-gray-400 dark:text-slate-500">
-                    {new Date(p.soldAt).toLocaleDateString()} · {p.quantity} ×
+                    {new Date(p.soldAt).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })} · {p.quantity} ×
                     Rs. {p.unitPrice.toLocaleString()}
                   </p>
                 </div>
@@ -226,7 +226,7 @@ export function MyPayments({
                     Rs. {p.amount.toLocaleString()}
                   </p>
                   <p className="text-xs text-gray-400 dark:text-slate-500">
-                    {new Date(p.paymentDate).toLocaleDateString()} · {p.method}
+                    {new Date(p.paymentDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })} · {p.method}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

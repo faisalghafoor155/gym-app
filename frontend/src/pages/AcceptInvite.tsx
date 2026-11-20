@@ -99,7 +99,7 @@ export default function AcceptInvite() {
               {t('Choose a password to activate your account.')}
             </p>
 
-            <div className="flex items-center gap-3 bg-blue-50/60 border border-blue-100 dark:border-blue-500/20 rounded-xl p-3 mb-6">
+            <div className="flex items-center gap-3 bg-blue-50/60 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-xl p-3 mb-6">
               <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-500/15 text-blue-600 flex items-center justify-center shrink-0">
                 <RoleIcon size={16} />
               </div>

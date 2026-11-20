@@ -12,7 +12,6 @@ const shell: Record<string, string> = {
   'Mobile navigation': 'Mobile navigation',
   'Online': 'Online',
   'More': 'Mazeed',
-  'Menu': 'Menu',
   'My Pass': 'Mera Pass',
   'Fitness': 'Fitness',
   'Training': 'Training',

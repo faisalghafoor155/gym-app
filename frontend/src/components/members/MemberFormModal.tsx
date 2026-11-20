@@ -709,7 +709,7 @@ export default function MemberFormModal({
                 <div className="bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/20 rounded-xl p-3 flex items-center gap-2">
                   <Calendar size={15} className="text-blue-600 shrink-0" />
                   <div>
-                    <p className="text-xs font-semibold text-blue-800">{t('Auto-calculated expiry')}</p>
+                    <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">{t('Auto-calculated expiry')}</p>
                     <p className="text-sm font-bold text-blue-700">
                       {new Date(expiryPreview).toLocaleDateString('en-PK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>

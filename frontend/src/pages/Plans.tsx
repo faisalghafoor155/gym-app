@@ -332,7 +332,7 @@ export default function Plans() {
                 )}
 
                 <p className="text-xs text-gray-400 dark:text-slate-500 mt-4 pt-3 border-t border-gray-100 dark:border-slate-800">
-                  {t('Added {date}', { date: new Date(p.createdAt).toLocaleDateString() })}
+                  {t('Added {date}', { date: new Date(p.createdAt).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }) })}
                 </p>
               </Card>
             );

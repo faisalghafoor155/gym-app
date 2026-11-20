@@ -434,7 +434,7 @@ export default function Team() {
       {isOwner && seatsFull && (
         <div className="bg-amber-50 dark:bg-amber-500/15 border border-amber-200 dark:border-amber-500/20 rounded-xl p-4 mb-5 flex items-start gap-3">
           <UserCog size={18} className="text-amber-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-800">
+          <p className="text-sm text-amber-800 dark:text-amber-200">
             {t('All {limit} staff seats are in use. To add someone else, remove an account below — revoking access alone does not free the seat, since the account keeps its email address and can be restored.', { limit: seats?.limit ?? 0 })}
           </p>
         </div>
@@ -443,7 +443,7 @@ export default function Team() {
       {!isOwner && (
         <div className="bg-blue-50 dark:bg-blue-500/15 border border-blue-200 dark:border-blue-500/20 rounded-xl p-4 mb-5 flex items-start gap-3">
           <Shield size={18} className="text-blue-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-blue-800">
+          <p className="text-sm text-blue-800 dark:text-blue-200">
             {t('You can see who has access, but only the gym owner can add or remove accounts.')}
           </p>
         </div>

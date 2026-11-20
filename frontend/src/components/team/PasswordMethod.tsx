@@ -59,7 +59,7 @@ export default function PasswordMethod({ method, onMethod, password, onPassword 
           </p>
         </div>
       ) : (
-        <p className="text-xs text-gray-500 dark:text-slate-400 bg-blue-50/60 border border-blue-100 dark:border-blue-500/20 rounded-xl px-3 py-2.5 leading-relaxed">
+        <p className="text-xs text-gray-500 dark:text-slate-400 bg-blue-50/60 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-xl px-3 py-2.5 leading-relaxed">
           {method === 'whatsapp'
             ? t('No email is sent. Next you get a link to send them on WhatsApp; they open it and choose their own password. It lasts 48 hours and works once.')
             : t('They get an email with a link to choose their own password. The link lasts 48 hours and works once — you never see the password.')}

@@ -300,7 +300,7 @@ export default function MyPortal() {
             <div className="flex items-center gap-3">
               <CreditCard size={18} className="text-red-600 shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-red-800">
+                <p className="text-sm font-semibold text-red-800 dark:text-red-200">
                   {t('Rs. {amount} outstanding', { amount: dueTotal.toLocaleString() })}
                 </p>
                 <p className="text-xs text-red-600">{t('Clear your unpaid invoices easily online.')}</p>

@@ -64,7 +64,7 @@ export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid
                     <td className="px-6 py-4">
                       <span className="flex items-center gap-1.5">
                         <Clock size={13} className="text-gray-400" />
-                        {sessionDate.toLocaleDateString()} {sessionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {sessionDate.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })} {sessionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-900 dark:text-slate-200">
@@ -142,7 +142,7 @@ export default function BookingsTab({ sessions, onComplete, onCancel, onMarkPaid
                 </div>
                 <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1.5">
                   <Clock size={12} className="text-gray-400" />
-                  {sessionDate.toLocaleDateString()}{' '}
+                  {sessionDate.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}{' '}
                   {sessionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
                 <div className="space-y-1.5">

@@ -30,7 +30,7 @@ export default function PaymentsList({
         {shown.map((p) => (
           <Card
             key={p.id}
-            className={`p-4 ${p.status === "due" ? "border-red-200 dark:border-red-500/20 bg-red-50/40" : ""}`}
+            className={`p-4 ${p.status === "due" ? "border-red-200 dark:border-red-500/20 bg-red-50/40 dark:bg-red-500/10" : ""}`}
           >
             <div className="flex items-start justify-between gap-3 mb-2">
               <div className="min-w-0">
@@ -56,7 +56,7 @@ export default function PaymentsList({
                 </span>
               )}
               <span className="text-xs text-gray-400 dark:text-slate-500 ml-auto">
-                {new Date(p.paymentDate).toLocaleDateString()}
+                {new Date(p.paymentDate).toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })}
               </span>
             </div>
             {p.notes && (
@@ -130,7 +130,7 @@ export default function PaymentsList({
                 <tr
                   key={p.id}
                   className={`border-b border-gray-100 dark:border-slate-800 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-800/60 ${
-                    p.status === "due" ? "bg-red-50/40" : ""
+                    p.status === "due" ? "bg-red-50/40 dark:bg-red-500/10" : ""
                   }`}
                 >
                   <td className="px-4 py-3 max-w-55">
@@ -155,7 +155,7 @@ export default function PaymentsList({
                     )}
                   </td>
                   <td className="px-4 py-3 text-gray-500 dark:text-slate-400 whitespace-nowrap">
-                    {new Date(p.paymentDate).toLocaleDateString()}
+                    {new Date(p.paymentDate).toLocaleDateString("en-PK", { day: "numeric", month: "short", year: "numeric" })}
                   </td>
                   <td className="px-4 py-3">
                     <Badge status={p.status} />

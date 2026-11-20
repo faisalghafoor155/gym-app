@@ -355,7 +355,7 @@ export default function Trainers() {
           message={t("Cancel {member}'s session with {trainer} on {date}? The trainer earns no commission for a cancelled session.", {
             member: cancellingSession.member.name,
             trainer: cancellingSession.trainer.name,
-            date: new Date(cancellingSession.sessionDate).toLocaleDateString(),
+            date: new Date(cancellingSession.sessionDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }),
           })}
           confirmLabel={t('Cancel session')}
           onConfirm={() => {

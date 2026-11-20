@@ -33,7 +33,7 @@ export default function AccountCard({
   const style = roleStyles[u.role];
   const RoleIcon = style.icon;
   return (
-    <Card key={u.id} className={`p-4 ${u.isActive ? '' : 'bg-gray-50/60'}`}>
+    <Card key={u.id} className={`p-4 ${u.isActive ? '' : 'bg-gray-50/60 dark:bg-slate-800/40'}`}>
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -58,7 +58,7 @@ export default function AccountCard({
           <p className="text-xs text-gray-500 dark:text-slate-400 mt-1 truncate">{u.email}</p>
           <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
             {u.lastLoginAt
-              ? t('Last signed in {date}', { date: new Date(u.lastLoginAt).toLocaleDateString() })
+              ? t('Last signed in {date}', { date: new Date(u.lastLoginAt).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }) })
               : u.invitePending ? t('Invite sent — password not set yet') : t('Never signed in')}
           </p>
         </div>

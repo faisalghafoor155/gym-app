@@ -715,8 +715,8 @@ export default function Supplements() {
 
               {Number(restockForm.quantity) > 0 && (
                 <div className="rounded-lg bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/20 px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-blue-800">{t('New stock')}</span>
-                  <span className="text-lg font-bold text-blue-900">
+                  <span className="text-xs font-semibold text-blue-800 dark:text-blue-200">{t('New stock')}</span>
+                  <span className="text-lg font-bold text-blue-900 dark:text-blue-100">
                     {t('{count} units', { count: restocking.stock + Number(restockForm.quantity) })}
                   </span>
                 </div>

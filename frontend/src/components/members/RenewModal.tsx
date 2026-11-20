@@ -527,8 +527,8 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
               nothing. */}
           {picked && (
             <div className="rounded-lg bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/20 px-3 py-2.5">
-              <p className="text-xs font-semibold text-blue-800">{t('New expiry')}</p>
-              <p className="text-sm font-bold text-blue-900 mt-0.5">
+              <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">{t('New expiry')}</p>
+              <p className="text-sm font-bold text-blue-900 dark:text-blue-100 mt-0.5">
                 {previewRenewal(ms.expiryDate, picked.durationDays)}
               </p>
               <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">

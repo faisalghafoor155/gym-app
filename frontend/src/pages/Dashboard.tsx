@@ -268,14 +268,14 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 stagger">
             <div className="rounded-xl bg-blue-50 dark:bg-blue-500/15 border border-blue-100 dark:border-blue-500/20 px-4 py-3">
-              <p className="text-xs font-medium text-blue-700">{t('Membership fees')}</p>
-              <p className="text-lg font-bold text-blue-900 mt-0.5">
+              <p className="text-xs font-medium text-blue-700 dark:text-blue-300">{t('Membership fees')}</p>
+              <p className="text-lg font-bold text-blue-900 dark:text-blue-100 mt-0.5">
                 <CountUp value={revenue.monthToDate.membership} format={money} />
               </p>
             </div>
             <div className="rounded-xl bg-green-50 dark:bg-green-500/15 border border-green-100 dark:border-green-500/20 px-4 py-3">
-              <p className="text-xs font-medium text-green-700">{t('Supplement sales')}</p>
-              <p className="text-lg font-bold text-green-900 mt-0.5">
+              <p className="text-xs font-medium text-green-700 dark:text-green-300">{t('Supplement sales')}</p>
+              <p className="text-lg font-bold text-green-900 dark:text-green-100 mt-0.5">
                 <CountUp value={revenue.monthToDate.supplement} format={money} />
               </p>
             </div>
@@ -283,16 +283,16 @@ export default function Dashboard() {
                 box trains the eye to skip the row. */}
             {revenue.monthToDate.locker > 0 && (
               <div className="rounded-xl bg-amber-50 dark:bg-amber-500/15 border border-amber-100 dark:border-amber-500/20 px-4 py-3">
-                <p className="text-xs font-medium text-amber-700">{t('Locker rent')}</p>
-                <p className="text-lg font-bold text-amber-900 mt-0.5">
+                <p className="text-xs font-medium text-amber-700 dark:text-amber-300">{t('Locker rent')}</p>
+                <p className="text-lg font-bold text-amber-900 dark:text-amber-100 mt-0.5">
                   <CountUp value={revenue.monthToDate.locker} format={money} />
                 </p>
               </div>
             )}
             {(revenue.monthToDate.daypass ?? 0) > 0 && (
               <div className="rounded-xl bg-cyan-50 dark:bg-cyan-500/15 border border-cyan-100 dark:border-cyan-500/20 px-4 py-3">
-                <p className="text-xs font-medium text-cyan-700">{t('Day passes')}</p>
-                <p className="text-lg font-bold text-cyan-900 mt-0.5">
+                <p className="text-xs font-medium text-cyan-700 dark:text-cyan-300">{t('Day passes')}</p>
+                <p className="text-lg font-bold text-cyan-900 dark:text-cyan-100 mt-0.5">
                   <CountUp value={revenue.monthToDate.daypass} format={money} />
                 </p>
               </div>
@@ -305,8 +305,8 @@ export default function Dashboard() {
                 </p>
               </div>
             )}
-            <div className="rounded-xl bg-purple-600 px-4 py-3 col-span-2 lg:col-span-1 lg:ml-auto lg:w-full">
-              <p className="text-xs font-medium text-purple-100">{t('Grand total')}</p>
+            <div className="rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 shadow-lg shadow-blue-600/20 px-4 py-3 col-span-2 lg:col-span-1 lg:ml-auto lg:w-full">
+              <p className="text-xs font-medium text-blue-100">{t('Grand total')}</p>
               <p className="text-xl font-bold text-white mt-0.5">
                 <CountUp value={revenue.monthToDate.total} format={money} />
               </p>
@@ -739,7 +739,7 @@ export default function Dashboard() {
           to="/members?status=lapsed"
           className={`flex items-center gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 hover:border-gray-300 transition-colors ${focusRing}`}
         >
-          <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 flex items-center justify-center shrink-0">
             <UserMinus size={16} />
           </div>
           <div className="min-w-0">

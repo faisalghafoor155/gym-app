@@ -123,7 +123,7 @@ export default function MyClasses({ onChange }: { onChange?: () => void }) {
                     {b.className}
                   </p>
                   <p className="text-xs text-gray-400 dark:text-slate-500">
-                    {new Date(b.bookingDate).toLocaleDateString()} · {b.startTime}–{b.endTime}
+                    {new Date(b.bookingDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })} · {b.startTime}–{b.endTime}
                     {b.trainerName && ` · ${b.trainerName}`}
                   </p>
                 </div>
@@ -223,7 +223,7 @@ export default function MyClasses({ onChange }: { onChange?: () => void }) {
       {cancelling && (
         <ConfirmDialog
           title={t('Give up this place?')}
-          message={t('Cancel your place in {name} on {date}? Someone else can take it.', { name: cancelling.className, date: new Date(cancelling.bookingDate).toLocaleDateString() })}
+          message={t('Cancel your place in {name} on {date}? Someone else can take it.', { name: cancelling.className, date: new Date(cancelling.bookingDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }) })}
           confirmLabel={t('Cancel booking')}
           tone="danger"
           busy={busy === cancelling.id}
