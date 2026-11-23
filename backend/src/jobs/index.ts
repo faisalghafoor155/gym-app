@@ -104,7 +104,7 @@ const duesReminders = async (): Promise<string> => {
   return (
     `owing ${run.owing}, sent ${run.sent}, reminded recently ${run.skippedRecently}, ` +
     `already sent ${run.skippedAlreadySent}, no whatsapp ${run.skippedNoWhatsApp}, ` +
-    `failed ${run.failed}`
+    `installment not due ${run.skippedNotDue}, failed ${run.failed}`
   );
 };
 

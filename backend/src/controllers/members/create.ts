@@ -18,6 +18,7 @@ import { buildPtFeeCharge, trainerFeeSelect } from "../../services/trainerFee.js
 import { notifyWelcome } from "../../services/memberNotifications.js";
 import { planErrorResponse, PlanLimitError } from "../../services/subscription.js";
 import { discountFor, findUsablePromo, PromoError, redeemPromo } from "../../services/promo.js";
+import { InstallmentError, saveSchedule } from "../../services/installments.js";
 import type { AuthedRequest } from "../../types.js";
 import type { CreateMemberBody } from "../../schemas.js";
 import {
@@ -63,6 +64,7 @@ export const create = async (
     referredById,
     promoCode,
     branchId: askedBranch,
+    installments,
     ...fields
   } = req.body;
   try {
@@ -204,9 +206,13 @@ export const create = async (
             expiryDate: expiry,
             pricePaid: listPrice - discount,
           },
-          select: { id: true },
+          select: { id: true, gymId: true },
         });
         membershipId = membership.id;
+        // What the joining payment does not cover, split into parts.
+        if (installments?.length) {
+          await saveSchedule(tx, membership, installments, listPrice - discount - (feeAmount ?? 0));
+        }
         if (promo) {
           await redeemPromo(tx, promo, {
             gymId: req.gymId, memberId: created.id, membershipId, discount,
@@ -323,7 +329,7 @@ export const create = async (
       res.status(404).json({ error: "Referring member not found" });
       return;
     }
-    if (err instanceof PromoError) {
+    if (err instanceof PromoError || err instanceof InstallmentError) {
       res.status(400).json({ error: err.message });
       return;
     }

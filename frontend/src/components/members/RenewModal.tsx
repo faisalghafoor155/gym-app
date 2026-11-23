@@ -6,10 +6,12 @@ import { Dumbbell, UserCheck, UserX } from 'lucide-react';
 import api, { apiError } from '../../api/client';
 import { closeDialog, useDialog } from '../../hooks/useDialog';
 import { useLanguage } from '../../context/LanguageContext';
-import type { GymSettings, Member, MembershipPlan, PaymentChannel, PaymentMethod, PromoCheck, Trainer } from '../../types';
+import type { GymSettings, InstallmentDraft, Member, MembershipPlan, PaymentChannel, PaymentMethod, PromoCheck, Trainer } from '../../types';
 import { CHANNELS, CHANNEL_LABELS, accountFor } from '../../utils/paymentChannels';
 import PromoCodeField from './PromoCodeField';
 import toast from 'react-hot-toast';
+import InstallmentPlanFields from '../payments/InstallmentPlanFields';
+import { partsMatch } from '../payments/installments';
 
 /** What the desk fills in to renew: the next period, and the money for it. */
 interface RenewForm {
@@ -102,6 +104,9 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
     };
   });
   const [saving, setSaving] = useState(false);
+  /** The balance split into parts, when the member is paying the rest later
+   *  on a schedule. Empty means no plan. */
+  const [installments, setInstallments] = useState<InstallmentDraft[]>([]);
   /** A code the server confirmed for the picked plan. While set it decides
    *  the price; the server applies it again on save. */
   const [promo, setPromo] = useState<PromoCheck | null>(null);
@@ -131,6 +136,11 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
       toast.error(t('The amount paid cannot be more than the agreed price'));
       return;
     }
+    const plan = balance > 0 ? installments : [];
+    if (plan.length > 0 && !partsMatch(plan, balance)) {
+      toast.error(t('The installments must add up to the balance'));
+      return;
+    }
     setSaving(true);
     try {
       await api.post(`/members/${member.id}/memberships/${ms.id}/renew`, {
@@ -153,6 +163,7 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
           trainerId: selectedTrainerId,
           ptFee: ptFeeNum,
         }),
+        ...(plan.length > 0 && { installments: plan }),
       });
 
       if (hasTrainer && !includeTrainer) {
@@ -296,6 +307,13 @@ export default function RenewModal({ member, plans, trainers, settings, onClose,
               {t('Lower the agreed price for a discount. Paying less than it now leaves the rest as a due, which shows on the Pending Dues list and is reminded on WhatsApp.')}
             </p>
           </div>
+
+          <InstallmentPlanFields
+            idPrefix="renew-installments"
+            owed={balance}
+            parts={installments}
+            onChange={setInstallments}
+          />
 
           <div>
             {/* Two buttons rather than a field, so the label names the pair. */}

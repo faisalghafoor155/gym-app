@@ -3,6 +3,7 @@ import { inBranch } from '../services/branches.js';
 import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { currentMembershipWhere, toView, withPlan } from '../services/membership.js';
+import { installmentSummary, withInstallments } from '../services/installments.js';
 import { getPhotoUrl } from '../services/s3.js';
 import { gymDayBounds } from '../services/dates.js';
 import type { AuthedRequest } from '../types.js';
@@ -63,13 +64,20 @@ const dayBounds = gymDayBounds;
 const feeSummary = (
   view: { pricePaid: number } | null,
   payments: { amount: Prisma.Decimal }[],
-): { amount: number; paid: number; balance: number } | null => {
+  installments: { seq: number; amount: Prisma.Decimal; dueDate: Date }[],
+  now: Date,
+) => {
   if (!view) return null;
   const paid = payments.reduce((t, p) => t + p.amount.toNumber(), 0);
+  // On an installment plan, what is overdue and what falls due next — the two
+  // things the desk asks about before waving somebody through.
+  const { overdue, nextDue } = installmentSummary(view.pricePaid, paid, installments, now);
   return {
     amount: view.pricePaid,
     paid,
     balance: Math.max(0, view.pricePaid - paid),
+    overdue,
+    nextDue,
   };
 };
 
@@ -93,6 +101,10 @@ const feeSummary = (
  * exactly who the gym wants inside. The membership travels back with the
  * response instead, so the front desk sees "expired 12 days ago" at the moment
  * it can still do something about it.
+ *
+ * The one exception is a gym that has chosen it: with "block check-in when an
+ * installment is overdue" on, a member behind on their installment plan is
+ * refused until the overdue part is paid.
  */
 export const checkin = async (
   req: AuthedRequest<Record<string, string>, unknown, CheckinBody>,
@@ -189,8 +201,10 @@ const recordCheckin = async (gymId: string, memberId: string, res: Response, atB
           ...withPlan,
           // Settled money only; a row still marked due is the debt itself.
           payments: { where: { status: 'paid' }, select: { amount: true } },
+          ...withInstallments,
         },
       },
+      gym: { select: { blockOverdueInstallments: true } },
     },
   });
   if (!member) {
@@ -211,7 +225,17 @@ const recordCheckin = async (gymId: string, memberId: string, res: Response, atB
   // What the desk needs to know before waving somebody through, and the same
   // shape the members list already speaks.
   const membership = current ? toView(current, now) : null;
-  const fee = feeSummary(membership, current?.payments ?? []);
+  const fee = feeSummary(membership, current?.payments ?? [], current?.installments ?? [], now);
+
+  if (member.gym.blockOverdueInstallments && fee && fee.overdue > 0) {
+    res.status(403).json({
+      error: `${member.name} has an overdue installment of Rs. ${fee.overdue.toLocaleString('en-PK')}. Take the payment, then check in again.`,
+      reason: 'installment_overdue',
+      membership,
+      fee,
+    });
+    return;
+  }
 
   const existing = await prisma.attendance.findFirst({
     where: { memberId, gymId, checkedInAt: { gte: start, lte: end } },

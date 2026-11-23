@@ -8,9 +8,11 @@ import {
 import type { AuthedRequest } from '../types.js';
 import type {
   CreateMembershipBody, RenewMembershipBody, MembershipHistoryQuery,
-  IdParam, MembershipParams, FreezeMembershipBody,
+  IdParam, MembershipParams, FreezeMembershipBody, MembershipInstallmentsBody,
 } from '../schemas.js';
 import { supersedeWithCarryOver } from '../services/balances.js';
+import { InstallmentError, saveSchedule } from '../services/installments.js';
+import { sum } from '../services/money.js';
 
 /** The membership was renewed by another request between our read and write. */
 class RenewRaceError extends Error {}
@@ -170,6 +172,7 @@ export const renew = async (
   const { id: memberId, membershipId } = req.params;
   const {
     planId, amount, price, promoCode, method, channel, reference, includeTrainer, trainerId, ptFee,
+    installments,
   } = req.body;
   try {
     // Scoped by member and gym as well as id: a valid membership id belonging
@@ -291,6 +294,11 @@ export const renew = async (
         },
       });
 
+      // Whatever was not paid today, split into parts with due dates.
+      if (installments?.length) {
+        await saveSchedule(tx, next, installments, sold - amount);
+      }
+
       // Handle trainer renewal, addition, or auto-removal
       let ptReceipt = null;
       let removedTrainer = false;
@@ -364,12 +372,13 @@ export const renew = async (
         ...(payment.channel && { channel: payment.channel }),
         ...(trainerRemoved && { trainerAction: 'removed' }),
         ...(ptPayment && { ptFeePaid: ptFee, ptPaymentId: ptPayment.id }),
+        ...(installments?.length && { installments }),
       },
     });
 
     res.status(201).json(toView(created));
   } catch (err) {
-    if (err instanceof PromoError) {
+    if (err instanceof PromoError || err instanceof InstallmentError) {
       res.status(400).json({ error: err.message });
       return;
     }
@@ -649,6 +658,72 @@ export const unfreeze = async (
 
     res.json(toView(updated, now));
   } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+/**
+ * Agrees, changes or removes the installment plan for what a membership still
+ * owes — the member who paid half at the counter and now asks to pay the rest
+ * in two parts, or one who needs a part moved to next month.
+ *
+ * The parts must add up to the balance outstanding right now. An empty list
+ * removes the plan and leaves the balance owed as a plain balance.
+ */
+export const setInstallments = async (
+  req: AuthedRequest<MembershipParams, unknown, MembershipInstallmentsBody>,
+  res: Response,
+): Promise<void> => {
+  const { id: memberId, membershipId } = req.params;
+  const { installments } = req.body;
+  try {
+    const membership = await prisma.membership.findFirst({
+      where: { id: membershipId, memberId, gymId: req.gymId },
+      include: {
+        ...withPlan,
+        member: { select: { name: true, memberNo: true } },
+        payments: { where: { status: 'paid' }, select: { amount: true } },
+        installments: { orderBy: { seq: 'asc' }, select: { amount: true, dueDate: true } },
+      },
+    });
+    if (!membership) {
+      res.status(404).json({ error: 'Membership not found' });
+      return;
+    }
+    if (membership.status === 'superseded' || membership.status === 'cancelled') {
+      res.status(400).json({ error: 'That membership can no longer be changed' });
+      return;
+    }
+
+    const paid = sum(membership.payments.map((p) => p.amount));
+    const owed = Math.max(0, Math.round((membership.pricePaid.toNumber() - paid) * 100) / 100);
+    if (installments.length > 0 && owed === 0) {
+      res.status(400).json({ error: 'Nothing is owed on this membership' });
+      return;
+    }
+
+    await prisma.$transaction((tx) => saveSchedule(tx, membership, installments, owed));
+
+    await audit(req, {
+      action: installments.length > 0 ? 'membership.installments' : 'membership.installments.remove',
+      entity: 'membership',
+      entityId: membership.id,
+      entityLabel: `${membership.member.memberNo} · ${membership.member.name} · ${membership.plan.name}`,
+      before: {
+        installments: membership.installments.map((p) => ({
+          amount: p.amount.toNumber(), dueDate: p.dueDate,
+        })),
+      },
+      after: { installments, owed },
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    if (err instanceof InstallmentError) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }

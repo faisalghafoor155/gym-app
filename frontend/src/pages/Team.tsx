@@ -87,7 +87,7 @@ export default function Team() {
   const [ptFeeInput, setPtFeeInput] = useState('');
   const [joiningFeeInput, setJoiningFeeInput] = useState('');
   /** Referral reward and inactivity threshold, as typed. */
-  const [retention, setRetention] = useState({ referralRewardDays: '0', inactivityDays: '10', dayPassFee: '0', guestPassesPerMonth: '0', waiverText: '', waiverOnRenewal: false });
+  const [retention, setRetention] = useState({ referralRewardDays: '0', inactivityDays: '10', dayPassFee: '0', guestPassesPerMonth: '0', waiverText: '', waiverOnRenewal: false, blockOverdueInstallments: false });
   /**
    * Where members are told to send money, per channel. Read out at the front
    * desk when somebody pays online, so what matters is that it is exactly what
@@ -147,6 +147,7 @@ export default function Team() {
           guestPassesPerMonth: String(r.data.guestPassesPerMonth ?? 0),
           waiverText: r.data.waiverText ?? '',
           waiverOnRenewal: !!r.data.waiverOnRenewal,
+          blockOverdueInstallments: !!r.data.blockOverdueInstallments,
         });
         setAccounts({
           easypaisa: r.data.easypaisaAccount ?? '',
@@ -180,6 +181,7 @@ export default function Team() {
         // Blank goes back to the standard wording.
         waiverText: retention.waiverText.trim(),
         waiverOnRenewal: retention.waiverOnRenewal,
+        blockOverdueInstallments: retention.blockOverdueInstallments,
         // Blank clears the channel's published details — the channel is still
         // offered at the counter, just without an account line to read out.
         easypaisaAccount: accounts.easypaisa.trim(),

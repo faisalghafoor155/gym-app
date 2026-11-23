@@ -9,7 +9,7 @@ type Retention = {
   referralRewardDays: string; inactivityDays: string; dayPassFee: string; guestPassesPerMonth: string;
   /** Blank for the standard wording. */
   waiverText: string;
-  waiverOnRenewal: boolean;
+  waiverOnRenewal: boolean; blockOverdueInstallments: boolean;
 };
 
 export default function GymSettingsCard({
@@ -277,6 +277,23 @@ export default function GymSettingsCard({
             />
             {t('Ask members to sign again when they renew')}
           </label>
+        </div>
+
+        <div className="border-t border-gray-100 dark:border-slate-800 pt-4">
+          <p className="text-xs font-semibold text-gray-700 dark:text-slate-300 mb-1">
+            {t('Installments')}
+          </p>
+          <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
+            <input
+              type="checkbox"
+              checked={retention.blockOverdueInstallments}
+              onChange={e => setRetention(r => ({ ...r, blockOverdueInstallments: e.target.checked }))}
+            />
+            {t('Block check-in when an installment is overdue')}
+          </label>
+          <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+            {t('The member is let in again as soon as the overdue part is paid. Off: they are let in, and the desk sees what is overdue.')}
+          </p>
         </div>
 
         <div className="border-t border-gray-100 dark:border-slate-800 pt-4">

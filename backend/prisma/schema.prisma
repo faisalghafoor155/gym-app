@@ -170,6 +170,11 @@ model Gym {
   /// Whether a member is asked to sign again each time they renew.
   waiverOnRenewal Boolean @default(false)
 
+  /// Whether a member with an installment past its due date is turned away at
+  /// check-in until it is paid. Off by default: the app otherwise never locks
+  /// anyone out for money, and a gym has to choose to start.
+  blockOverdueInstallments Boolean @default(false)
+
   /// Free days a member earns for each friend who joins on their referral,
   /// added to their membership when the desk grants the reward. Zero means the
   /// gym tracks referrals but rewards them some other way (a shaker, a shirt).
@@ -522,6 +527,7 @@ model Membership {
   plan            MembershipPlan     @relation(fields: [planId], references: [id])
   payments        Payment[]
   freezes         MembershipFreeze[]
+  installments    Installment[]
   promoRedemption PromoRedemption?
 
   @@index([gymId])
@@ -538,6 +544,34 @@ model Membership {
 /// what makes a freeze loud. The expiry moves by exactly `days`, the row says
 /// who asked for how long and why, and ending a freeze early hands back only
 /// the days not yet used.
+/// One part of a membership's price the member agreed to pay later, by a date.
+///
+/// There is no "paid" column. Whether a part is settled is worked out on read
+/// from the membership's `paid` payments, applied oldest part first — see
+/// `services/installments.ts`. A stored flag would have to be kept in step
+/// with every payment recorded, edited, refunded or deleted, and the one
+/// place that forgot would leave a paid part reading as owed.
+///
+/// A schedule always covers the *last* part of the price: what was still owed
+/// when it was agreed. Whatever the price was beyond the schedule's total had
+/// been paid by then, so it is taken off the payments first.
+model Installment {
+  id           String  @id @default(uuid())
+  gymId        String
+  membershipId String
+  /// 1, 2, 3 … in the order the parts fall due.
+  seq          Int
+  amount       Decimal @db.Decimal(10, 2)
+  dueDate      DateTime
+
+  createdAt DateTime @default(now())
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  @@unique([membershipId, seq])
+  @@index([gymId, dueDate])
+}
+
 model MembershipFreeze {
   id           String @id @default(uuid())
   gymId        String
@@ -804,6 +838,9 @@ enum ReminderKind {
   /// Sent while part of a membership's price is still unpaid, at most once
   /// every few days — see `jobs/duesReminders.ts`.
   duesOutstanding
+  /// Sent a couple of days before an installment falls due — see
+  /// `jobs/duesReminders.ts`.
+  installmentDue
 }
 
 /// How a reminder was delivered.

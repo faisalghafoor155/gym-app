@@ -2,6 +2,7 @@ import { MembershipStatus, type GymPlan, type Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { toView, withPlan, type MembershipView } from './membership.js';
 import { sum } from './money.js';
+import { installmentSummary, withInstallments, type InstallmentSummary } from './installments.js';
 
 /**
  * Who owes the gym money, and how much.
@@ -40,6 +41,11 @@ export interface MembershipBalance {
   expected: number;
   paid: number;
   outstanding: number;
+  /** The installment plan, when the balance was split into parts. Empty
+   *  otherwise, with nothing overdue and nothing next. */
+  installments: InstallmentSummary['installments'];
+  overdue: number;
+  nextDue: InstallmentSummary['nextDue'];
 }
 
 /**
@@ -66,6 +72,7 @@ export const membershipBalances = async (
       },
       payments: { where: { status: 'paid' }, select: { amount: true } },
       gym: { select: { name: true, plan: true } },
+      ...withInstallments,
     },
   });
 
@@ -73,6 +80,7 @@ export const membershipBalances = async (
     .map((m) => {
       const view = toView(m, now);
       const paid = sum(m.payments.map((p) => p.amount));
+      const plan = installmentSummary(view.pricePaid, paid, m.installments, now);
       return {
         membershipId: m.id,
         gymId: m.gymId,
@@ -84,6 +92,7 @@ export const membershipBalances = async (
         // Never negative: overpaying is not a debt, and a negative row would
         // quietly cancel out somebody else's real one in the total.
         outstanding: Math.max(0, view.pricePaid - paid),
+        ...plan,
       };
     })
     .filter((r) => r.outstanding > 0)

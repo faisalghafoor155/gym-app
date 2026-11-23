@@ -467,6 +467,10 @@ export interface CheckinFee {
   paid: number;
   /** Never negative — overpaying is not a debt. */
   balance: number;
+  /** On an installment plan: what is owed on parts already past their date. */
+  overdue?: number;
+  /** On an installment plan: the earliest part not yet fully paid. */
+  nextDue?: { dueDate: string; remaining: number } | null;
 }
 
 /** Whether the gym has a fingerprint reader, and whether it is answering. */
@@ -896,6 +900,8 @@ export interface GymSettings {
   waiverText?: string | null;
   /** Ask members to sign again on every renewal. */
   waiverOnRenewal?: boolean;
+  /** Turn away at check-in a member with an overdue installment. */
+  blockOverdueInstallments?: boolean;
 }
 
 export interface PtSession {
@@ -1059,6 +1065,28 @@ export interface MembershipBalance {
   expected: number;
   paid: number;
   outstanding: number;
+  /** The installment plan, when the balance was split. Empty otherwise. */
+  installments: Installment[];
+  /** Owed on parts whose date has gone by. Zero without a plan. */
+  overdue: number;
+  nextDue: { dueDate: string; remaining: number } | null;
+}
+
+/** One part of an installment plan. Paid or not is worked out by the server
+ *  from the payments against the membership, oldest part first. */
+export interface Installment {
+  seq: number;
+  amount: number;
+  dueDate: string;
+  paid: number;
+  remaining: number;
+  status: 'paid' | 'partly' | 'due' | 'overdue';
+}
+
+/** A part as the desk types it, before it is sent. `dueDate` is YYYY-MM-DD. */
+export interface InstallmentDraft {
+  amount: number;
+  dueDate: string;
 }
 
 /** A `due` payment row that belongs to no membership. */

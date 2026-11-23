@@ -5,7 +5,7 @@ Tick a box when a task ships.
 
 **Status legend:** `[x]` done · `[ ]` not started · 🟠 partly there (note says what exists)
 
-_Last checked against the code: 2026-11-19 (after Bulk WhatsApp)._
+_Last checked against the code: 2026-11-23 (after Installments)._
 
 ---
 
@@ -40,13 +40,14 @@ Walk-ins who pay for a single day.
 
 ### 3. Installments
 Split a membership fee across dates.
-- [ ] Installment plan when selling a membership (e.g. 3 parts, with due dates)
-  🟠 Partial payments already work: the Dues page (`frontend/src/pages/Dues.tsx`) takes a payment against the membership balance. What's missing is a schedule with a due date for each part.
-- [ ] Each installment shows in Dues until paid
-  🟠 The Dues page lists the total unpaid balance, not separate installments.
-- [ ] Automatic WhatsApp/SMS reminder before each due date (reuse `duesReminders` job)
-  🟠 `backend/src/jobs/duesReminders.ts` already sends a weekly WhatsApp reminder for any balance, but not tied to a due date.
-- [ ] Optional block on check-in when an installment is overdue
+- [x] Installment plan when selling a membership (e.g. 3 parts, with due dates)
+  ✅ Register and Renew both offer "Pay the rest in installments": 2–6 parts a month apart, every amount and date editable, up to 12 parts through the API. A plan can also be agreed, changed or removed later from Pending Dues (`PUT /api/members/:id/memberships/:membershipId/installments`). The parts must add up to what is owed.
+- [x] Each installment shows in Dues until paid
+  ✅ Each part on the row (paid / partly / due / overdue), the overdue amount, the next part, and an "Overdue installments" tile. Paid or not is worked out from the membership's payments, oldest part first (`backend/src/services/installments.ts`), so there is no paid flag to drift.
+- [x] Automatic WhatsApp/SMS reminder before each due date (reuse `duesReminders` job)
+  ✅ One reminder 2 days before each part is due; once a part is overdue, the weekly reminder chases the overdue amount only. A member keeping to their plan is not chased for the rest. Reuses the `dues_reminder` template, so no new Meta approval is needed.
+- [x] Optional block on check-in when an installment is overdue
+  ✅ Gym settings › "Block check-in when an installment is overdue" (off by default). With it off, the check-in panel still shows the overdue part or the next one.
 
 ### 4. Staff Salary & Staff Attendance
 - [x] Staff profile: monthly salary, joining date, role (receptionist, cleaner, etc.)
@@ -141,7 +142,7 @@ Split a membership fee across dates.
 |---|---|---|---|
 | P1: Leads CRM | 4 | 2 | 1 |
 | P1: Day Pass | 3 | 1 | 0 |
-| P1: Installments | 0 | 3 | 1 |
+| P1: Installments | 4 | 0 | 0 |
 | P1: Staff Salary | 4 | 1 | 0 |
 | P2: Health Waiver | 4 | 0 | 0 |
 | P2: Equipment | 4 | 0 | 0 |
@@ -150,7 +151,7 @@ Split a membership fee across dates.
 | P3: Challenges | 3 | 0 | 0 |
 | P3: Bulk WhatsApp | 2 | 1 | 0 |
 | Technical | 3 | 0 | 0 |
-| **Total** | **34** | **9** | **1** |
+| **Total** | **38** | **6** | **0** |
 
 ## ✅ Already built (for reference)
 Members, memberships, freeze · Payments, dues, receipts, promo codes, online payments · Expenses, supplement sales ·

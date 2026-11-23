@@ -248,6 +248,20 @@ export default function CheckinResultModal(
                     }`}>
                       {fee.balance > 0 ? rs(fee.balance) : t('Fully paid')}
                     </dd>
+                    {/* On an installment plan: what is late, or what is next. */}
+                    {!!fee.overdue && fee.overdue > 0 ? (
+                      <>
+                        <dt className="text-red-600 dark:text-red-400 font-semibold">{t('Installment overdue')}</dt>
+                        <dd className="font-bold text-right text-red-600 dark:text-red-400">{rs(fee.overdue)}</dd>
+                      </>
+                    ) : fee.nextDue && (
+                      <>
+                        <dt className="text-gray-600 dark:text-slate-400">{t('Next installment')}</dt>
+                        <dd className="font-semibold text-gray-900 dark:text-slate-100 text-right">
+                          {rs(fee.nextDue.remaining)} · {asDate(fee.nextDue.dueDate)}
+                        </dd>
+                      </>
+                    )}
                   </>
                 )}
               </dl>

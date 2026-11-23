@@ -16,6 +16,7 @@ import {
   importMembersSchema,
   createMembershipSchema,
   renewMembershipSchema,
+  membershipInstallmentsSchema,
   membershipHistoryQuerySchema,
   freezeMembershipSchema,
   createMeasurementSchema,
@@ -41,6 +42,7 @@ import {
   getHistory as getMembershipHistory,
   create as createMembership,
   renew as renewMembership,
+  setInstallments,
   suspend as suspendMembership,
   resume as resumeMembership,
   cancel as cancelMembership,
@@ -112,6 +114,17 @@ router.post(
   validate(membershipParams, "params"),
   validate(renewMembershipSchema),
   authed(renewMembership),
+);
+
+// Splitting what a membership still owes into parts with due dates, or
+// changing that split. The same desk work as renewing: agreeing how the member
+// will pay what they owe.
+router.put(
+  "/:id/memberships/:membershipId/installments",
+  requirePermission("canManageMemberships"),
+  validate(membershipParams, "params"),
+  validate(membershipInstallmentsSchema),
+  authed(setInstallments),
 );
 
 // Pausing and calling off a membership. Same permission as selling one: these

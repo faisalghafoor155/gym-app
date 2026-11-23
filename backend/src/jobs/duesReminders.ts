@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { membershipBalances, type MembershipBalance } from '../services/balances.js';
-import { addDays, LAPSED_AFTER_DAYS, startOfDay } from '../services/membership.js';
+import { addDays, daysUntil, LAPSED_AFTER_DAYS, startOfDay } from '../services/membership.js';
 import { canWhatsApp } from '../services/phone.js';
 import { planHasFeature } from '../services/subscription.js';
 import { templates } from '../services/whatsapp.js';
@@ -19,12 +19,21 @@ import { messagingEnabled, sendMemberMessage } from '../services/messaging.js';
  * member their access; this one costs nothing to miss once, and an email
  * nobody opens is not worth the duplicate.
  *
+ * A balance split into installments is chased by its dates instead: one
+ * reminder `INSTALLMENT_NOTICE_DAYS` days before each part falls due, and the
+ * weekly nudge only once a part is overdue, for what is overdue. A member
+ * keeping to the plan they agreed owes nothing yet, and must not be told
+ * every week that they do.
+ *
  * Idempotent the same way the expiry job is: a ReminderLog row is claimed
  * before the send, and two runs on the same day collide on its unique key.
  */
 
 /** Days between reminders for one membership. Zero turns the job off. */
 const EVERY_DAYS = Number(process.env.DUES_REMINDER_EVERY_DAYS ?? 7);
+
+/** How many days before an installment falls due its reminder goes out. */
+export const INSTALLMENT_NOTICE_DAYS = 2;
 
 export interface DuesRun {
   /** Current memberships with money still owed, across every gym. */
@@ -36,6 +45,8 @@ export interface DuesRun {
   skippedAlreadySent: number;
   /** No number WhatsApp can reach, or the member opted out. */
   skippedNoWhatsApp: number;
+  /** On an installment plan with nothing overdue and no part due soon. */
+  skippedNotDue: number;
   failed: number;
 }
 
@@ -45,16 +56,21 @@ const emptyRun = (): DuesRun => ({
   skippedRecently: 0,
   skippedAlreadySent: 0,
   skippedNoWhatsApp: 0,
+  skippedNotDue: 0,
   failed: 0,
 });
 
-const claim = async (b: MembershipBalance, sentOn: Date, sentTo: string): Promise<boolean> => {
+type DuesKind = 'duesOutstanding' | 'installmentDue';
+
+const claim = async (
+  b: MembershipBalance, kind: DuesKind, sentOn: Date, sentTo: string,
+): Promise<boolean> => {
   try {
     await prisma.reminderLog.create({
       data: {
         gymId: b.gymId,
         membershipId: b.membershipId,
-        kind: 'duesOutstanding',
+        kind,
         channel: 'whatsapp',
         sentOn,
         sentTo,
@@ -83,43 +99,73 @@ export const runDuesReminders = async (now: Date = new Date()): Promise<DuesRun>
   // Not configured, or configured off, is not failing to send.
   if (EVERY_DAYS <= 0 || !messagingEnabled() || balances.length === 0) return run;
 
-  // One query for "who was reminded recently", rather than one per member.
+  // One query for "who was reminded, and when", rather than one per member.
+  // Reaches back far enough for both kinds of reminder.
   const recent = await prisma.reminderLog.findMany({
     where: {
       membershipId: { in: balances.map(b => b.membershipId) },
-      kind: 'duesOutstanding',
+      kind: { in: ['duesOutstanding', 'installmentDue'] },
       channel: 'whatsapp',
-      sentOn: { gt: addDays(today, -EVERY_DAYS) },
+      sentOn: { gt: addDays(today, -Math.max(EVERY_DAYS, INSTALLMENT_NOTICE_DAYS + 1)) },
     },
-    select: { membershipId: true },
+    select: { membershipId: true, kind: true, sentOn: true },
   });
-  const remindedRecently = new Set(recent.map(r => r.membershipId));
+  const remindedRecently = new Set(
+    recent
+      .filter(r => r.kind === 'duesOutstanding' && r.sentOn > addDays(today, -EVERY_DAYS))
+      .map(r => r.membershipId),
+  );
+  const lastInstallmentNotice = new Map<string, Date>();
+  for (const r of recent) {
+    if (r.kind !== 'installmentDue') continue;
+    const seen = lastInstallmentNotice.get(r.membershipId);
+    if (!seen || r.sentOn > seen) lastInstallmentNotice.set(r.membershipId, r.sentOn);
+  }
 
   for (const b of balances) {
     if (b.member.status !== 'active') continue;
     if (!planHasFeature(b.gym.plan, 'whatsapp')) continue;
 
+    // What to say, and under which kind — or nothing yet.
+    let kind: DuesKind = 'duesOutstanding';
+    let amount = `Rs. ${b.outstanding.toLocaleString('en-PK')}`;
+    if (b.installments.length > 0) {
+      const soon = b.nextDue && daysUntil(b.nextDue.dueDate, now) <= INSTALLMENT_NOTICE_DAYS;
+      if (b.overdue > 0) {
+        amount = `Rs. ${b.overdue.toLocaleString('en-PK')}`;
+      } else if (b.nextDue && soon) {
+        // Once per part: a notice sent inside this part's window already
+        // covers it.
+        const last = lastInstallmentNotice.get(b.membershipId);
+        if (last && last >= addDays(startOfDay(b.nextDue.dueDate), -INSTALLMENT_NOTICE_DAYS)) {
+          run.skippedRecently++;
+          continue;
+        }
+        kind = 'installmentDue';
+        const due = b.nextDue.dueDate.toLocaleDateString('en-PK', { day: 'numeric', month: 'short' });
+        amount = `Rs. ${b.nextDue.remaining.toLocaleString('en-PK')} (due ${due})`;
+      } else {
+        run.skippedNotDue++;
+        continue;
+      }
+    }
+
     if (b.member.whatsappOptOut || !canWhatsApp(b.member.phone)) {
       run.skippedNoWhatsApp++;
       continue;
     }
-    if (remindedRecently.has(b.membershipId)) {
+    if (kind === 'duesOutstanding' && remindedRecently.has(b.membershipId)) {
       run.skippedRecently++;
       continue;
     }
-    if (!(await claim(b, today, b.member.phone!))) {
+    if (!(await claim(b, kind, today, b.member.phone!))) {
       run.skippedAlreadySent++;
       continue;
     }
 
     const result = await sendMemberMessage({
       to: b.member.phone!,
-      ...templates.duesReminder(
-        b.member.name,
-        b.gym.name,
-        `Rs. ${b.outstanding.toLocaleString('en-PK')}`,
-        b.membership.planName,
-      ),
+      ...templates.duesReminder(b.member.name, b.gym.name, amount, b.membership.planName),
     });
 
     if (result === 'sent') {
@@ -132,7 +178,7 @@ export const runDuesReminders = async (now: Date = new Date()): Promise<DuesRun>
     // refusal must not silently push the next reminder a week out.
     await prisma.reminderLog.deleteMany({
       where: {
-        membershipId: b.membershipId, kind: 'duesOutstanding', channel: 'whatsapp', sentOn: today,
+        membershipId: b.membershipId, kind, channel: 'whatsapp', sentOn: today,
       },
     });
   }

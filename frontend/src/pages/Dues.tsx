@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { HandCoins, MessageCircle, Search, Wallet, Receipt, Users } from 'lucide-react';
+import { HandCoins, MessageCircle, Search, Wallet, Receipt, Users, CalendarClock, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
 import {
@@ -13,12 +13,97 @@ import { useLanguage } from '../context/LanguageContext';
 import { hasPermission } from '../utils/permissions';
 import { CHANNELS, CHANNEL_LABELS } from '../utils/paymentChannels';
 import { openWhatsApp, createDuesMessage } from '../utils/whatsapp';
-import type { Balances, MembershipBalance, PaymentChannel, PaymentMethod } from '../types';
+import InstallmentPlanFields from '../components/payments/InstallmentPlanFields';
+import { partsMatch } from '../components/payments/installments';
+import type {
+  Balances, Installment, InstallmentDraft, MembershipBalance, PaymentChannel, PaymentMethod,
+} from '../types';
 
 const money = (n: number): string => `Rs. ${n.toLocaleString('en-PK')}`;
 
 const shortDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
+
+const dayMonth = (iso: string): string =>
+  new Date(iso).toLocaleDateString('en-PK', { day: 'numeric', month: 'short' });
+
+const ymd = (iso: string): string => {
+  const d = new Date(iso);
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+};
+
+const partTone: Record<Installment['status'], string> = {
+  paid: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 line-through decoration-1',
+  partly: 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+  due: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300',
+  overdue: 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300',
+};
+
+const partLabel: Record<Installment['status'], string> = {
+  paid: 'Paid', partly: 'Partly paid', due: 'Due', overdue: 'Overdue',
+};
+
+/**
+ * Agrees, changes or removes the installment plan for what a membership still
+ * owes. Parts already paid are not shown: the plan is laid out again for the
+ * balance as it stands today.
+ */
+function PlanModal({ row, onClose, onSaved }: {
+  row: MembershipBalance; onClose: () => void; onSaved: () => void;
+}) {
+  const { t } = useLanguage();
+  // An existing plan is edited from its unpaid parts, which add up to the
+  // balance; otherwise it starts from nothing.
+  const [parts, setParts] = useState<InstallmentDraft[]>(() =>
+    row.installments
+      .filter(p => p.remaining > 0)
+      .map(p => ({ amount: p.remaining, dueDate: ymd(p.dueDate) })));
+  const [saving, setSaving] = useState(false);
+  const hadPlan = row.installments.length > 0;
+
+  const save = async (next: InstallmentDraft[]) => {
+    if (next.length > 0 && !partsMatch(next, row.outstanding)) {
+      toast.error(t('The installments must add up to the balance'));
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.put(`/members/${row.member.id}/memberships/${row.membershipId}/installments`, { installments: next });
+      toast.success(next.length > 0 ? t('Installment plan saved') : t('Installment plan removed'));
+      onSaved();
+    } catch (err) {
+      toast.error(apiError(err, t('Could not save the installment plan')));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title={hadPlan ? t('Change installment plan') : t('Installment plan')} onClose={onClose}>
+      <form onSubmit={e => { e.preventDefault(); void save(parts); }} className="space-y-4">
+        <div className="rounded-lg bg-gray-50 dark:bg-slate-800/60 px-3 py-2.5 text-xs space-y-1">
+          <div className="flex justify-between"><span className="text-gray-500">{t('Member')}</span><span className="font-semibold">{row.member.name} · {row.member.memberNo}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">{t('Plan')}</span><span className="font-semibold">{row.membership.planName}</span></div>
+          <div className="flex justify-between"><span className="text-gray-500">{t('Outstanding')}</span><span className="font-bold text-red-600">{money(row.outstanding)}</span></div>
+        </div>
+        <InstallmentPlanFields idPrefix="dues-plan" owed={row.outstanding} parts={parts} onChange={setParts} />
+        <div className="flex flex-wrap gap-3 pt-1">
+          {hadPlan && (
+            <button type="button" disabled={saving} onClick={() => void save([])}
+              className={`${secondaryButton} text-red-600`}>
+              {t('Remove plan')}
+            </button>
+          )}
+          <button type="button" onClick={onClose} className={`flex-1 ${secondaryButton}`}>{t('Cancel')}</button>
+          <button type="submit" disabled={saving || parts.length === 0} className={`flex-1 ${primaryButton}`}>
+            {saving ? t('Saving…') : t('Save plan')}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 
 /**
  * Takes an instalment against a membership's balance. Recorded as an ordinary
@@ -29,7 +114,11 @@ function CollectModal({ row, onClose, onCollected }: {
   row: MembershipBalance; onClose: () => void; onCollected: () => void;
 }) {
   const { t } = useLanguage();
-  const [amount, setAmount] = useState(String(row.outstanding));
+  // On a plan, what is overdue — or else the next part — is what the member
+  // has come to pay; otherwise the whole balance.
+  const [amount, setAmount] = useState(String(
+    row.overdue > 0 ? row.overdue : row.nextDue ? row.nextDue.remaining : row.outstanding,
+  ));
   const [method, setMethod] = useState<PaymentMethod>('cash');
   const [channel, setChannel] = useState<PaymentChannel | ''>('');
   const [saving, setSaving] = useState(false);
@@ -72,6 +161,12 @@ function CollectModal({ row, onClose, onCollected }: {
           <div className="flex justify-between"><span className="text-gray-500">{t('Plan')}</span><span className="font-semibold">{row.membership.planName}</span></div>
           <div className="flex justify-between"><span className="text-gray-500">{t('Paid so far')}</span><span className="font-semibold">{t('{paid} of {expected}', { paid: money(row.paid), expected: money(row.expected) })}</span></div>
           <div className="flex justify-between"><span className="text-gray-500">{t('Outstanding')}</span><span className="font-bold text-red-600">{money(row.outstanding)}</span></div>
+          {row.overdue > 0 && (
+            <div className="flex justify-between"><span className="text-gray-500">{t('Overdue installments')}</span><span className="font-bold text-red-600">{money(row.overdue)}</span></div>
+          )}
+          {row.overdue === 0 && row.nextDue && (
+            <div className="flex justify-between"><span className="text-gray-500">{t('Next installment')}</span><span className="font-semibold">{money(row.nextDue.remaining)} · {shortDate(row.nextDue.dueDate)}</span></div>
+          )}
         </div>
         <div>
           <FieldLabel htmlFor="collect-amount" required>{t('Amount (Rs.)')}</FieldLabel>
@@ -126,9 +221,10 @@ export default function Dues() {
   const { data, loading, refetching, reload } = useFetch<Balances>('/payments/balances', t('Could not load dues'));
   const [search, setSearch] = useState('');
   const [collecting, setCollecting] = useState<MembershipBalance | null>(null);
+  const [planning, setPlanning] = useState<MembershipBalance | null>(null);
   const [settling, setSettling] = useState<string | null>(null);
 
-  const can = (action: 'canRecordPayments' | 'canManagePayments') =>
+  const can = (action: 'canRecordPayments' | 'canManagePayments' | 'canManageMemberships') =>
     isOwner || (!!user?.staffPermission && hasPermission(user.role, user.staffPermission, action));
 
   const q = search.trim().toLowerCase();
@@ -160,16 +256,19 @@ export default function Dues() {
   if (!data) return <LoadFailed title={t('Could not load dues')} />;
 
   const owingMembers = new Set([...data.memberships, ...data.charges].map(r => r.member.id)).size;
+  const overdueTotal = data.memberships.reduce((t, r) => t + r.overdue, 0);
   const nothing = data.memberships.length === 0 && data.charges.length === 0;
 
   return (
     <Page>
       <PageHeader icon={HandCoins} title={t('Pending Dues')} subtitle={t('Who owes money, and how much')} />
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
         <StatTile icon={Wallet} label={t('Total outstanding')} value={money(data.totalOutstanding)} tone="red" />
         <StatTile icon={Users} label={t('Members owing')} value={owingMembers} tone="yellow" />
         <StatTile icon={Receipt} label={t('Part-paid memberships')} value={data.memberships.length} tone="purple" />
+        <StatTile icon={CalendarClock} label={t('Overdue installments')} value={money(overdueTotal)}
+          tone={overdueTotal > 0 ? 'red' : 'gray'} />
       </div>
 
       {nothing ? (
@@ -205,13 +304,40 @@ export default function Dues() {
                       <div className="mt-1.5 h-1.5 rounded-full bg-gray-100 dark:bg-slate-800 overflow-hidden max-w-xs">
                         <div className="h-full bg-blue-500" style={{ width: `${Math.min(100, (r.paid / r.expected) * 100)}%` }} />
                       </div>
+                      {r.installments.length > 0 && (
+                        <>
+                          {r.overdue > 0 ? (
+                            <p className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-red-600 dark:text-red-400">
+                              <AlertTriangle size={12} /> {t('{amount} overdue', { amount: money(r.overdue) })}
+                            </p>
+                          ) : r.nextDue && (
+                            <p className="mt-1.5 text-xs text-gray-500 dark:text-slate-400">
+                              {t('Next: {amount} on {date}', { amount: money(r.nextDue.remaining), date: shortDate(r.nextDue.dueDate) })}
+                            </p>
+                          )}
+                          <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label={t('Installments')}>
+                            {r.installments.map(p => (
+                              <li key={p.seq} title={t(partLabel[p.status])}
+                                className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ${partTone[p.status]}`}>
+                                {dayMonth(p.dueDate)} · {money(p.status === 'paid' ? p.amount : p.remaining)}
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
                     </div>
                     <p className="text-base font-bold text-red-600 dark:text-red-400 shrink-0">{money(r.outstanding)}</p>
                     <div className="flex gap-2 shrink-0">
                       {r.member.phone && (
-                        <button onClick={() => remind(r.member, r.outstanding, r.membership.planName)}
+                        <button onClick={() => remind(r.member, r.overdue > 0 ? r.overdue : r.outstanding, r.membership.planName)}
                           className={`${secondaryButton} !py-1.5 !px-3 text-emerald-600`}>
                           <MessageCircle size={14} /> {t('Remind')}
+                        </button>
+                      )}
+                      {can('canManageMemberships') && (
+                        <button onClick={() => setPlanning(r)} className={`${secondaryButton} !py-1.5 !px-3`}
+                          title={r.installments.length > 0 ? t('Change installment plan') : t('Split into installments')}>
+                          <CalendarClock size={14} /> {r.installments.length > 0 ? t('Plan') : t('Installments')}
                         </button>
                       )}
                       {can('canRecordPayments') && (
@@ -265,6 +391,14 @@ export default function Dues() {
             <EmptyState icon={Search} title={t('Nobody matches that search')} />
           )}
         </Refetching>
+      )}
+
+      {planning && (
+        <PlanModal
+          row={planning}
+          onClose={() => setPlanning(null)}
+          onSaved={() => { setPlanning(null); void reload(); }}
+        />
       )}
 
       {collecting && (

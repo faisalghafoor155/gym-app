@@ -34,6 +34,20 @@ const wholeNumber = z.coerce
 // new Date("garbage") yields an Invalid Date that only blows up at the DB.
 const date = z.coerce.date({ error: "must be a valid date" });
 
+/**
+ * An installment plan sent with a sale or agreed later: each part's amount and
+ * the day it falls due. What they must add up to depends on the sale, so that
+ * is checked in the controller; this checks each part on its own.
+ */
+const installmentParts = z
+  .array(
+    z.object({
+      amount: money.refine((v) => v > 0, "must be greater than zero"),
+      dueDate: date,
+    }),
+  )
+  .max(12, "cannot be split into more than 12 parts");
+
 // Nothing in a list query may be required: the page loads with no filters at
 // all. Blank values are dropped rather than rejected, so an empty search box or
 // a cleared date input is a no-op instead of a 400.
@@ -349,6 +363,9 @@ export const createMemberSchema = z
     referredById: uuid.or(blankToUndefined).nullish(),
     /** A discount code for the membership sold with the registration. */
     promoCode: z.string().trim().max(40, "is too long").or(blankToUndefined).optional(),
+    /** What of the plan's price the joining payment does not cover, split
+     *  into parts with due dates. */
+    installments: installmentParts.optional(),
   })
   .superRefine((data, ctx) => {
     if (data.promoCode && !data.planId) {
@@ -363,6 +380,13 @@ export const createMemberSchema = z
         code: "custom",
         path: ["feeChannel"],
         message: "cannot be set on a cash payment",
+      });
+    }
+    if (data.installments?.length && !data.planId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["installments"],
+        message: "needs a plan to split",
       });
     }
     if (data.startDate && !data.planId) {
@@ -573,6 +597,12 @@ export const createMembershipSchema = z.object({
   startDate: date.optional(),
 });
 
+/** Agreeing, changing or (with an empty list) removing a membership's
+ *  installment plan for the balance it still owes. */
+export const membershipInstallmentsSchema = z.object({
+  installments: installmentParts,
+});
+
 /** Which wallet the money came through, and its transaction id. Declared here
  *  rather than with the payment schemas because renewal, which comes first in
  *  this file, takes the money as well as selling the days. */
@@ -634,6 +664,8 @@ export const renewMembershipSchema = z
     includeTrainer: z.boolean().optional(),
     trainerId: uuid.or(blankToUndefined).optional(),
     ptFee: money.min(0).optional(),
+    /** What is not paid today, split into parts with due dates. */
+    installments: installmentParts.optional(),
   })
   .superRefine(rejectChannelOnCash)
   .superRefine((data, ctx) => {
@@ -1354,6 +1386,7 @@ export const updateGymSettingsSchema = z.object({
   waiverText: optionalText(5000),
   /** Ask members to sign again on every renewal. */
   waiverOnRenewal: z.boolean().optional(),
+  blockOverdueInstallments: z.boolean().optional(),
 });
 
 // --- online payments ---------------------------------------------------
@@ -1542,6 +1575,7 @@ export type MembershipHistoryQuery = z.infer<
 export type CreateMembershipBody = z.infer<typeof createMembershipSchema>;
 export type RenewMembershipBody = z.infer<typeof renewMembershipSchema>;
 export type MembershipParams = z.infer<typeof membershipParams>;
+export type MembershipInstallmentsBody = z.infer<typeof membershipInstallmentsSchema>;
 export type AuditLogQuery = z.infer<typeof auditLogQuerySchema>;
 export type CheckinBody = z.infer<typeof checkinSchema>;
 export type SelfCheckinBody = z.infer<typeof selfCheckinSchema>;

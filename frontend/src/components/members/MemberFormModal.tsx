@@ -9,6 +9,7 @@ import api, { apiError } from '../../api/client';
 import { closeDialog, useDialog } from '../../hooks/useDialog';
 import { useLanguage } from '../../context/LanguageContext';
 import type {
+  InstallmentDraft,
   Gender, GymSettings, Member, MembershipPlan, PaymentChannel, PaymentMethod, PromoCheck, Trainer,
 } from '../../types';
 import { CHANNELS, CHANNEL_LABELS, accountFor } from '../../utils/paymentChannels';
@@ -17,6 +18,8 @@ import ReferrerPicker, { type Referrer } from './ReferrerPicker';
 import toast from 'react-hot-toast';
 import { localToday } from '../../utils/dates';
 import { useBranch } from '../../context/BranchContext';
+import InstallmentPlanFields from '../payments/InstallmentPlanFields';
+import { partsMatch } from '../payments/installments';
 
 /** What the desk fills in to register somebody, or to correct their details. */
 interface MemberForm {
@@ -189,6 +192,8 @@ export default function MemberFormModal({
   /** Registration only: a confirmed promo code for the picked plan, and the
    *  member who referred this one. */
   const [promo, setPromo] = useState<PromoCheck | null>(null);
+  /** Registration only: the rest of the plan's price split into parts. */
+  const [installments, setInstallments] = useState<InstallmentDraft[]>([]);
   const [referrer, setReferrer] = useState<Referrer | null>(null);
   /**
    * Whether what has been typed so far already belongs to somebody, and under
@@ -288,6 +293,10 @@ export default function MemberFormModal({
   const trainerNow = form.ptFeePaid && trainerCharge ? trainerCharge : 0;
 
   const selectedPlan = plans.find(p => p.id === form.planId);
+  // What the plan's price leaves owed once today's fee is in.
+  const planOwed = selectedPlan
+    ? Math.max(0, (promo ? promo.finalPrice : selectedPlan.price) - gymFeeNow)
+    : 0;
   const expiryPreview = selectedPlan
     ? previewExpiry(form.startDate, selectedPlan.durationDays)
     : '';
@@ -303,6 +312,11 @@ export default function MemberFormModal({
 
   const handleSave = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const plan = !editing && planOwed > 0 ? installments : [];
+    if (plan.length > 0 && !partsMatch(plan, planOwed)) {
+      toast.error(t('The installments must add up to the balance'));
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -341,6 +355,7 @@ export default function MemberFormModal({
           ...(form.planId && { planId: form.planId, startDate: form.startDate }),
           ...(form.planId && promo && { promoCode: promo.code }),
           ...(referrer && { referredById: referrer.id }),
+          ...(form.planId && plan.length > 0 && { installments: plan }),
           // Only sent when money actually changed hands. A blank amount means
           // no payment was taken, not a payment of nothing.
           ...(form.feeAmount.trim() !== '' && Number(form.feeAmount) > 0 && {
@@ -830,6 +845,17 @@ export default function MemberFormModal({
                   </>
                 )}
               </div>
+
+              {/* What the fee taken today leaves of the plan's price, split
+                  into installments with due dates. */}
+              {selectedPlan && (
+                <InstallmentPlanFields
+                  idPrefix="member-installments"
+                  owed={planOwed}
+                  parts={installments}
+                  onChange={setInstallments}
+                />
+              )}
 
               {/* The two fees are recorded as two payments, so they are shown
                   as two lines. The gym-fee box above is the gym's part only —
