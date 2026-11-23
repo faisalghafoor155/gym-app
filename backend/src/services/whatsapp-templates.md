@@ -221,6 +221,36 @@ Samples: Ali Khan · Iron House Gym · new AC has been installed in the cardio a
 
 ---
 
+### 10. `lead_followups`
+
+Sent once a day at nine to the **gym's own number** (Team › Gym Settings ›
+phone), not to a member: the enquiries whose follow-up is today or overdue.
+Nothing is sent on a day with nobody to call.
+
+**Category:** Utility
+
+**Body:**
+
+```
+{{1}}: {{2}} enquiry follow-up(s) are due today.
+
+{{3}}
+
+Open the Leads page to call them and mark the result.
+```
+
+| Slot | Value | Sample for approval |
+|------|-------|---------------------|
+| `{{1}}` | Gym name | Iron House Gym |
+| `{{2}}` | How many | 4 |
+| `{{3}}` | Names | Ali Khan, Sara Ahmed and 2 more |
+
+> The gym's number must be able to receive WhatsApp, and must not be the same
+> number the app sends from — Meta does not deliver a business's message to
+> itself.
+
+---
+
 ## Opting out
 
 Every template ends with "Reply STOP to opt out". That line is not decoration —

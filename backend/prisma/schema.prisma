@@ -175,6 +175,10 @@ model Gym {
   /// anyone out for money, and a gym has to choose to start.
   blockOverdueInstallments Boolean @default(false)
 
+  /// The day this gym's front desk was last sent its WhatsApp list of lead
+  /// follow-ups. Claimed before the send, so two runs on one day send once.
+  leadDigestSentOn DateTime? @db.Date
+
   /// Free days a member earns for each friend who joins on their referral,
   /// added to their membership when the desk grants the reward. Zero means the
   /// gym tracks referrals but rewards them some other way (a shaker, a shirt).
@@ -1578,6 +1582,11 @@ model Lead {
   /// Why they did not join, when status is lost.
   lostReason String?
 
+  /// The last day of their free trial, inclusive, as the gym's calendar day.
+  /// While today is on or before it, the desk can check them in without a
+  /// membership. Null when no trial was given.
+  trialUntil DateTime? @db.Date
+
   /// The member they became. `SetNull` so deleting that member leaves the
   /// enquiry on record as joined rather than deleting it.
   memberId String? @unique
@@ -1589,9 +1598,28 @@ model Lead {
   gym       Gym     @relation(fields: [gymId], references: [id])
   member    Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
   createdBy User?   @relation("LeadsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  visits    LeadVisit[]
 
   @@index([gymId, status])
   @@index([gymId, followUpOn])
+}
+
+/// A lead on a free trial coming in to train. Kept apart from `Attendance`,
+/// which belongs to members: a trial visitor has no member number, and
+/// counting them there would make "who came today" mean two things.
+model LeadVisit {
+  id        String  @id @default(uuid())
+  gymId     String
+  leadId    String
+  branchId  String?
+  /// The gym's calendar day. One visit a day, like a member's check-in.
+  visitedOn DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, visitedOn])
+  @@index([gymId, visitedOn])
 }
 
 /// One day's entry sold to somebody who is not a member — a traveller, a

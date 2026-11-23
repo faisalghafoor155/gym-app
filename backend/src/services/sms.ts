@@ -53,6 +53,8 @@ const BODIES: Record<string, (v: string[]) => string> = {
     `Congratulations ${member} on ${years} year(s) with ${gym}! Thank you for training with us.`,
   challenge_winner: ([member, gym, place, challenge]) =>
     `Congratulations ${member}! You finished ${place} in the ${challenge} challenge at ${gym}. Well done!`,
+  lead_followups: ([gym, count, names]) =>
+    `${gym}: ${count} enquiry follow-up(s) due today: ${names}. See the Leads page.`,
   gym_offer: ([member, gym, offer, until]) =>
     `Hi ${member}! ${gym} offer: ${offer}. Valid until ${until}. Visit the front desk.`,
   gym_new_batch: ([member, gym, batch, starts]) =>

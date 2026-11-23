@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PhoneCall, Plus, Pencil, Trash2, UserPlus, MessageCircle, CalendarClock, TrendingUp, Search, Users, XCircle,
+  Ticket, LogIn,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Modal from '../components/Modal';
@@ -145,6 +146,54 @@ function LeadFormModal({ lead, onClose, onDone }: { lead: Lead | null; onClose: 
   );
 }
 
+const TRIAL_DAYS = [1, 2, 3, 5, 7];
+
+/** Gives a lead a free trial of a few days, starting today. */
+function TrialModal({ lead, onClose, onDone }: { lead: Lead; onClose: () => void; onDone: () => void }) {
+  const { t } = useLanguage();
+  const [days, setDays] = useState(3);
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.post(`/leads/${lead.id}/trial`, { days });
+      toast.success(t('Free trial started for {name}', { name: lead.name }));
+      onDone();
+    } catch (err) {
+      toast.error(apiError(err, t('Could not start the trial')));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title={t('Free trial')} onClose={onClose}>
+      <form onSubmit={e => void submit(e)} className="space-y-4">
+        <p className="text-sm text-gray-600 dark:text-slate-300">
+          {t('{name} can be checked in from this page each day of the trial, without a membership.', { name: lead.name })}
+        </p>
+        <div>
+          <FieldLabel htmlFor="trial-days" required>{t('Trial length')}</FieldLabel>
+          <select id="trial-days" value={days} onChange={e => setDays(Number(e.target.value))} className={inputClass}>
+            {TRIAL_DAYS.map(n => (
+              <option key={n} value={n}>{n === 1 ? t('1 day (today)') : t('{count} days from today', { count: n })}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+            {t('A follow-up is set for the day after the trial ends.')}
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <button type="button" onClick={onClose} className={`flex-1 ${secondaryButton}`}>{t('Cancel')}</button>
+          <button type="submit" disabled={saving} className={`flex-1 ${primaryButton}`}>{saving ? t('Saving…') : t('Start trial')}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 /**
  * Enquiries — people who asked about the gym and have not joined yet.
  *
@@ -163,6 +212,8 @@ export default function Leads() {
   const [editing, setEditing] = useState<Lead | null | 'new'>(null);
   const [deleting, setDeleting] = useState<Lead | null>(null);
   const [busy, setBusy] = useState(false);
+  const [trialFor, setTrialFor] = useState<Lead | null>(null);
+  const [checkingIn, setCheckingIn] = useState<string | null>(null);
 
   const params = new URLSearchParams({ limit: '100' });
   if (filter === 'due') params.set('due', 'true');
@@ -191,6 +242,20 @@ export default function Leads() {
       toast.error(apiError(err, t('Could not delete lead')));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const trialCheckin = async (lead: Lead) => {
+    setCheckingIn(lead.id);
+    try {
+      const { data: visit } = await api.post<{ visits: number; alreadyCheckedIn: boolean }>(`/leads/${lead.id}/checkin`);
+      if (visit.alreadyCheckedIn) toast(t('{name} is already checked in today', { name: lead.name }), { icon: 'ℹ️' });
+      else toast.success(t('{name} checked in · trial visit {count}', { name: lead.name, count: visit.visits }));
+      await reload();
+    } catch (err) {
+      toast.error(apiError(err, t('Check-in failed')));
+    } finally {
+      setCheckingIn(null);
     }
   };
 
@@ -273,6 +338,8 @@ export default function Leads() {
                 {data.data.map(l => {
                   const overdue = l.followUpOn && l.followUpOn.slice(0, 10) < today() && ['new', 'contacted', 'trial'].includes(l.status);
                   const open = !['joined', 'lost'].includes(l.status);
+                  const onTrial = l.status === 'trial' && !!l.trialUntil && l.trialUntil.slice(0, 10) >= today();
+                  const visits = l._count?.visits ?? 0;
                   return (
                     <Card key={l.id} className="p-3 sm:p-4">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -291,6 +358,15 @@ export default function Leads() {
                           {l.status === 'lost' && l.lostReason && (
                             <p className="text-xs text-gray-400 mt-0.5">{l.lostReason}</p>
                           )}
+                          {l.trialUntil && (l.status === 'trial' || visits > 0) && (
+                            <p className={`text-xs mt-0.5 font-medium ${onTrial ? 'text-purple-700 dark:text-purple-300' : 'text-gray-400'}`}>
+                              <Ticket size={12} className="inline -mt-0.5 mr-1" />
+                              {onTrial
+                                ? t('Free trial until {date}', { date: shortDate(l.trialUntil) })
+                                : t('Trial ended {date}', { date: shortDate(l.trialUntil) })}
+                              {' · '}{visits === 1 ? t('1 visit') : t('{count} visits', { count: visits })}
+                            </p>
+                          )}
                           {open && l.followUpOn && (
                             <p className={`text-xs mt-0.5 font-medium ${overdue ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-slate-400'}`}>
                               <CalendarClock size={12} className="inline -mt-0.5 mr-1" />
@@ -305,6 +381,16 @@ export default function Leads() {
                               <button onClick={() => message(l)} className={`${secondaryButton} !py-1 !px-2.5 text-xs`}><MessageCircle size={13} /> {t('WhatsApp')}</button>
                             </>
                           )}
+                          {open && (onTrial ? (
+                            <button onClick={() => void trialCheckin(l)} disabled={checkingIn === l.id}
+                              className={`${secondaryButton} !py-1 !px-2.5 text-xs text-purple-700 dark:text-purple-300`}>
+                              <LogIn size={13} /> {checkingIn === l.id ? t('Checking in…') : t('Check in')}
+                            </button>
+                          ) : (
+                            <button onClick={() => setTrialFor(l)} className={`${secondaryButton} !py-1 !px-2.5 text-xs`}>
+                              <Ticket size={13} /> {t('Free trial')}
+                            </button>
+                          ))}
                           {open && (
                             <>
                               {/* After a call: mark it done and push the next one out a few days. */}
@@ -336,6 +422,10 @@ export default function Leads() {
       {editing && (
         <LeadFormModal lead={editing === 'new' ? null : editing} onClose={() => setEditing(null)}
           onDone={() => { setEditing(null); void reload(); }} />
+      )}
+      {trialFor && (
+        <TrialModal lead={trialFor} onClose={() => setTrialFor(null)}
+          onDone={() => { setTrialFor(null); void reload(); }} />
       )}
       {deleting && (
         <ConfirmDialog

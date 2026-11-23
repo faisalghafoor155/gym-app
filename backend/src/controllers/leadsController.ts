@@ -3,9 +3,10 @@ import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { audit, diff } from '../services/audit.js';
 import { gymDay } from '../services/dates.js';
+import { addDays } from '../services/membership.js';
 import type { AuthedRequest } from '../types.js';
 import type {
-  ConvertLeadBody, CreateLeadBody, IdParam, LeadQuery, UpdateLeadBody,
+  ConvertLeadBody, CreateLeadBody, IdParam, LeadQuery, StartTrialBody, UpdateLeadBody,
 } from '../schemas.js';
 
 /**
@@ -21,7 +22,11 @@ import type {
 const include = {
   member: { select: { id: true, name: true, memberNo: true } },
   createdBy: { select: { id: true, name: true } },
+  _count: { select: { visits: true } },
 } as const;
+
+/** Most days a free trial can run. A week is a trial; more is a membership. */
+export const MAX_TRIAL_DAYS = 7;
 
 /** Follow-ups that are today or already late — the list to ring through. */
 const dueWhere = (): Prisma.LeadWhereInput => ({
@@ -285,6 +290,113 @@ export const remove = async (
     });
 
     res.status(204).end();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+/**
+ * Gives a lead a free trial: `days` days, starting today, in which the desk can
+ * check them in without a membership.
+ *
+ * Moves them to "trial", and sets the follow-up for the day after the trial
+ * ends — the moment to ask whether they are joining — unless an earlier one
+ * is already set. Starting a new trial replaces the old window.
+ */
+export const startTrial = async (
+  req: AuthedRequest<IdParam, unknown, StartTrialBody>,
+  res: Response,
+): Promise<void> => {
+  const { id } = req.params;
+  const { days } = req.body;
+  try {
+    const lead = await prisma.lead.findFirst({ where: { id, gymId: req.gymId } });
+    if (!lead) {
+      res.status(404).json({ error: 'Lead not found' });
+      return;
+    }
+    if (lead.status === 'joined') {
+      res.status(409).json({ error: 'This lead has already joined' });
+      return;
+    }
+
+    const today = gymDay(new Date());
+    const until = addDays(today, days - 1);
+    const askOn = addDays(until, 1);
+    const followUpOn = lead.followUpOn && lead.followUpOn >= today && lead.followUpOn < askOn
+      ? lead.followUpOn
+      : askOn;
+
+    const updated = await prisma.lead.update({
+      where: { id },
+      data: { status: 'trial', trialUntil: until, followUpOn, lostReason: null },
+      include,
+    });
+
+    await audit(req, {
+      action: 'lead.trial',
+      entity: 'lead',
+      entityId: id,
+      entityLabel: lead.name,
+      before: { status: lead.status, trialUntil: lead.trialUntil },
+      after: { status: 'trial', trialUntil: until, days },
+    });
+
+    res.json(updated);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+/**
+ * Checks a lead in on their free trial.
+ *
+ * Only inside the trial window — a lead whose trial ran out is somebody to
+ * sell a membership or a day pass to, not to wave through. One visit a day; a
+ * second press answers with the first, as a member's check-in does.
+ */
+export const trialCheckin = async (
+  req: AuthedRequest<IdParam>,
+  res: Response,
+): Promise<void> => {
+  const { id } = req.params;
+  try {
+    const lead = await prisma.lead.findFirst({ where: { id, gymId: req.gymId } });
+    if (!lead) {
+      res.status(404).json({ error: 'Lead not found' });
+      return;
+    }
+    const today = gymDay(new Date());
+    if (lead.status !== 'trial' || !lead.trialUntil || lead.trialUntil < today) {
+      res.status(403).json({
+        error: lead.trialUntil && lead.trialUntil < today
+          ? `${lead.name}'s free trial has ended. Register them or sell a day pass.`
+          : `${lead.name} is not on a free trial`,
+        reason: 'no_trial',
+      });
+      return;
+    }
+
+    let alreadyCheckedIn = false;
+    try {
+      await prisma.leadVisit.create({
+        data: { gymId: req.gymId, leadId: id, branchId: req.branchId ?? null, visitedOn: today },
+      });
+    } catch (err) {
+      if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002')) throw err;
+      alreadyCheckedIn = true;
+    }
+
+    const visits = await prisma.leadVisit.count({ where: { leadId: id } });
+    res.status(alreadyCheckedIn ? 200 : 201).json({
+      leadId: id,
+      name: lead.name,
+      trialUntil: lead.trialUntil,
+      visits,
+      alreadyCheckedIn,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

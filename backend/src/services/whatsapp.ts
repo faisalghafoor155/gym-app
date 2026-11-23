@@ -207,4 +207,11 @@ export const templates = {
     template: 'challenge_winner',
     variables: [member, gym, place, challenge],
   }),
+
+  /** To the gym's own number: today's lead follow-ups. `names` is already a
+   *  readable list ("Ali, Sara and 3 more"). */
+  leadFollowUps: (gym: string, count: string, names: string): Omit<WhatsAppMessage, 'to'> => ({
+    template: 'lead_followups',
+    variables: [gym, count, names],
+  }),
 } as const;

@@ -10,6 +10,7 @@ import CelebrationsCard from '../components/dashboard/CelebrationsCard';
 import LowStockCard from '../components/dashboard/LowStockCard';
 import MaintenanceCard from '../components/dashboard/MaintenanceCard';
 import SatisfactionCard from '../components/dashboard/SatisfactionCard';
+import FollowUpsCard from '../components/dashboard/FollowUpsCard';
 import BranchesOverviewCard from '../components/dashboard/BranchesOverviewCard';
 import {
   Page, Card, StatTile, CountUp, PageLoader, LoadFailed, EmptyState, BarChart, LineChart,
@@ -236,6 +237,7 @@ export default function Dashboard() {
       </div>
 
       <BranchesOverviewCard />
+      <FollowUpsCard />
       <CelebrationsCard />
       <LowStockCard />
       <MaintenanceCard />

@@ -724,6 +724,25 @@ const members: Record<string, string> = {
   'Batch': 'Batch',
   'Closed on': 'Kis din band',
   'Message': 'Message',
+  // --- leads: free trials and follow-ups ---
+  'Free trial': 'Muft trial',
+  'Free trial started for {name}': '{name} ka muft trial shuru ho gaya',
+  'Could not start the trial': 'Trial shuru nahi ho saka',
+  '{name} can be checked in from this page each day of the trial, without a membership.': '{name} ko trial ke har din isi page se membership ke baghair check-in kiya ja sakta hai.',
+  'Trial length': 'Trial ki muddat',
+  '1 day (today)': '1 din (aaj)',
+  '{count} days from today': 'Aaj se {count} din',
+  'A follow-up is set for the day after the trial ends.': 'Trial khatam hone ke agle din follow-up rakh diya jata hai.',
+  'Start trial': 'Trial shuru karein',
+  '{name} is already checked in today': '{name} aaj pehle hi check-in ho chuka hai',
+  '{name} checked in · trial visit {count}': '{name} check-in ho gaya · trial visit {count}',
+  'Free trial until {date}': 'Muft trial {date} tak',
+  'Trial ended {date}': 'Trial {date} ko khatam hua',
+  '1 visit': '1 visit',
+  '{count} visits': '{count} visits',
+  'Checking in…': 'Check-in ho raha hai…',
+  "Today's follow-ups": 'Aaj ke follow-ups',
+  'and {count} more': 'aur {count} mazeed',
 };
 
 export default members;

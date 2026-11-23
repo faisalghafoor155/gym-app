@@ -1234,6 +1234,10 @@ export interface Lead {
   /** Date-only, the day somebody should next ring them. */
   followUpOn: string | null;
   lostReason: string | null;
+  /** Date-only, the last day of their free trial. Null when none was given. */
+  trialUntil?: string | null;
+  /** How many times they came in on their trial. */
+  _count?: { visits: number };
   createdAt: string;
   /** The member they became, once converted. */
   member: { id: string; name: string; memberNo: string } | null;

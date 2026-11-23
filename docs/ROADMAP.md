@@ -5,7 +5,7 @@ Tick a box when a task ships.
 
 **Status legend:** `[x]` done · `[ ]` not started · 🟠 partly there (note says what exists)
 
-_Last checked against the code: 2026-11-23 (after Installments)._
+_Last checked against the code: 2026-11-23 (after Leads trials and follow-ups)._
 
 ---
 
@@ -17,13 +17,14 @@ People who walk in to ask about the gym, followed up until they join.
   ✅ `Lead` table + `/api/leads` (`backend/src/controllers/leadsController.ts`)
 - [x] Status pipeline: New → Contacted → Trial → Joined / Lost
   ✅ "Joined" is set only by converting, so it always links to a real member; a lost lead records why
-- [ ] Follow-up date with a "Today's follow-ups" list on the dashboard
-  🟠 Follow-up date and a "Due today" list (overdue included) are on the Leads page. Not on the dashboard yet.
-- [ ] Free trial pass (1–3 days) that lets a lead check in
-  🟠 A lead can be marked "On trial", but there is no pass that lets them check in yet.
+- [x] Follow-up date with a "Today's follow-ups" list on the dashboard
+  ✅ "Today's follow-ups" card on the dashboard (overdue first, call links, trial leads marked), for anyone with `canManageMembers`
+- [x] Free trial pass (1–3 days) that lets a lead check in
+  ✅ "Free trial" on a lead (1–7 days from today) moves it to On trial and sets a follow-up for the day after. While it runs, "Check in" on the Leads page records one visit a day (`LeadVisit`, kept out of member attendance); the row shows the trial's end and the visit count.
 - [x] "Convert to member" button that pre-fills the member form
   ✅ "Make member" opens the normal registration form with name + phone; the lead is linked when it saves
-- [ ] WhatsApp follow-up reminder to staff
+- [x] WhatsApp follow-up reminder to staff
+  ✅ Daily at nine, the gym's own number (Gym settings › phone) gets today's and overdue follow-ups: a count and the first five names (`jobs/leadFollowUps.ts`). Nothing on days with nobody to call. Needs the `lead_followups` template approved in Meta's console (`whatsapp-templates.md`).
 - [x] Report: leads per source, conversion rate
   ✅ Shown at the top of the Leads page
 
@@ -140,7 +141,7 @@ Split a membership fee across dates.
 ## 📊 Summary
 | Section | Done | Partly there | Not started |
 |---|---|---|---|
-| P1: Leads CRM | 4 | 2 | 1 |
+| P1: Leads CRM | 7 | 0 | 0 |
 | P1: Day Pass | 3 | 1 | 0 |
 | P1: Installments | 4 | 0 | 0 |
 | P1: Staff Salary | 4 | 1 | 0 |
@@ -151,7 +152,7 @@ Split a membership fee across dates.
 | P3: Challenges | 3 | 0 | 0 |
 | P3: Bulk WhatsApp | 2 | 1 | 0 |
 | Technical | 3 | 0 | 0 |
-| **Total** | **38** | **6** | **0** |
+| **Total** | **41** | **4** | **0** |
 
 ## ✅ Already built (for reference)
 Members, memberships, freeze · Payments, dues, receipts, promo codes, online payments · Expenses, supplement sales ·

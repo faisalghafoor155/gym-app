@@ -5,9 +5,11 @@ import { requireStaff } from '../middleware/requireRole.js';
 import { requirePermission } from '../middleware/requirePermission.js';
 import { authed } from '../types.js';
 import {
-  convertLeadSchema, createLeadSchema, idParam, leadQuerySchema, updateLeadSchema,
+  convertLeadSchema, createLeadSchema, idParam, leadQuerySchema, startTrialSchema, updateLeadSchema,
 } from '../schemas.js';
-import { convert, create, getAll, remove, update } from '../controllers/leadsController.js';
+import {
+  convert, create, getAll, remove, startTrial, trialCheckin, update,
+} from '../controllers/leadsController.js';
 
 const router = Router();
 
@@ -22,5 +24,8 @@ router.post('/', validate(createLeadSchema), authed(create));
 router.put('/:id', validate(idParam, 'params'), validate(updateLeadSchema), authed(update));
 router.delete('/:id', validate(idParam, 'params'), authed(remove));
 router.post('/:id/convert', validate(idParam, 'params'), validate(convertLeadSchema), authed(convert));
+// A free trial, and checking the lead in on it.
+router.post('/:id/trial', validate(idParam, 'params'), validate(startTrialSchema), authed(startTrial));
+router.post('/:id/checkin', validate(idParam, 'params'), authed(trialCheckin));
 
 export default router;

@@ -1738,6 +1738,12 @@ export const leadQuerySchema = z.object({
 
 export const convertLeadSchema = z.object({ memberId: uuid });
 
+/** Starting a free trial: how many days, today included. */
+export const startTrialSchema = z.object({
+  days: z.coerce.number({ error: "must be a number" }).int("must be a whole number")
+    .min(1, "must be at least 1").max(7, "cannot be more than 7"),
+});
+
 // --- day passes --------------------------------------------------------
 
 export const createDayPassSchema = z
@@ -2112,6 +2118,7 @@ export type CreateLeadBody = z.infer<typeof createLeadSchema>;
 export type UpdateLeadBody = z.infer<typeof updateLeadSchema>;
 export type LeadQuery = z.infer<typeof leadQuerySchema>;
 export type ConvertLeadBody = z.infer<typeof convertLeadSchema>;
+export type StartTrialBody = z.infer<typeof startTrialSchema>;
 export type CreateDayPassBody = z.infer<typeof createDayPassSchema>;
 export type DayPassQuery = z.infer<typeof dayPassQuerySchema>;
 export type CreateStaffMemberBody = z.infer<typeof createStaffMemberSchema>;

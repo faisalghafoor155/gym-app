@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import { runExpiryReminders } from './expiryReminders.js';
 import { runDuesReminders } from './duesReminders.js';
 import { runGreetings } from './greetings.js';
+import { runLeadFollowUps } from './leadFollowUps.js';
 import { runFingerprintRetention } from './fingerprintRetention.js';
 import { runSubscriptionBilling } from './subscriptionBilling.js';
 import { subscriptionsEnabled } from '../services/subscription.js';
@@ -108,6 +109,14 @@ const duesReminders = async (): Promise<string> => {
   );
 };
 
+const leadFollowUps = async (): Promise<string> => {
+  const run = await runLeadFollowUps();
+  return (
+    `gyms with follow-ups ${run.gyms}, sent ${run.sent}, already sent ${run.skippedAlreadySent}, ` +
+    `no whatsapp ${run.skippedNoWhatsApp}, failed ${run.failed}`
+  );
+};
+
 const greetings = async (): Promise<string> => {
   const run = await runGreetings();
   return (
@@ -149,6 +158,8 @@ export const startJobs = (): void => {
   // breakfast is the point of nine o'clock for each.
   schedule('dues reminders', 'REMINDER_CRON', SCHEDULE, duesReminders);
   schedule('greetings', 'REMINDER_CRON', SCHEDULE, greetings);
+  // To the desk rather than members, but nine is when the desk plans its day.
+  schedule('lead follow-ups', 'REMINDER_CRON', SCHEDULE, leadFollowUps);
 
   schedule(
     'fingerprint retention',
