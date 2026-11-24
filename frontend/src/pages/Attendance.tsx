@@ -14,7 +14,19 @@ import type {
   FingerprintStatus, FingerprintIdentifyResult,
 } from '../types';
 import toast from 'react-hot-toast';
+import { isAxiosError } from 'axios';
 import type { Html5Qrcode } from 'html5-qrcode';
+
+/**
+ * The overdue installment a refused check-in names, when that is why it was
+ * refused — the gym turns away members behind on their plan. Read from the
+ * response so the desk is told in its own language, with the amount.
+ */
+const overdueRefusal = (err: unknown): number | null => {
+  if (!isAxiosError(err)) return null;
+  const body = err.response?.data as { reason?: string; fee?: { overdue?: number } } | undefined;
+  return body?.reason === 'installment_overdue' ? body.fee?.overdue ?? 0 : null;
+};
 
 function getInitials(name: string): string {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -175,7 +187,14 @@ export default function Attendance() {
       await loadToday();
       setSearch('');
     } catch (err) {
-      toast.error(apiError(err, t('Check-in failed')));
+      const overdue = overdueRefusal(err);
+      if (overdue !== null) {
+        toast.error(t('{name} has an overdue installment of Rs. {amount}. Take the payment on Pending Dues, then check in again.', {
+          name: member.name, amount: overdue.toLocaleString('en-PK'),
+        }), { duration: 8000 });
+      } else {
+        toast.error(apiError(err, t('Check-in failed')));
+      }
     } finally {
       setChecking(null);
     }
@@ -235,7 +254,15 @@ export default function Attendance() {
 
       await loadToday();
     } catch (err) {
-      toast.error(apiError(err, t('{label} check-in failed', { label })));
+      const overdue = overdueRefusal(err);
+      if (overdue !== null) {
+        const name = known?.name || members.find(m => m.id === memberId)?.name || t('Member');
+        toast.error(t('{name} has an overdue installment of Rs. {amount}. Take the payment on Pending Dues, then check in again.', {
+          name, amount: overdue.toLocaleString('en-PK'),
+        }), { duration: 8000 });
+      } else {
+        toast.error(apiError(err, t('{label} check-in failed', { label })));
+      }
     }
   }, [members, t]);
 

@@ -237,6 +237,14 @@ export interface MyProfile {
   attendance: { id: string; checkedInAt: string }[];
   payments: Omit<Payment, 'member'>[];
   dueTotal: number;
+  /** What is still owed on the current membership, with its installment plan
+   *  when the balance was split. Null when nothing is owed on it. */
+  membershipBalance?: {
+    outstanding: number;
+    installments: Installment[];
+    overdue: number;
+    nextDue: { dueDate: string; remaining: number } | null;
+  } | null;
 }
 
 /** One session on the member's own timetable, with their place in it. */

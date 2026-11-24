@@ -638,6 +638,11 @@ const money: Record<string, string> = {
   'Installment overdue': 'Qist ka waqt guzar gaya',
   'Block check-in when an installment is overdue': 'Qist ka waqt guzarne par check-in rok dein',
   'The member is let in again as soon as the overdue part is paid. Off: they are let in, and the desk sees what is overdue.': 'Qist adaa hote hi member ko dobara andar aane diya jata hai. Band ho to member andar aa jata hai aur desk ko baqi qist nazar aati hai.',
+  '{name} has an overdue installment of Rs. {amount}. Take the payment on Pending Dues, then check in again.': '{name} ki Rs. {amount} ki qist ka waqt guzar chuka hai. Baqaya Jaat par adaigi lein, phir dobara check-in karein.',
+  'Your installments': 'Aap ki qistein',
+  'Membership balance': 'Membership ka baqaya',
+  'Rs. {amount} is overdue — please pay at the front desk.': 'Rs. {amount} ka waqt guzar chuka hai — baraye meharbani front desk par adaa karein.',
+  'Next installment: Rs. {amount} on {date}': 'Agli qist: Rs. {amount}, {date} ko',
 };
 
 export default money;

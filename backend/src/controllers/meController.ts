@@ -9,6 +9,7 @@ import {
   withPlan,
 } from "../services/membership.js";
 import { sum, withMoney } from "../services/money.js";
+import { installmentSummary, withInstallments } from "../services/installments.js";
 import { getPhotoUrl } from "../services/s3.js";
 import { audit } from "../services/audit.js";
 import { planIncludes } from "./plansController.js";
@@ -46,7 +47,11 @@ const buildMyProfileResponse = async (memberId: string) => {
           where: { status: { notIn: ["superseded", "cancelled"] } },
           orderBy: { createdAt: "desc" },
           take: 1,
-          include: withPlan,
+          include: {
+            ...withPlan,
+            payments: { where: { status: "paid" }, select: { amount: true } },
+            ...withInstallments,
+          },
         },
       },
     }),
@@ -72,6 +77,23 @@ const buildMyProfileResponse = async (memberId: string) => {
   }
 
   const { memberships, photoKey, ...profile } = member;
+  const current = memberships[0] ?? null;
+  const currentView = current ? toView(current) : null;
+
+  // What is still owed on the current membership, and its installment plan
+  // when the balance was split — so the member sees the same dates the desk
+  // and the reminders work from.
+  let membershipBalance = null;
+  if (current && currentView) {
+    const paid = sum(current.payments.map((p) => p.amount));
+    const outstanding = Math.max(0, Math.round((currentView.pricePaid - paid) * 100) / 100);
+    if (outstanding > 0) {
+      membershipBalance = {
+        outstanding,
+        ...installmentSummary(currentView.pricePaid, paid, current.installments),
+      };
+    }
+  }
 
   return {
     member: {
@@ -79,8 +101,9 @@ const buildMyProfileResponse = async (memberId: string) => {
       // The bucket is private, so the member's own face is signed for this
       // reply and expires with it. `photoKey` stays server-side.
       photo: profile.photo ?? (await getPhotoUrl(photoKey)),
-      currentMembership: memberships[0] ? toView(memberships[0]) : null,
+      currentMembership: currentView,
     },
+    membershipBalance,
     plan,
     attendance,
     payments: payments.map((p) => withMoney(p, "amount")),

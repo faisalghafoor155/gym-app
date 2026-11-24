@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import prisma from "../../src/db.js";
 import { addDays, startOfDay } from "../../src/services/membership.js";
 import { installmentSummary } from "../../src/services/installments.js";
-import { api, resetDb, makeGym, addMember, addMembership, addPlan } from "../helpers.js";
+import { api, resetDb, makeGym, addMember, addMembership, addPlan, addUser } from "../helpers.js";
 
 /**
  * Installment plans: what a member still owes split into parts with due dates,
@@ -221,6 +221,36 @@ describe("agreeing a plan later", () => {
       .set("Cookie", other.cookie)
       .send({ installments: [] });
     expect(res.status).toBe(404);
+  });
+});
+
+describe("the member's own view", () => {
+  it("shows the member their balance and each installment", async () => {
+    const { owner, member, renew } = await setup();
+    await renew({
+      amount: 2000,
+      installments: [
+        { amount: 1500, dueDate: ymd(addDays(new Date(), -1)) },
+        { amount: 2500, dueDate: ymd(addDays(new Date(), 30)) },
+      ],
+    });
+    const account = await addUser(owner.gymId, { role: "member", memberId: member.id });
+
+    const res = await api().get("/api/me").set("Cookie", account.cookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body.membershipBalance).toMatchObject({ outstanding: 4000, overdue: 1500 });
+    expect(res.body.membershipBalance.installments.map((p: { status: string }) => p.status))
+      .toEqual(["overdue", "due"]);
+  });
+
+  it("reports no balance on a fully paid membership", async () => {
+    const { owner, member, renew } = await setup();
+    await renew({ amount: 6000 });
+    const account = await addUser(owner.gymId, { role: "member", memberId: member.id });
+
+    const res = await api().get("/api/me").set("Cookie", account.cookie);
+    expect(res.body.membershipBalance).toBeNull();
   });
 });
 

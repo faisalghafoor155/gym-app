@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  CalendarCheck, CreditCard, Dumbbell, Utensils, Clock, ShieldCheck, Sparkles, Calculator, ArrowRight,
+  CalendarCheck, CreditCard, Dumbbell, Utensils, Clock, ShieldCheck, Sparkles, Calculator, ArrowRight, CalendarClock,
 } from 'lucide-react';
 import Badge from '../components/Badge';
 import {
@@ -20,7 +20,11 @@ import MyPlans from '../components/portal/MyPlans';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import api, { apiError } from '../api/client';
-import type { MyProfile, MembershipPlan, PaymentProviderOption, CheckoutStarted } from '../types';
+import type { Installment, MyProfile, MembershipPlan, PaymentProviderOption, CheckoutStarted } from '../types';
+
+const INSTALLMENT_LABEL: Record<Installment['status'], string> = {
+  paid: 'Paid', partly: 'Partly paid', due: 'Due', overdue: 'Overdue',
+};
 import toast from 'react-hot-toast';
 
 /**
@@ -178,7 +182,7 @@ export default function MyPortal() {
     );
   }
 
-  const { member, plan, attendance, payments, dueTotal } = data;
+  const { member, plan, attendance, payments, dueTotal, membershipBalance } = data;
   const membership = member.currentMembership;
 
   // Find the outstanding payment due item
@@ -292,6 +296,52 @@ export default function MyPortal() {
         {!membership && (
           <div className="mt-4 rounded-xl px-4 py-3 bg-gray-50 dark:bg-slate-800/60 text-sm text-gray-500 dark:text-slate-400 text-center">
             {t('No membership yet — ask the front desk to set one up.')}
+          </div>
+        )}
+
+        {/* The membership's own balance, and its installment plan if it was
+            split — the dates the desk and the reminders go by. */}
+        {membershipBalance && (
+          <div className="mt-3 rounded-xl border border-gray-200 dark:border-slate-800 px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-gray-600 dark:text-slate-300 flex items-center gap-2">
+                <CalendarClock size={16} className="text-blue-500" />
+                {membershipBalance.installments.length > 0 ? t('Your installments') : t('Membership balance')}
+              </span>
+              <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                {t('Rs. {amount} outstanding', { amount: membershipBalance.outstanding.toLocaleString() })}
+              </span>
+            </div>
+            {membershipBalance.overdue > 0 ? (
+              <p className="mt-1 text-xs font-semibold text-red-600 dark:text-red-400">
+                {t('Rs. {amount} is overdue — please pay at the front desk.', { amount: membershipBalance.overdue.toLocaleString() })}
+              </p>
+            ) : membershipBalance.nextDue && (
+              <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                {t('Next installment: Rs. {amount} on {date}', {
+                  amount: membershipBalance.nextDue.remaining.toLocaleString(),
+                  date: new Date(membershipBalance.nextDue.dueDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }),
+                })}
+              </p>
+            )}
+            {membershipBalance.installments.length > 0 && (
+              <ol className="mt-2 space-y-1" aria-label={t('Installments')}>
+                {membershipBalance.installments.map(p => (
+                  <li key={p.seq} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600 dark:text-slate-300">
+                      {p.seq}. {new Date(p.dueDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                    <span className={`font-semibold ${
+                      p.status === 'paid' ? 'text-green-700 dark:text-green-400'
+                        : p.status === 'overdue' ? 'text-red-600 dark:text-red-400'
+                          : 'text-gray-800 dark:text-slate-200'
+                    }`}>
+                      Rs. {(p.status === 'paid' ? p.amount : p.remaining).toLocaleString()} · {t(INSTALLMENT_LABEL[p.status])}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
           </div>
         )}
 
