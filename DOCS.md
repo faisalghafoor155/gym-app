@@ -1169,8 +1169,11 @@ produced, neither of which the tests reach while coverage is this thin.
   longer for one.
 
   What remains untested is the read-only half — `Dashboard`, `Analytics`,
-  `Subscription` and the member portal's own screens — plus `Attendance` and
-  the permission-gated sidebar. Those go last deliberately: a page that renders
+  `Subscription` and the member portal's own screens — plus the QR and
+  fingerprint tabs of `Attendance` and the permission-gated sidebar.
+  `Attendance`'s search check-in is covered: it searches the server, posts the
+  member picked, will not post a second check-in, and names the member and the
+  amount when an overdue installment blocks one. Those go last deliberately: a page that renders
   the wrong number is visible to whoever is looking at it, where a payload that
   is quietly wrong is not. The build step still carries that weight.
 - **The fingerprint matcher reads every enrolled template.** Not a paging
