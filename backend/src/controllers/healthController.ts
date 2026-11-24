@@ -103,7 +103,7 @@ export const createForMember = async (
         medications,
         // The wording as it reads now, frozen with the signature.
         waiverText: waiverFor(gym),
-        signature,
+        signature: signature ?? null,
         signedName,
         membershipId: member.memberships[0]?.id ?? null,
         recordedById: req.userId,

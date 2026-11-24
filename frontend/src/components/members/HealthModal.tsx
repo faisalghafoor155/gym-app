@@ -5,7 +5,6 @@ import api, { apiError } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { FieldLabel, Spinner, inputClass, primaryButton, secondaryButton } from '../ui';
-import SignaturePad from './SignaturePad';
 import { CONDITIONS, CONDITION_LABELS } from '../../utils/health';
 import type { HealthCondition, HealthDeclaration, Member, MemberHealth } from '../../types';
 
@@ -38,7 +37,10 @@ function Declaration({ d }: { d: HealthDeclaration }) {
       </details>
       <div className="flex items-end justify-between gap-4 pt-2">
         <div>
-          <img src={d.signature} alt={t('Signature of {name}', { name: d.signedName })} className="h-16 bg-white rounded border border-gray-200" />
+          {/* Only older declarations have a drawn signature. */}
+          {d.signature && (
+            <img src={d.signature} alt={t('Signature of {name}', { name: d.signedName })} className="h-16 bg-white rounded border border-gray-200" />
+          )}
           <p className="text-xs text-gray-500 mt-1">{d.signedName}</p>
         </div>
         <p className="text-xs text-gray-500 text-right">
@@ -73,7 +75,6 @@ export default function HealthModal({ member, prompt, onClose, onSaved }: {
   const [medications, setMedications] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [signedName, setSignedName] = useState(member.name);
-  const [signature, setSignature] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -99,12 +100,11 @@ export default function HealthModal({ member, prompt, onClose, onSaved }: {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!signature) { toast.error(t('Please sign in the box')); return; }
     setSaving(true);
     try {
       await api.post(`/members/${member.id}/health`, {
         conditions, details: details.trim(), medications: medications.trim(),
-        signedName: signedName.trim(), signature, waiverAccepted: agreed,
+        signedName: signedName.trim(), waiverAccepted: agreed,
       });
       toast.success(t('Health declaration saved'));
       onSaved?.();
@@ -171,10 +171,6 @@ export default function HealthModal({ member, prompt, onClose, onSaved }: {
             <div>
               <FieldLabel htmlFor="h-name" required>{t('Full name')}</FieldLabel>
               <input id="h-name" required maxLength={100} value={signedName} onChange={e => setSignedName(e.target.value)} className={inputClass} />
-            </div>
-            <div>
-              <FieldLabel htmlFor="h-sign" required>{t('Signature')}</FieldLabel>
-              <SignaturePad onChange={setSignature} />
             </div>
             <div className="flex gap-3">
               <button type="button" onClick={() => (data.current ? setSigning(false) : onClose())} className={`flex-1 ${secondaryButton}`}>{t('Cancel')}</button>

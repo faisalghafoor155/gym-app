@@ -1857,11 +1857,13 @@ export const createHealthDeclarationSchema = z.object({
   details: optionalText(1000),
   medications: optionalText(500),
   signedName: name,
-  /** A drawn signature: a PNG data URL, kept small. */
+  /** Optional, and no longer sent by the app: a drawn signature as a PNG data
+   *  URL, kept small. Still validated when present. */
   signature: z
     .string()
     .startsWith("data:image/png;base64,", "must be a drawn signature")
-    .max(300_000, "is too large"),
+    .max(300_000, "is too large")
+    .optional(),
   /** The member must tick the waiver; nothing is saved otherwise. */
   waiverAccepted: z.literal(true, { error: "must be accepted" }),
 });

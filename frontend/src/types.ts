@@ -1400,7 +1400,8 @@ export interface HealthDeclaration {
   details: string | null;
   medications: string | null;
   waiverText: string;
-  signature: string;
+  /** Only on declarations signed before the form stopped asking for one. */
+  signature: string | null;
   signedName: string;
   signedAt: string;
   membershipId: string | null;

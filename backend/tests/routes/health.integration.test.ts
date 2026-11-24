@@ -51,12 +51,24 @@ describe('health declarations', () => {
     expect(row.health.signature).toBeUndefined();
   });
 
-  it('refuses a declaration without the waiver ticked or a drawn signature', async () => {
+  it('refuses a declaration without the waiver ticked, or with a malformed signature', async () => {
     const owner = await makeGym();
     const member = await addMember(owner.gymId);
     expect((await sign(owner.cookie, member.id, { waiverAccepted: false })).status).toBe(400);
     expect((await sign(owner.cookie, member.id, { signature: 'not an image' })).status).toBe(400);
     expect((await sign(owner.cookie, member.id, { conditions: ['flu'] })).status).toBe(400);
+  });
+
+  it('records a declaration with no drawn signature — the ticked waiver and typed name are enough', async () => {
+    const owner = await makeGym();
+    const member = await addMember(owner.gymId);
+
+    const res = await sign(owner.cookie, member.id, { signature: undefined });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ signedName: 'Ali Khan', signature: null });
+
+    const after = await health(owner.cookie, member.id);
+    expect(after.body.needsSigning).toBe(false);
   });
 
   it("keeps the gym's wording as it read when signed, and every earlier signing", async () => {

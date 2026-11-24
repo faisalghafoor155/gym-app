@@ -1827,8 +1827,9 @@ model HealthDeclaration {
   /// The waiver as it read when they signed, so a later edit to the gym's
   /// wording does not change what this member agreed to.
   waiverText String
-  /// The drawn signature, a PNG data URL.
-  signature  String
+  /// The drawn signature, a PNG data URL. No longer collected: the desk records
+  /// agreement by the ticked waiver and the typed name. Older rows keep theirs.
+  signature  String?
   signedName String
   signedAt   DateTime @default(now())
 
