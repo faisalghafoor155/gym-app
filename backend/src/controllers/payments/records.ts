@@ -14,6 +14,7 @@ import type {
   IdParam,
 } from "../../schemas.js";
 import { visibleTo } from "./visibility.js";
+import { membersAt, pinned, viaMember } from "../../services/branches.js";
 
 /**
  * The payments list, newest first, paged.
@@ -118,7 +119,9 @@ export const create = async (
   } = req.body;
   try {
     const member = await prisma.member.findFirst({
-      where: { id: memberId, gymId: req.gymId },
+      // Staff placed at one branch take money from the members their desk
+      // deals with — the same set their roster shows.
+      where: { id: memberId, gymId: req.gymId, ...membersAt(pinned(req)) },
     });
     if (!member) {
       res.status(404).json({ error: "Member not found" });
@@ -237,7 +240,8 @@ export const update = async (
   } = req.body;
   try {
     const existing = await prisma.payment.findFirst({
-      where: { id, gymId: req.gymId },
+      // Staff placed at one branch correct only their own branch's money.
+      where: { id, gymId: req.gymId, ...viaMember(pinned(req)) },
       include: { member: { select: { name: true, memberNo: true } } },
     });
     if (!existing) {
@@ -333,7 +337,8 @@ export const remove = async (
   const { id } = req.params;
   try {
     const existing = await prisma.payment.findFirst({
-      where: { id, gymId: req.gymId },
+      // Staff placed at one branch correct only their own branch's money.
+      where: { id, gymId: req.gymId, ...viaMember(pinned(req)) },
       include: { member: { select: { name: true, memberNo: true } } },
     });
     if (!existing) {

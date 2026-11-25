@@ -213,4 +213,33 @@ describe('staff placed at a branch, beyond the lists', () => {
     expect(res.status).toBe(200);
     expect(res.body.branches.map((b: { name: string }) => b.name)).toEqual(['DHA']);
   });
+  it("cannot take, correct or delete another branch's money", async () => {
+    const { owner, main, mainMember, dhaMember, desk } = await setup();
+
+    // Recording a payment for another branch's member.
+    expect((await api().post('/api/payments').set('Cookie', desk.cookie)
+      .send({ memberId: mainMember.id, amount: 1000, type: 'membership' })).status).toBe(404);
+    expect((await api().post('/api/payments').set('Cookie', desk.cookie)
+      .send({ memberId: dhaMember.id, amount: 1000, type: 'membership' })).status).toBe(201);
+
+    const payment = await prisma.payment.create({
+      data: { gymId: owner.gymId, memberId: mainMember.id, amount: 7000, type: 'membership', status: 'paid' },
+    });
+    expect((await api().put(`/api/payments/${payment.id}`).set('Cookie', desk.cookie).send({ amount: 1 })).status).toBe(404);
+    expect((await api().delete(`/api/payments/${payment.id}`).set('Cookie', desk.cookie)).status).toBe(404);
+    expect(await prisma.payment.findUnique({ where: { id: payment.id } })).not.toBeNull();
+
+    const expense = await api().post('/api/expenses').set('Cookie', owner.cookie).set('X-Branch-Id', main)
+      .send({ category: 'rent', amount: 50000, spentOn: '2026-08-01' });
+    expect(expense.status).toBe(201);
+    expect((await api().delete(`/api/expenses/${expense.body.id}`).set('Cookie', desk.cookie)).status).toBe(404);
+
+    const pass = await api().post('/api/day-passes').set('Cookie', owner.cookie).set('X-Branch-Id', main)
+      .send({ name: 'Traveller', phone: '03001112222', amount: 500 });
+    expect(pass.status).toBe(201);
+    expect((await api().delete(`/api/day-passes/${pass.body.id}`).set('Cookie', desk.cookie)).status).toBe(404);
+
+    // The owner still can.
+    expect((await api().delete(`/api/day-passes/${pass.body.id}`).set('Cookie', owner.cookie)).status).toBeLessThan(300);
+  });
 });
