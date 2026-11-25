@@ -329,6 +329,9 @@ const settleIntent = async (
   // message against their payment history never sees two different dates for
   // the same money.
   const paidAt = new Date();
+  // Set when a due changed between checkout and payment, so the money was
+  // booked on its own row instead of settling the due. Audited after commit.
+  let dueChanged = false;
 
   await prisma.$transaction(async (tx) => {
     // The guard against a concurrent duplicate. `updateMany` with a status
@@ -347,10 +350,37 @@ const settleIntent = async (
     }
 
     if (intent.kind === 'due' && intent.paymentId) {
-      await tx.payment.update({
-        where: { id: intent.paymentId },
+      // Settled only if the due is still what the member was quoted: still
+      // owed, for the same amount. Between checkout and the callback the desk
+      // may have taken it in cash, or corrected it to a larger sum, and paying
+      // the old price must not mark the new one settled — nor overwrite a
+      // cash payment's method and date with a second, online one.
+      const settled = await tx.payment.updateMany({
+        where: { id: intent.paymentId, status: 'due', amount: intent.amount },
         data: { status: 'paid', method: 'online', paymentDate: paidAt },
       });
+      if (settled.count === 0) {
+        // The member's money is real either way, so it goes on the books as
+        // its own row against the member, and the due stays as it now stands
+        // for the desk to reconcile.
+        const due = await tx.payment.findUnique({
+          where: { id: intent.paymentId },
+          select: { type: true },
+        });
+        await tx.payment.create({
+          data: {
+            gymId: intent.gymId,
+            memberId: intent.memberId,
+            amount: intent.amount,
+            status: 'paid',
+            method: 'online',
+            type: due?.type ?? 'other',
+            paymentDate: paidAt,
+            notes: `Online payment for a due that changed before it was paid (${intent.provider}). Check against the member's outstanding dues.`,
+          },
+        });
+        dueChanged = true;
+      }
       receiptFor = 'outstanding balance';
       return;
     }
@@ -414,6 +444,12 @@ const settleIntent = async (
     provider: intent.provider,
     kind: intent.kind,
   });
+  if (dueChanged) {
+    await auditSystem(intent, 'onlinePayment.dueChanged', {
+      paymentId: intent.paymentId,
+      amount: intent.amount.toNumber(),
+    });
+  }
 
   // The receipt the front desk already sends for money taken over the counter.
   // A member paying from their phone had been the one case that took money and
