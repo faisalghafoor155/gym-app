@@ -61,6 +61,7 @@ export const FEATURE_LABELS: Record<keyof PlanFeatures, string> = {
   biometrics: 'Fingerprint check-in',
   analytics: 'Reports & analytics',
   onlinePayments: 'Online payments',
+  aiCoach: 'AI coach',
 };
 
 /**

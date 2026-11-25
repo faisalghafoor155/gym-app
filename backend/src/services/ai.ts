@@ -25,6 +25,10 @@ export interface AiChatPayload {
   lang?: AiLanguage;
   context?: FitnessAiContext;
   apiKey?: string;
+  /** Whether the platform's own Gemini/OpenAI keys may answer — the gym's
+   *  plan includes the AI coach. Without it only a key the gym brought is
+   *  used, and failing that the built-in answers. Off unless said. */
+  usePlatformKeys?: boolean;
   /** The member's logged weigh-ins, already written as prompt lines. Built on
    *  the server from their own records, never taken from the request body. */
   progress?: string;
@@ -42,10 +46,12 @@ Tone & Language:
 - Structure answers with bullet points, bold headings, and clear dosages/timings so it's easy for gym lifters to read on mobile.`;
 
 export async function askFitnessAi(payload: AiChatPayload): Promise<string> {
-  const { message, context, apiKey: userKey, progress, lang = 'ur' } = payload;
+  const { message, context, apiKey: userKey, progress, lang = 'ur', usePlatformKeys = false } = payload;
   const SYSTEM_PROMPT = systemPrompt(lang);
-  const geminiKey = userKey || process.env.GEMINI_API_KEY;
-  const openaiKey = process.env.OPENAI_API_KEY;
+  // The platform's keys are billed to the platform, so they answer only for
+  // a plan that pays for them. A gym's own key is its own bill.
+  const geminiKey = userKey || (usePlatformKeys ? process.env.GEMINI_API_KEY : undefined);
+  const openaiKey = usePlatformKeys ? process.env.OPENAI_API_KEY : undefined;
 
   const contextStr = context ? `
 Current Lifter Profile:
