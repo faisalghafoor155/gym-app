@@ -59,6 +59,11 @@ export interface PlanFeatures {
   analytics: boolean;
   /** Taking membership payments through JazzCash or EasyPaisa. */
   onlinePayments: boolean;
+  /** The AI coach answering on the platform's own Gemini/OpenAI key. Every
+   *  answer is billed to the platform, so it comes with a paid tier. A gym
+   *  without it still gets the coach on a key of its own, or the built-in
+   *  answers when it has none. */
+  aiCoach: boolean;
 }
 
 export interface Entitlements {
@@ -78,6 +83,7 @@ const NOTHING: Entitlements = {
     biometrics: false,
     analytics: false,
     onlinePayments: false,
+    aiCoach: false,
   },
 };
 
@@ -105,6 +111,7 @@ export const ENTITLEMENTS: Record<GymPlan, Entitlements> = {
       ...NOTHING.features,
       whatsapp: true,
       analytics: true,
+      aiCoach: true,
     },
   },
 
@@ -118,6 +125,7 @@ export const ENTITLEMENTS: Record<GymPlan, Entitlements> = {
       whatsapp: true,
       analytics: true,
       onlinePayments: true,
+      aiCoach: true,
     },
   },
 
@@ -130,6 +138,7 @@ export const ENTITLEMENTS: Record<GymPlan, Entitlements> = {
       biometrics: true,
       analytics: true,
       onlinePayments: true,
+      aiCoach: true,
     },
   },
 };
@@ -165,6 +174,7 @@ const UNRESTRICTED: Entitlements = {
     biometrics: true,
     analytics: true,
     onlinePayments: true,
+    aiCoach: true,
   },
 };
 
@@ -329,6 +339,7 @@ const FEATURE_NOUNS: Record<keyof PlanFeatures, string> = {
   biometrics: "fingerprint check-in",
   analytics: "reports and analytics",
   onlinePayments: "online payments",
+  aiCoach: "the AI coach",
 };
 
 /**

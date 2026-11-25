@@ -152,6 +152,7 @@ const plans: Record<string, string> = {
   'Fingerprint check-in': 'Fingerprint check-in',
   'Reports & analytics': 'Reports aur tajziya',
   'Online payments': 'Online payments',
+  'AI coach': 'AI coach',
   'Free trial to test features with up to 50 members.': '50 members tak features aazmane ke liye free trial.',
   'Perfect for small gyms with up to 200 active members.': '200 active members tak chhote gyms ke liye behtareen.',
   'Most popular for expanding gyms with up to 400 active members.': '400 active members tak barhte gyms mein sab se maqbool.',

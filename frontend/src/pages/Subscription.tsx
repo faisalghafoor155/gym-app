@@ -27,6 +27,7 @@ const FEATURE_ORDER: (keyof PlanFeatures)[] = [
   'analytics',
   'biometrics',
   'onlinePayments',
+  'aiCoach',
 ];
 
 /** In English; translated where they are drawn. */

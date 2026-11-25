@@ -21,6 +21,7 @@ export interface PlanLimits {
 }
 
 export interface PlanFeatures {
+  aiCoach: boolean;
   analytics: boolean;
   biometrics: boolean;
   onlinePayments: boolean;
@@ -44,6 +45,7 @@ export const ENTITLEMENTS: Record<GymPlan, Entitlements> = {
       trainers: 2,
     },
     features: {
+      aiCoach: false,
       analytics: false,
       biometrics: false,
       onlinePayments: false,
@@ -58,6 +60,7 @@ export const ENTITLEMENTS: Record<GymPlan, Entitlements> = {
       trainers: 10,
     },
     features: {
+      aiCoach: true,
       analytics: true,
       biometrics: false,
       onlinePayments: false,
@@ -72,6 +75,7 @@ export const ENTITLEMENTS: Record<GymPlan, Entitlements> = {
       trainers: 20,
     },
     features: {
+      aiCoach: true,
       analytics: true,
       biometrics: false,
       onlinePayments: true,
@@ -86,6 +90,7 @@ export const ENTITLEMENTS: Record<GymPlan, Entitlements> = {
       trainers: null,
     },
     features: {
+      aiCoach: true,
       analytics: true,
       biometrics: true,
       onlinePayments: true,

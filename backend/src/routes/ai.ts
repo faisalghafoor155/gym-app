@@ -4,6 +4,7 @@ import auth from '../middleware/auth.js';
 import prisma from '../db.js';
 import { authed, type AuthedRequest } from '../types.js';
 import { askFitnessAi } from '../services/ai.js';
+import { planFor, planHasFeature } from '../services/subscription.js';
 import validate from '../middleware/validate.js';
 import { aiChatSchema, type AiChatBody } from '../schemas.js';
 
@@ -78,12 +79,18 @@ router.post('/chat', perAccountLimiter, validate(aiChatSchema), authed(async (re
       return undefined;
     });
 
+    // Not a 402: a gym without the AI coach on its plan still gets an answer,
+    // on its own key or from the built-in coach — just never on the
+    // platform's bill.
+    const usePlatformKeys = planHasFeature(await planFor(req.gymId), 'aiCoach');
+
     const reply = await askFitnessAi({
       message,
       context,
       apiKey: apiKey || (req.headers['x-ai-api-key'] as string | undefined),
       progress,
       lang: lang === 'en' ? 'en' : 'ur',
+      usePlatformKeys,
     });
 
     res.json({ reply });
