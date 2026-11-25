@@ -4,6 +4,15 @@ import { Card } from "../ui";
 import { useLanguage } from "../../context/LanguageContext";
 import type { PaymentSummary } from "../../types";
 
+/** The kinds of money a month is broken into, in table order. */
+const PARTS = [
+  ["membership", "Membership"],
+  ["supplement", "Supplements"],
+  ["locker", "Lockers"],
+  ["daypass", "Day passes"],
+  ["other", "Other"],
+] as const;
+
 export default function MonthlyTotals({
   summary,
 }: {
@@ -40,7 +49,42 @@ export default function MonthlyTotals({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      {/* Phones: one row per month, the total up front and only the kinds of
+          money that month actually had underneath. Seven columns do not fit. */}
+      <ul className="sm:hidden divide-y divide-gray-100 dark:divide-slate-800 -mx-1">
+        {summary.byMonth.map((m, i) => {
+          const current = i === summary.byMonth.length - 1;
+          const parts = PARTS.filter(([k]) => (m[k] ?? 0) > 0);
+          return (
+            <li key={m.month} className={`px-1 py-2.5 ${current ? "bg-blue-50/40 dark:bg-blue-500/10 rounded-lg" : ""}`}>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="font-medium text-gray-900 dark:text-slate-100">
+                  {m.label}
+                  {current && (
+                    <span className="ml-2 text-xs font-normal text-blue-600 dark:text-blue-400">{t("so far")}</span>
+                  )}
+                </p>
+                <p className="font-bold text-gray-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
+                  Rs. {m.total.toLocaleString()}
+                </p>
+              </div>
+              {parts.length > 0 && (
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  {parts.map(([k, label]) => `${t(label)} ${(m[k] ?? 0).toLocaleString()}`).join(" · ")}
+                </p>
+              )}
+            </li>
+          );
+        })}
+        <li className="px-1 pt-3 flex items-baseline justify-between gap-3 border-t-2 border-gray-200 dark:border-slate-800">
+          <p className="font-bold text-gray-900 dark:text-slate-100">{t("Grand total")}</p>
+          <p className="font-bold text-gray-900 dark:text-slate-100 tabular-nums whitespace-nowrap">
+            Rs. {summary.grandTotal.toLocaleString()}
+          </p>
+        </li>
+      </ul>
+
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full text-sm min-w-125">
           <thead className="bg-gray-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-800">
             <tr>

@@ -123,7 +123,9 @@ describe('Expenses — correcting one', () => {
     const stub = setup([anExpense({ id: 'exp-7', category: 'utilities', amount: 3000 })]);
 
     renderPage(<Expenses />);
-    await userEvent.click(await screen.findByRole('button', { name: /edit utilities expense/i }));
+    // The phone list and the table both render under jsdom, which applies no CSS;
+    // either button opens the same row.
+    await userEvent.click((await screen.findAllByRole('button', { name: /edit utilities expense/i }))[0]!);
     await userEvent.clear(screen.getByLabelText(/amount/i));
     await userEvent.type(screen.getByLabelText(/amount/i), '3500');
     await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
@@ -142,7 +144,9 @@ describe('Expenses — removing one', () => {
     const stub = setup([anExpense({ id: 'exp-9', category: 'marketing' })]);
 
     renderPage(<Expenses />);
-    await userEvent.click(await screen.findByRole('button', { name: /delete marketing expense/i }));
+    // The phone list and the table both render under jsdom, which applies no CSS;
+    // either button opens the same row.
+    await userEvent.click((await screen.findAllByRole('button', { name: /delete marketing expense/i }))[0]!);
 
     expect(stub.delete).not.toHaveBeenCalled();
 

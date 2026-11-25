@@ -208,6 +208,40 @@ export default function Expenses() {
   if (loading) return <PageLoader />;
 
   const rows = list?.data ?? [];
+
+  // Edit and delete, or a link to the page that owns the row. Shared by the
+  // phone list and the table; `roomy` gives a thumb-sized target on phones.
+  const actionsFor = (e: Expense, roomy = false) => {
+    if (e.fromSalaries || e.fromEquipment) {
+      // Booked from another page, and only changed there.
+      return (
+        <div className="text-right">
+          <Link to={e.fromSalaries ? '/salaries' : '/equipment'} className={`text-xs font-medium text-blue-600 hover:underline ${roomy ? 'inline-block py-2' : ''}`}>
+            {e.fromSalaries ? t('Staff Salaries') : t('Equipment')}
+          </Link>
+        </div>
+      );
+    }
+    const pad = roomy ? 'p-2.5' : 'p-1.5';
+    return (
+      <div className="flex gap-1 justify-end">
+        <button
+          onClick={() => openEdit(e)}
+          aria-label={t('Edit {category} expense', { category: t(e.category) })}
+          className={`${pad} rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors ${focusRing}`}
+        >
+          <Pencil size={15} />
+        </button>
+        <button
+          onClick={() => setDeleting(e)}
+          aria-label={t('Delete {category} expense', { category: t(e.category) })}
+          className={`${pad} rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors ${focusRing}`}
+        >
+          <Trash2 size={15} />
+        </button>
+      </div>
+    );
+  };
   const inProfit = (profit?.profit ?? 0) >= 0;
 
   return (
@@ -350,7 +384,36 @@ export default function Expenses() {
           />
         ) : (
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Phones: one row per expense. Six columns do not fit, and the
+                table had the amount and the edit buttons off the right edge. */}
+            <ul className="md:hidden divide-y divide-gray-100 dark:divide-slate-800">
+              {rows.map(e => (
+                <li key={e.id} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 dark:text-slate-100">{t(e.category)}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400">
+                        {shortDate(e.spentOn)}{e.vendor ? ` · ${e.vendor}` : ''}
+                      </p>
+                    </div>
+                    <p className="font-semibold text-gray-900 dark:text-slate-100 whitespace-nowrap shrink-0">
+                      {money(e.amount)}
+                    </p>
+                  </div>
+                  {e.notes && (
+                    <p className="text-xs text-gray-400 dark:text-slate-500 mt-1 wrap-break-word">{e.notes}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1">
+                    {e.recordedBy?.name && (
+                      <span className="text-xs text-gray-400 dark:text-slate-500 truncate mr-auto">{e.recordedBy.name}</span>
+                    )}
+                    <div className="ml-auto">{actionsFor(e, true)}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 dark:bg-slate-800/60 text-xs uppercase text-gray-500 dark:text-slate-400">
                   <tr>
@@ -382,31 +445,7 @@ export default function Expenses() {
                         {e.recordedBy?.name ?? '—'}
                       </td>
                       <td className="px-4 py-3">
-                        {e.fromSalaries || e.fromEquipment ? (
-                          // Booked from another page, and only changed there.
-                          <div className="text-right">
-                            <Link to={e.fromSalaries ? '/salaries' : '/equipment'} className="text-xs font-medium text-blue-600 hover:underline">
-                              {e.fromSalaries ? t('Staff Salaries') : t('Equipment')}
-                            </Link>
-                          </div>
-                        ) : (
-                        <div className="flex gap-1 justify-end">
-                          <button
-                            onClick={() => openEdit(e)}
-                            aria-label={t('Edit {category} expense', { category: t(e.category) })}
-                            className={`p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors ${focusRing}`}
-                          >
-                            <Pencil size={15} />
-                          </button>
-                          <button
-                            onClick={() => setDeleting(e)}
-                            aria-label={t('Delete {category} expense', { category: t(e.category) })}
-                            className={`p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors ${focusRing}`}
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                        )}
+                        {actionsFor(e)}
                       </td>
                     </tr>
                   ))}

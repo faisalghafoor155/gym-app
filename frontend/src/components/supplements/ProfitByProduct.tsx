@@ -45,7 +45,28 @@ export default function ProfitByProduct() {
               </div>
             ))}
           </div>
-          <div className="overflow-x-auto">
+          {/* Phones: product and profit on one line, the rest beneath. */}
+          <ul className="sm:hidden divide-y divide-gray-100 dark:divide-slate-800">
+            {data.data.map(r => (
+              <li key={r.supplementId} className="py-2.5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="font-medium text-gray-800 dark:text-slate-200 min-w-0">{r.name}</p>
+                  <p className={`font-semibold whitespace-nowrap ${r.profit < 0 ? 'text-red-600' : 'text-lime-700 dark:text-lime-400'}`}>
+                    {r.marginPct == null ? '—' : money(r.profit)}
+                  </p>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
+                  {t('Sold')} {r.unitsSold} · {t('Revenue')} {money(r.revenue)} · {r.marginPct == null ? t('No cost') : `${t('Margin')} ${r.marginPct}%`}
+                </p>
+                {r.uncostedUnits > 0 && (
+                  <p className="text-[11px] text-yellow-700 dark:text-yellow-400">
+                    {t(r.uncostedUnits === 1 ? '{count} unit sold without a cost price' : '{count} units sold without a cost price', { count: r.uncostedUnits })}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-gray-500 dark:text-slate-400 border-b border-gray-100 dark:border-slate-800">

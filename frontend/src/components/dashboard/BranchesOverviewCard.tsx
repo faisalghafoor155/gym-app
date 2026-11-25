@@ -32,7 +32,23 @@ export default function BranchesOverviewCard() {
       <h2 className="font-semibold text-gray-900 dark:text-slate-100 text-sm flex items-center gap-2 mb-3">
         <Building2 size={16} className="text-emerald-600" /> {t('Branches this month')}
       </h2>
-      <div className="overflow-x-auto">
+      {/* Phones: a small block per branch — five columns do not fit. */}
+      <ul className="sm:hidden divide-y divide-gray-100 dark:divide-slate-800">
+        {data.branches.map(b => (
+          <li key={b.id} className="py-2.5">
+            <button onClick={() => switchTo(b.id)} className="font-semibold text-blue-600 dark:text-blue-400 hover:underline text-left py-1">
+              {b.name}
+            </button>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-gray-500 dark:text-slate-400">
+              <span>{t('Members')}: <span className="tabular-nums text-gray-900 dark:text-slate-100">{b.members}</span></span>
+              <span>{t('Check-ins today')}: <span className="tabular-nums text-gray-900 dark:text-slate-100">{b.checkinsToday}</span></span>
+              <span>{t('Collected')}: <span className="tabular-nums font-semibold text-green-700 dark:text-green-400">{money(b.collectedThisMonth)}</span></span>
+              <span>{t('Spent')}: <span className="tabular-nums text-red-600">{money(b.spentThisMonth)}</span></span>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-gray-500 dark:text-slate-400">
