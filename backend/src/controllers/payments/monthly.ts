@@ -9,6 +9,7 @@ import { channelLabel } from "../../services/paymentChannel.js";
 import type { AuthedRequest } from "../../types.js";
 import type { MonthlyCollectionQuery } from "../../schemas.js";
 import { unpaidForMonth } from "./unpaid.js";
+import { pinned } from "../../services/branches.js";
 
 /**
  * Owner-only: one month's collection, member by member.
@@ -58,7 +59,7 @@ export const getMonthlyCollection = async (
     // The unpaid side reads memberships, not payments, so it shares nothing
     // with the query below beyond the window and the search term.
     if (view === "unpaid") {
-      const all = await unpaidForMonth(req.gymId, start, end, search);
+      const all = await unpaidForMonth(req.gymId, start, end, search, pinned(req).branchId);
       const paged = all.slice((page - 1) * limit, page * limit);
 
       res.json({
@@ -89,13 +90,17 @@ export const getMonthlyCollection = async (
       gymId: req.gymId,
       paymentDate: { gte: start, lte: end },
       ...(!includeDue && { status: "paid" }),
-      ...(search && {
+      // Staff placed at one branch see only that branch's members.
+      ...((search || pinned(req).branchId) && {
         member: {
-          OR: [
-            { name: { contains: search, mode: "insensitive" as const } },
-            { phone: { contains: search, mode: "insensitive" as const } },
-            { memberNo: { contains: search, mode: "insensitive" as const } },
-          ],
+          ...pinned(req),
+          ...(search && {
+            OR: [
+              { name: { contains: search, mode: "insensitive" as const } },
+              { phone: { contains: search, mode: "insensitive" as const } },
+              { memberNo: { contains: search, mode: "insensitive" as const } },
+            ],
+          }),
         },
       }),
     };
@@ -191,7 +196,7 @@ export const getMonthlyCollection = async (
     // without a second request — and, more importantly, so the two are read
     // against the same month and the same search rather than drifting apart.
     const unpaid =
-      view === "all" ? await unpaidForMonth(req.gymId, start, end, search) : [];
+      view === "all" ? await unpaidForMonth(req.gymId, start, end, search, pinned(req).branchId) : [];
 
     res.json({
       month: month.value,
@@ -258,7 +263,7 @@ export const exportMonthlyCsv = async (
     const end = new Date(month.year, month.month, 0, 23, 59, 59, 999);
 
     if (view === "unpaid") {
-      const unpaid = await unpaidForMonth(req.gymId, start, end, search);
+      const unpaid = await unpaidForMonth(req.gymId, start, end, search, pinned(req).branchId);
       const csv = toCsv(
         [
           "Member No", "Name", "Phone", "Plan",
@@ -284,13 +289,16 @@ export const exportMonthlyCsv = async (
         gymId: req.gymId,
         paymentDate: { gte: start, lte: end },
         ...(!includeDue && { status: "paid" }),
-        ...(search && {
+        ...((search || pinned(req).branchId) && {
           member: {
-            OR: [
-              { name: { contains: search, mode: "insensitive" as const } },
-              { phone: { contains: search, mode: "insensitive" as const } },
-              { memberNo: { contains: search, mode: "insensitive" as const } },
-            ],
+            ...pinned(req),
+            ...(search && {
+              OR: [
+                { name: { contains: search, mode: "insensitive" as const } },
+                { phone: { contains: search, mode: "insensitive" as const } },
+                { memberNo: { contains: search, mode: "insensitive" as const } },
+              ],
+            }),
           },
         }),
       },

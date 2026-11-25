@@ -1,18 +1,35 @@
 import { Router, type Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import auth from '../middleware/auth.js';
 import prisma from '../db.js';
 import { authed, type AuthedRequest } from '../types.js';
-import { askFitnessAi, type AiChatPayload } from '../services/ai.js';
+import { askFitnessAi } from '../services/ai.js';
+import validate from '../middleware/validate.js';
+import { aiChatSchema, type AiChatBody } from '../schemas.js';
 
 const router = Router();
 
 router.use(auth);
 
+// The app-wide AI limiter counts per address, which a script rotating through
+// addresses walks straight past. This one counts per account, behind `auth`,
+// so each signed-in person gets a fair share of the platform's AI key however
+// many networks they ask from.
+const perAccountLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: (req) => `ai:${(req as AuthedRequest).userId}`,
+  message: { error: 'Too many questions for now. Please try again in a while.' },
+  skip: (req) =>
+    process.env.NODE_ENV === 'test' &&
+    req.headers['x-test-skip-ratelimit'] === '1',
+});
+
 /** How many weigh-ins the coach is shown. Enough for a trend, few enough
  *  that the prompt stays about the question rather than the history. */
 const PROGRESS_POINTS = 8;
-
-const MAX_MESSAGE_CHARS = 2000;
 
 /**
  * The signed-in member's recent weigh-ins, as prompt lines, or undefined for
@@ -49,19 +66,10 @@ const progressFor = async (req: AuthedRequest<unknown>): Promise<string | undefi
     .join('\n') || undefined;
 };
 
-router.post('/chat', authed(async (req: AuthedRequest<Record<string, string>, unknown, AiChatPayload>, res: Response): Promise<void> => {
+// Every field is bounded by the schema — the question, and each line of the
+// lifter profile — since all of it goes into a prompt someone pays for.
+router.post('/chat', perAccountLimiter, validate(aiChatSchema), authed(async (req: AuthedRequest<Record<string, string>, unknown, AiChatBody>, res: Response): Promise<void> => {
   const { message, context, apiKey, lang } = req.body;
-
-  if (!message || typeof message !== 'string') {
-    res.status(400).json({ error: 'Message is required' });
-    return;
-  }
-  // Every message is sent on the gym's own AI key, so its length is the
-  // gym's bill. A question to a coach fits in this with room to spare.
-  if (message.length > MAX_MESSAGE_CHARS) {
-    res.status(400).json({ error: `Please keep the question under ${MAX_MESSAGE_CHARS} characters` });
-    return;
-  }
 
   try {
     // A failed lookup costs the answer some context, not the answer itself.

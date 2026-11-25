@@ -10,6 +10,7 @@ import { channelLabel } from "../../services/paymentChannel.js";
 import type { AuthedRequest } from "../../types.js";
 import type { PaymentQuery } from "../../schemas.js";
 import { visibleTo } from "./visibility.js";
+import { pinned, viaMember } from "../../services/branches.js";
 
 /**
  * The renewal call list: members whose current membership has run out.
@@ -31,6 +32,8 @@ export const getDue = async (
         gymId: req.gymId,
         status: "active",
         expiryDate: { lt: new Date() },
+        // Staff placed at one branch call their own branch's members.
+        ...viaMember(pinned(req)),
       },
       include: {
         member: {
@@ -86,13 +89,16 @@ export const exportCsv = async (
         },
       }),
       // Staff search by whatever they have to hand — a name or a phone.
-      ...(search && {
+      // Staff placed at one branch export only that branch's members, the
+      // same rows their payments list shows.
+      ...((search || pinned(req).branchId) && {
         member: {
-          OR: [
+          ...pinned(req),
+          ...(search && { OR: [
             { name: { contains: search, mode: "insensitive" as const } },
             { phone: { contains: search, mode: "insensitive" as const } },
             { memberNo: { contains: search, mode: "insensitive" as const } },
-          ],
+          ] }),
         },
       }),
     };

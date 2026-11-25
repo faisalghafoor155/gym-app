@@ -1,7 +1,7 @@
 import type { Response } from 'express';
 import prisma from '../db.js';
 import { audit } from '../services/audit.js';
-import { mainBranchId } from '../services/branches.js';
+import { mainBranchId, pinned } from '../services/branches.js';
 import { gymDayBounds, gymDay } from '../services/dates.js';
 import { sum } from '../services/money.js';
 import type { AuthedRequest } from '../types.js';
@@ -195,7 +195,10 @@ export const overview = async (req: AuthedRequest, res: Response): Promise<void>
     const sumOf = (rows: { branchId: string | null; _sum: { amount: unknown } }[], id: string | null) =>
       sum([rows.find((r) => r.branchId === id)?._sum.amount as never]);
 
-    const rows = branches.map((b) => ({
+    // Staff placed at one branch get their own branch's line and nothing of
+    // the others' members or money.
+    const fence = pinned(req).branchId;
+    const rows = branches.filter((b) => !fence || b.id === fence).map((b) => ({
       id: b.id,
       name: b.name,
       isMain: b.isMain,
@@ -208,7 +211,7 @@ export const overview = async (req: AuthedRequest, res: Response): Promise<void>
     res.json({
       branches: rows,
       // Spending recorded with every branch selected belongs to none of them.
-      sharedSpentThisMonth: sumOf(expenses, null),
+      sharedSpentThisMonth: fence ? 0 : sumOf(expenses, null),
     });
   } catch (err) {
     console.error(err);

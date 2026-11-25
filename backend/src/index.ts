@@ -374,13 +374,30 @@ const paymentLimiter = rateLimit({
     req.headers["x-test-skip-ratelimit"] === "1",
 });
 
+// Provider callbacks are a different case. Every gym's callbacks come from the
+// same few JazzCash and Easypaisa servers, so counting them per IP refused real
+// payments once the whole platform took twenty in a quarter of an hour — the
+// member charged and nothing credited. The signature is what guards this path;
+// only refused callbacks (bad signature, unknown transaction, wrong amount)
+// count here, which still stops anyone guessing at signatures.
+const callbackLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 50,
+  skipSuccessfulRequests: true,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many invalid callbacks. Please try again shortly." },
+  skip: (req) =>
+    process.env.NODE_ENV === "test" &&
+    req.headers["x-test-skip-ratelimit"] === "1",
+});
+
 app.use("/api/online-payments/checkout", paymentLimiter);
-app.use("/api/online-payments/callback", paymentLimiter);
-// Same reasoning for the gym paying us: an unthrottled callback path is
-// unlimited free guesses at a signature, and an unthrottled checkout lets one
-// owner hold the button down.
+app.use("/api/online-payments/callback", callbackLimiter);
+// Same reasoning for the gym paying us: an unthrottled checkout lets one owner
+// hold the button down, and the callback is guarded like the one above.
 app.use("/api/billing/checkout", paymentLimiter);
-app.use("/api/billing/callback", paymentLimiter);
+app.use("/api/billing/callback", callbackLimiter);
 
 // Each AI answer is paid for on the gym's API key, and any signed-in account,
 // members included, can ask. Generous for a person, a wall for a script.

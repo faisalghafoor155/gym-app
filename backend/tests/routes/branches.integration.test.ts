@@ -126,3 +126,91 @@ describe('branches', () => {
     expect((await api().post('/api/members').set('Cookie', owner.cookie).send({ name: 'Z', branchId: foreign })).status).toBe(404);
   });
 });
+
+/**
+ * Staff placed at one branch were fenced only on lists: by id they could read,
+ * edit, delete or re-home another branch's member, and export every branch's
+ * money. These hold the fence on single records and reports too.
+ */
+describe('staff placed at a branch, beyond the lists', () => {
+  const setup = async () => {
+    const owner = await makeGym();
+    const main = (await api().get('/api/branches').set('Cookie', owner.cookie)).body.branches[0].id as string;
+    const dha = (await newBranch(owner.cookie, 'DHA')).id;
+    const mainMember = await addMemberAt(owner.cookie, main);
+    const dhaMember = await addMemberAt(owner.cookie, dha);
+    const desk = await addUser(owner.gymId, { staffPermission: 'manager' });
+    expect((await api().put(`/api/branches/staff/${desk.userId}`).set('Cookie', owner.cookie).send({ branchId: dha })).status).toBe(200);
+    return { owner, main, dha, mainMember, dhaMember, desk };
+  };
+
+  it("cannot read, edit or delete another branch's member by id", async () => {
+    const { mainMember, dhaMember, desk } = await setup();
+
+    expect((await api().get(`/api/members/${mainMember.id}`).set('Cookie', desk.cookie)).status).toBe(404);
+    expect((await api().put(`/api/members/${mainMember.id}`).set('Cookie', desk.cookie).send({ name: 'Renamed' })).status).toBe(404);
+    expect((await api().get(`/api/members/${mainMember.id}/memberships`).set('Cookie', desk.cookie)).status).toBe(404);
+    expect((await api().get(`/api/members/${mainMember.id}/health`).set('Cookie', desk.cookie)).status).toBe(404);
+    expect((await api().delete(`/api/members/${mainMember.id}`).set('Cookie', desk.cookie)).status).toBe(404);
+    expect(await prisma.member.findUnique({ where: { id: mainMember.id } })).not.toBeNull();
+
+    // Their own branch's member is still theirs to work with.
+    expect((await api().get(`/api/members/${dhaMember.id}`).set('Cookie', desk.cookie)).status).toBe(200);
+    expect((await api().put(`/api/members/${dhaMember.id}`).set('Cookie', desk.cookie).send({ name: 'Renamed' })).status).toBe(200);
+  });
+
+  it("cannot move a member to another branch or open every branch to them", async () => {
+    const { main, dha, dhaMember, desk } = await setup();
+
+    const move = await api().put(`/api/members/${dhaMember.id}`).set('Cookie', desk.cookie).send({ branchId: main });
+    expect(move.status).toBe(403);
+    const open = await api().put(`/api/members/${dhaMember.id}`).set('Cookie', desk.cookie).send({ allBranches: true });
+    expect(open.status).toBe(403);
+    const row = await prisma.member.findUniqueOrThrow({ where: { id: dhaMember.id } });
+    expect(row).toMatchObject({ branchId: dha, allBranches: false });
+
+    // Re-sending what is already on file, as the edit form does, is no change.
+    const same = await api().put(`/api/members/${dhaMember.id}`).set('Cookie', desk.cookie)
+      .send({ name: 'Same Branch', branchId: dha, allBranches: false });
+    expect(same.status).toBe(200);
+
+    // Nor register one somewhere else.
+    expect((await api().post('/api/members').set('Cookie', desk.cookie).send({ name: 'Elsewhere', branchId: main })).status).toBe(403);
+    expect((await api().post('/api/members').set('Cookie', desk.cookie).send({ name: 'Everywhere', allBranches: true })).status).toBe(403);
+  });
+
+  it("exports and totals only their own branch's payments", async () => {
+    const { owner, mainMember, dhaMember, desk } = await setup();
+    for (const [memberId, amount] of [[mainMember.id, 7000], [dhaMember.id, 3000]] as const) {
+      await prisma.payment.create({ data: { gymId: owner.gymId, memberId, amount, type: 'membership', status: 'paid' } });
+    }
+
+    const csv = await api().get('/api/payments/export/csv').set('Cookie', desk.cookie);
+    expect(csv.status).toBe(200);
+    expect(csv.text).toContain('3000');
+    expect(csv.text).not.toContain('7000');
+
+    const summary = await api().get('/api/payments/summary').set('Cookie', desk.cookie);
+    expect(summary.status).toBe(200);
+    expect(JSON.stringify(summary.body)).not.toContain('10000');
+
+    const now = new Date();
+    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const monthly = await api().get('/api/payments/monthly').query({ month }).set('Cookie', desk.cookie);
+    expect(monthly.status).toBe(200);
+    expect(monthly.body.data.map((r: { memberId?: string; member?: { id: string } }) => r.memberId ?? r.member?.id))
+      .toEqual([dhaMember.id]);
+
+    // The owner still sees the whole gym.
+    const all = await api().get('/api/payments/export/csv').set('Cookie', owner.cookie);
+    expect(all.text).toContain('7000');
+    expect(all.text).toContain('3000');
+  });
+
+  it("sees only their own branch in the overview", async () => {
+    const { desk } = await setup();
+    const res = await api().get('/api/branches/overview').set('Cookie', desk.cookie);
+    expect(res.status).toBe(200);
+    expect(res.body.branches.map((b: { name: string }) => b.name)).toEqual(['DHA']);
+  });
+});

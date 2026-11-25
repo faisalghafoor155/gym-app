@@ -132,6 +132,7 @@ export const requireAuth = async (
       actorName: string;
       memberId: string | null;
       branchId?: string;
+      branchPinned?: boolean;
     };
     r.gymId = user.gymId;
     r.userId = user.id;
@@ -151,6 +152,7 @@ export const requireAuth = async (
     // choice left in the browser must not lock somebody out.
     if (user.branchId && user.role === "staff") {
       r.branchId = user.branchId;
+      r.branchPinned = true;
     } else if (user.role !== "member") {
       const asked = req.header("x-branch-id");
       if (asked) {

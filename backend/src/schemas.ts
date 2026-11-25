@@ -1540,6 +1540,46 @@ export const createMeasurementSchema = z
 
 export const measurementParams = z.object({ id: uuid, measurementId: uuid });
 
+// --- AI coach ----------------------------------------------------------
+
+// Every field below is pasted into a prompt paid for on the platform's AI key,
+// so each one is bounded: a free-text "goal" of four megabytes is a bill, not a
+// goal. The ranges are wide enough for any real lifter; the calculator page
+// sends numbers it has already worked out.
+const aiLabel = z.string().trim().max(40, "is too long").optional();
+const aiNumber = (max: number) =>
+  z.number().finite().min(0).max(max).nullish().transform((v) => v ?? undefined);
+
+export const aiChatSchema = z.object({
+  message: z
+    .string()
+    .trim()
+    .min(1, "is required")
+    .max(2000, "Please keep the question under 2000 characters"),
+  lang: z.enum(["en", "ur"]).optional(),
+  /** The member's own Gemini key, entered on the calculator page. */
+  apiKey: z.string().trim().max(200, "is too long").optional(),
+  context: z
+    .object({
+      gender: aiLabel,
+      weightKg: aiNumber(500),
+      heightCm: aiNumber(300),
+      age: aiNumber(120),
+      activityLevel: aiNumber(10),
+      goal: aiLabel,
+      dietPreference: aiLabel,
+      selectedGainer: aiLabel,
+      takingCreatine: z.boolean().optional(),
+      takingPreworkout: z.boolean().optional(),
+      targetCalories: aiNumber(20_000),
+      proteinGrams: aiNumber(2_000),
+      carbsGrams: aiNumber(5_000),
+      fatGrams: aiNumber(2_000),
+      waterLiters: aiNumber(50),
+    })
+    .optional(),
+});
+
 // --- inferred request-body types ---------------------------------------
 
 export type RegisterBody = z.infer<typeof registerSchema>;
@@ -1547,6 +1587,7 @@ export type LoginBody = z.infer<typeof loginSchema>;
 export type ForgotPasswordBody = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordBody = z.infer<typeof resetPasswordSchema>;
 export type ChangePasswordBody = z.infer<typeof changePasswordSchema>;
+export type AiChatBody = z.infer<typeof aiChatSchema>;
 export type GoogleAuthBody = z.infer<typeof googleAuthSchema>;
 export type CreateStaffBody = z.infer<typeof createStaffSchema>;
 export type CreateMemberLoginBody = z.infer<typeof createMemberLoginSchema>;

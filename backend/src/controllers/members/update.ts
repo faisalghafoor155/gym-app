@@ -78,6 +78,18 @@ export const update = async (
       res.status(404).json({ error: "Member not found" });
       return;
     }
+    // Staff placed at one branch cannot move a member to another branch or
+    // change whether they may use every branch: either would pull a member
+    // out of the branch they belong to and into this desk's roster and
+    // check-in. Re-sending the values already on file is not a change.
+    if (
+      req.branchPinned &&
+      ((branchId !== undefined && branchId !== existing.branchId) ||
+        (allBranches !== undefined && allBranches !== existing.allBranches))
+    ) {
+      res.status(403).json({ error: "Only the owner can change a member's branch" });
+      return;
+    }
 
     let photoData: {
       photo?: string | null;

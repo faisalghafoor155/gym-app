@@ -688,9 +688,18 @@ export const changePassword = async (
       return;
     }
 
-    // An account created through Google has no password to confirm against;
-    // setting one for the first time is allowed.
-    if (user.passwordHash && !(await bcrypt.compare(currentPassword, user.passwordHash))) {
+    // An account created through Google has no password to confirm against.
+    // Letting a session alone set the first one would hand anybody holding a
+    // stolen cookie a password of their own — and with it the password-gated
+    // 2FA switch-off, and every other device signed out. The first password
+    // comes through the reset link instead, which proves the mailbox.
+    if (!user.passwordHash) {
+      res.status(400).json({
+        error: 'This account has no password yet. Use "Forgot password" to have a link emailed to you.',
+      });
+      return;
+    }
+    if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
       res.status(401).json({ error: 'Current password is incorrect' });
       return;
     }

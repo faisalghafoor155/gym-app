@@ -11,6 +11,17 @@ import prisma from '../db.js';
 
 type Scoped = { branchId?: string };
 
+/**
+ * The branch fence for staff placed at one branch, and nothing for anyone
+ * else. Lists follow whatever branch is in view; single records and gym-wide
+ * reports are fenced only for pinned staff, so an owner who has one branch
+ * selected can still open any member or report by id.
+ *
+ * Pass the result to the helpers below: `membersAt(pinned(req))`.
+ */
+export const pinned = (req: Scoped & { branchPinned?: boolean }): Scoped =>
+  req.branchPinned && req.branchId ? { branchId: req.branchId } : {};
+
 /** Rows that belong to the branch: check-ins, expenses, day passes. */
 export const inBranch = (req: Scoped) => (req.branchId ? { branchId: req.branchId } : {});
 

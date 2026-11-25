@@ -338,6 +338,26 @@ describe('POST /api/auth/change-password', () => {
   });
 });
 
+describe('POST /api/auth/change-password, account with no password', () => {
+  // A Google-only account has no password. Letting a session alone set one
+  // turned a stolen cookie into a permanent takeover; the reset link is the
+  // way to a first password.
+  it('refuses to set a first password from a session alone', async () => {
+    const owner = await makeGym();
+    await prisma.user.update({ where: { id: owner.userId }, data: { passwordHash: null } });
+
+    const res = await api().post('/api/auth/change-password')
+      .set('Cookie', owner.cookie)
+      .send({ currentPassword: 'anything', newPassword: 'an-attacker-password' });
+
+    expect(res.status).toBe(400);
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: owner.userId } });
+    expect(user.passwordHash).toBeNull();
+    // The session was not revoked either.
+    expect((await api().get('/api/auth/me').set('Cookie', owner.cookie)).status).toBe(200);
+  });
+});
+
 describe('POST /api/auth/forgot-password', () => {
   it('answers the same for a known and an unknown address', async () => {
     const { email } = await makeGym();

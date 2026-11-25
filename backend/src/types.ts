@@ -23,6 +23,10 @@ export interface AuthedRequest<
   staffPermission?: StaffPermission;
   /** The branch this request is scoped to; absent means every branch. */
   branchId?: string;
+  /** True when `branchId` is the staff account's fixed branch rather than a
+   *  view picked with the X-Branch-Id header. Pinned staff are fenced to that
+   *  branch on single records and reports too, not only on lists. */
+  branchPinned?: boolean;
   /** The actor's display name, carried so audit entries can copy it in
    *  without a second lookup on every mutation. */
   actorName: string;
