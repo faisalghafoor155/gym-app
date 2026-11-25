@@ -170,7 +170,7 @@ export default function AttendanceRegister() {
             <table className="text-xs border-collapse">
               <thead>
                 <tr className="text-gray-500 dark:text-slate-400">
-                  <th className="sticky left-0 z-10 bg-white dark:bg-slate-900 text-left px-3 py-2 font-semibold min-w-36">{t('Name')}</th>
+                  <th className="sticky left-0 z-10 bg-white dark:bg-slate-900 text-left px-3 py-2 font-semibold min-w-28 sm:min-w-36">{t('Name')}</th>
                   {days.map(d => <th key={d} className="px-0.5 py-2 font-medium w-7 text-center">{Number(d.slice(8))}</th>)}
                   <th className="px-2 py-2 font-semibold text-center">P</th>
                   <th className="px-2 py-2 font-semibold text-center">L</th>
@@ -183,7 +183,7 @@ export default function AttendanceRegister() {
                   return (
                     <tr key={row.staffMember.id} className="border-t border-gray-100 dark:border-slate-800">
                       <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 px-3 py-1.5">
-                        <p className="font-semibold text-gray-900 dark:text-slate-100 truncate max-w-40">{row.staffMember.name}</p>
+                        <p className="font-semibold text-gray-900 dark:text-slate-100 truncate max-w-28 sm:max-w-40">{row.staffMember.name}</p>
                         {row.paid && <p className="text-[10px] text-green-600 font-semibold">{t('Paid · locked')}</p>}
                       </td>
                       {days.map(d => {

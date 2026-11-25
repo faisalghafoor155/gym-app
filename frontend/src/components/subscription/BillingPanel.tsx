@@ -286,7 +286,9 @@ export default function BillingPanel({ refreshKey = 0, onSettled, canActivate = 
                     key={i.id}
                     className="border-t border-gray-100 dark:border-slate-800"
                   >
-                    <td className="py-1.5 pr-3 whitespace-nowrap">
+                    {/* Allowed to wrap on phones, so the three columns fit
+                        without scrolling sideways. */}
+                    <td className="py-1.5 pr-3 sm:whitespace-nowrap">
                       {day(i.periodStart)} – {day(i.periodEnd)}
                     </td>
                     <td className="py-1.5 pr-3 tabular-nums whitespace-nowrap">
