@@ -6,6 +6,7 @@ import prisma from "../../db.js";
 import { sum } from "../../services/money.js";
 import type { AuthedRequest } from "../../types.js";
 import type { PaymentSummaryQuery } from "../../schemas.js";
+import { inBranch, pinned, viaMember } from "../../services/branches.js";
 
 /**
  * Owner-only: the gym's takings, month by month.
@@ -33,6 +34,8 @@ export const getSummary = async (
   res: Response,
 ): Promise<void> => {
   const { months } = req.query;
+  // Staff placed at one branch see that branch's takings, not the gym's.
+  const fence = pinned(req);
   try {
     const now = new Date();
     const since = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
@@ -43,19 +46,20 @@ export const getSummary = async (
           gymId: req.gymId,
           status: "paid",
           paymentDate: { gte: since },
+          ...viaMember(fence),
         },
         select: { amount: true, paymentDate: true, type: true },
       }),
       // Outstanding is the whole ledger, not just this window — money owed from
       // four months ago is still owed today.
       prisma.payment.aggregate({
-        where: { gymId: req.gymId, status: "due" },
+        where: { gymId: req.gymId, status: "due", ...viaMember(fence) },
         _sum: { amount: true },
         _count: true,
       }),
       // Walk-ins pay outside the payments table; counted here as their own type.
       prisma.dayPass.findMany({
-        where: { gymId: req.gymId, visitedAt: { gte: since } },
+        where: { gymId: req.gymId, visitedAt: { gte: since }, ...inBranch(fence) },
         select: { amount: true, visitedAt: true },
       }),
     ]);

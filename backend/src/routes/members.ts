@@ -5,7 +5,9 @@ import auth from "../middleware/auth.js";
 import validate from "../middleware/validate.js";
 import { requireStaff, requireOwner } from "../middleware/requireRole.js";
 import { requirePermission } from "../middleware/requirePermission.js";
-import { authed } from "../types.js";
+import { authed, type AuthedRequest } from "../types.js";
+import prisma from "../db.js";
+import { membersAt, pinned } from "../services/branches.js";
 import {
   idParam,
   membershipParams,
@@ -54,6 +56,28 @@ const router = Router();
 
 router.use(auth);
 router.use(requireStaff);
+
+// Every `/:id` below is a member id. Staff placed at one branch reach only the
+// members that branch's desk deals with — the same set their roster shows —
+// whether they read, edit, delete, or work on a membership, weigh-in or waiver.
+// Checked here once so no handler can forget it; a member at another branch
+// answers exactly like one that does not exist.
+router.param("id", async (req, res, next, id: string) => {
+  const r = req as AuthedRequest;
+  if (!r.branchPinned) {
+    next();
+    return;
+  }
+  const member = await prisma.member.findFirst({
+    where: { id, gymId: r.gymId, ...membersAt(pinned(r)) },
+    select: { id: true },
+  });
+  if (!member) {
+    res.status(404).json({ error: "Member not found" });
+    return;
+  }
+  next();
+});
 
 router.get("/", validate(memberQuerySchema, "query"), authed(getAll));
 router.post(

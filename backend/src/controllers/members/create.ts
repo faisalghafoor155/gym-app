@@ -68,6 +68,13 @@ export const create = async (
     ...fields
   } = req.body;
   try {
+    // Staff placed at one branch register members for that branch only. Filing
+    // one elsewhere, or opening every branch to them, is the owner's call.
+    if (req.branchPinned && ((askedBranch && askedBranch !== req.branchId) || fields.allBranches)) {
+      res.status(403).json({ error: "You can only register members at your own branch" });
+      return;
+    }
+
     // Filed at the branch asked for, or the one the desk is working in, or
     // the main branch. A branch from another gym is refused, not ignored.
     let branchId: string;

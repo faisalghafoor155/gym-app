@@ -1,5 +1,5 @@
 import type { Response } from 'express';
-import { branchForNew, inBranch } from '../services/branches.js';
+import { branchForNew, inBranch, pinned } from '../services/branches.js';
 import { Prisma } from '@prisma/client';
 import prisma from '../db.js';
 import { audit } from '../services/audit.js';
@@ -150,7 +150,7 @@ export const remove = async (
 ): Promise<void> => {
   const { id } = req.params;
   try {
-    const existing = await prisma.dayPass.findFirst({ where: { id, gymId: req.gymId } });
+    const existing = await prisma.dayPass.findFirst({ where: { id, gymId: req.gymId, ...inBranch(pinned(req)) } });
     if (!existing) {
       res.status(404).json({ error: 'Day pass not found' });
       return;

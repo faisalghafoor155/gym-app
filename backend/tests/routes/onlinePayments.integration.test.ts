@@ -401,6 +401,49 @@ describe('Online payments — only a signed callback settles anything', () => {
     expect(await prisma.payment.count({ where: { memberId: member.id } })).toBe(1);
   });
 
+  // Between checkout and callback the desk can correct the due or take it in
+  // cash. Paying the quoted Rs. 1500 must not settle a Rs. 5000 due, nor
+  // overwrite a cash payment — the money is booked on its own row instead.
+  const payDueAfter = async (change: { amount?: number; status?: string; method?: string }) => {
+    const { owner, member, account } = await setup();
+    const due = await prisma.payment.create({
+      data: { gymId: owner.gymId, memberId: member.id, amount: 1500, status: 'due', method: 'cash' },
+    });
+    const start = await startCheckout(account.cookie, { type: 'due', paymentId: due.id, provider: 'jazzcash' });
+    await prisma.payment.update({ where: { id: due.id }, data: change });
+
+    const res = await api()
+      .post('/api/online-payments/callback/jazzcash')
+      .type('form')
+      .send(signedCallback({
+        pp_TxnRefNo: start.body.fields.pp_TxnRefNo,
+        pp_Amount: '150000',
+        pp_ResponseCode: '000',
+      }));
+    expect(res.status).toBe(200);
+
+    const rows = await prisma.payment.findMany({ where: { memberId: member.id }, orderBy: { paymentDate: 'asc' } });
+    return { due: rows.find((r) => r.id === due.id)!, extra: rows.filter((r) => r.id !== due.id) };
+  };
+
+  it('does not settle a due that was raised after checkout', async () => {
+    const { due, extra } = await payDueAfter({ amount: 5000 });
+
+    expect(due.status).toBe('due');
+    expect(due.amount.toNumber()).toBe(5000);
+    expect(extra).toHaveLength(1);
+    expect(extra[0]).toMatchObject({ status: 'paid', method: 'online' });
+    expect(extra[0].amount.toNumber()).toBe(1500);
+  });
+
+  it('does not overwrite a due the desk already took in cash', async () => {
+    const { due, extra } = await payDueAfter({ status: 'paid', method: 'cash' });
+
+    expect(due.method).toBe('cash');
+    expect(extra).toHaveLength(1);
+    expect(extra[0].amount.toNumber()).toBe(1500);
+  });
+
   it('chains a renewal onto an unexpired membership', async () => {
     const { account, plan, member } = await setup();
 

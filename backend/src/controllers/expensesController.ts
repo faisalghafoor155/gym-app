@@ -5,6 +5,7 @@ import { audit, diff } from '../services/audit.js';
 import { endOfDayUtc } from '../services/dates.js';
 import { sum, withMoney } from '../services/money.js';
 import type { AuthedRequest } from '../types.js';
+import { inBranch, pinned } from '../services/branches.js';
 import type {
   CreateExpenseBody, ExpenseQuery, IdParam, ProfitQuery, UpdateExpenseBody,
 } from '../schemas.js';
@@ -146,7 +147,7 @@ export const update = async (
   const { id } = req.params;
   const { category, amount, spentOn, vendor, notes } = req.body;
   try {
-    const existing = await prisma.expense.findFirst({ where: { id, gymId: req.gymId }, include: salaryLink });
+    const existing = await prisma.expense.findFirst({ where: { id, gymId: req.gymId, ...inBranch(pinned(req)) }, include: salaryLink });
     if (!existing) {
       res.status(404).json({ error: 'Expense not found' });
       return;
@@ -200,7 +201,7 @@ export const remove = async (
 ): Promise<void> => {
   const { id } = req.params;
   try {
-    const existing = await prisma.expense.findFirst({ where: { id, gymId: req.gymId }, include: salaryLink });
+    const existing = await prisma.expense.findFirst({ where: { id, gymId: req.gymId, ...inBranch(pinned(req)) }, include: salaryLink });
     if (!existing) {
       res.status(404).json({ error: 'Expense not found' });
       return;

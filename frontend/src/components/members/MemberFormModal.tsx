@@ -174,7 +174,9 @@ export default function MemberFormModal({
   member, plans, trainers, settings, fingerprintReady = false, prefill, onClose, onSaved,
 }: Props) {
   const { t } = useLanguage();
-  const { branches, multi, current: currentBranch } = useBranch();
+  const { branches, multi, fixed, current: currentBranch } = useBranch();
+  // Staff placed at one branch cannot move members between branches.
+  const pickBranch = multi && !fixed;
   const editing = member?.id ?? null;
   /** On by default: when a reader is there, taking the finger is the normal
    *  end of registering somebody. */
@@ -330,7 +332,7 @@ export default function MemberFormModal({
         address: form.address,
         emergencyContact: form.emergencyContact,
         // Only when the gym has branches to choose between.
-        ...(multi && { allBranches: form.allBranches, ...(form.branchId && { branchId: form.branchId }) }),
+        ...(pickBranch && { allBranches: form.allBranches, ...(form.branchId && { branchId: form.branchId }) }),
         // Only meaningful on an edit, and the create endpoint rejects what it
         // does not know — so it travels only where it is accepted.
         ...(editing && { whatsappOptOut: form.whatsappOptOut }),
@@ -516,7 +518,7 @@ export default function MemberFormModal({
 
           {/* Branch — only when the gym has more than one. Blank on a new
               member means the branch the desk is working in. */}
-          {multi && (
+          {pickBranch && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
               <div>
                 <label htmlFor="member-branch" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">{t('Branch')}</label>

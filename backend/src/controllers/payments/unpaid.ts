@@ -23,6 +23,8 @@ export const membershipsCovering = (
   start: Date,
   end: Date,
   search?: string,
+  /** Only members whose home is this branch; absent means the whole gym. */
+  branchId?: string,
 ) => ({
   gymId,
   startDate: { lte: end },
@@ -34,13 +36,16 @@ export const membershipsCovering = (
       MembershipStatus.suspended,
     ],
   },
-  ...(search && {
+  ...((search || branchId) && {
     member: {
-      OR: [
-        { name: { contains: search, mode: "insensitive" as const } },
-        { phone: { contains: search, mode: "insensitive" as const } },
-        { memberNo: { contains: search, mode: "insensitive" as const } },
-      ],
+      ...(branchId && { branchId }),
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { phone: { contains: search, mode: "insensitive" as const } },
+          { memberNo: { contains: search, mode: "insensitive" as const } },
+        ],
+      }),
     },
   }),
 });
@@ -63,12 +68,13 @@ export const unpaidForMonth = async (
   start: Date,
   end: Date,
   search?: string,
+  branchId?: string,
 ) => {
   const memberships = await prisma.membership.findMany({
     // Spread inline rather than passed as a prepared object: Prisma infers the
     // result type from this call site, and a `where` built elsewhere loses the
     // link between the include and what comes back.
-    where: { ...membershipsCovering(gymId, start, end, search) },
+    where: { ...membershipsCovering(gymId, start, end, search, branchId) },
     include: {
       member: { select: { id: true, name: true, phone: true, memberNo: true } },
       // Settled money only. A row still marked `due` is the debt itself, so
